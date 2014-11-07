@@ -16,7 +16,7 @@
 
 
 tool_chain = "XC32"
-tool_version = 1.30
+tool_version = 1.31
 resource_version = 'A'
 field_count = 4
 field_sizes = { 32, 4, 4, 4 }

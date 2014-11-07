@@ -2,7 +2,7 @@
 <lti:LanguageToolSuite
   lti:uuid="{ec0473c6-f276-4a29-9b4a-41f899a460a2}"
   lti:name="MPLAB XC for PIC32MX/PIC32MZ"
-  lti:version="1.30"
+  lti:version="1.31"
   xmlns:lti="http://www.microchip.com/lti"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://www.microchip.com/lti lti/LanguageToolSuite.xsd">

@@ -4070,7 +4070,8 @@ mark_constant (rtx *current_rtx, void *data ATTRIBUTE_UNUSED)
 	{
 #ifdef _BUILD_MCHP_
           /* we may not have seen this string yet */
-          mchp_cache_conversion_state(x, exp);
+          if (!(exp && (TREE_CODE(exp)==STRING_CST))) exp = 0;
+          mchp_cache_conversion_state(x, exp); 
 #endif
 	  n_deferred_constants--;
 	  output_constant_def_contents (x);

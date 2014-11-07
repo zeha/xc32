@@ -337,7 +337,7 @@ extern void pic32_system_include_paths(const char *root, const char *system,
    %{mprocessor=32MZ* : %{msmall-isa:-mmicromips} %{!msmall-isa: %{mmicromips: -msmall-isa}} -mpic32mzlibs} \
    %{mprocessor=32mz* : %{msmall-isa:-mmicromips} %{!msmall-isa: %{mmicromips: -msmall-isa}} -mpic32mzlibs} \
    %{mpic32mxlibs : %{msmall-isa: -mips16}} \
-   %{mpic32mxlibs : %{msmall-isa: -mmicromips}} \
+   %{mpic32mzlibs : %{msmall-isa: -mmicromips}} \
    %{D__DEBUG : -mdebugger} \
      "
 
@@ -358,7 +358,7 @@ extern void pic32_system_include_paths(const char *root, const char *system,
  %{mprocessor=32MZ* : %{msmall-isa:-mmicromips} %{!msmall-isa: %{mmicromips: -msmall-isa}} -mpic32mzlibs} \
  %{mprocessor=32mz* : %{msmall-isa:-mmicromips} %{!msmall-isa: %{mmicromips: -msmall-isa}} -mpic32mzlibs} \
  %{-mpic32mxlibs : %{msmall-isa: -mips16}} \
-  %{-mpic32mxlibs : %{msmall-isa: -mmicromips}} \
+ %{-mpic32mzlibs : %{msmall-isa: -mmicromips}} \
  -mconfig-data-dir= %J%s%{ mprocessor=* :./proc/%*; :./proc/32MXGENERIC} \
  %{mno-float:-fno-builtin-fabs -fno-builtin-fabsf} \
  %{mlong-calls:-msmart-io=0} \

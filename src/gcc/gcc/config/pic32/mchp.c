@@ -700,14 +700,6 @@ mchp_subtarget_override_options(void)
   if (TARGET_DSPR2 && TARGET_MIPS16)
     error ("unsupported combination: %s", "-mips16 -mdspr2");
   
-  if (mchp_profile_option) {
-    flag_inline_small_functions = 0;
-    flag_inline_functions = 0;
-    flag_no_inline = 1;
-    flag_optimize_sibling_calls = 0;
-  }
-  
-  
   mask = validate_device_mask (mchp_processor_string, &mchp_target_cpu_id,
                                mchp_resource_file);
 #endif
@@ -1197,6 +1189,19 @@ pic32_optimization_options (int level ATTRIBUTE_UNUSED, int size ATTRIBUTE_UNUSE
 {
     extern char **save_argv;
 
+    if (mchp_it_transport && *mchp_it_transport) { 
+      if (strcasecmp(mchp_it_transport,"profile") == 0) {
+            mchp_profile_option = 1;
+      }
+    }
+
+  if (mchp_profile_option) {
+    flag_inline_small_functions = 0;
+    flag_inline_functions = 0;
+    flag_no_inline = 1;
+    flag_optimize_sibling_calls = 0;
+  }
+
   if (size)
     {
       flag_inline_functions = 0;
@@ -1245,6 +1250,12 @@ mchp_subtarget_override_options2 (void)
   extern char **save_argv;
   require_cpp    = 0;
 
+    if (mchp_it_transport && *mchp_it_transport) { 
+      if (strcasecmp(mchp_it_transport,"profile") == 0) {
+            mchp_profile_option = 1;
+      }
+    }
+
 #ifndef SKIP_LICENSE_MANAGER
   nullify_O2     = 1;
   nullify_O3     = 1;
@@ -1259,6 +1270,13 @@ mchp_subtarget_override_options2 (void)
       flag_inline_functions = 0;
       flag_no_inline = 1;
     }
+
+  if (mchp_profile_option) {
+    flag_inline_small_functions = 0;
+    flag_inline_functions = 0;
+    flag_no_inline = 1;
+    flag_optimize_sibling_calls = 0;
+  }
 
   require_cpp = (strstr (save_argv[0], "cc1plus")!=NULL);
   /* If C++ is required and we don not yet have a C++ license, try getting one. */
@@ -1351,12 +1369,6 @@ mchp_subtarget_override_options2 (void)
         TARGET_MCHP_SMARTIO = 0;
         mchp_io_size_val = 0;
       }
-      
-    if (mchp_it_transport && *mchp_it_transport) { 
-      if (strcasecmp(mchp_it_transport,"profile") == 0) {
-            mchp_profile_option = 1;
-      }
-    }
   }
 #undef PIC32_EXPIRED_LICENSE
 #undef PIC32_ACADEMIC_LICENSE
@@ -1855,7 +1867,7 @@ mchp_output_vector_dispatch_table (void)
         fprintf (asm_out_file, "\t.section\t.vector_%d,code,keep\n",
                  dispatch_entry->vector_number);
         fprintf (asm_out_file, "\t.set\tnomips16\n");
-        if (mips_base_micromips)
+        if (mips_base_micromips && (pic32_device_mask & HAS_MICROMIPS))
           {
             fprintf (asm_out_file, "\t.set\tmicromips\n");
           }
@@ -4812,7 +4824,7 @@ void mchp_cache_conversion_state(rtx val, tree sym)
   s = cache_conversion_state(val, status_output, conv_state_unknown);
   if (s == conv_state_unknown)
     {
-      if (sym && STRING_CST_CHECK(sym))
+      if (sym && (TREE_CODE(sym)==STRING_CST) && STRING_CST_CHECK(sym))
         {
           const char *string = TREE_STRING_POINTER(sym);
 
@@ -4860,7 +4872,7 @@ static void mchp_handle_conversion(rtx val,
   /* a constant string will be given a symbol name, and so will a
      symbol ... */
   sym = constant_string(val);
-  if (!(sym && STRING_CST_CHECK(sym))) sym = 0;
+  if (!(sym && (TREE_CODE(sym)==STRING_CST) && STRING_CST_CHECK(sym))) sym = 0;
   mchp_cache_conversion_state(val, sym);
   style = matching_fn->conversion_style == info_I ? status_input:status_output;
   conversion_info(cache_conversion_state(val, style, conv_state_unknown),
