@@ -247,9 +247,6 @@ SECTIONS
     ${RELOCATING+${OTHER_TEXT_SECTIONS}}
     ${RELOCATING+${TEXT_END_SYMBOLS}}
   } >${CODE_MEMORY_REGION} =${NOP-0}
-  ASSERT(SIZEOF(.C32_EDITION_LIMITED_TO_64KB_EVALUATION) < (LENGTH(kseg0_program_mem) - (SIZEOF(.text)+SIZEOF(.rodata)+SIZEOF(.sdata2)+SIZEOF(.sbss2)+SIZEOF(.data)+SIZEOF(.got)+SIZEOF(.sdata)+SIZEOF(.lit8)+SIZEOF(.lit4)+SIZEOF(.ramfunc))), "HINT: This application may be too large for this 64KB-limited edition of the MPLAB C32 Compiler. Visit http://www.microchip.com/c32 to upgrade to full version.")
-  ASSERT(SIZEOF(.C32_EDITION_LIMITED_TO_16KB_EVALUATION) < (LENGTH(kseg0_program_mem) - (SIZEOF(.text)+SIZEOF(.rodata)+SIZEOF(.sdata2)+SIZEOF(.sbss2)+SIZEOF(.data)+SIZEOF(.got)+SIZEOF(.sdata)+SIZEOF(.lit8)+SIZEOF(.lit4)+SIZEOF(.ramfunc))), "HINT: This application may be too large for this 16KB-limited edition of the MPLAB C32 Compiler. Visit http://www.microchip.com/c32 to upgrade to full version.")
-  ASSERT(SIZEOF(.C32_EDITION_SIZELIMITED_EVALUATION) < (LENGTH(kseg0_program_mem) - (SIZEOF(.text)+SIZEOF(.rodata)+SIZEOF(.sdata2)+SIZEOF(.sbss2)+SIZEOF(.data)+SIZEOF(.got)+SIZEOF(.sdata)+SIZEOF(.lit8)+SIZEOF(.lit4)+SIZEOF(.ramfunc))), "HINT: This application may be too large for this size-limited edition of the MPLAB C32 Compiler. Visit http://www.microchip.com/c32 to upgrade to full version.")  
   /* Read-only sections */
   ${WRITABLE_RODATA-${RODATA}}
   ${CREATE_SHLIB-${SDATA2}}
@@ -303,7 +300,6 @@ SECTIONS
   ${RELOCATING+_end = . ;}
   ${RELOCATING+${BSS_END_SYMBOLS}}
   ${OTHER_SECTIONS}
-
   /* Stabs debugging sections.  */
   .stab          0 : { *(.stab) }
   .stabstr       0 : { *(.stabstr) }
@@ -313,7 +309,7 @@ SECTIONS
   .stab.indexstr 0 : { *(.stab.indexstr) }
 
   .comment       0 : { *(.comment) }
-
+  
   /* DWARF debug sections.
      Symbols in the DWARF debugging sections are relative to the beginning
      of the section so we begin them at 0.  */
@@ -345,7 +341,10 @@ SECTIONS
   .debug_typenames 0 : { *(.debug_typenames) }
   .debug_varnames  0 : { *(.debug_varnames) }
 
+
+
   ${OTHER_DEBUG_SECTIONS}
+  
   ${RELOCATING+${OTHER_END_SYMBOLS}}
   ${RELOCATING+${STACKNOTE}}
 }

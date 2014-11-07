@@ -25,6 +25,7 @@ Boston, MA 02111-1307, USA.  */
    US_SOFTWARE_GOFAST, this function will adjust all the optabs and
    libfuncs appropriately.  Otherwise it will do nothing.  */
 
+#define US_SOFTWARE_GOFAST
 static void
 gofast_maybe_init_libfuncs (void)
 {

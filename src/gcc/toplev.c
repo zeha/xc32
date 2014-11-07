@@ -178,7 +178,7 @@ static bool no_backend;
 const char *progname;
 
 /* Copy of argument vector to toplev_main.  */
-static const char **save_argv;
+const char **save_argv;
 
 /* Name of top-level original source file (what was input to cpp).
    This comes from the #-command at the beginning of the actual input.

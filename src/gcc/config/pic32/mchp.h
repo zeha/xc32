@@ -290,7 +290,40 @@ extern const char *mchp_config_data_dir;
         builtin_define (proc);                              \
       }                                                     \
     else                                                    \
-      builtin_define ("__32MXGENERIC__");                   \
+      {                                                     \
+        builtin_define ("__32MXGENERIC__");                 \
+      }                                                     \
+    if (version_string && *version_string)                  \
+      {                                                     \
+        char *Microchip;                                    \
+        int pic32_compiler_version;                         \
+        Microchip = strrchr (version_string, 'v');          \
+        if (Microchip)                                      \
+          {                                                 \
+            int major =0, minor=0;                          \
+            while ((*Microchip) &&                          \
+                   ((*Microchip < '0') ||                   \
+                    (*Microchip > '9')))                    \
+              { Microchip++; }                              \
+            if (*Microchip)                                 \
+              {                                             \
+                major = strtol (Microchip, &Microchip, 0);  \
+              }                                             \
+            if ((*Microchip) &&                             \
+               ((*Microchip=='_') || (*Microchip=='.')))    \
+               {                                            \
+                 Microchip++;                               \
+                 minor = strtol(Microchip, &Microchip, 0);  \
+               }                                            \
+             pic32_compiler_version = (major*100) + minor;  \
+          }                                                 \
+        else                                                \
+          {                                                 \
+            fatal_error ("internal error: version_string == NULL");  \
+            builtin_define_with_int_value ("__C32_VERSION__", -1);   \
+          }                                                 \
+        builtin_define_with_int_value ("__C32_VERSION__", pic32_compiler_version);  \
+      }                                                     \
   } while (0);
 
 /* The Microchip port has a few pragmas to define as well */

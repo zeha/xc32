@@ -3389,7 +3389,7 @@ lang_check_section_addresses (void)
 	    continue;
 
 	  einfo (
-_("%X%P: section %s [%V -> %V] overlaps section %s [%V -> %V]\nHint:You may have exceeded the code size limit for this edition\n"),
+_("%X%P: section %s [%V -> %V] overlaps section %s [%V -> %V]\n"),
 		 s->name, s_start, s_end, os->name, os_start, os_end);
 
 	  /* Once we have found one overlap for this section,

@@ -23,6 +23,11 @@ along with GCC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
+#ifdef __MINGW32__
+void *alloca(size_t);
+#else
+#include <alloca.h>
+#endif
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
@@ -1165,6 +1170,10 @@ enum function_type_tag current_function_type;
 #define TARGET_INSERT_ATTRIBUTES mchp_target_insert_attributes
 
 struct gcc_target targetm = TARGET_INITIALIZER;
+
+#ifdef TARGET_MCHP_PIC32MX
+static int pic32_license_valid = 1;
+#endif
 
 /* Return 0 if the attributes for two types are incompatible, 1 if they
    are compatible, and 2 if they are nearly compatible (which causes a
@@ -6434,6 +6443,106 @@ override_options (void)
   /* Create a unique alias set for GOT references.  */
   mips_got_alias_set = new_alias_set ();
 
+  /*
+   *  On systems where we have a licence manager, call it
+   */
+#ifdef TARGET_MCHP_PIC32MX
+#ifdef __MINGW32__
+#ifndef SKIP_LICENSE_MANAGER
+  { char *path;
+    char *exec;
+    char *args[] = { 0, "-k", 0 };
+    char *c;
+    char *err_msg, *err_arg;
+    int pid;
+    int status;
+    extern char **save_argv;
+
+    pic32_license_valid = 0;
+    /* pic32-lm.exe must reside in the same directory as cc1.exe */
+    path = make_relative_prefix(save_argv[0], "/pic32mx/bin/gcc/pic32mx/3.4.4",
+                                              "/bin");
+
+    if (!path) fatal_error("Could not locate `%s`\n", save_argv[0]);
+    exec = alloca(strlen(path)+sizeof("pic32-lm.exe") + 1);
+    sprintf(exec, "%s/pic32-lm.exe", path);
+    args[0] = exec;
+    pid = pexecute(exec, args, "MPLAB C Compiler for PIC32", 0, &err_msg, &err_arg,
+                   PEXECUTE_FIRST | PEXECUTE_LAST);
+    if (pid == -1) fatal_error (err_msg, exec);
+    pid = pwait(pid, &status, 0);
+    if (pid < 0) abort();
+    if (WIFEXITED(status) && (WEXITSTATUS(status) == 0)) {
+      pic32_license_valid=1;
+    } else if (WIFEXITED(status)) {
+      pic32_license_valid=WEXITSTATUS(status) - 256;
+    }
+  }
+#endif /* SKIP_LICENSE_MANAGER */
+  if (pic32_license_valid < 0) {
+    static int message_displayed = 0;
+    char *invalid = (char*) "invalid";
+
+    #define NULLIFY(X) \
+    if ((X) && (message_displayed++ == 0)) \
+      warning("Options have been disabled due to %s license\n" \
+              "Visit http://www.microchip.com/c32 to purchase a full license.", \
+              invalid); \
+    X
+
+    if (pic32_license_valid == -243) invalid = "expired";
+
+    if (optimize > 1) {
+        optimize = 1;
+      }
+    if (optimize_size != 0) {
+        optimize_size = 0;
+      }
+    /* Disable -O2 optimizations */
+    NULLIFY(flag_crossjumping) = 0;
+    NULLIFY(flag_optimize_sibling_calls) = 0;
+    NULLIFY(flag_cse_follow_jumps) = 0;
+    NULLIFY(flag_cse_skip_blocks) = 0;
+    NULLIFY(flag_gcse) = 0;
+    NULLIFY(flag_expensive_optimizations) = 0;
+    NULLIFY(flag_strength_reduce) = 0;
+    NULLIFY(flag_rerun_cse_after_loop) = 0;
+    NULLIFY(flag_rerun_loop_opt) = 0;
+    NULLIFY(flag_caller_saves) = 0;
+    NULLIFY(flag_force_mem) = 0;
+    NULLIFY(flag_peephole2) = 0;
+    NULLIFY(flag_schedule_insns) = 0;
+    NULLIFY(flag_schedule_insns_after_reload) = 0;
+    NULLIFY(flag_regmove) = 0;
+    NULLIFY(flag_strict_aliasing) = 0;
+    NULLIFY(flag_delete_null_pointer_checks) = 0;
+    NULLIFY(flag_reorder_blocks) = 0;
+    NULLIFY(flag_reorder_functions) = 0;
+    NULLIFY(flag_web) = 0;
+    NULLIFY(flag_rename_registers) = 0;
+    NULLIFY(flag_unit_at_a_time) = 0;
+    flag_section_relative_addressing = 0;
+
+    /* Disable -O3 optimizations */
+    NULLIFY(flag_inline_functions) = 0;
+    NULLIFY(flag_unswitch_loops) = 0;
+
+    align_loops = 1;
+    align_jumps = 1;
+    align_labels = 1;
+    align_functions = 1;
+
+    /* Disable -Os optimization(s) */
+    /* flag_web and flag_inline_functions already disabled */
+
+    /* Disable -mips16 and -mips16e */
+    NULLIFY(mips_base_mips16) = 0;
+
+    #undef NULLIFY
+  }
+#endif /* __MINGW32__ */
+#endif /* TARGET_MCHP_PIC32MX */
+
   /* Save base state of options for 32-bit ISA. */
   mips_base_target_flags = target_flags;
   mips_base_branch_cost = mips_branch_cost;
@@ -9619,6 +9728,16 @@ mips_encode_section_info (tree decl, rtx rtl, int first)
                    (flag_pic > 1 ? "-fPIC"
                     : flag_pic ? "-fpic"
                     : "-mabicalls"),
+                   decl);
+          is_mips16 = 0;
+        }
+        
+      /* Prevent MIPS16 selection via explicit attribute without a valid
+         license. */
+      if (is_mips16 && (pic32_license_valid < 0))
+        {
+          warning ("Current compiler license does not allow mips16"
+                   " attribute on '%F', attribute ignored",
                    decl);
           is_mips16 = 0;
         }
@@ -15837,7 +15956,7 @@ mchp_interrupt_attribute (tree *node ATTRIBUTE_UNUSED,
   if (TREE_CODE (TREE_VALUE (args)) != IDENTIFIER_NODE
       || (strcmp ("single", IDENTIFIER_POINTER (TREE_VALUE (args))) != 0
           && ((strncmp ("ipl", IDENTIFIER_POINTER (TREE_VALUE (args)), 3) != 0
-              && strncmp ("IPL", IDENTIFIER_POINTER (args), 3) != 0)
+	       && strncmp ("IPL", IDENTIFIER_POINTER (TREE_VALUE(args)),3)!= 0)
             || IDENTIFIER_POINTER (TREE_VALUE (args))[3] > '7'
             || IDENTIFIER_POINTER (TREE_VALUE (args))[3] < '0')))
     {
