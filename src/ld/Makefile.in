@@ -2078,7 +2078,8 @@ epdp11.c: $(srcdir)/emulparams/pdp11.sh \
   $(srcdir)/emultempl/generic.em $(srcdir)/scripttempl/aout.sc ${GEN_DEPENDS}
 	${GENSCRIPTS} pdp11 "$(tdir_pdp11)"
 eelf32pic32mx.c: $(srcdir)/emulparams/elf32pic32mx.sh \
-  $(srcdir)/emultempl/elf32.em $(srcdir)/scripttempl/pic32mx.sc ${GEN_DEPENDS}
+  $(srcdir)/../bfd/pic32-options.h $(srcdir)/../bfd/pic32-options.c \
+  $(srcdir)/emultempl/elf32pic32mx.em $(srcdir)/scripttempl/pic32mx.sc ${GEN_DEPENDS}
 	${GENSCRIPTS} elf32pic32mx "$(tdir_elf32pic32mx)"
 epjelf.c: $(srcdir)/emulparams/pjelf.sh \
   $(srcdir)/emultempl/elf32.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}

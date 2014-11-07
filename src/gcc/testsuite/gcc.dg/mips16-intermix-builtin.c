@@ -1,5 +1,4 @@
 /* { dg-do run { target mips*-*-* } } */
-/* { dg-options "-mips16" } */
 
 /* Test calling a builtin function from a non-mips16 caller with 
    -mips16 in the command options.  */

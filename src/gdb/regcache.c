@@ -314,7 +314,7 @@ static int
 do_cooked_read (void *src, int regnum, void *buf)
 {
   struct regcache *regcache = src;
-  if (!regcache->register_valid_p[regnum] && regcache->readonly_p)
+  if (regcache->register_valid_p[regnum] <= 0 && regcache->readonly_p)
     /* Don't even think about fetching a register from a read-only
        cache when the register isn't yet valid.  There isn't a target
        from which the register value can be fetched.  */
@@ -383,6 +383,15 @@ regcache_valid_p (struct regcache *regcache, int regnum)
   gdb_assert (regnum >= 0 && regnum < regcache->descr->nr_cooked_registers);
   return regcache->register_valid_p[regnum];
 }
+
+void
+set_regcache_valid_p (struct regcache *regcache, int regnum, int valid)
+{
+  gdb_assert (regcache != NULL);
+  gdb_assert (regnum >= 0 && regnum < regcache->descr->nr_cooked_registers);
+  regcache->register_valid_p[regnum] = valid;
+}
+
 
 char *
 deprecated_grub_regcache_for_registers (struct regcache *regcache)
@@ -627,6 +636,8 @@ regcache_raw_read (struct regcache *regcache, int regnum, void *buf)
   /* Copy the value directly into the register cache.  */
   memcpy (buf, register_buffer (regcache, regnum),
 	  regcache->descr->sizeof_register[regnum]);
+  if (!register_cached (regnum))		/* Failed to retrieve.  */
+    regcache->register_valid_p[regnum] = -1;
 }
 
 void
@@ -694,7 +705,7 @@ regcache_cooked_read (struct regcache *regcache, int regnum, void *buf)
     regcache_raw_read (regcache, regnum, buf);
   else if (regcache->readonly_p
 	   && regnum < regcache->descr->nr_cooked_registers
-	   && regcache->register_valid_p[regnum])
+	   && regcache->register_valid_p[regnum] > 0)
     /* Read-only register cache, perhaps the cooked value was cached?  */
     memcpy (buf, register_buffer (regcache, regnum),
 	    regcache->descr->sizeof_register[regnum]);
@@ -775,7 +786,7 @@ regcache_raw_write (struct regcache *regcache, int regnum, const void *buf)
 
   /* If we have a valid copy of the register, and new value == old
      value, then don't bother doing the actual store. */
-  if (regcache_valid_p (regcache, regnum)
+  if (regcache_valid_p (regcache, regnum) > 0
       && (memcmp (register_buffer (regcache, regnum), buf,
 		  regcache->descr->sizeof_register[regnum]) == 0))
     return;
@@ -1333,7 +1344,7 @@ regcache_dump (struct regcache *regcache, struct ui_file *file,
 	    fprintf_unfiltered (file, "Raw value");
 	  else if (regnum >= regcache->descr->nr_raw_registers)
 	    fprintf_unfiltered (file, "<cooked>");
-	  else if (!regcache_valid_p (regcache, regnum))
+	  else if (regcache_valid_p (regcache, regnum) <= 0)
 	    fprintf_unfiltered (file, "<invalid>");
 	  else
 	    {

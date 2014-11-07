@@ -3067,6 +3067,9 @@ simplify_immed_subreg (enum machine_mode outermode, rtx op,
   if (GET_MODE_CLASS (outermode) == MODE_CC && GET_CODE (op) == CONST_INT)
     return op;
 
+  if (COMPLEX_MODE_P (outermode))
+    return NULL_RTX;
+
   /* Unpack the value.  */
 
   if (GET_CODE (op) == CONST_VECTOR)

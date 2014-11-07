@@ -1,3 +1,57 @@
+2007-04-18  David Ung  <davidu@mips.com>
+
+	Merged from mips-sdemerge-branch
+
+	2007-04-17  David Ung  <davidu@mips.com>
+	[mti-cpu-names]
+	* config/tc-mips.c (mips_cpu_info_table): Add new names 74kf2_1,
+	74kf1_1 and 74kf3_2.  Also add these changes for 24k/24ke/34k.
+
+2007-01-05  Chao-ying Fu  <fu@mips.com>
+
+	[mti-dsp-rev2]
+	* config/tc-mips.c (macro_build): Add case '2'.
+	(macro): Expand M_BALIGN to nop, packrl.ph or balign.
+
+2006-10-23  Thiemo Seufer  <ths@mips.com>
+
+	* config/tc-mips.c (mips_cpu_info_table): Remove MT flag for
+	74k family.
+
+2006-10-23  Thiemo Seufer  <ths@mips.com>
+
+	* config/tc-mips.c (mips_cpu_info_table): Add aliases 24kx,
+	24kex, 34kx and 74kx.  Fix typos.
+
+2006-09-18  Thiemo Seufer  <ths@mips.com>
+
+	* config/tc-mips.c (md_pcrel_from_section): Disallow PC relative
+	instructions referencing other sections, unless they are
+	external branches.
+
+2006-09-08  David Ung  <davidu@mips.com>
+
+	[mti-74k-pipeline]
+	* config/tc-mips.c (mips_cpu_info_table): Add 74k cpu names.
+
+2006-08-12  Thiemo Seufer  <ths@mips.com>
+
+	* config/tc-mips.c (mips16_ip): Fix argument handling of extended
+	restore instructions.
+
+2006-07-28  Thiemo Seufer  <ths@mips.com>
+
+	[mti-mips16-intermix-callstub]
+	* config/tc-mips.c (md_apply_fix3, tc_gen_reloc): Remove
+	specialcasing of BFD_RELOC_MIPS16_JMP, it should work without.
+
+2006-06-20  Chao-ying Fu  <fu@mips.com>
+
+	[mti-dsp-rev2]
+	* config/tc-mips.c (validate_mips_insn): Added case '2' for
+	BALIGN immediate.
+	(mips_ip): Added case '2' for dsp 2-bit unsigned immediate.
+
 2006-04-21  Nigel Stephens  <nigel@mips.com>
 
 	[mti-fix-24k-E48]

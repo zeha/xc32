@@ -1,3 +1,180 @@
+2007-04-04  Thiemo Seufer  <ths@mips.com>
+
+	* fileio.c (_sbrkhi): New function, allocates from top of heap.
+
+2007-01-15  Nigel Stephens  <nigel@mips.com>
+
+	[mti-sdethread]
+	* rtpxlite.c (default_mxa): Remove const qualifier.
+	(default_cda): Similarly.
+	(default_tha): Similarly.
+
+2007-01-15  Nigel Stephens  <nigel@mips.com>
+
+	* rtpxlite.c (default_mxa): Don't initialise statically.
+	(default_cda): Similarly;
+	(default_tha): Similarly;
+	(_pthread_init): Initialise default_mxa, default_cda and
+	default_tha.
+	(pthread_attr_init): Zero structure and initialise the fields that
+	we care about.
+	(pthread_mutexattr_init): Similarly.
+	(pthread_condattr_init): Similarly.
+	
+2007-01-15  Thiemo Seufer  <ths@mips.com>
+
+	* fileio.c (_POSIX_SOURCE): Remove.
+
+2007-01-15  Thiemo Seufer  <ths@mips.com>
+
+	* fileio.c (_POSIX_SOURCE): Fix typo.
+
+2007-01-15  Thiemo Seufer  <ths@mips.com>
+
+	* rtpxlite.c (sde_pthread_init, sdemdi_pthread_init): Declare void
+	argument.
+
+2007-01-14  Nigel Stephens  <nigel@mips.com>
+
+	[mti-sdethread]
+	* rtpxlite.c (__sdethread_mutex_init): Add name argument.
+	(__sdethread_mutex_setname): Remove.
+	* rtpxstub.c: Similarly.
+
+2007-01-11  Thiemo Seufer  <ths@mips.com>
+
+	* fileio.c (_sbrk): Mark inline assembler to find the stack pointer
+	as __volatile__.
+	* mdilow.S (__reset): Remove superfluous code.
+	* rtpxlite.c (_m32c0_mftc0, _m32c0_mttc0, _m32c0_mttgpr): Mark MT
+	specific inline assembler with .set mt.
+	(_pthread_init, sde_pthread_init, sdemdi_pthread_init): Remove
+	conflicting prototypes for _pthread_init.
+	* rtpxliteasm.S (_pthread_mt_fork): Mark MT specific assembler with
+	.set mt.
+
+2006-12-07  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-sdethread]
+	* fileio.c (flockfile, ftrylockfile, funlockfile): Remove stubs.
+
+2006-11-07  Nigel Stephens  <nigel@mips.com>
+
+	[mti-sdethread]
+	* rtpxlite.c (__sdethread_errno_pointer): Move below
+	__sdethread_set_errno, and #undef errno before this, to avoid
+	infinite recursion when not threading.
+
+2006-11-03  Nigel Stephens  <nigel@mips.com>
+
+	[mti-sdethread]
+	* rtpxlite.c (__sdethread_once): Add non-optimised interface.
+	
+	* rtpxstub.c (__sdethread_once): Similarly.
+
+2006-11-02  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-sdethread]
+	* rtpxstub.c: Include <libc_thread.h>.
+
+2006-11-02  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-sdethread]
+	* rtpxstub.c (___sdethread_once): Correct "state" to "so_state".
+
+2006-11-02  Nigel Stephens  <nigel@mips.com>
+
+	* fileio.c: Add include of <sys/time.h>
+
+	* rtpxlite.c (pthread_once): Use GCC alias atribute.
+
+2006-11-01  Nigel Stephens  <nigel@mips.com>
+
+	[mti-sdethread]
+	* rtpxstub.c: Changed to support __sdethread API.
+	
+	* rtpxlite.c (__sdethread_threading): Added.
+	(rtpx_flock_dtor): New libc per-thread flock destructor.
+	(_pthread_init): Check that size of the generic
+	__sdethread_mutex_t and __sdethread_once_t are large enough to
+	hold their rtpxlite implementations. Set __sdethread_threading to 1.
+	(pthread_exit): Call rtpx_flock_dtor destructor instead of
+	_rtpx_flockfilecleanup. 
+	(_pthread_once): Use GCC attribute to alias to pthread_once.
+	(pthread_sysconf_np): Removed.
+	(pthread_sigdisable_np): Removed.
+	(pthread_sigrestore_np): Removed.
+	(fplockget, flockfile, ftrylockfile, funlockfile, _flockfree,
+	flock_cleanup): Replaced by implementation of low-level
+	__sdethread flock API, avoiding knowledge of stdio internals.
+	(__sdethread_mutex_init): Interface to pthread_mutex_init.
+	(__sdethread_mutex_lock): Interface to pthread_mutex_lock.
+	(__sdethread_mutex_trylock): Interface to pthread_mutex_trylock.
+	(__sdethread_mutex_unlock): Interface to pthread_mutex_unlock.
+	(__sdethread_mutex_setname): Dummy function.
+	(__sdethread_mutex_destroy): Interface to pthread_mutex_destroy.
+	(___sdethread_once): Interface to _pthread_once.
+	(__sdethread_key_create): Interface to pthread_key_create.
+	(__sdethread_key_delete): Interface to pthread_key_create.
+	(__sdethread_setspecific): Interface to pthread_setspecific.
+	(__sdethread_getspecific) Interface to pthread_getspecific.
+	(__sdethread_errno_pointer): Return pointer to per-thread errno.
+	(__sdethread_set_errno): Set per-thread errno.
+	(__sdethread_sigdisable): Dummy function.
+	(__sdethread_sigrestore): Likewise.
+	(__sdethread_sigdeferred): Likewise.
+
+2006-10-27  David Ung  <davidu@mips.com>
+
+	* mdilow.S (__reset): Add .set mt around MT instructions.
+
+2006-09-11  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-dbg-vpe]
+	* rtpxlite.c: (_pthread_init): Clear the cp0 cause register for
+	SMTC.
+
+2006-08-23  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-dbg-vpe]
+	* rtpxlite.c: (_m32c0_mttgpr): Redefine macro.
+
+2006-08-22  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-dbg-vpe]
+	* mdilow.S: Add a flag for SMTC support.
+	* rtpxlite.c (rtpx_mt_acquire, rtpx_mt_release): New functions
+	to support SMTC.
+	(rtpx_mt_exit, rtpx_mt_fork_by_hand, rtpx_mt_fork): Likewise.
+	(rtpx_itc_alloc, rtpx_itc_free): Use the new functions.
+	(pthread_create, pthread_exit): Likewise.
+	(pthread_cond_wait, pthread_cond_signal): Likewise.
+	(_pthread_init): Add initialization of thread contexts for SMTC.
+	* rtpxliteasm.S (_pthread_mt_fork_child): New exported entry
+	point.
+	* sdemdi32.ld: Default to SMTC disabled.
+	* sdemdi32hi.ld: Likewise.
+	* sdemdi64.ld: Likewise.
+	* sdemdi64hi.ld: Likewise.
+
+2006-06-21  David Ung  <davidu@mips.com>
+
+	* fileio.c (gettimeofday): Revert previous changes.
+
+2006-06-20  David Ung  <davidu@mips.com>
+
+	* fileio.c (gettimeofday): Cast void* from tz to int* for
+	assignment.
+
+2006-06-20  David Ung  <davidu@mips.com>
+
+	* fileio.c (gettimeofday): Removed * from argument tz.
+
+2006-06-20  David Ung  <davidu@mips.com>
+
+	* fileio.c (gettimeofday): Change prototype to use
+	__timezone_ptr_t, #ifdef around __USE_BSD.
+
 2006-04-13  Maciej W. Rozycki  <macro@mips.com>
 
 	[mti-dbg-tc]

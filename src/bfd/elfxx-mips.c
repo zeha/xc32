@@ -200,7 +200,7 @@ struct mips_elf_link_hash_entry
 
   /* Whether we need the fn_stub; this is set if this symbol appears
      in any relocs other than a 16 bit call.  */
-  bfd_boolean need_fn_stub;
+  bfd_boolean maybe_need_fn_stub;
 
   /* If there is a stub that 16 bit functions should use to call this
      32 bit function, this points to the section containing the stub.  */
@@ -447,7 +447,7 @@ static bfd_vma mips_elf_obtain_contents
 static bfd_boolean mips_elf_perform_relocation
   (struct bfd_link_info *, reloc_howto_type *, const Elf_Internal_Rela *,
    bfd_vma, bfd *, asection *, bfd_byte *, bfd_boolean);
-static bfd_boolean mips_elf_stub_section_p
+static bfd_boolean mips16_stub_section_p
   (bfd *, asection *);
 static void mips_elf_allocate_dynamic_relocations
   (bfd *, unsigned int);
@@ -679,6 +679,10 @@ static bfd *reldyn_sorting_bfd;
 #define FN_STUB ".mips16.fn."
 #define CALL_STUB ".mips16.call."
 #define CALL_FP_STUB ".mips16.call.fp."
+
+#define FN_STUB_P(s) (strncmp (s, FN_STUB, sizeof FN_STUB - 1) == 0)
+#define CALL_STUB_P(s) (strncmp (s, CALL_STUB, sizeof CALL_STUB - 1) == 0)
+#define CALL_FP_STUB_P(s) (strncmp (s, CALL_FP_STUB, sizeof CALL_FP_STUB - 1) == 0)
 
 /* Look up an entry in a MIPS ELF linker hash table.  */
 
@@ -731,7 +735,7 @@ mips_elf_link_hash_newfunc (struct bfd_hash_entry *entry,
       ret->readonly_reloc = FALSE;
       ret->no_fn_stub = FALSE;
       ret->fn_stub = NULL;
-      ret->need_fn_stub = FALSE;
+      ret->maybe_need_fn_stub = FALSE;
       ret->call_stub = NULL;
       ret->call_fp_stub = NULL;
       ret->forced_local = FALSE;
@@ -1023,37 +1027,37 @@ mips_elf_check_mips16_stubs (struct mips_elf_link_hash_entry *h,
     h = (struct mips_elf_link_hash_entry *) h->root.root.u.i.link;
 
   if (h->fn_stub != NULL
-      && ! h->need_fn_stub)
+      && !h->maybe_need_fn_stub)
     {
       /* We don't need the fn_stub; the only references to this symbol
          are 16 bit calls.  Clobber the size to 0 to prevent it from
          being included in the link.  */
       h->fn_stub->size = 0;
-      h->fn_stub->flags &= ~SEC_RELOC;
+      h->fn_stub->flags &= ~(SEC_RELOC | SEC_KEEP);
       h->fn_stub->reloc_count = 0;
       h->fn_stub->flags |= SEC_EXCLUDE;
     }
 
   if (h->call_stub != NULL
-      && h->root.other == STO_MIPS16)
+      && (h->root.other & STO_MIPS16))
     {
       /* We don't need the call_stub; this is a 16 bit function, so
          calls from other 16 bit functions are OK.  Clobber the size
          to 0 to prevent it from being included in the link.  */
       h->call_stub->size = 0;
-      h->call_stub->flags &= ~SEC_RELOC;
+      h->call_stub->flags &= ~(SEC_RELOC | SEC_KEEP);
       h->call_stub->reloc_count = 0;
       h->call_stub->flags |= SEC_EXCLUDE;
     }
 
   if (h->call_fp_stub != NULL
-      && h->root.other == STO_MIPS16)
+      && (h->root.other & STO_MIPS16))
     {
-      /* We don't need the call_stub; this is a 16 bit function, so
+      /* We don't need the call_fp_stub; this is a 16 bit function, so
          calls from other 16 bit functions are OK.  Clobber the size
          to 0 to prevent it from being included in the link.  */
       h->call_fp_stub->size = 0;
-      h->call_fp_stub->flags &= ~SEC_RELOC;
+      h->call_fp_stub->flags &= ~(SEC_RELOC | SEC_KEEP);
       h->call_fp_stub->reloc_count = 0;
       h->call_fp_stub->flags |= SEC_EXCLUDE;
     }
@@ -3218,7 +3222,7 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
 	}
 
       /* MIPS16 text labels should be treated as odd.  */
-      if (sym->st_other == STO_MIPS16)
+      if (sym->st_other & STO_MIPS16)
 	++symbol;
 
       /* Record the name of this symbol, for our caller.  */
@@ -3228,7 +3232,7 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
       if (*namep == '\0')
 	*namep = bfd_section_name (input_bfd, sec);
 
-      target_is_16_bit_code_p = (sym->st_other == STO_MIPS16);
+      target_is_16_bit_code_p = (sym->st_other & STO_MIPS16);
     }
   else
     {
@@ -3307,17 +3311,18 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
 	  symbol = 0;
 	}
 
-      target_is_16_bit_code_p = (h->root.other == STO_MIPS16);
+      target_is_16_bit_code_p = (h->root.other & STO_MIPS16);
     }
 
   /* If this is a 32- or 64-bit call to a 16-bit function with a stub, we
      need to redirect the call to the stub, unless we're already *in*
      a stub.  */
-  if (r_type != R_MIPS16_26 && !info->relocatable
+  if (r_type == R_MIPS_26 && !info->relocatable
       && ((h != NULL && h->fn_stub != NULL)
 	  || (local_p && elf_tdata (input_bfd)->local_stubs != NULL
 	      && elf_tdata (input_bfd)->local_stubs[r_symndx] != NULL))
-      && !mips_elf_stub_section_p (input_bfd, input_section))
+      && target_is_16_bit_code_p
+      && !mips16_stub_section_p (input_bfd, input_section))
     {
       /* This is a 32- or 64-bit call to a 16-bit function.  We should
 	 have already noticed that we were going to need the
@@ -3326,7 +3331,7 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
 	sec = elf_tdata (input_bfd)->local_stubs[r_symndx];
       else
 	{
-	  BFD_ASSERT (h->need_fn_stub);
+	  BFD_ASSERT (h->maybe_need_fn_stub);
 	  sec = h->fn_stub;
 	}
 
@@ -3355,8 +3360,7 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
 	      sec = NULL;
 	      for (o = input_bfd->sections; o != NULL; o = o->next)
 		{
-		  if (strncmp (bfd_get_section_name (input_bfd, o),
-			       CALL_FP_STUB, sizeof CALL_FP_STUB - 1) == 0)
+		  if (CALL_FP_STUB_P (bfd_get_section_name (input_bfd, o)))
 		    {
 		      sec = h->call_fp_stub;
 		      break;
@@ -3880,13 +3884,11 @@ mips_elf_perform_relocation (struct bfd_link_info *info,
 /* Returns TRUE if SECTION is a MIPS16 stub section.  */
 
 static bfd_boolean
-mips_elf_stub_section_p (bfd *abfd ATTRIBUTE_UNUSED, asection *section)
+mips16_stub_section_p (bfd *abfd ATTRIBUTE_UNUSED, asection *section)
 {
   const char *name = bfd_get_section_name (abfd, section);
 
-  return (strncmp (name, FN_STUB, sizeof FN_STUB - 1) == 0
-	  || strncmp (name, CALL_STUB, sizeof CALL_STUB - 1) == 0
-	  || strncmp (name, CALL_FP_STUB, sizeof CALL_FP_STUB - 1) == 0);
+  return FN_STUB_P (name) || CALL_STUB_P (name) || CALL_FP_STUB_P (name);
 }
 
 /* Add room for N relocations to the .rel.dyn section in ABFD.  */
@@ -4960,7 +4962,7 @@ _bfd_mips_elf_add_symbol_hook (bfd *abfd, struct bfd_link_info *info,
   /* If this is a mips16 text symbol, add 1 to the value to make it
      odd.  This will cause something like .word SYM to come up with
      the right value when it is loaded into the PC.  */
-  if (sym->st_other == STO_MIPS16)
+  if (sym->st_other & STO_MIPS16)
     ++*valp;
 
   return TRUE;
@@ -4983,7 +4985,7 @@ _bfd_mips_elf_link_output_symbol_hook
       && strcmp (input_sec->name, ".scommon") == 0)
     sym->st_shndx = SHN_MIPS_SCOMMON;
 
-  if (sym->st_other == STO_MIPS16)
+  if (sym->st_other & STO_MIPS16)
     sym->st_value &= ~1;
 
   return TRUE;
@@ -5170,7 +5172,7 @@ _bfd_mips_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
   /* Check for the mips16 stub sections.  */
 
   name = bfd_get_section_name (abfd, sec);
-  if (strncmp (name, FN_STUB, sizeof FN_STUB - 1) == 0)
+  if (FN_STUB_P (name))
     {
       unsigned long r_symndx;
 
@@ -5195,12 +5197,7 @@ _bfd_mips_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	      /* We can ignore stub sections when looking for relocs.  */
 	      if ((o->flags & SEC_RELOC) == 0
 		  || o->reloc_count == 0
-		  || strncmp (bfd_get_section_name (abfd, o), FN_STUB,
-			      sizeof FN_STUB - 1) == 0
-		  || strncmp (bfd_get_section_name (abfd, o), CALL_STUB,
-			      sizeof CALL_STUB - 1) == 0
-		  || strncmp (bfd_get_section_name (abfd, o), CALL_FP_STUB,
-			      sizeof CALL_FP_STUB - 1) == 0)
+		  || mips16_stub_section_p (abfd, o))
 		continue;
 
 	      sec_relocs
@@ -5252,6 +5249,7 @@ _bfd_mips_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	      elf_tdata (abfd)->local_stubs = n;
 	    }
 
+	  sec->flags |= SEC_KEEP;
 	  elf_tdata (abfd)->local_stubs[r_symndx] = sec;
 
 	  /* We don't need to set mips16_stubs_seen in this case.
@@ -5268,16 +5266,26 @@ _bfd_mips_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 
 	  /* H is the symbol this stub is for.  */
 
+	  /* If we already have an appropriate stub for this function, we
+	     don't need another one, so we can discard this one.  Since
+	     this function is called before the linker maps input sections
+	     to output sections, we can easily discard it by setting the
+	     SEC_EXCLUDE flag.  */
+	  if (h->fn_stub != NULL)
+	    {
+	      sec->flags |= SEC_EXCLUDE;
+	      return TRUE;
+	    }
+	  
+	  sec->flags |= SEC_KEEP;
 	  h->fn_stub = sec;
 	  mips_elf_hash_table (info)->mips16_stubs_seen = TRUE;
 	}
     }
-  else if (strncmp (name, CALL_STUB, sizeof CALL_STUB - 1) == 0
-	   || strncmp (name, CALL_FP_STUB, sizeof CALL_FP_STUB - 1) == 0)
+  else if (CALL_STUB_P (name) || CALL_FP_STUB_P (name))
     {
       unsigned long r_symndx;
       struct mips_elf_link_hash_entry *h;
-      asection **loc;
 
       /* Look at the relocation information to figure out which symbol
          this is for.  */
@@ -5291,8 +5299,7 @@ _bfd_mips_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 
 	  /* This stub is for a local symbol.  This stub will only be
              needed if there is some relocation (R_MIPS16_26) in this BFD
-             that refers to this symbol.
-	  */
+             that refers to this symbol.  */
 	  for (o = abfd->sections; o != NULL; o = o->next)
 	    {
 	      Elf_Internal_Rela *sec_relocs;
@@ -5301,12 +5308,7 @@ _bfd_mips_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	      /* We can ignore stub sections when looking for relocs.  */
 	      if ((o->flags & SEC_RELOC) == 0
 		  || o->reloc_count == 0
-		  || strncmp (bfd_get_section_name (abfd, o), FN_STUB,
-			      sizeof FN_STUB - 1) == 0
-		  || strncmp (bfd_get_section_name (abfd, o), CALL_STUB,
-			      sizeof CALL_STUB - 1) == 0
-		  || strncmp (bfd_get_section_name (abfd, o), CALL_FP_STUB,
-			      sizeof CALL_FP_STUB - 1) == 0)
+		  || mips16_stub_section_p (abfd, o))
 		continue;
 
 	      sec_relocs
@@ -5319,7 +5321,7 @@ _bfd_mips_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	      for (r = sec_relocs; r < rend; r++)
 		if (ELF_R_SYM (abfd, r->r_info) == r_symndx
 		    && ELF_R_TYPE (abfd, r->r_info) == R_MIPS16_26)
-		    break;
+		  break;
 
 	      if (elf_section_data (o)->relocs != sec_relocs)
 		free (sec_relocs);
@@ -5358,6 +5360,7 @@ _bfd_mips_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	      elf_tdata (abfd)->local_call_stubs = n;
 	    }
 
+	  sec->flags |= SEC_KEEP;
 	  elf_tdata (abfd)->local_call_stubs[r_symndx] = sec;
 
 	  /* We don't need to set mips16_stubs_seen in this case.
@@ -5367,12 +5370,14 @@ _bfd_mips_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	}
       else
 	{
+	  asection **loc;
+
 	  h = ((struct mips_elf_link_hash_entry *)
 	       sym_hashes[r_symndx - extsymoff]);
 	  
 	  /* H is the symbol this stub is for.  */
 	  
-	  if (strncmp (name, CALL_FP_STUB, sizeof CALL_FP_STUB - 1) == 0)
+	  if (CALL_FP_STUB_P (name))
 	    loc = &h->call_fp_stub;
 	  else
 	    loc = &h->call_stub;
@@ -5381,16 +5386,14 @@ _bfd_mips_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	     don't need another one, so we can discard this one.  Since
 	     this function is called before the linker maps input sections
 	     to output sections, we can easily discard it by setting the
-	     SEC_EXCLUDE flag.  We can also discard this section if we
-	     happen to already know that this is a mips16 function; it is
-	     not necessary to check this here, as it is checked later, but
-	     it is slightly faster to check now.  */
-	  if (*loc != NULL || h->root.other == STO_MIPS16)
+	     SEC_EXCLUDE flag.  */
+	  if (*loc != NULL)
 	    {
 	      sec->flags |= SEC_EXCLUDE;
 	      return TRUE;
 	    }
 	  
+	  sec->flags |= SEC_KEEP;
 	  *loc = sec;
 	  mips_elf_hash_table (info)->mips16_stubs_seen = TRUE;
 	}
@@ -5668,22 +5671,17 @@ _bfd_mips_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	  break;
 	}
 
-      /* If this reloc is not a 16 bit call, and it has a global
-         symbol, then we will need the fn_stub if there is one.
-         References from a stub section do not count.  */
+      /* If this reloc is not a 16 bit call, and it has a global symbol,
+	 then we will need the fn_stub if there is one, if it is actually
+	 used by a call.  References from a stub section do not count.  */
       if (h != NULL
-	  && r_type != R_MIPS16_26
-	  && strncmp (bfd_get_section_name (abfd, sec), FN_STUB,
-		      sizeof FN_STUB - 1) != 0
-	  && strncmp (bfd_get_section_name (abfd, sec), CALL_STUB,
-		      sizeof CALL_STUB - 1) != 0
-	  && strncmp (bfd_get_section_name (abfd, sec), CALL_FP_STUB,
-		      sizeof CALL_FP_STUB - 1) != 0)
+	  && r_type == R_MIPS_26
+	  && !mips16_stub_section_p (abfd, sec))
 	{
 	  struct mips_elf_link_hash_entry *mh;
 
 	  mh = (struct mips_elf_link_hash_entry *) h;
-	  mh->need_fn_stub = TRUE;
+	  mh->maybe_need_fn_stub = TRUE;
 	}
     }
 
@@ -6353,7 +6351,7 @@ _bfd_mips_elf_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
   const struct elf_backend_data *bed;
   const Elf_Internal_Rela *hi16_relocation = NULL;
   bfd_vma hi16_addend = 0;
-	      
+
   bed = get_elf_backend_data (output_bfd);
   relend = relocs + input_section->reloc_count * bed->s->int_rels_per_ext_rel;
   for (rel = relocs; rel < relend; ++rel)
@@ -7005,7 +7003,7 @@ _bfd_mips_elf_finish_dynamic_symbol (bfd *output_bfd,
     }
 
   /* If this is a mips16 symbol, force the value to be even.  */
-  if (sym->st_other == STO_MIPS16)
+  if (sym->st_other & STO_MIPS16)
     sym->st_value &= ~1;
 
   return TRUE;
@@ -7719,8 +7717,6 @@ _bfd_mips_elf_gc_mark_hook (asection *sec,
 			    struct elf_link_hash_entry *h,
 			    Elf_Internal_Sym *sym)
 {
-  /* ??? Do mips16 stub sections need to be handled special?  */
-
   if (h != NULL)
     {
       switch (ELF_R_TYPE (sec->owner, rel->r_info))
@@ -9277,7 +9273,7 @@ _bfd_mips_elf_merge_private_bfd_data (bfd *ibfd, bfd *obfd)
       bfd_boolean uses_fpu = FALSE;
 
       /* Don't complain if this module doesn't use floating-point. */
-      if (sec = bfd_get_section_by_name (ibfd, ".reginfo"))
+      if ((sec = bfd_get_section_by_name (ibfd, ".reginfo")))
 	{
 	  Elf32_External_RegInfo ext;
 	  Elf32_RegInfo ri;

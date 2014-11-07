@@ -356,6 +356,7 @@ CODE_FRAGMENT
 .
 .  {* A mark flag used by some linker backends for garbage collection.  *}
 .  unsigned int gc_mark : 1;
+.  unsigned int gc_mark_from_eh : 1;
 .
 .  {* The following flags are used by the ELF linker. *}
 .
@@ -594,8 +595,11 @@ static const asymbol global_syms[] =
     /* name, id,  index, next, flags, user_set_vma,                  */	\
     { NAME,  IDX, 0,     NULL, FLAGS, 0,				\
 									\
-    /* linker_mark, linker_has_input, gc_mark, segment_mark,         */	\
+    /* linker_mark, linker_has_input, gc_mark, gc_mark_from_eh,      */ \
        0,           0,                1,       0,			\
+									\
+    /* segment_mark,						     */	\
+       0,								\
 									\
     /* sec_info_type, use_rela_p, has_tls_reloc, has_gp_reloc,       */ \
        0,	      0,	  0,		 0,			\

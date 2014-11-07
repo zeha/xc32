@@ -54,8 +54,6 @@ extern int m16_uimm8_4 (rtx, enum machine_mode);
 extern int m16_nuimm8_4 (rtx, enum machine_mode);
 extern int m16_simm8_8 (rtx, enum machine_mode);
 extern int m16_nsimm8_8 (rtx, enum machine_mode);
-extern int m16_usym8_4 (rtx, enum machine_mode);
-extern int m16_usym5_4 (rtx, enum machine_mode);
 
 extern struct rtx_def *embedded_pic_fnaddr_reg (void);
 extern struct rtx_def *embedded_pic_offset (rtx);
@@ -160,6 +158,8 @@ extern unsigned int current_section_flags (void);
 
 extern const char *mips16e_output_save (rtx *);
 extern const char *mips16e_output_restore (rtx *);
+
+extern int mips_addr_vec_align (rtx);
 
 extern bool dspalu_bypass_p (rtx, rtx);
 

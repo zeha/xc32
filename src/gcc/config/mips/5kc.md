@@ -125,7 +125,7 @@
 ;; All other integer insns.  
 (define_insn_reservation "r5kc_int_alu" 1 
   			 (and (eq_attr "cpu" "4kc,4kp,5kc")
-			      (and (eq_attr "type" "move,condmove,arith,darith,shift,vshift,const,icmp,nop")
+			      (and (eq_attr "type" "move,condmove,arith,darith,logical,shift,vshift,signext,slt,const,icmp,nop")
 				   (eq_attr "mode" "!SF,DF")))
   			 "r5kc_ixu_arith")
 

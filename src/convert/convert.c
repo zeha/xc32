@@ -476,7 +476,6 @@ main(int argc, char **argv)
 	    usage ();
 	  break;
       case 'a':
-	  promflag = 1;
 	  prombase = strtoul (optarg, &s, 16) & 0x1fffffff;
 	  if (*s == '/' || *s == '#') {
 	    promlimit = strtoul (++s, &s, 16) + prombase;

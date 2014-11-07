@@ -180,6 +180,7 @@ enum {
   OPTION_DINERO_TRACE = OPTION_START,
   OPTION_DINERO_FILE,
   OPTION_FIRMWARE,
+  OPTION_SPRAM,
   OPTION_BOARD
 };
 
@@ -259,6 +260,25 @@ Re-compile simulator with \"-DTRACE\" to enable this option.\n");
 	  }
 	return SIM_RC_OK;
       }
+
+    case OPTION_SPRAM:
+      for (cpu_nr = 0; cpu_nr < MAX_NR_PROCESSORS; cpu_nr++)
+	{
+	  sim_cpu *cpu = STATE_CPU (sd, cpu_nr);
+	  if (arg == NULL
+	      || strcmp (arg, "yes") == 0
+	      || strcmp (arg, "on") == 0)
+	    STATE |= simSPRAM;
+	  else if (strcmp (arg, "no") == 0 
+		   || strcmp (arg, "off") == 0)
+	    STATE &= ~simSPRAM;
+	  else
+	    {
+	      fprintf (stderr, "Unrecognized spram option `%s'\n", arg);
+	      return SIM_RC_FAIL;
+	    }
+	}
+      return SIM_RC_OK;
     }
   
   return SIM_RC_OK;
@@ -289,6 +309,10 @@ static const OPTION mips_options[] =
            "|" BOARD_BSP
 
     , "Customize simulation for a particular board.", mips_option_handler },
+
+  { {"spram", optional_argument, NULL, OPTION_SPRAM},
+      '\0', "on|off", "Enable separate I&D SPRAM",
+      mips_option_handler },
 
   { {NULL, no_argument, NULL, 0}, '\0', NULL, NULL, NULL }
 };

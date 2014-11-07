@@ -47,6 +47,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define ECOFF_SIGNED_32
 #include "ecoffswap.h"
 
+#if defined(TARGET_IS_PIC32MX)
+#include "elf32-pic32.c"
+#endif
+
 static bfd_reloc_status_type gprel32_with_gp
   (bfd *, asymbol *, arelent *, asection *, bfd_boolean, void *, bfd_vma);
 static bfd_reloc_status_type mips_elf_gprel32_reloc
@@ -67,8 +71,6 @@ static bfd_boolean mips_elf32_object_p
   (bfd *);
 static bfd_boolean mips_elf_is_local_label_name
   (bfd *, const char *);
-static bfd_reloc_status_type mips16_jump_reloc
-  (bfd *, arelent *, asymbol *, void *, asection *, bfd *, char **);
 static bfd_reloc_status_type mips16_gprel_reloc
   (bfd *, arelent *, asymbol *, void *, asection *, bfd *, char **);
 static bfd_reloc_status_type mips_elf_final_gp
@@ -577,7 +579,7 @@ static reloc_howto_type elf_mips16_howto_table_rel[] =
 	 			/* This needs complex overflow
 				   detection, because the upper four
 				   bits must match the PC.  */
-	 mips16_jump_reloc,	/* special_function */
+	 _bfd_mips_elf_generic_reloc,	/* special_function */
 	 "R_MIPS16_26",		/* name */
 	 TRUE,			/* partial_inplace */
 	 0x3ffffff,		/* src_mask */
@@ -932,41 +934,6 @@ mips32_64bit_reloc (bfd *abfd, arelent *reloc_entry,
   bfd_put_32 (abfd, val, (bfd_byte *) data + addr);
 
   return r;
-}
-
-/* Handle a mips16 jump.  */
-
-static bfd_reloc_status_type
-mips16_jump_reloc (bfd *abfd, arelent *reloc_entry, asymbol *symbol,
-		   void *data, asection *input_section, bfd *output_bfd,
-		   char **error_message)
-{
-  if (output_bfd != NULL)
-    {
-      if ((symbol->flags & BSF_SECTION_SYM) == 0
-	  && reloc_entry->addend == 0)
-	{
-	  reloc_entry->address += input_section->output_offset;
-	  return bfd_reloc_ok;
-	}
-      if (symbol->flags & BSF_SECTION_SYM)
-	return _bfd_mips_elf_generic_reloc (abfd, reloc_entry, symbol,
-					    data, input_section,
-					    output_bfd, error_message);
-    }
-
-  /* FIXME.  */
-  {
-    static bfd_boolean warned;
-
-    if (! warned)
-      (*_bfd_error_handler)
-	(_("Linking mips16 objects into %s format is not supported"),
-	 bfd_get_target (input_section->output_section->owner));
-    warned = TRUE;
-  }
-
-  return bfd_reloc_undefined;
 }
 
 /* Handle a mips16 GP relative reloc.  */
@@ -1437,3 +1404,4 @@ static const struct ecoff_debug_swap mips_elf32_ecoff_debug_swap = {
 
 /* Include the target file again for this target.  */
 #include "elf32-target.h"
+

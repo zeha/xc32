@@ -599,19 +599,17 @@ mi_cmd_data_write_register_values (char *command, char **argv, int argc)
 	  && REGISTER_NAME (regnum) != NULL
 	  && *REGISTER_NAME (regnum) != '\000')
 	{
-	  void *buffer;
+	  char buffer[MAX_REGISTER_SIZE];
 	  struct cleanup *old_chain;
 
 	  /* Get the value as a number */
 	  value = parse_and_eval_address (argv[i + 1]);
 	  /* Get the value into an array */
-	  buffer = xmalloc (DEPRECATED_REGISTER_SIZE);
-	  old_chain = make_cleanup (xfree, buffer);
-	  store_signed_integer (buffer, DEPRECATED_REGISTER_SIZE, value);
+	  store_signed_integer (buffer,
+				register_size (current_gdbarch, regnum),
+				value);
 	  /* Write it down */
 	  deprecated_write_register_bytes (DEPRECATED_REGISTER_BYTE (regnum), buffer, register_size (current_gdbarch, regnum));
-	  /* Free the buffer.  */
-	  do_cleanups (old_chain);
 	}
       else
 	{

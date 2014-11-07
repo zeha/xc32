@@ -22,7 +22,10 @@ Boston, MA 02111-1307, USA.  */
 
 /* Macro for conditional compilation of C32 only stuff */
 #define TARGET_MCHP_PIC32MX 1
+
+#undef DEFAULT_SIGNED_CHAR
 #define DEFAULT_SIGNED_CHAR 1
+
 /* Put at the end of the command given to the linker if -nodefaultlibs or
  * -nostdlib is not specified on the command line. This includes all the
  * standard libraries, the peripheral libraries if the -mno-peripheral-libs
@@ -31,7 +34,7 @@ Boston, MA 02111-1307, USA.  */
  * the -mprocessor option is specified.
  */
 #undef  LIB_SPEC
-#define LIB_SPEC "--start-group -lc -lm -le %{!mno-peripheral-libs:-lmchp_peripheral %{mprocessor=*:-lmchp_peripheral_%*}} --end-group"
+#define LIB_SPEC "--start-group -lc -lm -le -ldsp %{!mno-peripheral-libs:-lmchp_peripheral %{mprocessor=*:-lmchp_peripheral_%*}} --end-group"
 
 /* Don't set.  This defaults to crt0.o if not specified. */
 #undef  STARTFILE_SPEC
@@ -104,6 +107,7 @@ Boston, MA 02111-1307, USA.  */
 #undef CC1_SPEC
 #define CC1_SPEC "\
 %{mips16*:%{!fno-section-relative-addressing:-fsection-relative-addressing -fno-common}} \
+%{mips16*:-mcode-xonly} \
 %{fsection-relative-addressing:-fno-common} \
 %{G*} \
 -mconfig-data-dir= %J%s%{mprocessor=*:./proc/%*; :./proc/32MXGENERIC} \
@@ -122,6 +126,10 @@ extern const char *mchp_config_data_dir;
  */
 #define MASK_LINK_PERIPHERAL_LIBS 0
 #define MASK_DEBUG_EXEC           0
+
+/* Put small constants in .rodata, not .sdata. */
+#undef TARGET_DEFAULT
+#define TARGET_DEFAULT		MASK_EMBEDDED_DATA
 
 #ifndef SUBTARGET_TARGET_SWITCHES
 #define SUBTARGET_TARGET_SWITCHES

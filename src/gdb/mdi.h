@@ -427,8 +427,7 @@ typedef struct MDITrcFrame_Struct
 
 #define MDIErrTCId -43		/* The specified TC id value is not a valid TC
 				   number for the VPE being debugged.  */
-#define MDIErrNoMulTeams -44	/* Multiple teams are not allowed by this
-				   MDILib.  */
+#define MDIErrTooManyTeams -44	/* Too many teams for MDILib.  */
 #define MDIErrTeamId -45	/* Invalid team id.  */
 #define MDIErrDisabled -46	/* Device is disabled.  */
 #define MDIErrAlreadyMember -47	/* Device is already a team member.  */
@@ -536,8 +535,14 @@ yf (MDIQueryTC) (MDIHandleT, MDIInt32 *, MDITCDataT *);
 yf (MDITCSet) (MDIHandleT, MDITCIdT);
 yf (MDITCGet) (MDIHandleT, MDITCIdT *);
 yf (MDITCSetRunMode) (MDIHandleT, MDIInt32, MDIUint32, MDIUint32);
-yf (MDICreateTeam) (MDIHandleT, MDITeamIdT *);
+yf (MDITeamCreate) (MDIHandleT, MDITeamIdT *);
 yf (MDIQueryTeams) (MDIHandleT, MDIInt32 *, MDITeamIdT *);
+yf (MDITeamClear) (MDIHandleT, MDITeamIdT);
+yf (MDITeamDestroy) (MDIHandleT, MDITeamIdT);
+yf (MDITMAttach) (MDIHandleT, MDITeamIdT, MDITMDataT *);
+yf (MDITMDetach) (MDIHandleT, MDITeamIdT, MDITMDataT *);
+yf (MDIQueryTM) (MDIHandleT, MDITeamIdT, MDIInt32 *, MDITMDataT *);
+yf (MDICreateTeam) (MDIHandleT, MDITeamIdT *);
 yf (MDIClearTeam) (MDIHandleT, MDITeamIdT);
 yf (MDIDestroyTeam) (MDIHandleT, MDITeamIdT);
 yf (MDIAttachTM) (MDIHandleT, MDITeamIdT, MDITMDataT *);

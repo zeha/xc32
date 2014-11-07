@@ -1,3 +1,334 @@
+2007-04-02  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-gdb-bug469]
+	* mips-tdep.c (mips32_config, mips32_tlb): New arrays.
+	(mips32_bat, mips32_ejtag, mips32_watch): Likewise.
+	(mips32_perfcnt, mips32_cache, mips32_trace): Likewise.
+	(mips32_mvpconf, mips32_vpeconf, mips32_srsconf): Likewise.
+	(mips32_vpeopt, mips32_sp, mips32_vi): Likewise.
+	(mips32_cp0, mips32_r2, mips32_smartmips, mips32_mt): Remove
+	entries moved to the new arrays.
+	(mips64_cp0): Rename to...
+	(mips64_tlb): ... this.
+	(deprecated_mips_set_processor_regs_hack): Add missing bits of
+	MIPS32/64 register discovery; handle all compliant processors.
+
+2007-01-26  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-gdb-bug520]
+	* msim_cfg.txt: Support the 74K.
+
+2007-01-26  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-gdb-bug528]
+	* regcache.h (set_regcache_valid_p): New declaration.
+	* regcache.c (set_regcache_valid_p): New function.
+	(do_cooked_read): Correctly check register cache for validity.
+	(regcache_cooked_read): Likewise.
+	(regcache_raw_write): Likewise.
+	(regcache_dump): Likewise.
+	(regcache_raw_read): Mark the register as invalid if the cache
+	failed to retrieve it.
+	* frame.c (do_frame_register_read): Propagate errors.
+	* mips-tdep.c (mips_pseudo_register_read): Update the register
+	cache validity flag on the requested cache rather than the
+	currently selected global one.
+
+2007-01-15  Hieu Tran  <htran@viosoft.com>
+            Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-viosoft-threadx]
+	* remote-mdi.c (mdi_load_plugins_command): New function.
+	(_initialize_remote_mdi): Add the "mdi load-plugins" command.
+
+2007-01-14  Nigel Stephens  <nigel@mips.com>
+
+	[mti-gdb-linuxmditgt]
+	* configure.tgt (mips*-*-linux*): Add remote-mdi module for Linux
+	cross-debuggers built for x86 Linux or Cygwin hosts.
+
+2007-01-12  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-gdb-bug300]
+	* remote-mdi.c (_initialize_remote_mdi): Clarify the help text
+	for cache maintenance commands.  Mark them all as
+	"class_support" consistently.
+
+2007-01-12  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-gdb-bug476]
+	* mi/mi-main.c (mi_cmd_data_write_register_values): Use
+	MAX_REGISTER_SIZE for the size of the buffer to pass the value
+	of the register to be set through.  Allocate the buffer on the
+	stack.
+
+2006-12-11  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-gdb-vpe]
+	* remote-mdi.c (mdi_resume): For setting the stepping modes use
+	the current thread context as reported by the target if none has
+	been selected by gdb.
+
+2006-12-11  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-gdb-bug363]
+	* remote-mdi.c (openDev): Move code to discover devices and
+	store their configuration to...
+	(getDevs, updateDev): ... these new functions.
+	(mdi_wait): Call updateDev() when a device comes to life.
+
+2006-12-07  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-dbg-vpe]
+	* remote-mdi.c (resetDev): Use mdiTeamExecute() to initialize
+	the target if using multiple devices.
+
+2006-12-01  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-trivial]
+	* mi/mi-cmd-var.c (mi_cmd_var_assign): Fix a typo in a message.
+
+2006-12-01  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-gdb-bug462]
+	* varobj.c (varobj_update): Fix a local variable being used
+	uninitialized.
+
+2006-11-29  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-dbg-tc]
+	* remote-mdi.c (_initialize_remote_mdi): Fix the report of the
+	"threadstepall" mode.
+
+2006-11-10  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-fix-unused]
+	* mips-tdep.c (mips32_decode_reg_save): Remove, unused.
+	(mips16_decode_reg_save): Likewise.
+	(mips32_fetch_instruction): Likewise.
+
+2006-10-18  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-gdb-bug155]
+	* mi/mi-interp.c (mi_interpreter_resume): Also initialize
+	gdb_stdtargerr.
+
+2006-10-05  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-dbg-vpe]
+	* remote-mdi.c (mdi_wait): Take the scheduler locking mode into
+	account when stopping the target at a user request.
+
+2006-10-05  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-dbg-vpe]
+	* mdi.h: Add prototypes for current MT MDI spec revision names
+	of team support calls.
+	* mdiinit.h: Add the corresponding function symbols.
+	* remote-mdi.c (symbols): Add MDITeamCreate(), MDITeamClear(),
+	MDITeamDestroy(), MDITMAttach(), MDITMDetach(), MDIQueryTM()
+	and MDICreateTeam().
+	(mdiCreateTeam): Rename to...
+	(mdiTeamCreate): ... this.  Call MDITeamCreate() first.
+	(mdiClearTeam): Rename to...
+	(mdiTeamClear): ... this.  Call MDITeamClear() first.
+	(mdiDestroyTeam): Rename to...
+	(mdiTeamDestroy): ... this.  Call MDITeamDestroy() first.
+	(mdiAttachTM): Rename to...
+	(mdiTMAttach): ... this.  Call MDITMAttach() first.
+	(mdiDetachTM): Rename to...
+	(mdiTMDetach): ... this.  Call MDITMDetach() first.
+	Rename references to these functions throughout.
+
+2006-10-04  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-dbg-vpe]
+	* remote-mdi.c (mdi_open): Fix initialization of the MDI handle.
+
+2006-09-21  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-fix-vpe]
+	* remote-mdi.c (mdi_resume): Resume devices starting from one
+	following the current one.
+	(mdi_wait): Query devices starting from one following the
+	current one.  Stop other devices starting from one following
+	one that triggered the sequence.
+
+2006-09-21  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-fix-nexti]
+	* infrun.c (handle_inferior_event): If the parent frame is the
+	same as the current one, then assume execution has not stopped
+	in a subroutine.
+
+2006-09-21  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-fix-scope]
+	* mips-tdep.c (mips16_in_function_epilogue_p): Accept "jr $ra"
+	and "nop" too.
+
+2006-09-20  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-fix-next]
+	* mips-tdep.c (mips_mdebug_frame_sniffer): If the PC is at the
+	start of a function, then never assume the registers have been
+	saved.
+
+2006-09-20  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-trivial]
+	* mips-tdep.c (heuristic_proc_start): Fix a compiler warning.
+
+2006-09-18  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-fix-scope]
+	* mips-tdep.c (mips32_in_function_epilogue_p): New function.
+	(mips16_in_function_epilogue_p): Likewise.
+	(mips_in_function_epilogue_p): Likewise.
+	(mips_gdbarch_init): Register mips_in_function_epilogue_p().
+
+2006-09-14  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-dbg-vpe]
+	* remote-mdi.c (mdi_resume): Fix a warning for single-stepping.
+
+2006-08-15  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-dbg-vpe]
+	* remote-mdi.c (mdi_wait): Handle user breakpoint hits reported
+	for syscall traps.
+
+2006-08-10  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-dbg-cp0]
+	* mips-tdep.c (mips32_cp0): Add the $config6 and $config7
+	registers.
+
+2006-08-07  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-dbg-vpe]
+	* remote-mdi.c (mdiTlb): Add the no-TLB configuration.
+	(mdi_gm_data): New structure.
+	(mdi_state): Rearrange members to handle multiple devices.
+	(mdiTeamExecute): Enable compilation.
+	(openDev): Update to handle multiple devices and split off...
+	(haltDev, resetDev): ... these new functions.
+	(openTG): Update to handle multiple devices and to reflect
+	changes to mdi_state.
+	(mdi_probe_cpu): Likewise.
+	(mdi_set_inferior_ptid): Likewise.
+	(mdi_open): Likewise.
+	(mdi_close): Likewise.
+	(mdi_attach): Likewise.
+	(mdi_resume): Likewise.
+	(wait_cleanup): Likewise.
+	(mdi_wait): Likewise.
+	(mdi_load): Likewise.
+	(mdi_insert_breakpoint1): Likewise.
+	(mdi_remove_bpt): Likewise.
+	(mdi_switch_to_thread): Likewise.
+	(mdi_thread_alive): Likewise.
+	(mdi_find_new_threads): Likewise.
+	(mdi_pid_to_str): Likewise.
+	(mdi_breakpoint_type_supported): Likewise.
+	(mdi_reset_command): Likewise.
+	(mdi_cacheflush_command): Likewise.
+	(mdi_show_devices_command): Likewise.
+	(mdi_insert_hw_breakpoint): Update to handle multiple devices.
+	(mdi_remove_hw_breakpoint): Likewise.
+	(mdi_insert_watchpoint): Likewise.
+	(mdi_remove_watchpoint): Likewise.
+	(mdi_bpt): Add a device handle.
+	(mdi_find_breakpoint): Use a device handle to match breakpoints.
+	(mdi_insert_hw_any): Likewise.
+	(mdi_remove_hw_any): Likewise.
+	(mdi_find_usr_breakpoint): New function.
+	(mdi_setconfigfile): Update to reflect changes to mdi_state.
+	(mdi_dlopen): Likewise.
+	(mdi_cleanup): Likewise.
+	(mdi_profiling_cleanup): Likewise.
+	(mdi_profiling_close_1): Likewise.
+	(mdi_profiling_start): Likewise.
+	(mdi_readstring): Likewise.
+	(mdi_writestring): Likewise.
+	(mdi_do_syscall): Likewise.
+	(mdi_map_regno): Likewise.
+	(mdi_fetch_register): Likewise.
+	(mdi_store_register): Likewise.
+	(mdi_readreg): Likewise.
+	(mdi_writereg): Likewise.
+	(mdi_read_bytes): Likewise.
+	(mdi_write_bytes): Likewise.
+	(mdi_files_info): Likewise.
+	(show_tlb_command1): Likewise.
+	(show_tlb_command): Likewise.
+	(set_tlb_command): Likewise.
+	(show_cache1): Likewise.
+	(set_cache1): Likewise.
+	(mdi_rcmd): Likewise.
+	(mdi_log_command): Likewise.
+	(mdi_team_attach_command): Likewise.
+	(mdi_team_clear_command): Likewise.
+	(mdi_team_detach_command): Likewise.
+	(mdi_team_list_command): Likewise.
+	(mdi_cycles_enable): Likewise.
+	(mdi_cycles_update): Likewise.
+	(mdi_cycles_disable_command): Likewise.
+	(mdi_cycles_clear_command): Likewise.
+	(mdi_cycles_status_command): Likewise.
+	(mdi_showdev_cleanup): Likewise.
+
+2006-08-04  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-dbg-syncwinenv]
+	* remote-mdi.c (cygwin_sync_winenv): Update a comment.
+
+2006-08-04  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-dbg-vpe]
+	* mdi.h (MDIErrNoMulTeams): Rename to...
+	(MDIErrTooManyTeams): ... this.
+	* remote-mdi.c (errorcodes): Replace MDIErrNoMulTeams with
+	MDIErrTooManyTeams.
+
+2006-07-06  Nigel Stephens  <nigel@mips.com>
+
+	[mti-dbg-syncwinenv]
+	* remote-mdi.c (cygwin_sync_winenv): Remove Emacs typo.
+	
+2006-07-06  Nigel Stephens  <nigel@mips.com>
+
+	[mti-dbg-syncwinenv]
+	* remote-mdi.c (cygwin_sync_winenv): Test CYGWIN_VERSION_API, not
+	CYGWIN_VERSION_DLL.
+
+2006-07-06  Nigel Stephens  <nigel@mips.com>
+
+	[mti-dbg-syncwinenv]
+	* remote-mdi.c (cygwin_sync_winenv): New function.
+	(MDIInit): Call cygwin_sync_winenv() for opening DLL.
+
+2006-07-05  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-dbg-mt]
+	* mips-tdep.c (mips32_mt): Add the $vpeopt register.
+
+2006-06-27  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-trivial]
+	* remote-mdi.c (mdi_breakpoint_type_supported): Fix formatting.
+
+2006-06-27  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-trivial]
+	* remote-mdi.c (mdi_wait): Fix formatting of a comment.
+
+2006-06-27  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-dbg-vpe]
+	* remote-mdi.c (errorcodes): Add MDIErrDisabled,
+	MDIErrAlreadyMember and MDIErrNotMember.
+
 2006-05-30  Maciej W. Rozycki  <macro@mips.com>
 
 	[mti-dbg-tc]
@@ -24,7 +355,7 @@
 
 	* msim_cfg.txt (4.*;M4K): Fix typo in pattern.
 
-2006-05-11  Maciej W. Rozycki  <macro@mips.com>
+2006-05-08  Maciej W. Rozycki  <macro@mips.com>
 
 	[mti-fix-regcache_read]
 	* regcache.c (do_cooked_read): Use the other cache validity

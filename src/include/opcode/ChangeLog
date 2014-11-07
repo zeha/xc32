@@ -1,3 +1,14 @@
+2007-01-05  Chao-ying Fu  <fu@mips.com>
+
+	[mti-dsp-rev2]
+	* mips.h (enum): Add a new macro M_BALIGN.
+
+2006-06-20  Chao-ying Fu  <fu@mips.com>
+
+	[mti-dsp-rev2]
+	* mips.h (OP_SH_BP, OP_MASK_BP): New define.
+	Added '2' for BALIGN immediates.
+
 2005-06-15  Chao-ying Fu  <fu@mips.com>
 
 	[mti-dsp-inst]

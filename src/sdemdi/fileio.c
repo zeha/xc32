@@ -1,4 +1,3 @@
-#define _POSIX_SOURCS
 #define KERNEL
 #include <sys/fcntl.h>
 #include <sys/ioctl.h>
@@ -6,6 +5,7 @@
 #include <termios.h>
 #include <sys/stat.h>
 #include <sys/uio.h>
+#include <sys/time.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
@@ -190,8 +190,8 @@ int gettimeofday (struct timeval *tv, struct timezone *tz)
   if (tz)
     tz->tz_minuteswest = tz->tz_dsttime = 0;
   return (0);
-}
-    
+}    
+
 
 static int
 mkstat (int mdifd, struct stat *stb)
@@ -318,24 +318,32 @@ extern char     _end[];
 void *		_minbrk;
 void *		_maxbrk;
 static void *	curbrk = 0;
+static void *	curbrk_hi = 0;
+static int pagesize = 4096;
 
 #ifndef MINHEAP
-#define MINHEAP		(64 * 1024)
+#define MINHEAP		(16 * pagesize)
 #endif
 
 #ifndef MAXSTACK
-#define MAXSTACK	(32 * 1024)
+#define MAXSTACK	(8 * pagesize)
 #endif
 
 int
-getpagesize ()
+getpagesize (void)
 {
-    return 4096;
+    return pagesize;
+}
+
+static void
+adjust_pagesize (ptrdiff_t size) {
+    while (((size / 64) < pagesize) && (pagesize > 16))
+	pagesize /= 2;
 }
 
 
 void *
-_sbrk (int n)
+_sbrkhi (int n)
 {
     extern unsigned long _mem_top;
     void *p;
@@ -348,7 +356,7 @@ _sbrk (int n)
 	unsigned long sp;
 	unsigned long min, max;
 
-	__asm__ ("move %0,$sp" : "=d" (sp));
+	__asm__ __volatile__ ("move %0,$sp" : "=d" (sp));
 	sp &= 0x1fffffff;
 	min = (unsigned long)_minbrk & 0x1fffffff;
 	if (sp < min) {
@@ -380,9 +388,77 @@ _sbrk (int n)
     if (!curbrk)
 	curbrk = _minbrk;
 
+    if (!curbrk_hi)
+	curbrk_hi = _maxbrk;
+
+    p = curbrk_hi;
+    if (n > 0) {
+	if (curbrk_hi - n < curbrk) {
+	    errno = ENOMEM;
+	    return (void *)-1;
+	}
+    } else {
+	if (curbrk_hi - n > _maxbrk) {
+	    errno = EINVAL;
+	    return (void *)-1;
+	}
+    }
+    curbrk_hi -= n;
+    return p;
+}
+
+void *
+_sbrk (int n)
+{
+    extern unsigned long _mem_top;
+    void *p;
+    
+    if (!_minbrk)
+	/* heap normally starts just after data segment */
+	_minbrk = _end;
+
+    if (!_maxbrk) {
+	unsigned long sp;
+	unsigned long min, max;
+
+	__asm__ __volatile__ ("move %0,$sp" : "=d" (sp));
+	sp &= 0x1fffffff;
+	min = (unsigned long)_minbrk & 0x1fffffff;
+	if (sp < min) {
+	    /* stack is below heap start (unusual) */
+	    if (_mem_top >= min) {
+		/* memory top is above heap, use that as heap limit.  */
+		max = _mem_top;
+	    }
+	    else {
+		/* memory top is unknown, or below data(!),
+		   use MINHEAP bytes after the heap start,
+		   and hope for the best! */
+		max = min + MINHEAP;
+	    }
+	}
+	else {
+	    /* stack is above heap (usual case), so we use the space
+	       between the "bottom" of the stack as the heap limit. */
+	    max = sp - MAXSTACK;
+	}
+
+	/* put maxbrk in same kseg as _minbrk */
+	if (((unsigned long)_minbrk >> 29) == 4)
+	    _maxbrk = (void *) (0x80000000 | max);
+	else
+	    _maxbrk = (void *) (0xa0000000 | max);
+    }
+
+    if (!curbrk)
+	curbrk = _minbrk;
+
+    if (!curbrk_hi)
+	curbrk_hi = _maxbrk;
+
     p = curbrk;
     if (n > 0) {
-	if (curbrk + n > _maxbrk) {
+	if (curbrk + n > curbrk_hi) {
 	    errno = ENOMEM;
 	    return (void *)-1;
 	}
@@ -463,23 +539,7 @@ void exit (int status)
     _exit (status);
 }
 #endif
-#include <stdio.h>
 
-#pragma weak ftrylockfile
-int ftrylockfile(FILE *fp)
-{
-  return 0;
-}
-
-#pragma weak flockfile
-void flockfile(FILE *fp)
-{
-}
-
-#pragma weak funlockfile
-void funlockfile(FILE *fp)
-{
-}
 #ifdef __LIBC_THREAD_H__
 #pragma weak _libc_private_storage
 void *

@@ -1584,9 +1584,9 @@ mips*-sde*-elf*)
 	   # newlib / libgloss 
 	   tmake_file=mips/t-sde ;;
 	no)
-	   # MIPS toolkit libraries - use pthreads and libc
+	   # MIPS toolkit libraries - use mips thread api and libc
 	   tmake_file="mips/t-sde mips/t-sdemtk"
-	   thread_file='posix' 
+	   thread_file='mipssde' 
 	   with_headers=yes ;;
 	esac
 	# Which ABI should we use? The compiler can now 

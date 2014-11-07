@@ -596,8 +596,32 @@ static const struct mips32_reg mips32_fp[] = {
   {0, 0}
 };
 
-#define ALTNAME(real,use) use
+#define ALTNAME(real, use) use
 static const struct mips32_reg mips32_cp0[] = {
+  /*{MIPS32_COP0(8, 0),	"badvaddr"}, */
+  {MIPS32_COP0(9, 0),	"count"},
+  {MIPS32_COP0(11, 0),	"compare"},
+  /* {MIPS32_COP0(12, 0),	"status"}, */
+  /* {MIPS32_COP0(13, 0),	"cause"}, */
+  {MIPS32_COP0(14, 0),	"epc"},
+  {MIPS32_COP0(15, 0),	"prid"},
+  {MIPS32_COP0(16, 6),	"config6"},
+  {MIPS32_COP0(16, 7),	"config7"},
+  {MIPS32_COP0(17, 0),	"lladdr"},
+  {MIPS32_COP0(26, 0),	"errctl"},
+  {MIPS32_COP0(30, 0),	"errorepc"},
+  {0, 0}
+};
+
+static const struct mips32_reg mips32_config[] = {
+  {MIPS32_COP0(16, 0),	"config"},
+  {MIPS32_COP0(16, 1),	"config1"},
+  {MIPS32_COP0(16, 2),	"config2"},
+  {MIPS32_COP0(16, 3),	"config3"},
+  {0, 0}
+};
+
+static const struct mips32_reg mips32_tlb[] = {
   {MIPS32_COP0(0, 0),	"index"},
   {MIPS32_COP0(1, 0),	"random"},
   {MIPS32_COP0(2, 0),	"entrylo0"},
@@ -605,34 +629,59 @@ static const struct mips32_reg mips32_cp0[] = {
   {MIPS32_COP0(4, 0),	"context"},
   {MIPS32_COP0(5, 0),	"pagemask"},
   {MIPS32_COP0(6, 0),	"wired"},
-  /*{MIPS32_COP0(8, 0),	"badvaddr"}, */
-  {MIPS32_COP0(9, 0),	"count"},
   {MIPS32_COP0(10, 0),	"entryhi"},
-  {MIPS32_COP0(11, 0),	"compare"},
-  /* {MIPS32_COP0(12, 0),	"status"}, */
-  /* {MIPS32_COP0(13, 0),	"cause"}, */
-  {MIPS32_COP0(14, 0),	"epc"},
-  {MIPS32_COP0(15, 0),	"prid"},
-  {MIPS32_COP0(16, 0),	"config"},
-  {MIPS32_COP0(16, 1),	"config1"},
-  {MIPS32_COP0(16, 2),	"config2"},
-  {MIPS32_COP0(16, 3),	"config3"},
-  {MIPS32_COP0(17, 0),	"lladdr"},
-  {MIPS32_COP0(18, 0),	"watchlo"},
-  {MIPS32_COP0(18, 1),	"watchlo1"},
-  {MIPS32_COP0(18, 2),	"watchlo2"},
-  {MIPS32_COP0(18, 3),	"watchlo3"},
-  {MIPS32_COP0(19, 0),	"watchhi"},
-  {MIPS32_COP0(19, 1),	"watchhi1"},
-  {MIPS32_COP0(19, 2),	"watchhi2"},
-  {MIPS32_COP0(19, 3),	"watchhi3"},
+  {0, 0}
+};
+
+static const struct mips32_reg mips64_tlb[] = {
+  {MIPS32_COP0(20, 0),	"xcontext"},
+  {0, 0}
+};
+
+static const struct mips32_reg mips32_bat[] = {
+  {MIPS32_COP0(0, 0),	"index"},
+  {MIPS32_COP0(2, 0),	"entrylo0"},
+  {MIPS32_COP0(10, 0),	"entryhi"},
+  {0, 0}
+};
+
+static const struct mips32_reg mips32_r2[] = {
+  {MIPS32_COP0(7, 0),	"hwrena"},
+  {MIPS32_COP0(12, 1),	"intctl"},
+  {MIPS32_COP0(12, 2),	"srsctl"},
+  {MIPS32_COP0(15, 1),	"ebase"},
+  {0, 0}
+};
+
+static const struct mips32_reg mips32_ejtag[] = {
   {MIPS32_COP0(23, 0),	"debug"},
-  {MIPS32_COP0(23, 1),	ALTNAME("tracecontrol","trcctl")},
-  {MIPS32_COP0(23, 2),	ALTNAME("tracecontrol2", "trcctl2")},
-  {MIPS32_COP0(23, 3),	ALTNAME("usertracedata", "usrtrcdt")},
-  {MIPS32_COP0(23, 4),	"tracebpc"},
   {MIPS32_COP0(24, 0),	"depc"},
-  {MIPS32_COP0(25, 0),	"perfcnt"},
+  {MIPS32_COP0(31, 0),	"desave"},
+  {0, 0}
+};
+
+static const struct mips32_reg mips32_watch[] = {
+  {MIPS32_COP0(18, 0),	"watchlo"},
+  {MIPS32_COP0(19, 0),	"watchhi"},
+  {MIPS32_COP0(18, 1),	"watchlo1"},
+  {MIPS32_COP0(19, 1),	"watchhi1"},
+  {MIPS32_COP0(18, 2),	"watchlo2"},
+  {MIPS32_COP0(19, 2),	"watchhi2"},
+  {MIPS32_COP0(18, 3),	"watchlo3"},
+  {MIPS32_COP0(19, 3),	"watchhi3"},
+  {MIPS32_COP0(18, 4),	"watchlo4"},
+  {MIPS32_COP0(19, 4),	"watchhi4"},
+  {MIPS32_COP0(18, 5),	"watchlo5"},
+  {MIPS32_COP0(19, 5),	"watchhi5"},
+  {MIPS32_COP0(18, 6),	"watchlo6"},
+  {MIPS32_COP0(19, 6),	"watchhi6"},
+  {MIPS32_COP0(18, 7),	"watchlo7"},
+  {MIPS32_COP0(19, 7),	"watchhi7"},
+  {0, 0}
+};
+
+static const struct mips32_reg mips32_perfcnt[] = {
+  {MIPS32_COP0(25, 0),	"perfcnt0"},
   {MIPS32_COP0(25, 1),	"perfcnt1"},
   {MIPS32_COP0(25, 2),	"perfcnt2"},
   {MIPS32_COP0(25, 3),	"perfcnt3"},
@@ -640,77 +689,86 @@ static const struct mips32_reg mips32_cp0[] = {
   {MIPS32_COP0(25, 5),	"perfcnt5"},
   {MIPS32_COP0(25, 6),	"perfcnt6"},
   {MIPS32_COP0(25, 7),	"perfcnt7"},
-  {MIPS32_COP0(26, 0),	"errctl"},
+  {0, 0}
+};
+
+static const struct mips32_reg mips32_cache[] = {
   {MIPS32_COP0(27, 0),	"cacheerr"},
   {MIPS32_COP0(28, 0),	"taglo"},
   {MIPS32_COP0(28, 1),	"datalo"},
   {MIPS32_COP0(28, 2),	"taglo1"},
   {MIPS32_COP0(28, 3),	"datalo1"},
-  {MIPS32_COP0(28, 4),	"taglo2"},
-  {MIPS32_COP0(28, 5),	"datalo2"},
-  {MIPS32_COP0(28, 6),	"taglo3"},
-  {MIPS32_COP0(28, 7),	"datalo3"},
   {MIPS32_COP0(29, 0),	"taghi"},
   {MIPS32_COP0(29, 1),	"datahi"},
   {MIPS32_COP0(29, 2),	"taghi1"},
   {MIPS32_COP0(29, 3),	"datahi1"},
-  {MIPS32_COP0(29, 4),	"taghi2"},
-  {MIPS32_COP0(29, 5),	"datahi2"},
-  {MIPS32_COP0(29, 6),	"taghi3"},
-  {MIPS32_COP0(29, 7),	"datahi3"},
-  {MIPS32_COP0(30, 0),	"errorepc"},
-  {MIPS32_COP0(31, 0),	"desave"},
-  {0,0}
+  {0, 0}
 };
 
-static const struct mips32_reg mips32_r2[] = {
-  {MIPS32_COP0(5, 1),	ALTNAME("pagegrain","pggrain")},
-  {MIPS32_COP0(7, 0),	"hwrena"},
-  {MIPS32_COP0(12, 1),	"intctl"},
-  {MIPS32_COP0(12, 2),	"srsctl"},
-  {MIPS32_COP0(12, 3),	"srsmap"},
-  {MIPS32_COP0(15, 1),	"ebase"},
-  {0,0}
+static const struct mips32_reg mips32_trace[] = {
+  {MIPS32_COP0(23, 1),	ALTNAME("tracecontrol", "trcctl")},
+  {MIPS32_COP0(23, 2),	ALTNAME("tracecontrol2", "trcctl2")},
+  {MIPS32_COP0(23, 3),	ALTNAME("usertracedata", "usrtrcdt")},
+  {MIPS32_COP0(23, 4),	"tracebpc"},
+  {0, 0}
 };
 
 static const struct mips32_reg mips32_smartmips[] = {
-  {MIPS32_COP0(4, 1),	ALTNAME("contextconfig","ctxtcfg")},
-  {MIPS32_COP0(5, 1),	ALTNAME("pagegrain","pggrain")},
+  {MIPS32_COP0(4, 1),	ALTNAME("contextconfig", "ctxtcfg")},
   {DSPACC_REGNUM+0,	"acx"},
-  {0,0}
-};
-
-static const struct mips32_reg mips32_smartmips_4ks[] = {
-  {MIPS32_COP0(22, 0),	ALTNAME("securityctrl","secctl")},
-  {MIPS32_COP0(22, 1),	ALTNAME("securityswprng","secsprng")},
-  {MIPS32_COP0(22, 2),	ALTNAME("securityhwprng","sechprng")},
-  {MIPS32_COP0(22, 3),	ALTNAME("securityscrambling","secscmbl")},
   {0, 0}
 };
 
 static const struct mips32_reg mips32_mt[] = {
-  {MIPS32_COP0(0, 1),	ALTNAME("mvpcontrol","mvpctl")},
-  {MIPS32_COP0(0, 2),	"mvpconf0"},
-  {MIPS32_COP0(0, 3),	"mvpconf1"},
-  {MIPS32_COP0(1, 1),	ALTNAME("vpecontrol","vpectl")},
-  {MIPS32_COP0(1, 2),	"vpeconf0"},
-  {MIPS32_COP0(1, 3),	"vpeconf1"},
+  {MIPS32_COP0(0, 1),	ALTNAME("mvpcontrol", "mvpctl")},
+  {MIPS32_COP0(1, 1),	ALTNAME("vpecontrol", "vpectl")},
   {MIPS32_COP0(1, 4),	"yqmask"},
-  {MIPS32_COP0(1, 5),	ALTNAME("vpeschedule","vpeschd")},
-  {MIPS32_COP0(1, 6),	ALTNAME("vpeschfback","vpeschfb")},
+  {MIPS32_COP0(1, 5),	ALTNAME("vpeschedule", "vpeschd")},
+  {MIPS32_COP0(1, 6),	ALTNAME("vpeschfback", "vpeschfb")},
   {MIPS32_COP0(2, 1),	"tcstatus"},
   {MIPS32_COP0(2, 2),	"tcbind"},
-  {MIPS32_COP0(2, 3),	ALTNAME("tcrestart","tcrestrt")},
+  {MIPS32_COP0(2, 3),	ALTNAME("tcrestart", "tcrestrt")},
   {MIPS32_COP0(2, 4),	"tchalt"},
   {MIPS32_COP0(2, 5),	"tccontext"},
-  {MIPS32_COP0(2, 6),	ALTNAME("tcschedule","tcschd")},
-  {MIPS32_COP0(2, 7),	ALTNAME("tcschefback","tcschdfb")},
+  {MIPS32_COP0(2, 6),	ALTNAME("tcschedule", "tcschd")},
+  {MIPS32_COP0(2, 7),	ALTNAME("tcschefback", "tcschdfb")},
+  {0, 0}
+};
+
+static const struct mips32_reg mips32_mvpconf[] = {
+  {MIPS32_COP0(0, 2),	"mvpconf0"},
+  {MIPS32_COP0(0, 3),	"mvpconf1"},
+  {0, 0}
+};
+
+static const struct mips32_reg mips32_vpeconf[] = {
+  {MIPS32_COP0(1, 2),	"vpeconf0"},
+  {MIPS32_COP0(1, 3),	"vpeconf1"},
+  {0, 0}
+};
+
+static const struct mips32_reg mips32_srsconf[] = {
   {MIPS32_COP0(6, 1),	"srsconf0"},
   {MIPS32_COP0(6, 2),	"srsconf1"},
   {MIPS32_COP0(6, 3),	"srsconf2"},
   {MIPS32_COP0(6, 4),	"srsconf3"},
   {MIPS32_COP0(6, 5),	"srsconf4"},
-  {0,0}
+  {0, 0}
+};
+
+static const struct mips32_reg mips32_vpeopt[] = {
+  {MIPS32_COP0(1, 7),	"vpeopt"},
+  {0, 0}
+};
+
+static const struct mips32_reg mips32_sp[] = {
+  {MIPS32_COP0(5, 1),	ALTNAME("pagegrain", "pggrain")},
+  {0, 0}
+};
+
+static const struct mips32_reg mips32_vi[] = {
+  {MIPS32_COP0(12, 3),	"srsmap"},
+  {0, 0}
 };
 
 static const struct mips32_reg mips32_dsp[] = {
@@ -725,13 +783,15 @@ static const struct mips32_reg mips32_dsp[] = {
   {DSPACC_REGNUM+8,	"lo3"},
   /* {DSPACC_REGNUM+9,	"acx3"}, */
   {DSPCTL_REGNUM,	"dspctl"},
-  {0,0}
+  {0, 0}
 };
 
-/* hmm... */
-static const struct mips32_reg mips64_cp0[] = {
-  {MIPS32_COP0(20, 0),	"xcontext"},
-  {0,0}
+static const struct mips32_reg mips32_smartmips_4ks[] = {
+  {MIPS32_COP0(22, 0),	ALTNAME("securityctrl", "secctl")},
+  {MIPS32_COP0(22, 1),	ALTNAME("securityswprng", "secsprng")},
+  {MIPS32_COP0(22, 2),	ALTNAME("securityhwprng", "sechprng")},
+  {MIPS32_COP0(22, 3),	ALTNAME("securityscrambling", "secscmbl")},
+  {0, 0}
 };
 
 /* Return the name of the register corresponding to REGNO.  */
@@ -887,7 +947,8 @@ mips_pseudo_register_read (struct gdbarch *gdbarch, struct regcache *regcache,
     }
   else
     internal_error (__FILE__, __LINE__, "bad register size");
-  deprecated_register_valid[cookednum] = deprecated_register_valid[rawnum];
+  set_regcache_valid_p (regcache, cookednum,
+			regcache_valid_p (regcache, rawnum));
 }
 
 static void
@@ -1371,63 +1432,6 @@ after_prologue (CORE_ADDR pc)
   return 0;
 }
 
-/* Decode a MIPS32 instruction that saves a register in the stack, and
-   set the appropriate bit in the general register mask or float register mask
-   to indicate which register is saved.  This is a helper function
-   for mips_find_saved_regs.  */
-
-static void
-mips32_decode_reg_save (t_inst inst, unsigned long *gen_mask,
-			unsigned long *float_mask)
-{
-  int reg;
-
-  if ((inst & 0xffe00000) == 0xafa00000	/* sw reg,n($sp) */
-      || (inst & 0xffe00000) == 0xafc00000	/* sw reg,n($r30) */
-      || (inst & 0xffe00000) == 0xffa00000)	/* sd reg,n($sp) */
-    {
-      /* It might be possible to use the instruction to
-         find the offset, rather than the code below which
-         is based on things being in a certain order in the
-         frame, but figuring out what the instruction's offset
-         is relative to might be a little tricky.  */
-      reg = (inst & 0x001f0000) >> 16;
-      *gen_mask |= (1 << reg);
-    }
-  else if ((inst & 0xffe00000) == 0xe7a00000	/* swc1 freg,n($sp) */
-	   || (inst & 0xffe00000) == 0xe7c00000	/* swc1 freg,n($r30) */
-	   || (inst & 0xffe00000) == 0xf7a00000)	/* sdc1 freg,n($sp) */
-
-    {
-      reg = ((inst & 0x001f0000) >> 16);
-      *float_mask |= (1 << reg);
-    }
-}
-
-/* Decode a MIPS16 instruction that saves a register in the stack, and
-   set the appropriate bit in the general register or float register mask
-   to indicate which register is saved.  This is a helper function
-   for mips_find_saved_regs.  */
-
-static void
-mips16_decode_reg_save (t_inst inst, unsigned long *gen_mask)
-{
-  if ((inst & 0xf800) == 0xd000)	/* sw reg,n($sp) */
-    {
-      int reg = mips16_to_32_reg[(inst & 0x700) >> 8];
-      *gen_mask |= (1 << reg);
-    }
-  else if ((inst & 0xff00) == 0xf900)	/* sd reg,n($sp) */
-    {
-      int reg = mips16_to_32_reg[(inst & 0xe0) >> 5];
-      *gen_mask |= (1 << reg);
-    }
-  else if ((inst & 0xff00) == 0x6200	/* sw $ra,n($sp) */
-	   || (inst & 0xff00) == 0xfa00)	/* sd $ra,n($sp) */
-    *gen_mask |= (1 << RA_REGNUM);
-}
-
-
 /* Fetch and return instruction from the specified location.  If the PC
    is odd, assume it's a MIPS16 instruction; otherwise MIPS32.  */
 
@@ -1465,20 +1469,6 @@ mips16_fetch_instruction (CORE_ADDR addr)
     memory_error (status, addr);
   return extract_unsigned_integer (buf, instlen);
 }
-
-static ULONGEST
-mips32_fetch_instruction (CORE_ADDR addr)
-{
-  char buf[MIPS_INSTLEN];
-  int instlen;
-  int status;
-  instlen = MIPS_INSTLEN;
-  status = deprecated_read_memory_nobpt (addr, buf, instlen);
-  if (status)
-    memory_error (status, addr);
-  return extract_unsigned_integer (buf, instlen);
-}
-
 
 /* These the fields of 32 bit mips instructions */
 #define mips32_op(x) (x >> 26)
@@ -2178,7 +2168,8 @@ mips_mdebug_frame_sniffer (struct frame_info *next_frame)
      signal, we assume that all registers have been saved.  This
      assumes that all register saves in a function happen before the
      first function call.  */
-  if (!in_prologue (pc, PROC_LOW_ADDR (proc_desc)))
+  if (pc > PROC_LOW_ADDR (proc_desc)
+      && !in_prologue (pc, PROC_LOW_ADDR (proc_desc)))
     return &mips_mdebug_frame_unwind;
 
   return NULL;
@@ -2650,7 +2641,7 @@ heuristic_proc_start (CORE_ADDR pc)
   if (pc_in_unmapped_range (pc, asect = find_pc_overlay (pc)))
     /* use unmapped section base address */
     sec_addr = asect->lma;
-  else if (osect = find_pc_section (pc))
+  else if ((osect = find_pc_section (pc)) != NULL)
     /* use mapped section base address */
     sec_addr = osect->addr;
   else
@@ -6047,6 +6038,95 @@ mips_skip_prologue (CORE_ADDR pc)
     return mips32_skip_prologue (pc);
 }
 
+/* Check whether the PC is in a function epilogue (32-bit version).
+   This is a helper function for mips_in_function_epilogue_p.  */
+static int
+mips32_in_function_epilogue_p (CORE_ADDR pc)
+{
+  CORE_ADDR func_addr = 0, func_end = 0;
+
+  if (find_pc_partial_function (pc, NULL, &func_addr, &func_end))
+    {
+      /* The MIPS epilogue is max. 12 bytes long.  */
+      CORE_ADDR addr = func_end - 12;
+
+      if (addr < func_addr + 4)
+        addr = func_addr + 4;
+      if (pc < addr)
+        return 0;
+
+      for (; pc < func_end; pc += MIPS_INSTLEN)
+	{
+	  unsigned long high_word;
+	  t_inst inst;
+
+	  inst = mips_fetch_instruction (pc);
+	  high_word = (inst >> 16) & 0xffff;
+
+	  if (high_word != 0x27bd	/* addiu $sp,$sp,offset */
+	      && high_word != 0x67bd	/* daddiu $sp,$sp,offset */
+	      && inst != 0x03e00008	/* jr $ra */
+	      && inst != 0x00000000)	/* nop */
+	    return 0;
+	}
+
+      return 1;
+    }
+
+  return 0;
+}
+
+/* Check whether the PC is in a function epilogue (16-bit version).
+   This is a helper function for mips_in_function_epilogue_p.  */
+static int
+mips16_in_function_epilogue_p (CORE_ADDR pc)
+{
+  CORE_ADDR func_addr = 0, func_end = 0;
+
+  if (find_pc_partial_function (pc, NULL, &func_addr, &func_end))
+    {
+      /* The MIPS epilogue is max. 12 bytes long.  */
+      CORE_ADDR addr = func_end - 12;
+
+      if (addr < func_addr + 4)
+        addr = func_addr + 4;
+      if (pc < addr)
+        return 0;
+
+      for (; pc < func_end; pc += MIPS16_INSTLEN)
+	{
+	  t_inst inst;
+
+	  inst = mips_fetch_instruction (pc);
+
+	  if ((inst & 0xf800) == 0xf000)	/* extend */
+	    continue;
+
+	  if (inst != 0x6300		/* addiu $sp,offset */
+	      && inst != 0xfb00		/* daddiu $sp,$sp,offset */
+	      && inst != 0xe820		/* jr $ra */
+	      && inst != 0xe8a0		/* jrc $ra */
+	      && inst != 0x6500)	/* nop */
+	    return 0;
+	}
+
+      return 1;
+    }
+
+  return 0;
+}
+
+/* The epilogue is defined here as the area at the end of a function,
+   after an instruction which destroys the function's stack frame. */
+static int
+mips_in_function_epilogue_p (struct gdbarch *gdbarch, CORE_ADDR pc)
+{
+  if (pc_is_mips16 (pc))
+    return mips16_in_function_epilogue_p (pc);
+  else
+    return mips32_in_function_epilogue_p (pc);
+}
+
 /* Root of all "set mips "/"show mips " commands. This will eventually be
    used for all MIPS-specific commands.  */
 
@@ -6169,55 +6249,164 @@ deprecated_mips_set_processor_regs_hack (void)
     tdep->mips_processor_reg_names = mips_r3041_reg_names;
     return;
   }
-  if (((prid >> 16) & 0xff) == 1) {
+  if (((prid >> 16) & 0xff) != 0) {
     const struct mips32_reg *r;
-    CORE_ADDR config0, config1, config2, config3;
+    CORE_ADDR config[4] = { 0, 0, 0, 0 }, mvpconf[2] = { 0, 0 };
+    int i;
 
-    /* read avaliable config registers */
-    config0 = read_register (MIPS32_COP0(16, 0));
-    config1 = (config0 & 0x80000000) ? read_register (MIPS32_COP0(16, 1)) : 0;
-    config2 = (config1 & 0x80000000) ? read_register (MIPS32_COP0(16, 2)) : 0;
-    config3 = (config2 & 0x80000000) ? read_register (MIPS32_COP0(16, 3)) : 0;
-
-    /* MIPS Technologies MIPS32/MIPS64 CPU */
+    /* MIPS32/MIPS64 CPU.  */
     memset (mips_mips32_reg_names, 0, sizeof(mips_mips32_reg_names));
     for (r = mips32_base; r->reg; r++)
-      mips_mips32_reg_names[r->reg-32] = r->name;
+      mips_mips32_reg_names[r->reg - 32] = r->name;
+
+    /* Base CP0 registers.  */
+    for (r = mips32_cp0; r->reg; r++)
+      mips_mips32_reg_names[r->reg - 32] = r->name;
+
+    /* Read available config registers.  */
+    for (i = 0, r = mips32_config; r->reg; i++, r++)
+      {
+	config[i] = read_register (MIPS32_COP0(16, i));
+	mips_mips32_reg_names[r->reg - 32] = r->name;
+
+	if ((config[i] & 0x80000000) == 0)
+	  break;
+      }
+
+    /* TLB?  */
+    if (((config[0] >> 7) & 7) == 1)
+      {
+	for (r = mips32_tlb; r->reg; r++)
+	  mips_mips32_reg_names[r->reg - 32] = r->name;
+	/* 64-bit TLB?  */
+	if (((config[0] >> 13) & 3) == 2)
+	  for (r = mips64_tlb; r->reg; r++)
+	    mips_mips32_reg_names[r->reg - 32] = r->name;
+	/* Small pages?  */
+	if ((config[3] & ((1 << 4) | (1 << 1))) != 0)
+	  for (r = mips32_sp; r->reg; r++)
+	    mips_mips32_reg_names[r->reg - 32] = r->name;
+      }
+
+    /* BAT?  */
+    if (((config[0] >> 7) & 7) == 2)
+      for (r = mips32_bat; r->reg; r++)
+	mips_mips32_reg_names[r->reg - 32] = r->name;
+
+    /* MIPSxxR2?  */
+    if (((config[0] >> 10) & 7) == 1)
+      for (r = mips32_r2; r->reg; r++)
+	mips_mips32_reg_names[r->reg - 32] = r->name;
+
+    /* FPU?  */
+    if ((config[1] & 1) != 0)
+      for (r = mips32_fp; r->reg; r++)
+	mips_mips32_reg_names[r->reg - 32] = r->name;
+
+    /* EJTAG?  */
+    if (((config[1] >> 1) & 1) != 0)
+      for (r = mips32_ejtag; r->reg; r++)
+	mips_mips32_reg_names[r->reg - 32] = r->name;
+
+    /* Watch registers?  */
+    if (((config[1] >> 3) & 1) != 0)
+      for (i = 0, r = mips32_watch; r->reg; i++, r += 2)
+	{
+	  CORE_ADDR watchhi = read_register (MIPS32_COP0(19, i));
+
+	  mips_mips32_reg_names[r->reg - 32] = r->name;
+	  mips_mips32_reg_names[(r + 1)->reg - 32] = (r + 1)->name;
+
+	  if ((watchhi & 0x80000000) == 0)
+	    break;
+	}
+
+    /* Performance Counter registers?  */
+    if (((config[1] >> 4) & 1) != 0)
+      for (i = 0, r = mips32_perfcnt; r->reg; i += 2, r += 2)
+	{
+	  CORE_ADDR pcctrl = read_register (MIPS32_COP0(25, i));
+
+	  mips_mips32_reg_names[r->reg - 32] = r->name;
+	  mips_mips32_reg_names[(r + 1)->reg - 32] = (r + 1)->name;
+
+	  if ((pcctrl & 0x80000000) == 0)
+	    break;
+	}
+
+    /* Cache?  */
+    if ((config[1] & ((7 << 19) | (7 << 10))) != 0
+	|| (config[2] & ((0xf << 20) | (0xf << 4))) != 0)
+      for (r = mips32_cache; r->reg; r++)
+	mips_mips32_reg_names[r->reg - 32] = r->name;
+
+    /* Trace Logic?  */
+    if ((config[3] & 1) != 0)
+      for (r = mips32_trace; r->reg; r++)
+	mips_mips32_reg_names[r->reg - 32] = r->name;
+
+    /* Generic SmartMIPS ASE?  */
+    if (((config[3] >> 1) & 1) != 0)
+      for (r = mips32_smartmips; r->reg; r++)
+	mips_mips32_reg_names[r->reg - 32] = r->name;
+
+    /* MT ASE?  */
+    if (((config[3] >> 2) & 1) != 0)
+      {
+	for (r = mips32_mt; r->reg; r++)
+	  mips_mips32_reg_names[r->reg - 32] = r->name;
+
+	/* Read available MVPConf registers.  */
+	for (i = 0, r = mips32_mvpconf; r->reg; i++, r++)
+	  {
+	    mvpconf[i] = read_register (MIPS32_COP0(0, 2 + i));
+	    mips_mips32_reg_names[r->reg - 32] = r->name;
+
+	    if ((mvpconf[i] & 0x80000000) == 0)
+	      break;
+	  }
+
+	/* Read available VPEConf registers.  */
+	for (i = 0, r = mips32_vpeconf; r->reg; i++, r++)
+	  {
+	    CORE_ADDR vpeconf = read_register (MIPS32_COP0(1, 2 + i));
+	    mips_mips32_reg_names[r->reg - 32] = r->name;
+
+	    if ((vpeconf & 0x80000000) == 0)
+	      break;
+	  }
+
+	/* Read available SRSConf registers.  */
+	for (i = 0, r = mips32_srsconf; r->reg; i++, r++)
+	  {
+	    CORE_ADDR srsconf = read_register (MIPS32_COP0(6, 1 + i));
+	    mips_mips32_reg_names[r->reg - 32] = r->name;
+
+	    if ((srsconf & 0x80000000) == 0)
+	      break;
+	  }
+
+	/* VPEOpt?  */
+	if (((mvpconf[0] >> 27) & 1) != 0)
+	  for (r = mips32_vpeopt; r->reg; r++)
+	    mips_mips32_reg_names[r->reg - 32] = r->name;
+      }
+
+    /* Vectored Interrupts?  */
+    if (((config[3] >> 5) & 1) != 0)
+      for (r = mips32_vi; r->reg; r++)
+	mips_mips32_reg_names[r->reg - 32] = r->name;
 
     /* DSP ASE? */
-    if ((config3 >> 10) & 1)
+    if (((config[3] >> 10) & 1) != 0)
       for (r = mips32_dsp; r->reg; r++)
-	mips_mips32_reg_names[r->reg-32] = r->name;
-
-    /* Always include FP for now */
-    /*if (config1 & 1)*/
-    for (r = mips32_fp; r->reg; r++)
-      mips_mips32_reg_names[r->reg-32] = r->name;
-
-    /* Base CP0 registers */
-    for (r = mips32_cp0; r->reg; r++)
-      mips_mips32_reg_names[r->reg-32] = r->name;
-
-    /* MIPSxxR2? */
-    if (((config0 >> 10) & 7) == 1)
-      for (r = mips32_r2; r->reg; r++)
-	mips_mips32_reg_names[r->reg-32] = r->name;
-
-    /* Generic SmartMIPS ASE? */
-    if ((config3 >> 1) & 1)
-      for (r = mips32_smartmips; r->reg; r++)
-	mips_mips32_reg_names[r->reg-32] = r->name;
+	mips_mips32_reg_names[r->reg - 32] = r->name;
 
     /* SmartMIPS ASE on 4KSc/4KSd? */
     if (((prid >> 8) & 0xffff) == 0x0186
 	|| ((prid >> 8) & 0xffff) == 0x0192)
       for (r = mips32_smartmips_4ks; r->reg; r++)
-	mips_mips32_reg_names[r->reg-32] = r->name;
-
-    /* MT ASE? */
-    if ((config3 >> 2) & 1)
-      for (r = mips32_mt; r->reg; r++)
-	mips_mips32_reg_names[r->reg-32] = r->name;
+	mips_mips32_reg_names[r->reg - 32] = r->name;
 
     tdep->mips_processor_reg_names = mips_mips32_reg_names;
   }
@@ -7271,6 +7460,8 @@ mips_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
   set_gdbarch_adjust_breakpoint_address (gdbarch, mips_adjust_breakpoint_address);
 
   set_gdbarch_skip_prologue (gdbarch, mips_skip_prologue);
+
+  set_gdbarch_in_function_epilogue_p (gdbarch, mips_in_function_epilogue_p);
 
   set_gdbarch_pointer_to_address (gdbarch, signed_pointer_to_address);
   set_gdbarch_address_to_pointer (gdbarch, address_to_signed_pointer);

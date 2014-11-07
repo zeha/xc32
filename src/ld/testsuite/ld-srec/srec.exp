@@ -423,4 +423,12 @@ setup_xfail "hppa*-*-*"
 setup_xfail "ia64-*-*"
 setup_xfail "*-*-cygwin*" "*-*-mingw*" "*-*-pe*" "*-*-winnt*"
 
+# The S-record linker doesn't handle the odd addresses of MIPS16 ELF in
+# constructors/destructors.
+if [board_info [target_info name] exists multilib_flags] {
+    if [string match "*-mips16*" "[board_info [target_info name] multilib_flags]"] then {
+	setup_xfail "mips*-*-elf"
+    }
+}
+
 run_srec_test $test2 "tmpdir/sr3.o"

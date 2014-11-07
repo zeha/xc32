@@ -151,6 +151,9 @@ SFCMP(__mips16_lesf2, c.le.s, 0, 1)
 #ifdef L_m16ltsf2
 SFCMP(__mips16_ltsf2, c.lt.s, -1, 0)
 #endif
+#ifdef L_m16unordsf2
+SFCMP(__mips16_unordsf2, c.un.s, 1, 0)
+#endif
 
 /* Single precision conversions.  */
 
@@ -367,6 +370,9 @@ DFCMP(__mips16_ledf2, c.le.d, 0, 1)
 #endif
 #ifdef L_m16ltdf2
 DFCMP(__mips16_ltdf2, c.lt.d, -1, 0)
+#endif
+#ifdef L_m16unorddf2
+DFCMP(__mips16_unorddf2, c.un.d, 1, 0)
 #endif
 
 /* Double precision conversions.  */

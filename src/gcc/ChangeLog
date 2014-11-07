@@ -1,14 +1,186 @@
+2008-09-15  Jason Kajita <jason.kajita@microchip.com>
+	* cppexp.c:  Add support for the 0b binary-constant syntax.
+
 2007-10-19  James Grosbach <james.grosbach@microchip.com>
 	* config/mips/mips.c:  sibcall optimization nukes the
 	epilogue code for an interrupt handler. That goofs up context
 	restoration. Say 'no' when the front end asks if a sibcall is OK when
 	we're in a handler function.
 
-2007-9-6  James Grosbach <james.grosbach@microchip.com>
+2007-09-13  David Ung  <davidu@mips.com>
+
+	Merged from mips-sde-gcc3_4-branch
+
+	2007-09-12  David Ung  <davidu@mips.com>
+	[mti-mips16-cse, bugzilla 725]
+	* emit-rtl.c (set_unique_reg_note): Don't replace REG_EQUAL notes
+	for existing section relative addresses.
+	* config/mips/mips.c (mips_legitimize_move): Revert last change,
+	such that it replaces the user symbols with section-relative symbols.
+	(mips_legitimize_section_relative_address): Revert last change.
+
+	2007-09-11  David Ung  <davidu@mips.com>
+	[mti-mips16-cse, bugzilla 725]
+	* config/mips/mips.c: Add new parameter to prototype function
+	mips_legitimize_section_relative_address for symbol name.
+	(mips_split_symbol): Update call to
+	mips_legitimize_section_relative_address.
+	(mips_legitimize_address): Similarly.
+	(mips_legitimize_move): Delete setting of unique note for section
+	base + offset.  Delete commented out code.
+	(mips_legitimize_section_relative_address): Override note with
+	actual symbol if offset is zero.
+	* emit-rtl.c (set_unique_reg_note): Delete processing of special
+	section relative address.
+
+2007-09-06  James Grosbach <james.grosbach@microchip.com>
 	* config.host: add __USE_MINGW_ACCESS to host_xm_defines when
 	building for a MinGW32 host. This enables the MinGW workaround
 	for Vista complaining about the X_OK flag on the access() system
 	call.
+
+2007-04-18  David Ung  <davidu@mips.com>
+
+	Merged from mips-sde-gcc3_4-branch
+
+	2007-04-17  David Ung  <davidu@mips.com>
+	[mti-profiling-mips16, UK Bugzilla 619]
+	* config/mips/mips.h (ASM_OUTPUT_REG_PUSH): Replace {d}subu with
+	{d}addiu and a negative immediate such that it works with MIPS16
+	instructions.
+
+	2007-04-17  David Ung  <davidu@mips.com>
+	[mti-74k-ALU-move-delays, UK Bugzilla 602]
+	* config/mips/74k.md (r74k_int_move): Change delay to 1 cycle.
+	(bypass): Change bypass to 2 for load/store bases.
+	
+	2007-04-17  David Ung  <davidu@mips.com>
+	[mti-74k-fp-ratio]
+	* config/mips/74k.md: Add r74kz to various integer reservations.
+
+	2007-04-17  David Ung  <davidu@mips.com>
+	[mti-cpu-names]
+	* config/mips/mips.c (mips_cpu_info_table): Change "-" to "_" for
+	74kf2_1, 74kf1_1 and 74kf3_2 since "-" isn't handled by
+	MIPS_CPP_SET_PROCESSOR.  Apply these changes for 24k/24ke/34k
+	aswell.
+
+	2007-04-16  David Ung  <davidu@mips.com>
+	[mti-74k-ALU-signext-delays, UK Bugzilla 602]
+	* config/mips/mips.md ("type"): Add new signext (sign extend)
+	type.  Change attrib to "signext" for insn patterns that generates
+	sign extend operations. 
+	* config/mips/74k.md (r74k_int_logical): Add signext to this
+	reservation.
+	* config/mips/20kc.md ("r20kc_int_other"): Similarly.
+	* config/mips/24k.md ("r24k_int_arith"): ..
+	* config/mips/5400.md ("ir_vr54_arith"): ..
+	* config/mips/5500.md ("ir_vr55_arith"): ..
+	* config/mips/5kc.md ("r5kc_int_alu"): ..
+	* config/mips/7000.md ("rm7_int_other"): ..
+	* config/mips/9000.md ("rm9k_int"): ..
+	* config/mips/sr71k.md ("ir_sr70_arith"): ..
+
+	2007-04-16  David Ung  <davidu@mips.com>
+	[mti-cpu-names]
+	* config/mips/mips.c (mips_cpu_info_table): Add new names 74kf2-1,
+	74kf1-1 and 74kf3-2.  Also add these changes for 24k/24ke/34k.
+
+	2007-04-16  David Ung  <davidu@mips.com>
+	[mti-74k-fp-ratio]
+	* config/mips/mips.h (processor_type):  Add PROCESSOR_74KZ for the
+	3:2 core to float clock ratio.
+	(TARGET_MIPS74K): Defined to all 74k variants.
+	(TUNE_MIPS74K): Similarly.
+	* config/mips/mips.c (mips_cpu_info_table) : Add 74kz entry.
+	(override_options): Set 74kz branch_cost to 2.  Generalise
+	multiple test for 74k to TARGET_MIPS74K and TUNE_MIPS74k.
+	(mips_is_costly_dependence): Use TUNE_MIPS74K.
+	(mips_sched_reorder): Similarly.
+	(mips_variable_issue): ..
+	(mips_dfa_new_cycle): ..
+	(mips_issue_rate): Add 74KZ.
+	(mips_use_dfa_pipeline_interface): Add 74KZ.
+	* config/mips/mips.md (cpu): Add r74kz. 
+	* config/mips/74k.md: Add various 74kz insn reservation pattens.
+	
+2007-04-11  David Ung  <davidu@mips.com>
+
+	Merged from mips-sde-gcc3_4-branch
+
+	[mti-74k-issue-rate, UK Bugzilla 601]
+	* config/mips/mips.c (mips_issue_rate): Make the issue rate of the
+	74k to 4.  The 74k is not strictly quad-issue cpu, but can be seen
+	as one by the scheduler.  It can issue 1 ALU, 1 AGEN, 2 FPU insns.
+
+	2007-04-05  David Ung  <davidu@mips.com>
+	[mti-74k-ALU-logical-delays, UK Bugzilla 602]
+	* config/mips/mips.md: Set cmp, cmpi attributes to logical type
+	for MIPS16.
+
+	2007-04-05  David Ung  <davidu@mips.com>
+	[mti-74k-ALU-slt-delays, UK Bugzilla 602]
+	* config/mips/mips.md ("type"): Add new slt (set less than) type.
+	* config/mips/74k.md (r74k_int_logical): Add slt to this
+	reservation.
+	* config/mips/20kc.md ("r20kc_int_other"): Add slt attr.
+	* config/mips/24k.md ("r24k_int_arith"): Similarly.
+	* config/mips/5400.md ("ir_vr54_arith"): ..
+	* config/mips/5500.md ("ir_vr55_arith"): ..
+	* config/mips/5kc.md ("r5kc_int_alu"): ..
+	* config/mips/7000.md ("rm7_int_other"): ..
+	* config/mips/9000.md ("rm9k_int"): ..
+	* config/mips/sr71k.md ("ir_sr70_arith"): ..
+	
+	2007-04-05  David Ung  <davidu@mips.com>
+	[mti-74k-ALU-logical-delays, UK Bugzilla 602]
+	* config/mips/mips.md ("type"): Add new logical type.
+	Change attrib to "logical" for insn patterns that generates
+	logical operations. 
+	* config/mips/74k.md (r74k_int_logical): New reservation for 1
+	cycle latency for all logical operations.
+	* config/mips/20kc.md ("r20kc_int_other"): Add logical attr.
+	* config/mips/24k.md ("r24k_int_arith"): Similarly.
+	* config/mips/5400.md ("ir_vr54_arith"): ..
+	* config/mips/5500.md ("ir_vr55_arith"): ..
+	* config/mips/5kc.md ("r5kc_int_alu"): ..
+	* config/mips/7000.md ("rm7_int_other"): ..
+	* config/mips/9000.md ("rm9k_int"): ..
+	* config/mips/sr71k.md ("ir_sr70_arith"): ..
+	
+	2007-03-26  David Ung  <davidu@mips.com>
+	[mti-74k-pipeline-float]
+	* config/mips/74k.md: Fix reservation name for 74kx.
+
+	2007-03-23  David Ung  <davidu@mips.com>
+	[mti-74k-pipeline-float]
+	* config/mips/74k.md: Duplicate all floating point resevations for
+	74kf and double their latency.
+	
+2007-04-11  David Ung  <davidu@mips.com>
+
+	Merged from mips-sde-gcc3_4-branch
+	
+	2007-02-28  David Ung  <davidu@mips.com>
+	[uk-bugzilla-557]
+	* expmed.c (extract_split_bit_field): Replace conditional on
+	thispos with first for big-endian.
+
+	2007-02-27  David Ung  <davidu@mips.com>
+	[uk-bugzilla-557]
+	* expmed.c (extract_split_bit_field): Delete code that handles the
+	sign-bit by extending with arithmetic shifts.  The previous patch
+	handles the sign-bit as part of the extraction.  The extra shifts
+	normally would of been optimized away.
+
+	2007-02-23  David Ung  <davidu@mips.com>
+	[uk-bugzilla-557]
+	* expmed.c (extract_split_bit_field): Pass signess for the most
+	significant byte to extract_fixed_bit_field.  Similary for the
+	calls to expand_shift.  The passing of signess for the most
+	significant bytes ensure that it gets the right sign_extend rtx
+	early on (previously the compiler was generating zero_extend and
+	fixing the signess later with sll and sra).
 
 2007-2-8  James Grosbach <james.grosbach@microchip.com>
 	* config.gcc: Add reference to new file mchp-protos.h
@@ -24,100 +196,750 @@
 	* config/mips/mips.c (mips_file_end): Emit the configuration word
 	data sections.
 
-2007-2-8  James Grosbach <james.grosbach@microchip.com>
+2007-02-08  James Grosbach <james.grosbach@microchip.com>
 
 	* gcc.c: Add support for %J operator in spec language, which
 	joins the text of the current argument to that of the previous
 	argument instead of adding the text as a new argument.
+
+2007-01-15  David Ung  <davidu@mips.com>
+
+	[uk-bugzilla-456]
+	* config/mips/mips.c (mips_symbolic_constant_p): Return false if
+	symbol is of type SYMBOL_SECTION_RELATIVE and offset is != 0.
+	This ensures correct handling in mips_legitimize_address to
+	fallthrough into (const	(plus symbol offset)) instead of being
+	split in the very first test.
+
+2007-01-15  David Ung  <davidu@mips.com>
+
+	[uk-bugzilla-406]
+	* expmed.c (store_fixed_bit_field): Reinstate "must_and" code that
+	creates an AND rtx for the bit fields.  This was previously
+	#ifdef out in favour of the OP0 ^= (OP0 ^ VALUE) & MASK pattern.
+
+2007-01-12  Nigel Stephens  <nigel@mips.com>
+
+	* config/mips/mips.h (ADDITIONAL_REGISTER_NAMES): Add "s8" as
+	alias for "fp".
+
+	* gthr-mipssde.h (__GTHREAD_MUTEX_INIT): Add name to
+	SDETHREAD_MUTEX_INITIALIZER.
+
+	* gcov-io.c (__gcov_prefix): Only include when IN_LIBGCOV.
+
+2007-01-12  David Ung  <davidu@mips.com>
+
+	[uk-bugzilla-406]
+	* expmed.c (store_fixed_bit_field): #if out the bitfield pattern
+	of OP0 ^= (OP0 ^ VALUE) & MASK as this is causing plumhall
+	regressions.  Need to re-investigate in SDE7.
 
 2006-12-20  James Grosbach <james.grosbach@microchip.com>
 
 	* config/mips/mips.c: Add support for generating dispatch functions
 	for exception vectors. #pragma vector and the vector clause on
 	#pragma interrupt.
+	
+2006-12-14  Chao-ying Fu  <fu@mips.com>
+
+	[mti-dspr2-intrinsics]
+	* config/mips/mips-dspr2.md (mips_addqh_ph, mips_addqh_r_ph,
+	mips_addqh_w, mips_addqh_r_w, mips_subqh_ph, mips_subqh_r_ph,
+	mips_subqh_w, mips_subqh_r_w, mips_dpax_w_ph, mips_dpsx_w_ph,
+	mips_dpaqx_s_w_ph, mips_dpaqx_sa_w_ph, mips_dpsqx_s_w_ph,
+	mips_dpsqx_sa_w_ph, mips_dpax_w_ph_64, mips_dpsx_w_ph_64,
+	mips_dpaqx_s_w_ph_64, mips_dpaqx_sa_w_ph_64, mips_dpsqx_s_w_ph_64,
+	mips_dpsqx_sa_w_ph_64): Add new instructions.
+	* config/mips/mips.c (mips_web_mark_register): Check 
+	UNSPEC_DPAQX_S_W_PH, UNSPEC_DPAQX_SA_W_PH, UNSPEC_DPSQX_S_W_PH,
+	UNSPEC_DPSQX_SA_W_PH, UNSPEC_DPAQX_S_W_PH_64, UNSPEC_DPAQX_SA_W_PH_64,
+	UNSPEC_DPSQX_S_W_PH_64, UNSPEC_DPSQX_SA_W_PH_64, UNSPEC_MULSA_W_PH_64,
+	UNSPEC_DPAX_W_PH, UNSPEC_DPSX_W_PH, UNSPEC_DPAX_W_PH_64,
+	UNSPEC_DPSX_W_PH_64.
+	(builtin_description): Add new DSPR2 builtins.
+	(mips_expand_builtin): Support new DSPR2 builtins.
+	* config/mips/mips.h (mips_builtins): Add new DSPR2 builtins.
+	* config/mips/mips.md (UNSPEC): Add new UNSPEC for new DSPR2.
+
+2006-12-13  David Ung  <davidu@mips.com>
+
+	[74k-tuning, Bugzilla bug 475]
+	* config/mips/mips.c (mips_variable_issue): Don't decrement
+	can_issue_more for CLOBBER and USE insn since they don't count
+	towards issue rate.
+
+2006-12-13  David Ung  <davidu@mips.com>
+
+	[mti-branch-likely]
+	* config/mips/mips.c (mips_output_conditional_branch): Backed out
+	change since if branch is already annulled, it would genereate
+	wrong code.
+
+2006-12-12  Nigel Stephens  <nigel@mips.com>
+
+	* gthr-mipssde.h: New gthread model using MIPS "sdethread" API for
+	C++.
+
+	* config/mips/sde.h (GEN_ERRNO_RTX, TARGET_EDOM): Removed, since
+	they won't work with an indirect errno pointer, and won't be
+	compatible with matherr if we implement C99 in the future.
+
+	* config.gcc (mips*-sde-elf): Use "mipssde" thread model instead
+	of pthreads.
+
+2006-12-07  David Ung  <davidu@mips.com>
+
+	[mti-branch-likely]
+	* config/mips/mips.c (mips_output_conditional_branch): Set
+	mips_branch_likely to 0 if mips_brlikely if set to no.
+
+2006-12-06  David Ung  <davidu@mips.com>
+
+	[74k-tuning]
+	* config/mips/mips.c (mips_sched_reorder): Fix comparison in loop
+	condition.  If last_agen_insn is -1, prefer to choose loads.
+	(mips_variable_issue): Reset last_agen_insn after scheduling
+	JUMP_INSN/CALL_INSN.  Don't try to schedule anything else after
+	issuing CALL_INSN.
+	(mips_dfa_new_cycle): Moved reset code to mips_variable_issue.
+
+2006-12-05  David Ung  <davidu@mips.com>
+
+	[74k-tuning]
+	* config/mips/74k.md: Remove r74k_store_buffer automaton and the 3
+	r74k_agen_store? units.
+	("r74k_int_load"): Remove pipe usage of r74k_agen_store?.
+	("r74k_int_store"): Change delay to value of 1 and remove pipe
+	usage of r74k_agen_store?.
+	* config/mips/mips.c (TARGET_SCHED_VARIABLE_ISSUE): Defined.
+	(last_agen_insn): Records whether the last insn previously
+	scheduled is a load or store.
+	(mips_sched_reorder): Rewrote to take account of last_agen_insn.
+	Swap loads with stores in the ready queue such that the scheduler
+	will try to arrange multiple loads together.  Similarly for
+	stores.
+	(mips_variable_issue): New function. Sets last_agen_insn before
+	calling schedule_insn.
+	(mips_dfa_new_cycle): Reset last_agen_insn.
+
+2006-12-01  David Ung  <davidu@mips.com>
+
+	[mti-spill-auto-variables]
+	* config/mips/mips.c (mips_spill_auto_register): Make spill a
+	parameter to this function. Fix calls to mips_spill_auto_register.
+	* target.h (struct gcc_target): Add 2nd param to
+	spill_auto_register.
+	* stmt.c (expand_decl): Call spill_auto_register with false as
+	parameter.
+
+2006-12-01  David Ung  <davidu@mips.com>
+
+	[mti-spill-auto-variables]
+	* config/mips/mips.c (mips_spill_auto_register): Handle array type
+	separately in a case statement.  Recusively call
+	mips_spill_auto_register to check array base type.
+
+2006-11-28  David Ung  <davidu@mips.com>
+
+	[74k-tuning]
+	* config/mips/mips.c (override_options): Redo the calculation of
+	mips_branch_cost.  Although the 74k is dual-issued and has a
+	fairly long pipe, its ALU & AGEN are relatively short overall.
+	Set to a cost of 2 which seem to generate good code.
+
+2006-11-27  David Ung  <davidu@mips.com>
+
+	[74k-opt-prefetch, UK bugzilla 451]
+	* config/mips/mips.md: Assume data is aligned on begining of cache
+	line, divide offset by 32 to check if two prefetches are on the
+	same line.
+
+2006-11-27  David Ung  <davidu@mips.com>
+
+	[mti-spill-auto-variables]
+	* config/mips/mips.c (mips_spill_auto_register): Unify test for
+	array_type to use fall-through code.
+
+2006-11-21  David Ung  <davidu@mips.com>
+
+	[74k-opt-prefetch, UK bugzilla 451]
+	* config/mips/mips.md: New peephole2 pattern that crudely merges 2
+	consecutive prefetches if they lie within 32bytes of each other.
+	FIXME: This is very simple minded pattern matching and only works
+	if the 2 instructions are next to each other.  A proper fix would
+	be either extending CSE to handle prefetches or get combine to
+	eliminate the duplicates.
+
+2006-11-09  David Ung  <davidu@mips.com>
+
+	[mti-spill-auto-variables]
+	* config/mips/mips.c (mips_spill_auto_register): Revert last
+	change.
+	
+2006-11-09  David Ung  <davidu@mips.com>
+
+	[mti-spill-auto-variables]
+	* config/mips/mips.c (mips_spill_auto_register): Unify test for
+	array_type to use fall through code.
+
+2006-11-01  David Ung  <davidu@mips.com>
+
+	[mti-embedded-data]
+	* config/mips/sde.h: Re-disable -membedded-data.
+	* config/mips/mips.c (override_options): Put back warning
+	of "-mno-data-in-code requires -mno-embedded-data".
+	(mips_in_small_data_p): Don't put external references that are
+	readonly into sdata section.
+	
+2006-10-30  Thiemo Seufer  <ths@mips.com>
+
+	* config/mips/mips.c: Add aliases 24kx, 24kex, 34kx and 74kx.
+
+2006-10-18  David Ung  <davidu@mips.com>
+
+	Backout previous change:
+	
+	2006-08-17  Nigel Stephens  <nigel@mips.com>
+	[mti-mips16-casethreshold]
+	* config/mips/mips.h (CASE_VALUES_THRESHOLD): Define as 7 for
+	MIPS16 when optimising for size, to better reflect the cost of the
+	casesi prologue.
+	
+2006-10-12  David Ung  <davidu@mips.com>
+
+	[mti-spill-auto-variables]
+	* config/mips/mips.c (mips_spill_auto_register): Handle arrays
+	types inside union/struct by recursively calling
+	mips_spill_auto_register if the array base is also union/struct.
+	Set spill to true if array size is 16/32/64.
+
+2006-10-12  David Ung  <davidu@mips.com>
+
+	[mti-74k-pipeline]
+	* recog.c (store_data_bypass_p): Handle prefetch insns.
+	
+2006-09-27  David Ung  <davidu@mips.com>
+
+	* config/mips/mips.c (override_options): Remove warning of
+	"-mno-data-in-code requires -mno-embedded-data".  This is causing
+	every regression to fail because of un-expected output.
+
+2006-09-26  David Ung  <davidu@mips.com>
+
+	[mti-embedded-data]
+	* config/mips/sde.h: Rollback default to use -membedded-data for
+	the SDE 6.5 release.  cxxtest triggers a bug when
+	-mno-embedded-data is used.
+	
+2006-09-20  David Ung  <davidu@mips.com>
+
+	[UK-bugzilla-405]
+	Reverted, workaround didn't work since it need to *(MAX_INT+1).
+	* config/mips/mips.md (reload_outsi): Revert last change.
+	(mips16_mthi): ..
+	* config/mips/mips.c (mips_secondary_reload_class): ..
+
+2006-09-20  David Ung  <davidu@mips.com>
+	
+	[UK-bugzilla-405]
+	* config/mips/mips.md (reload_outsi): New pattern for reloading of
+	the HI register in mips16 mode.  The "mips16_mthi" pattern needs a
+	scratch register to work with and is requested via secondary
+	reload.
+	(mips16_mthi): Generate moving a register to HI in mips16 mode.
+	It is done by multiplying MAX-INT by the register.
+	* config/mips/mips.c (mips_secondary_reload_class): Allow copying
+	to HI by reloading in a scratch register and generating the
+	mips16_mthi pattern.  Return M16_REGS as the scratch class.
+	
+2006-09-19  David Ung  <davidu@mips.com>
+
+	[UK-bugzilla-424]
+	* cgraph.c (cgraph_varpool_calculate_offsets): Replace uses of
+	SMALL_OPERAND in generic code.
+
+2006-09-15  David Ung  <davidu@mips.com>
+
+	[UK-bugzilla-218]
+	* c-decl.c (diagnose_mismatched_decls): Backout this change since
+	it causes loads of regression to fail.
+
+2006-09-15  David Ung  <davidu@mips.com>
+
+	[mti-mips16-no-data-in-code]
+	[mti-mips16-code-xonly]
+	* config/mips/mips.c (move_operand): Add TARGET_MIPS16 check.
+
+2006-09-15  David Ung  <davidu@mips.com>
+
+	[UK-bugzilla-218]
+	* c-decl.c (diagnose_mismatched_decls): Change warning to error
+	(incompliance with gcc4) for static declaration following
+	non-static declaration.
+
+2006-09-14  Chao-ying Fu  <fu@mips.com>
+
+	[mti-dspr2-intrinsics]
+	* config/mips/24k.md (r24k_dsp_alu): Test dspalu or dspalusat.
+	* config/mips/mips-dsp.md: Change dspalu to dspalusat for 
+	instructions that saturate the results.
+
+2006-09-14  David Ung  <davidu@mips.com>
+
+	[mti-mips16-no-data-in-code]
+	* config/mips/mips.c (move_operand): For SYMBOL_REF that is
+	identified to go into the constant pool, return false so it will
+	be split into GP-rel or hi/lo pair.  Fixes regression
+	gcc.c-torture/execute/va-arg-25.c compiled with -O0.
+
+2006-09-12  Chao-ying Fu  <fu@mips.com>
+
+	[mti-dspr2-intrinsics]
+	* config/mips/mips.c (override_options): Enable MASK_DSPR2 for 74K or
+	74KX.
+	(mips_web_mark_register): Check UNSPEC_DPA_W_PH, UNSPEC_DPA_W_PH_64,
+	UNSPEC_DPS_W_PH, UNSPEC_DPS_W_PH_64, UNSPEC_MULSA_W_PH,
+	UNSPEC_MULSA_W_PH_64.
+	(builtin_description): Change __builtin_mips_dmaddu to accept unsigned
+	parameters.
+	Change __builtin_mips_dmsubu to accept unsigned parameters.
+	Add DSPR2 builtins.
+	(mips_expand_builtin): Support DSPR2 builtins.
+	(mips_init_builtins): Add ti_ftype_ti_udi_udi, v4qi_ftype_v4qi,
+	si_ftype_si_si_si, di_ftype_si_si, v2hi_ftype_si_si_si,
+	di_ftype_di_usi_usi, di_ftype_usi_usi.
+	* config/mips/mips.h (MASK_DSPR2): New mask for DSPR2.
+	(TARGET_MIPS74K, TARGET_MIPS74KX): New define.
+	(TARGET_MIPS_DSP32R2, TARGET_MIPS_DSP64R2): New define.
+	(mips_builtins): Add DSPR2 builtins.
+	(mips_function_type): Add MIPS_TI_FTYPE_TI_UDI_UDI,
+	MIPS_V4QI_FTYPE_V4QI, MIPS_SI_FTYPE_SI_SI_SI, MIPS_DI_FTYPE_SI_SI,
+	MIPS_V2HI_FTYPE_SI_SI_SI, MIPS_DI_FTYPE_DI_USI_USI,
+	MIPS_DI_FTYPE_USI_USI.
+	* config/mips/mips.md (UNSPEC): Add new UNSPEC for DSPR2.
+	(mult): Enable the original mult when !TARGET_MIPS_DSP32R2.
+	(multu): Enable the original multu when !TARGET_MIPS_DSP32R2.
+	(madd): Enable the original madd when !TARGET_MIPS_DSP32R2.
+	(maddu): Enable the original maddu when !TARGET_MIPS_DSP32R2.
+	(msub): Enable the original msub when !TARGET_MIPS_DSP32R2.
+	(msubu): Enable the original msubu when !TARGET_MIPS_DSP32R2.
+	(mips-dspr2.md): New include.
+	* config/mips/mips-dspr2.md: New file.
+
+2006-09-11  David Ung  <davidu@mips.com>
+
+	* combine.c (num_sign_bit_copies1): Ported from FSF head.  This
+	fixes compilation timeouts for regressions
+	gcc.c-torture/execute/20040629-1.c with "-O3
+	-fomit-frame-pointer" and "-O3 -g" for -mips64.
+
+2006-09-11  David Ung  <davidu@mips.com>
+
+	[mti-74k-pipeline]
+	* recog.c (store_data_bypass_p): Return false when IN_INSN is a
+	UNSPEC_VOLATILE pattern.  The mips backend can generete a
+	.cprestore which fails the single_set test.
+
+2006-09-08  David Ung  <davidu@mips.com>
+
+	[mti-mips16-no-data-in-code]
+	* config/mips/mips.c (move_operand): Return false for
+	TARGET_NO_DATA_IN_CODE.
+
+2006-09-08  David Ung  <davidu@mips.com>
+
+	[mti-mips16-code-xonly]
+	* rtl.h (LABEL_REF_JUMP_TABLE_P): Port from SDE5 - New flag for
+	LABEL_REFs, using the unchanging field, to indicate that this
+	label refers to a jump table.
+	* integrate.c (copy_rtx_and_substitute): Copy the new
+	LABEL_REF_JUMP_TABLE_P flag when copying a LABEL_REF.
+	* expr.c (do_tablejump): Replace LABEL_REF_NONLOCAL_P with
+	LABEL_REF_JUMP_TABLE_P.
+	* config/mips/mips.c (move_operand): Similarly.
+	
+2006-09-06  David Ung  <davidu@mips.com>
+
+	[mti-mips16-caseaddress]
+	* config/mips/mips.c (mips_classify_symbol): Back out change since
+	this fails for -mno-data-in-code.
+
+2006-09-06  David Ung  <davidu@mips.com>
+
+	[mti-74k-pipeline]
+	* config/mips/mips.md: Remove pipe_r74 attrib.
+	("abssi2"): Removed.
+	("absdi2"): Removed.
+	* config/mips/74k.md ("r74k_darith"): Block r74k_agen also.
+	("r74k_multi_alu"): Removed.
+	("r74k_multi_agen"): Removed.
+	("r74k_multi"): Re-introduced.
+	
+2006-09-06  David Ung  <davidu@mips.com>
+
+	[mti-mips16-code-xonly]
+	* expr.c (do_tablejump): For label refs created as part of the
+	jump table, set LABEL_REF_NONLOCAL_P to 1 if
+	JUMP_TABLES_IN_TEXT_SECTION return false.  This allows the mips
+	backend to detect that the label is special code_label and in the
+	case of -mcode-xonly (where the jump table to put in .rodata)
+	forces the ref to the constant pool. 
+	* config/mips/mips.c (move_operand): Return false if this is a
+	label reference to a jump table not in the current section.
+
+2006-09-01  David Ung  <davidu@mips.com>
+
+	[mti-mips64-complex]
+	* simplify-rtx.c (simplify_immed_subreg): Return NULL_RTX upon a
+	complex mode.  This fixes mips64 regression
+	gcc.c-torture/execute/20020227-1.c after enabling
+	-mno-embedded-data for SDE.
+
+2006-08-30  David Ung  <davidu@mips.com>
+
+	[mti-74k-pipeline]
+	* config/mips/mips.c (mips_is_costly_dependence): Removed.
+	(TARGET_SCHED_ADJUST_PRIORITY): Removed.
+	(mips_dfa_new_cycle): Don't lapse cycles after reload and
+	-fsched2_use_superblocks.
+
+2006-08-30  Nigel Stephens  <nigel@mips.com>
+
+	[mti-mips16-spram]
+	* config/mips/t-sde (TARGET_LIBGCC2_CFLAGS): Add -mcode-xonly.
+
+2006-08-29  David Ung  <davidu@mips.com>
+
+	[mti-74k-pipeline] - Merged from r74k-branch..
+
+	2006-08-25  David Ung  <davidu@mips.com>
+	* config/mips/mips.md (pipe_74k): New attrib type to select either
+	r74k_multi_alu/r74k_multi_agen for "multi" types.
+	(abssi2, absdi2): Set pipe_74k attribute to agen.
+	* config/mips/74k.md: New reservations r74k_darith, split
+	r74k_multi into r74k_multi_alu and r74k_multi_agen.
+
+	2006-08-18  David Ung  <davidu@mips.com>
+	* config/mips/mips.c: Remove code that tries to set the 1st insn
+	in the block to be an ALU insn.
+	(TARGET_SCHED_INIT): Remove.
+	(mips_md_init): Remove.
+	(mips_is_costly_dependence): Enable for 74k only.
+	* config/mips/74k.md (r74k_delay): Remove.
+	(r74k_delay_agen): Remove insn pattern.
+	(r74k_delay_agen): Remove insn reservation.
+	
+	2006-08-18  David Ung  <davidu@mips.com>
+	* config/mips/mips.c (mips_dfa_new_cycle): New function. At the
+	end of the block (at the branch insn), and if there are some spare
+	cycles, then pull in insns from following block by advancing cycle
+	by LAPSE_CYCLES.  Hence readies insns from the queue that stalls
+	in LAPSE_CYCLES, effectively moving it to the ready list.
+	(TARGET_SCHED_DFA_NEW_CYCLE): Set to mips_dfa_new_cycle.
+
+	2006-08-17  David Ung  <davidu@mips.com>
+	* config/mips/74k.md (r74k_int_arith): Remove "nop" types, nops
+	are crushed by the IDU.
+	(r74k_multi): Add darith type since that'll get expanded into
+	multiple shift/add insn.  Block AGEN/ALU pipes for duration.
+	(r74k_int_mult): Add bypass for mult/madd->mult/madd.
+
+	2006-08-16  David Ung  <davidu@mips.com>
+	* config/mips/74k.md (r74k_int_jump): Move call type to ..
+	(r74k_int_call): here.. Block all pipes for 50 cycles, such that
+	all insns currently in the pipe will be finished after the call.
+	This is equivalent to calling reset_state().
+
+	2006-08-15  David Ung  <davidu@mips.com>
+	* config/mips/74k.md (r74k_int_mult): Change latency from 1 to 4
+	cycles.  Remove bypasses.
+
+	2006-08-11  David Ung  <davidu@mips.com>
+	* config/mips/74k.md (automaton): Add r74k_store_buffer.  This
+	separates r74k_agen with r74k_agen_storeX such that it calculates
+	correct stall dependencies.
+	
+	2006-08-11  David Ung  <davidu@mips.com>
+	* config/mips/74k.md: Define patterns and reservations to force 1
+	cycle delay in the agen pipe at the beginning of each blcok.  The
+	idea is since branches uses the agen pipe, there would be a more
+	balance of alu/agen instructions if the target of the brance is
+	not also an agen instruction.
+	(r74k_delay): New attr.
+	(r74k_delay_agen): Insn pattern that sets r74k_delay to agen.
+	(r74k_delay_agen): Insn reservation, block agen for the next 2
+	cycles - cycle starts with -1 for the block.
+	* config/mips/mips.c (TARGET_SCHED_INIT): Set to mips_md_init.
+	(mips_md_init): Delays the agen state by a cycle.
+
+	2006-08-10  David Ung  <davidu@mips.com>
+	* config/mips/mips.c (mips_sched_reorder): Swap store->load order
+	when length of priorities is within 4 insn cost and upgrade load
+	priority cost.  Also swap first 2 instances of store/load only
+	such that lower priority loads don't creap up the ready list
+	incrementally.
+	* config/mips/74k.md (automaton): Create separate automaton for
+	agen and alu pipes.
+
+	2006-08-08  David Ung  <davidu@mips.com>
+	* config/mips/mips.c: Change TARGET_SCHED_REORDER2 to
+	TARGET_SCHED_REORDER for earlier allocation.
+	(mips_sched_reorder): Changed from mips_sched_reorder2.
+
+	2006-08-07  David Ung  <davidu@mips.com>
+	* config/mips/mips.c (mips_sched_reorder2): New function
+	implements TARGET_SCHED_REORDER2.  Traverse the ready list and
+	look for load / stores priorities and move loads infront of
+	stores.
+	(TARGET_SCHED_REORDER2): Set to mips_sched_reorder2.
+	(mips_adjust_priority): Disable priority adjusting.
+
+	2006-08-04  David Ung  <davidu@mips.com>
+	* config/mips/mips.c (mips_adjust_priority): New
+	function. Increase priority for stores.
+	(mips_is_costly_dependence): New function. Indicate that store
+	followed by loads are costly.
+	(mips_cpu_info_table): Adjust mult_si value to be 4 times the cost
+	of a register move.
+	(TARGET_SCHED_ADJUST_PRIORITY): Set to mips_adjust_priority.
+	(TARGET_SCHED_IS_COSTLY_DEPENDENCE): .. mips_is_costly_dependence.
+
+	2006-07-21  David Ung  <davidu@mips.com>
+	* config/mips/mips.h (processor_type): Remove PROCESSOR_74KC,
+	replace with PROCESSOR_74K / PROCESSOR_74KX.
+	(TARGET_MIPS74KC, TUNE_MIPS74KC): Removed.
+	* config/mips/mips.c ("mips_cpu_info_table"): Add 74kf and 74kfx
+	to the table.
+	(mips_issue_rate): Similarly.
+	(mips_use_dfa_pipeline_interface): Similarly.
+	* config/mips/mips.md ("cpu"): Repalce and add r74kf and r74kfx.
+	* config/mips/74k.md: Update all resevations to the new names.
+	
+	2006-07-20  David Ung  <davidu@mips.com>
+	* config/mips/mips.c ("mips_cpu_info_table"): Remove
+	MIPS_OPT_BRANCHLIKELY for 74k.  Adjust mult costs.
+	* config/mips/74k.md ("define_cpu_unit"): Added r74k_agen_store?
+	AGEN stages such that loads are blocked if any stores are in any
+	of the AGEN stages.
+	("r74k_int_load"): Updated to use above units.
+	("r74k_int_store"): Similarly.
+	("r74k_unknown"): Remove multi type.
+	("r74k_multi"): New. Set latency to 10.
+
+	2006-07-18  Chao-ying Fu  <fu@mips.com>
+	* config/mips/mips.md ("type"): Add dspalusat. dspalu becomes dsp
+	alu instructions not saturating the result.
+	* config/mips/74.md: Updated integer, floating-point instructions,
+	and bypass latencies.
+
+	2006-07-07  David Ung  <davidu@mips.com>
+	* config/mips/mips.h (processor_type): Add PROCESSOR_74KC.
+	(TARGET_MIPS74KC, TUNE_MIPS74KC): New defines.
+	* config/mips/mips.c (mips_cpu_info_table): Add 74kc options.
+	(mips_issue_rate): Add for 74k.
+	(mips_use_dfa_pipeline_interface): Similarly.
+	* config/mips/mips.md ("cpu"): Add r74kc and include 74k.md.
+	* config/mips/74.md: New 74k pipeline definition.
+	
+2006-08-24  Nigel Stephens  <nigel@mips.com>
+
+	[mti-mips16-caseaddress]
+	* config/mips/mips.c (mips_addr_vec_align): New function, arranges
+	that a MIPS16 case vector table is always aligned to a 4 byte
+	boundary, so that LA / ADDIUPC will always be non-extended.  Won't
+	improve code size -- the extend will be replaced by a padding
+	half-word -- but may improve performance by reducing instruction
+	count.
+	
+	* config/mips/mips.h (ADDR_VEC_ALIGN(ADDR_VEC): Added, calls
+	mips_addr_vec_align.
+	
+	* config/mips/mips-protos.h (mips_addr_vec_align): Added.
+	
+2006-08-21  Nigel Stephens  <nigel@mips.com>
+
+	[mti-mips16-caseaddress]
+	* config/mips/mips.c (mips_classify_symbol): For a LABEL_REF in
+	MIPS16 code, always return SYMBOL_CONSTANT_POOL, so that we can
+	use a PC-relative add to get the address of a case table.
+	
+2006-08-17  Nigel Stephens  <nigel@mips.com>
+
+	[mti-mips16-casethreshold]
+	* config/mips/mips.h (CASE_VALUES_THRESHOLD): Define as 7 for
+	MIPS16 when optimising for size, to better reflect the cost of the
+	casesi prologue.
+
+2006-08-03  Nigel Stephens  <nigel@mips.com>
+
+	[mti-spill-auto-variables]
+	* config/mips/mips.c (mips_spill_auto_register): Check that
+	bit_position() can be represented as a constant integer.
+	
+2006-08-03  Nigel Stephens  <nigel@mips.com>
+
+	[mti-spill-auto-variables]
+	* config/mips/mips.c (mips_spill_auto_register): Use
+	int_bit_position() to determine field offset, not DECL_ALIGN.
+
+2006-08-02  David Ung  <davidu@mips.com>
+
+	[mti-mips16-float-unord]
+	* config/mips/mips.c (mips_init_libfuncs): Add lib functions
+	_m16unordsf2 _m16unorddf2.
+
+2006-08-02  Thiemo Seufer  <ths@mips.com>
+
+	* config/mips/mips.c (override_options): Fix error message
+	format.
+
+2006-07-31  Nigel Stephens  <nigel@mips.com>
+
+	[mti-spill-auto-variables]
+	* config/mips/mips.c (mips_spill_auto_register): Don't store on
+	stack if any fields are not naturally aligned. Don't store if
+	struct/union contains only 32- and 64-bit fields; it must contain
+	at least one 8- or 16-bit field.
+
+2006-07-31  David Ung  <davidu@mips.com>
+
+	[mti-mips16-float-unord]
+	* config/mips/t-sde (LIB1ASMFUNCS): Add _m16unordsf2 _m16unorddf2.
+	* config/mips/mips16.S (L_m16unordsf2, L_m16unorddf2): Defines.
+
+2006-07-14  David Ung  <davidu@mips.com>
+
+	[mti-embedded-data]
+	* config/mips/mips.c (mips_in_small_data_p): Only do namespace
+	check when it is a var_decl.
+
+2006-07-14  David Ung  <davidu@mips.com>
+
+	[mti-embedded-data]
+	* config/mips/mips.c (mips_in_small_data_p): Check validity of
+	DECL_CONTEXT.
+
+2006-07-13  David Ung  <davidu@mips.com>
+
+	[mti-embedded-data]
+	* config/mips/mips.c (mips_in_small_data_p): If the current decl
+	is a namespace member, we check that it is not from
+	c_common_nodes_and_builtins (which does not associated with this
+	input file) so that GP references are not generated.
+
+2006-07-07  David Ung  <davidu@mips.com>
+
+	[mti-embedded-data]
+	* config/mips/mips.c (mips_in_small_data_p): Do not put symbols
+	that are internally generated by the compiler into the small data
+	section. This is because we compile our libraries with -G0.
+	eg. the symbol _ZTIi is put in .gnu.linkonce.r._ZTIi in
+	libstdc++.a because of -G0, so we cannot generate GP reference to
+	it.
+
+2006-07-05  David Ung  <davidu@mips.com>
+
+	[mti-embedded-data]
+	* config/mips/sde.h: Do not set default to use -membedded-data.
+
+2006-07-05  David Ung  <davidu@mips.com>
+
+	[mti-mips16e-nodataincode]
+	* config/mips/t-sde (MULTILIB_OPTIONS, MULTILIB_DIRNAMES): Add
+	-mno-data-in-code as a new multilib.
+	(MULTILIB_EXCLUSIONS): Build it only with mips16.
+
+2006-07-04  David Ung  <davidu@mips.com>
+
+	[mti-mips16e-nodataincode]
+	* config/mips/mips.c (override_options): Turn off section-relative
+	addressing regardless when -mno-data-in-code is specified.
+
+2006-06-28  David Ung  <davidu@mips.com>
+
+	[mti-mips16e-nodataincode]
+	* config/mips/mips.c (mips_classify_symbol): Use gp-relative
+	addressing only if mode is within the -G section threshold.
 
 2006-06-08  Nigel Stephens  <nigel@mips.com>
 
 	[mti-uk-bugzilla-416]
 	* config/mips/sde.h (ASM_DECLARE_FUNCTION_SIZE): Added.
 	
-2006-05-30  David Ung  <davidu@mips.com>
+	* config.gcc: Backed out last change.
 
-	* config.gcc (mips*-sde*-elf*): Undo this patch by removing
-	elfos.s from tm_file.  Postponed for a later release until we are
-	confident its stable for a release.
-	
-2006-05-30  David Ung  <davidu@mips.com>
+2006-05-24  David Ung  <davidu@mips.com>
 
-	Merged from mainline.
-	
-	2006-05-22  David Ung  <davidu@mips.com>
-	[UK bugzilla 385]
-	* config/mips/mips.c (mips_adjust_insn_length): Expand CALL_P
-	since its not defined in this version of the compiler.
+	* config.gcc (mips*-sde*-elf*): Add elfos.s to tm_file.  This
+	defines SIZE_ASM_OP etc.
 
-	2006-05-22  David Ung  <davidu@mips.com>
-	[UK bugzilla 385]
-	* config/mips/mips.c (mips16_lay_out_constants): Undo last change,
-	move check to ..
-	(mips_adjust_insn_length): .. here.
-
-	2006-05-22  David Ung  <davidu@mips.com>
-	[UK bugzilla 385]
-	* config/mips/mips.c (mips16_lay_out_constants): Undo last change
-	since mips16 branch targets only needs to be half-word aligned.
-	Instead add 2 bytes to each call/jump insn since branch delay slot
-	filling may need to insert an nop.
-
-	2006-05-22  David Ung  <davidu@mips.com>
-	[UK bugzilla 385]
-	* config/mips/mips.c (mips16_lay_out_constants): Always add length
-	of insn to current 'addr'.  Align all code label to 4 byte
-	boundaries.
-
-	2006-05-17  David Ung  <davidu@mips.com>
-	[UK bugzilla 385]
-	* config/mips/mips.c (mips16_lay_out_constants): Update addr
-	(length of insn in current function so far).
-	
-2006-05-30  David Ung  <davidu@mips.com>
-
-	[mti-mips16-sect-rel]
-	* cgraph.c (cgraph_varpool_analyse_decl): Remove code that checks
-	for redefinition of decl with an address initialisation, also
-	remove check for contains_pointers_p.  This was causing compiler
-	crash - see UK bugzilla 384.
-	
-2006-05-30  David Ung  <davidu@mips.com>
+2006-05-24  David Ung  <davidu@mips.com>
 
 	[UK bugzilla 406]
 	* config/mips/mips.c (mips_spill_auto_register): Return false if
 	TARGET_64BIT.
 	FIXME: This is a temporary workaround.
 
-2006-05-30  David Ung  <davidu@mips.com>
+2006-05-22  David Ung  <davidu@mips.com>
 
-	* config.gcc (mips*-sde*-elf*): Add elfos.s to tm_file.  This
-        defines SIZE_ASM_OP etc.
+	[UK bugzilla 385]
+	* config/mips/mips.c (mips_adjust_insn_length): Expand CALL_P
+	since its not defined in this version of the compiler.
 
-2006-05-15  Chao-ying Fu  <fu@mips.com>
+2006-05-22  David Ung  <davidu@mips.com>
+
+	[UK bugzilla 385]
+	* config/mips/mips.c (mips16_lay_out_constants): Undo last change,
+	move check to ..
+	(mips_adjust_insn_length): .. here.
+
+2006-05-22  David Ung  <davidu@mips.com>
+
+	[UK bugzilla 385]
+	* config/mips/mips.c (mips16_lay_out_constants): Undo last change
+	since mips16 branch targets only needs to be half-word aligned.
+	Instead add 2 bytes to each call/jump insn since branch delay slot
+	filling may need to insert an nop.
+
+2006-05-22  David Ung  <davidu@mips.com>
+
+	[UK bugzilla 385]
+	* config/mips/mips.c (mips16_lay_out_constants): Always add length
+	of insn to current 'addr'.  Align all code label to 4 byte
+	boundaries.
+
+2006-05-17  David Ung  <davidu@mips.com>
+
+	[UK bugzilla 385]
+	* config/mips/mips.c (mips16_lay_out_constants): Update addr
+	(length of insn in current function so far).
+
+2006-05-16  David Ung  <davidu@mips.com>
+
+	[mti-mips16-sect-rel]
+	* cgraph.c (cgraph_varpool_analyse_decl): Remove code that checks
+	for redefinition of decl with an address initialisation, also
+	remove check for contains_pointers_p.  This was causing compiler
+	crash - see UK bugzilla 384.
+
+2006-05-10  Chao-ying Fu  <fu@mips.com>
 
 	[mti-v2q15-castcompare]
 	* dojump.c (do_jump): Check VECTOR_TYPE before applying TYPE_PRECISION.
 	* tree.c (get_unwidened): Same.
 	(get_narrower): Same.
 
-2006-05-15  David Ung  <davidu@mips.com>
+2006-05-10  David Ung  <davidu@mips.com>
 
 	[mti-spill-auto-variables]
 	* config/mips/mips.c (mips_spill_auto_register): Include fields
-	that are of type "long long".
+	that are of type "long long".  
 	FIXME: Ideally the alignment should be checked against the
 	smallest unit within that field instead of DECL_SIZE.
-	
+
 2006-05-10  Nigel Stephens  <nigel@mips.com>
 
-	[mti-ignore-builtinmd]
 	* c-common.c (c_estimate_num_insns_1): Check that built-in function
 	is not BUILT_IN_MD class.
 	

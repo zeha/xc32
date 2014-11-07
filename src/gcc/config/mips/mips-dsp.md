@@ -31,7 +31,7 @@
 	  (unspec:CCDSP [(match_dup 1) (match_dup 2)] UNSPEC_ADDQ_S_PH))])]
   "TARGET_MIPS_DSP32 && !TARGET_MIPS16"
   "addq_s.ph\t%0,%z1,%z2"
-  [(set_attr "type"	"dspalu")
+  [(set_attr "type"	"dspalusat")
    (set_attr "mode"	"SI")])
 
 (define_insn "addv4hi3"
@@ -56,7 +56,7 @@
 	  (unspec:CCDSP [(match_dup 1) (match_dup 2)] UNSPEC_ADDQ_S_QH))])]
   "TARGET_MIPS_DSP64 && !TARGET_MIPS16"
   "addq_s.qh\t%0,%z1,%z2"
-  [(set_attr "type"	"dspalu")
+  [(set_attr "type"	"dspalusat")
    (set_attr "mode"	"DI")])
 
 (define_insn "mips_addq_s_w"
@@ -69,7 +69,7 @@
 	  (unspec:CCDSP [(match_dup 1) (match_dup 2)] UNSPEC_ADDQ_S_W))])]
   "TARGET_MIPS_DSP32 && !TARGET_MIPS16"
   "addq_s.w\t%0,%z1,%z2"
-  [(set_attr "type"	"dspalu")
+  [(set_attr "type"	"dspalusat")
    (set_attr "mode"	"SI")])
 
 (define_insn "addv2si3"
@@ -94,7 +94,7 @@
 	  (unspec:CCDSP [(match_dup 1) (match_dup 2)] UNSPEC_ADDQ_S_PW))])]
   "TARGET_MIPS_DSP64 && !TARGET_MIPS16"
   "addq_s.pw\t%0,%z1,%z2"
-  [(set_attr "type"	"dspalu")
+  [(set_attr "type"	"dspalusat")
    (set_attr "mode"	"DI")])
 
 ; ADDU*
@@ -120,7 +120,7 @@
 	  (unspec:CCDSP [(match_dup 1) (match_dup 2)] UNSPEC_ADDU_S_QB))])]
   "TARGET_MIPS_DSP32 && !TARGET_MIPS16"
   "addu_s.qb\t%0,%z1,%z2"
-  [(set_attr "type"	"dspalu")
+  [(set_attr "type"	"dspalusat")
    (set_attr "mode"	"SI")])
 
 (define_insn "addv8qi3"
@@ -145,7 +145,7 @@
 	  (unspec:CCDSP [(match_dup 1) (match_dup 2)] UNSPEC_ADDU_S_OB))])]
   "TARGET_MIPS_DSP64 && !TARGET_MIPS16"
   "addu_s.ob\t%0,%z1,%z2"
-  [(set_attr "type"	"dspalu")
+  [(set_attr "type"	"dspalusat")
    (set_attr "mode"	"DI")])
 
 ; SUBQ*
@@ -171,7 +171,7 @@
 	  (unspec:CCDSP [(match_dup 1) (match_dup 2)] UNSPEC_SUBQ_S_PH))])]
   "TARGET_MIPS_DSP32 && !TARGET_MIPS16"
   "subq_s.ph\t%0,%z1,%z2"
-  [(set_attr "type"	"dspalu")
+  [(set_attr "type"	"dspalusat")
    (set_attr "mode"	"SI")])
 
 (define_insn "subv4hi3"
@@ -196,7 +196,7 @@
 	  (unspec:CCDSP [(match_dup 1) (match_dup 2)] UNSPEC_SUBQ_S_QH))])]
   "TARGET_MIPS_DSP64 && !TARGET_MIPS16"
   "subq_s.qh\t%0,%z1,%z2"
-  [(set_attr "type"	"dspalu")
+  [(set_attr "type"	"dspalusat")
    (set_attr "mode"	"DI")])
 
 (define_insn "mips_subq_s_w"
@@ -209,7 +209,7 @@
 	  (unspec:CCDSP [(match_dup 1) (match_dup 2)] UNSPEC_SUBQ_S_W))])]
   "TARGET_MIPS_DSP32 && !TARGET_MIPS16"
   "subq_s.w\t%0,%z1,%z2"
-  [(set_attr "type"	"dspalu")
+  [(set_attr "type"	"dspalusat")
    (set_attr "mode"	"SI")])
 
 (define_insn "subv2si3"
@@ -234,7 +234,7 @@
 	  (unspec:CCDSP [(match_dup 1) (match_dup 2)] UNSPEC_SUBQ_S_PW))])]
   "TARGET_MIPS_DSP64 && !TARGET_MIPS16"
   "subq_s.pw\t%0,%z1,%z2"
-  [(set_attr "type"	"dspalu")
+  [(set_attr "type"	"dspalusat")
    (set_attr "mode"	"DI")])
 
 ; SUBU* 
@@ -260,7 +260,7 @@
 	  (unspec:CCDSP [(match_dup 1) (match_dup 2)] UNSPEC_SUBU_S_QB))])]
   "TARGET_MIPS_DSP32 && !TARGET_MIPS16"
   "subu_s.qb\t%0,%z1,%z2"
-  [(set_attr "type"	"dspalu")
+  [(set_attr "type"	"dspalusat")
    (set_attr "mode"	"SI")])
 
 (define_insn "subv8qi3"
@@ -285,7 +285,7 @@
 	  (unspec:CCDSP [(match_dup 1) (match_dup 2)] UNSPEC_SUBU_S_OB))])]
   "TARGET_MIPS_DSP64 && !TARGET_MIPS16"
   "subu_s.ob\t%0,%z1,%z2"
-  [(set_attr "type"	"dspalu")
+  [(set_attr "type"	"dspalusat")
    (set_attr "mode"	"DI")])
 
 ; ADDSC
@@ -357,7 +357,7 @@
 	  (unspec:CCDSP [(match_dup 1)] UNSPEC_ABSQ_S_PH))])]
   "TARGET_MIPS_DSP32 && !TARGET_MIPS16"
   "absq_s.ph\t%0,%z1"
-  [(set_attr "type"	"dspalu")
+  [(set_attr "type"	"dspalusat")
    (set_attr "mode"	"SI")])
 
 (define_insn "mips_absq_s_w"
@@ -369,7 +369,7 @@
 	  (unspec:CCDSP [(match_dup 1)] UNSPEC_ABSQ_S_W))])]
   "TARGET_MIPS_DSP32 && !TARGET_MIPS16"
   "absq_s.w\t%0,%z1"
-  [(set_attr "type"	"dspalu")
+  [(set_attr "type"	"dspalusat")
    (set_attr "mode"	"SI")])
 
 (define_insn "mips_absq_qh"
@@ -393,7 +393,7 @@
 	  (unspec:CCDSP [(match_dup 1)] UNSPEC_ABSQ_S_QH))])]
   "TARGET_MIPS_DSP64 && !TARGET_MIPS16"
   "absq_s.qh\t%0,%z1"
-  [(set_attr "type"	"dspalu")
+  [(set_attr "type"	"dspalusat")
    (set_attr "mode"	"DI")])
 
 (define_insn "mips_absq_pw"
@@ -417,7 +417,7 @@
 	  (unspec:CCDSP [(match_dup 1)] UNSPEC_ABSQ_S_PW))])]
   "TARGET_MIPS_DSP64 && !TARGET_MIPS16"
   "absq_s.pw\t%0,%z1"
-  [(set_attr "type"	"dspalu")
+  [(set_attr "type"	"dspalusat")
    (set_attr "mode"	"DI")])
 
 ; PRECRQ*
@@ -451,7 +451,7 @@
 	  (unspec:CCDSP [(match_dup 1) (match_dup 2)] UNSPEC_PRECRQ_RS_PH_W))])]
   "TARGET_MIPS_DSP32 && !TARGET_MIPS16"
   "precrq_rs.ph.w\t%0,%z1,%z2"
-  [(set_attr "type"	"dspalu")
+  [(set_attr "type"	"dspalusat")
    (set_attr "mode"	"SI")])
 
 (define_insn "mips_precrq_ob_qh"
@@ -484,7 +484,7 @@
 	  (unspec:CCDSP [(match_dup 1) (match_dup 2)] UNSPEC_PRECRQ_RS_QH_PW))])]
   "TARGET_MIPS_DSP64 && !TARGET_MIPS16"
   "precrq_rs.qh.pw\t%0,%z1,%z2"
-  [(set_attr "type"	"dspalu")
+  [(set_attr "type"	"dspalusat")
    (set_attr "mode"	"DI")])
 
 (define_insn "mips_precrq_pw_l"
@@ -508,7 +508,7 @@
 	  (unspec:CCDSP [(match_dup 1) (match_dup 2)] UNSPEC_PRECRQU_S_QB_PH))])]
   "TARGET_MIPS_DSP32 && !TARGET_MIPS16"
   "precrqu_s.qb.ph\t%0,%z1,%z2"
-  [(set_attr "type"	"dspalu")
+  [(set_attr "type"	"dspalusat")
    (set_attr "mode"	"SI")])
 
 (define_insn "mips_precrqu_s_ob_qh"
@@ -521,7 +521,7 @@
 	  (unspec:CCDSP [(match_dup 1) (match_dup 2)] UNSPEC_PRECRQU_S_OB_QH))])]
   "TARGET_MIPS_DSP64 && !TARGET_MIPS16"
   "precrqu_s.ob.qh\t%0,%z1,%z2"
-  [(set_attr "type"	"dspalu")
+  [(set_attr "type"	"dspalusat")
    (set_attr "mode"	"DI")])
 
 (define_insn "mips_precrqu_s_qh_pw"
@@ -534,7 +534,7 @@
 	  (unspec:CCDSP [(match_dup 1) (match_dup 2)] UNSPEC_PRECRQU_S_QH_PW))])]
   "TARGET_MIPS_DSP64 && !TARGET_MIPS16"
   "precrqu_s.qh.pw\t%0,%z1,%z2"
-  [(set_attr "type"	"dspalu")
+  [(set_attr "type"	"dspalusat")
    (set_attr "mode"	"DI")])
 
 (define_insn "mips_precrqu_s_pw_l"
@@ -547,7 +547,7 @@
 	  (unspec:CCDSP [(match_dup 1) (match_dup 2)] UNSPEC_PRECRQU_S_PW_L))])]
   "TARGET_MIPS_DSP64 && !TARGET_MIPS16"
   "precrqu_s.pw.l\t%0,%z1,%z2"
-  [(set_attr "type"	"dspalu")
+  [(set_attr "type"	"dspalusat")
    (set_attr "mode"	"DI")])
 
 ; PRECEQ*
@@ -792,7 +792,7 @@
   "@
    shll_s.ph\t%0,%z1,%2
    shllv_s.ph\t%0,%z1,%2"
-  [(set_attr "type"	"dspalu")
+  [(set_attr "type"	"dspalusat")
    (set_attr "mode"	"SI")])
 
 (define_insn "mips_shll_qh"
@@ -822,7 +822,7 @@
   "@
    shll_s.qh\t%0,%z1,%2
    shllv_s.qh\t%0,%z1,%2"
-  [(set_attr "type"	"dspalu")
+  [(set_attr "type"	"dspalusat")
    (set_attr "mode"	"DI")])
 
 (define_insn "mips_shll_s_w"
@@ -837,7 +837,7 @@
   "@
    shll_s.w\t%0,%z1,%2
    shllv_s.w\t%0,%z1,%2"
-  [(set_attr "type"	"dspalu")
+  [(set_attr "type"	"dspalusat")
    (set_attr "mode"	"SI")])
 
 (define_insn "mips_shll_pw"
@@ -867,7 +867,7 @@
   "@
    shll_s.pw\t%0,%z1,%2
    shllv_s.pw\t%0,%z1,%2"
-  [(set_attr "type"	"dspalu")
+  [(set_attr "type"	"dspalusat")
    (set_attr "mode"	"DI")])
 
 ; SHRL*

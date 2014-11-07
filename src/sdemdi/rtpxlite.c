@@ -41,12 +41,13 @@
 #include <mips/mt.h>
 #include <mips/atomic.h>
 
-#include <sys/errno.h>
+#include <errno.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <assert.h>
 #include <inttypes.h>
 #include <pthread.h>
+#include <sdethread.h>
 #include <sched.h>
 
 #if ! __mips16
@@ -62,16 +63,18 @@
 #undef _mips_mtc0
 #undef _m32c0_mftc0
 #undef _m32c0_mttc0
+#undef _m32c0_mttgpr
 #undef mips32_jr_hb
 #undef _mips_atomic_update
 #undef _mips_atomic_cas
 
 extern void _pthread_mt_fork (void *);
+extern void _pthread_mt_fork_child (void *);
 
 #define _m32c0_mfc0(reg, sel)					\
 __extension__ ({						\
 	register unsigned long __r;				\
-	__asm__ __volatile (					\
+	__asm__ __volatile__ (					\
 		"mfc0 %0, $%1, %2"				\
 		: "=d" (__r)					\
 		: "JK" (reg), "JK" (sel));			\
@@ -80,7 +83,7 @@ __extension__ ({						\
 
 #define _m32c0_mtc0(reg, sel, val)				\
 do {								\
-	__asm__ __volatile (					\
+	__asm__ __volatile__ (					\
 		"%(mtc0 %z0, $%1, %2; ehb%)"			\
 		:						\
 		: "dJ" ((reg32_t)(val)), "JK" (reg), "JK" (sel)	\
@@ -94,7 +97,10 @@ do {								\
 __extension__ ({						\
 	register unsigned long __r;				\
 	__asm__ __volatile__(					\
-		"mftc0 %0, $%1, %2"				\
+		".set push		\n"			\
+		".set mt		\n"			\
+		"mftc0 %0, $%1, %2	\n"			\
+		".set pop		"			\
 		: "=d" (__r)					\
 		: "JK" (rt), "JK" (sel));			\
 	__r;							\
@@ -103,9 +109,24 @@ __extension__ ({						\
 #define _m32c0_mttc0(rd, sel, val)				\
 do {								\
         __asm__ __volatile__(					\
-                "%(mttc0 %z0, $%1, %2; ehb%)"			\
+		".set push			\n"		\
+		".set mt			\n"		\
+                "%(mttc0 %z0, $%1, %2; ehb%)	\n"		\
+		".set pop			"		\
                 :						\
 		: "dJ" ((reg32_t)(val)), "JK" (rd), "JK" (sel)	\
+		: "memory");					\
+} while (0)
+
+#define _m32c0_mttgpr(rd, val)					\
+do {								\
+        __asm__ __volatile__(					\
+		".set push			\n"		\
+		".set mt			\n"		\
+                "%(mttgpr %z0, $%1; ehb%)	\n"		\
+		".set pop			"		\
+                :						\
+		: "dJ" ((reg32_t)(val)), "JK" (rd)		\
 		: "memory");					\
 } while (0)
 
@@ -221,6 +242,10 @@ rtpx_atomic_cas (volatile unsigned int *wp, unsigned int new, unsigned int cmp)
 /* Set when threading enabled */
 #pragma weak __isthreaded
 int __isthreaded = 0;
+
+/* THREADING ACTIVE FLAG */
+#pragma weak __sdethread_threading
+int __sdethread_threading = 0;
 
 //#define RTPX_ITC_AVAIL			/* Use ITC, else use LL/SC & spin */
 #define	RTPX_THREADS_MAX	9 		/* Maximum number of threads */
@@ -358,17 +383,91 @@ static volatile unsigned int rtpx_num_threads = 0;
 static rtpx_mutex_t rtpx_thread_mx;
 
 /* Default mutex attributes */
-static const pthread_mutexattr_t default_mxa = 
-{PTHREAD_MUTEX_DEFAULT_NP, PTHREAD_PROCESS_PRIVATE, PTHREAD_PRIO_NONE, 0, 0};
+static pthread_mutexattr_t default_mxa;
 
 /* Default condition variable attributes */
-static const pthread_condattr_t default_cda = 
-{0};
+static pthread_condattr_t default_cda;
 
 /* Default thread attributes */
-static const pthread_attr_t default_tha = 
-{0};
+static pthread_attr_t default_tha;
 
+
+static RTPX_INLINE unsigned int
+rtpx_mt_acquire (void)
+{
+    extern int _smtc;
+
+    if (_smtc)
+	return (rtpx_mt_dvpe () & MVPCONTROL_EVP) != 0;
+    else
+	return (rtpx_mt_dmt () & VPECONTROL_TE) != 0;
+}
+
+static RTPX_INLINE unsigned int
+rtpx_mt_release (void)
+{
+    extern int _smtc;
+
+    if (_smtc)
+	return (rtpx_mt_evpe () & MVPCONTROL_EVP) != 0;
+    else
+	return (rtpx_mt_emt () & VPECONTROL_TE) != 0;
+}
+
+static RTPX_INLINE void
+rtpx_mt_exit (void)
+{
+    extern int _smtc;
+
+    if (_smtc) {
+	mips32_settcstatus (mips32_gettcstatus () & ~TCSTATUS_A);
+	rtpx_jr_hb ();
+    } else
+	rtpx_mt_yield (0);
+}
+
+static RTPX_INLINE int
+rtpx_mt_fork_by_hand (rtpx_thread_t *th, int tc)
+{
+    unsigned int tcstatus;
+    int status = 1;
+
+    mips32_mt_settarget (tc);
+    rtpx_mt_dvpe ();
+    mips32_mt_settchalt (TCHALT_H);
+    rtpx_jr_hb ();
+
+    tcstatus = mips32_mt_gettcstatus ();
+    if (!(tcstatus & TCSTATUS_A)) {
+	status = 0;
+	_m32c0_mttgpr (4, th);
+	mips32_mt_settcrestart (_pthread_mt_fork_child);
+	mips32_mt_settcstatus (tcstatus | TCSTATUS_A);
+    }
+
+    mips32_mt_settchalt (0);
+    rtpx_mt_evpe ();
+
+    return status;
+}
+
+static RTPX_INLINE void
+rtpx_mt_fork (rtpx_thread_t *th)
+{
+    extern int _smtc;
+    int i;
+
+    if (_smtc)
+	for (i = 0; i < RTPX_THREADS_MAX; i++) {
+	    if (!rtpx_threads[i].th_stktop)
+		break;
+	    if (rtpx_threads[i].th_vpe == th->th_vpe)
+		continue;
+	    if (rtpx_mt_fork_by_hand (th, rtpx_threads[i].th_tc) == 0)
+		return;
+	}
+    _pthread_mt_fork (th);
+}
 
 /* Return own thread context data, from TC context register */
 static RTPX_INLINE rtpx_thread_t *
@@ -396,12 +495,12 @@ rtpx_find_thread (pthread_t id)
 static rtpx_itc_t *
 rtpx_itc_alloc (void)
 {
-    int emt = rtpx_mt_dmt ();
+    int released = rtpx_mt_acquire ();
     rtpx_itc_t *itc = rtpx_itc_list;
     if (itc)
 	rtpx_itc_list = itc->next;
-    if (emt & VPECONTROL_TE) 
-	rtpx_mt_emt ();
+    if (released)
+	rtpx_mt_release ();
     return itc;
 }
 
@@ -409,11 +508,11 @@ rtpx_itc_alloc (void)
 static void
 rtpx_itc_free (rtpx_itc_t *itc)
 {
-    int emt = rtpx_mt_dmt ();
+    int released = rtpx_mt_acquire ();
     itc->next = rtpx_itc_list;
     rtpx_itc_list = itc;
-    if (emt & VPECONTROL_TE) 
-	rtpx_mt_emt ();
+    if (released)
+	rtpx_mt_release ();
 }
 #endif
 
@@ -560,22 +659,48 @@ rtpx_mutex_unlock (rtpx_mutex_t *rmx)
 }
 
 
-extern __attribute__((nomips16)) void _pthread_init (void);
-
 static void pthread_hoop (rtpx_thread_t *);
+
+/* Thread specific data handling */
 static void _rtpx_tsdinit (void);
 static void _rtpx_tsdcleanup (void);
 static void _rtpx_flockfilecleanup (void);
 
+/* Stdio library file lock destructor */
+static void (*rtpx_flock_dtor) (void);
+
+
+#ifndef __OPTIMIZE__
+/* When optimizing the call to sdethread_too_small should be deleted,
+   and if not will call a link error.  When not optimizing we need to
+   map to a function which does exist and generates a run-time. */
+#define __sdethread_mismatch abort
+#else
+extern void __sdethread_mismatch (void);
+#endif
+
 __attribute__((nomips16)) void
 _pthread_init (void)
 {
+    extern int _smtc;
     extern int _vpe;
     unsigned int mvpconf0, tcstatus;
-    unsigned int nvpe, ntc;
+    unsigned int nvpe, ntc, ntc_res;
     unsigned int vpe, tc;
     unsigned int myvpe;
     rtpx_thread_t *th;
+
+    pthread_mutexattr_init (&default_mxa);
+    pthread_condattr_init (&default_cda);
+    pthread_attr_init (&default_tha);
+
+    /* Make sure that we can store the underlying pthread data
+       structures inside the sdethread data structures */
+    if (sizeof (__sdethread_mutex_t) < sizeof (pthread_mutex_t)
+	|| sizeof (__sdethread_once_t) < sizeof (pthread_once_t)
+	|| sizeof (__sdethread_sigstate_t) < sizeof (pthread_sigstate_np_t)
+	|| sizeof (__sdethread_key_t) != sizeof (pthread_key_t))
+	__sdethread_mismatch ();
 
     /* Does this CPU support MT ASE? */
     if (! (mips32_getconfig0 () & CFG0_M)
@@ -606,17 +731,20 @@ _pthread_init (void)
 
     /* Get the number of VPEs and TCs; ignore other VPEs if requested so. */
     mvpconf0 = mips32_getmvpconf0();
-    nvpe = _vpe ? ((mvpconf0 & MVPCONF0_PVPE) >> MVPCONF0_PVPE_SHIFT) + 1 : 1;
+    nvpe = ((mvpconf0 & MVPCONF0_PVPE) >> MVPCONF0_PVPE_SHIFT) + 1;
     ntc = ((mvpconf0 & MVPCONF0_PTC) >> MVPCONF0_PTC_SHIFT) + 1;
 
-    /* Ignore all other VPEs for now, assign TCs to VPE 0. */
+    /* Reserve TCs for other VPEs if requested. */
+    ntc_res = _vpe ? nvpe : 1;
+
+    /* Start from VPE 0. */
     vpe = 0;
 
     /* Set the MVP bits. */
     mips32_setvpeconf0 (mips32_getvpeconf0 () | VPECONF0_MVP);
 
     /* Leave the last VPE - 1 number of TCs intact. */
-    for (th = rtpx_threads, tc = 0; tc < ntc - (nvpe - 1); th++, tc++) {
+    for (th = rtpx_threads, tc = 0; tc < ntc - (ntc_res - 1); th++, tc++) {
 
 	if (tc < RTPX_THREADS_MAX) {
 	    th->th_vpe = vpe;
@@ -648,6 +776,21 @@ _pthread_init (void)
 	    /* Bind TC to VPE. */
 	    mips32_mt_settcbind ((vpe << TCBIND_CURVPE_SHIFT)
 				 | (tc << TCBIND_CURTC_SHIFT));
+
+	    if (_smtc && vpe != myvpe) {
+		/* Set this VPE's KSEG0 to cacheable */
+		mips32_mt_setc0config (mips32_getconfig0 ());
+		/* Clear pending interrupts, etc. */
+		mips32_mt_setc0cause (0);
+
+		/* Enable multi-threading within this VPE */
+		mips32_mt_setc0status (0);
+		mips32_mt_setvpecontrol (mips32_mt_getvpecontrol () |
+					 VPECONTROL_TE);
+		/* Enable the VPE */
+		mips32_mt_setvpeconf0 (mips32_mt_getvpeconf0 () |
+				       VPECONF0_VPA);
+	    }
 	    
 	    tcstatus = mips32_mt_gettcstatus ();
 	    /* All TCs operate in kernel mode. */
@@ -663,10 +806,10 @@ _pthread_init (void)
 	    if (tc != 0)
 		mips32_mt_settchalt (0);
 	}
-    }
 
-    /* Enable multi-threading within this VPE */
-    mips32_setvpecontrol (mips32_getvpecontrol () | VPECONTROL_TE);
+	if (_smtc)
+	    vpe = (vpe + 1) % nvpe;
+    }
 
     /* Enable the VPE */
     mips32_setvpeconf0 (mips32_getvpeconf0 () | VPECONF0_VPA);
@@ -691,6 +834,7 @@ _pthread_init (void)
     th->th_flags |= RTPX_THF_ALIVE;
     rtpx_num_threads = 1;
     __isthreaded = 1;
+    __sdethread_threading = 1;
 
     /* initialise thread exit/join/detach mutex */
     rtpx_mutex_init (&rtpx_thread_mx);
@@ -779,7 +923,7 @@ pthread_create (pthread_t *rv, const pthread_attr_t *tha,
     th->th_child_arg = arg;	/* start function arg */
 
     /* jump through hoop */
-    _pthread_mt_fork (th);
+    rtpx_mt_fork (th);
 
     /* wait for new thread to start and pass back its ID */
     rtpx_sem_wait (&th->th_child_sem);
@@ -791,7 +935,10 @@ pthread_create (pthread_t *rv, const pthread_attr_t *tha,
 int
 pthread_attr_init (pthread_attr_t *tha)
 {
-    *tha = default_tha;
+    memset (tha, 0, sizeof (pthread_attr_t));
+    tha->tha_detachstate = PTHREAD_CREATE_JOINABLE;
+    tha->tha_scope = PTHREAD_SCOPE_PROCESS;
+    tha->tha_inheritsched = PTHREAD_INHERIT_SCHED;
     return 0;
 }
 
@@ -821,7 +968,8 @@ pthread_exit (void *v)
     if (!(oflags & RTPX_THF_EXITING)) {
 
 	/* clean up per thread stdio file locks */
-	_rtpx_flockfilecleanup ();
+	if (rtpx_flock_dtor)
+	    rtpx_flock_dtor ();
 	
 	/* clean up thread specific data */
 	_rtpx_tsdcleanup ();
@@ -863,7 +1011,7 @@ pthread_exit (void *v)
 
     /* terminate this TC */
     for (;;) 
-	rtpx_mt_yield (0);
+	rtpx_mt_exit ();
 }
 
 int
@@ -1067,7 +1215,10 @@ pthread_mutex_setname_np (pthread_mutex_t *mx, const char *name)
 int
 pthread_mutexattr_init (pthread_mutexattr_t *mxa)
 {
-    *mxa = default_mxa;
+    memset (mxa, 0, sizeof (pthread_mutexattr_t));
+    mxa->mxa_pshared = PTHREAD_PROCESS_PRIVATE;
+    mxa->mxa_protocol = PTHREAD_PRIO_NONE;
+    mxa->mxa_type = PTHREAD_MUTEX_DEFAULT_NP;
     return 0;
 }
 
@@ -1126,11 +1277,11 @@ int pthread_cond_wait (pthread_cond_t *cond, pthread_mutex_t *mx)
 
     /* Add this thread to end of cond variable's waitq. */
     cth->th_next = NULL;
-    rtpx_mt_dmt ();
+    rtpx_mt_acquire ();
     while (*qth)
 	qth = &(*qth)->th_next;
     *qth = cth;
-    rtpx_mt_emt ();
+    rtpx_mt_release ();
 
     /* Keep a pointer to head of waitq. */
     cth->th_waitq = &cond->cd_waitq;
@@ -1148,7 +1299,7 @@ int pthread_cond_wait (pthread_cond_t *cond, pthread_mutex_t *mx)
 
     /* WINDOW: predicate could be changed after signalling us but
        before we relock the mutex below, but that's OK because we're
-       unblocked now, and out caller is required to retest the
+       unblocked now, and our caller is required to retest the
        predicate. */
 
     /* Reacquire mutex. */
@@ -1162,14 +1313,14 @@ int pthread_cond_signal (pthread_cond_t *cond)
     rtpx_thread_t *nth;
     
     if (!__isthreaded)
-	return;
+	return 0;
 
     /* Pop one thread off cond variable waitq. */
     /* TODO think of a cute way to do this without dmt/emt */
-    rtpx_mt_dmt ();
+    rtpx_mt_acquire ();
     if (nth = cond->cd_waitq.wq_first)
 	cond->cd_waitq.wq_first = nth->th_next;
-    rtpx_mt_emt ();
+    rtpx_mt_release ();
 
     /* If there was a waiting thread, then wake it up. */
     if (nth)
@@ -1183,7 +1334,7 @@ int pthread_cond_broadcast (pthread_cond_t *cond)
     rtpx_thread_t *qth, *nth;
 
     if (!__isthreaded)
-	return;
+	return 0;
 
     /* Atomically get head of waitq, and clear it. */
     qth = (rtpx_thread_t *) mips_atomic_swap ((unsigned int *)&cond->cd_waitq.wq_first, (unsigned int)NULL);
@@ -1201,7 +1352,8 @@ int pthread_cond_broadcast (pthread_cond_t *cond)
 int
 pthread_condattr_init (pthread_condattr_t *cda)
 {
-    *cda = default_cda;
+    memset (cda, 0, sizeof (pthread_condattr_t));
+    cda->cda_pshared = PTHREAD_PROCESS_PRIVATE;
     return 0;
 }
 
@@ -1219,9 +1371,8 @@ pthread_condattr_destroy (pthread_condattr_t *cda)
 static pthread_mutex_t once_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t once_cond = PTHREAD_COND_INITIALIZER;
 
-__weak_alias(_pthread_once, pthread_once);
 int
-(pthread_once) (pthread_once_t *once, void (*fn)(void))
+_pthread_once (pthread_once_t *once, void (*fn)(void))
 {
     if (once->state == PTHREAD_ONCE_DONE)
 	/* no contention */
@@ -1254,6 +1405,9 @@ int
 
     return 0;
 }
+
+int (pthread_once) (pthread_once_t *, void (*)(void))
+	__attribute__((alias("_pthread_once")));
 
 /*
  * Pthread thread-specific data support
@@ -1264,7 +1418,7 @@ struct rtpx_tsdkey {
     struct rtpx_tsdkey *tsd_next;	/* free list */
     pthread_mutex_t tsd_mx;		/* protecting mutex */	
     unsigned short  tsd_gen;		/* generation number */
-    unsigned short  tsd_count;		/* reference count */
+    short  	    tsd_count;		/* reference count */
     void            (*tsd_destructor) (void *);	/* destructor */
 };
 
@@ -1467,29 +1621,9 @@ _rtpx_tsdinit (void)
 
 
 /*
- * Miscellaneous stuff used by SDE libraries which needs to be
+ * Miscellaneous stuff used by which needs to be
  * dummied out.
  */
-
-long
-pthread_sysconf_np (int name)
-{
-    /* not supported */
-    return -1;
-}
-
-void
-pthread_sigdisable_np (pthread_sigstate_np_t *state) 
-{
-    /* Signals not supported, so nothing to do */
-}
-
-
-void
-pthread_sigrestore_np (const pthread_sigstate_np_t *state) 
-{
-    /* Signals not supported, so nothing to do */
-}
 
 void
 _pthread_cleanup_push (struct _pthread_handler_rec *rec)
@@ -1522,6 +1656,8 @@ pthread_setcancelstate (int new, int *oldp)
     /* Cancellation not supported, so nothing (interesting) to do */
     if (oldp)
 	*oldp = PTHREAD_CANCEL_DISABLE;
+    if (new != PTHREAD_CANCEL_DISABLE)
+      return EINVAL;
     return 0;
 }
 
@@ -1609,119 +1745,113 @@ sleep (unsigned int secs)
 
 
 /*
- * Stdio file locking.
+ * SDE C library file locking.
  */
 
-#include <stdio.h>
+/* REENTRANT FILE LOCK */
+struct __sdethread_flock {
+    pthread_mutex_t	mx;
+    pthread_t		owner;
+    unsigned int	nlock;
+    pthread_cond_t	notbusy;
+};
 
-/* Return the file lock for a stdio stream, allocating a new one where
-   required. */
-static pthread_flock_np_t *
-fplockget (FILE * fp)
+
+/* Register C library's thread file lock destructor callback. */
+void
+__sdethread_flock_init (void (*dtor) (void))
 {
-    pthread_flock_np_t *fpl;
+    rtpx_flock_dtor = dtor;
+}
 
-    if (_io_testflag (fp, _IO_STRING))
-	/* no locking for sprintf/sscanf etc */
-	return NULL;
+/* Create a file lock */
+__sdethread_flock_t 
+__sdethread_flock_create (__sdethread_flock_t *flockp, int fd)
+{
+    static pthread_mutex_t flock_mx = PTHREAD_MUTEX_INITIALIZER;
+    __sdethread_flock_t fpl;
 
-    if (!(fpl = fp->_io_lock)) {
-	/* No lock, must allocate a new lock structure. */
-
-	/* Double check with mutex protection, in case we're
-	   in a race with another thread. */
-	static pthread_mutex_t flock_mx = PTHREAD_MUTEX_INITIALIZER;
-	pthread_mutex_lock (&flock_mx);
-	if (!(fpl = fp->_io_lock)) {
-	    /* We really are the first user, so allocate a new lock */
-	    fp->_io_lock = malloc (sizeof (pthread_flock_np_t));
-	    if (!(fpl = fp->_io_lock))
-		abort ();
-	    /* initialise the lock */
-	    fpl->nlock = 0;
-	    if (pthread_mutex_init (&fpl->mx, NULL) != 0)
-		abort ();
-	    if (pthread_cond_init (&fpl->notbusy, NULL) != 0)
-		abort ();
-	}
-	pthread_mutex_unlock (&flock_mx);
+    /* Check with mutex protection, in case we're
+       in a race with another thread. */
+    pthread_mutex_lock (&flock_mx);
+    if (!(fpl = *flockp)) {
+	/* We really are the first user, so allocate a new lock */
+	fpl = malloc (sizeof (struct __sdethread_flock));
+	if (!fpl)
+	    abort ();
+	/* Initialise the lock */
+	fpl->nlock = 0;
+	if (pthread_mutex_init (&fpl->mx, NULL) != 0)
+	    abort ();
+	if (pthread_cond_init (&fpl->notbusy, NULL) != 0)
+	    abort ();
+	*flockp = fpl;
     }
+    pthread_mutex_unlock (&flock_mx);
 
     return fpl;
 }
 
-/* Lock a stdio file handle - recursive locking is allowed. */
-void
-flockfile (FILE * fp)
+/* Lock file lock - recursive locking is allowed. */
+void 
+__sdethread_flock_lock (__sdethread_flock_t fpl)
 {
-    pthread_flock_np_t *fpl = fplockget (fp);
-    if (fpl) {
-	if (pthread_mutex_lock (&fpl->mx))
-	    abort ();
-	if (fpl->nlock != 0) {
-	    /* lock is busy, is this thread the owner? */
-	    if (!pthread_equal (fpl->owner, pthread_self ())) {
-		/* not owner, wait until not busy */
-		do {
-		    pthread_cond_wait (&fpl->notbusy, &fpl->mx);
-		} while (fpl->nlock != 0);
-	    }
+    if (pthread_mutex_lock (&fpl->mx))
+	abort ();
+    if (fpl->nlock != 0) {
+	/* lock is busy, is this thread the owner? */
+	if (!pthread_equal (fpl->owner, pthread_self ())) {
+	    /* not owner, wait until not busy */
+	    do {
+		pthread_cond_wait (&fpl->notbusy, &fpl->mx);
+	    } while (fpl->nlock != 0);
 	}
-	/* record the lock */
-	fpl->owner = pthread_self ();
-	fpl->nlock++;
-	pthread_mutex_unlock (&fpl->mx);
     }
+    /* record the lock */
+    fpl->owner = pthread_self ();
+    fpl->nlock++;
+    pthread_mutex_unlock (&fpl->mx);
 }
 
-
-/* Try to lock a stdio file handle - recursive locking is allowed. */
+/* Try to lock file lock - recursive locking is allowed. */
 int
-ftrylockfile (FILE * fp)
+__sdethread_flock_trylock (__sdethread_flock_t fpl)
 {
-    pthread_flock_np_t *fpl = fplockget (fp);
-    if (fpl) {
-	if (pthread_mutex_trylock (&fpl->mx) != 0)
-	    /* couldn't lock mutex */
+    if (pthread_mutex_trylock (&fpl->mx) != 0)
+	/* couldn't lock mutex */
+	return -1;
+    if (fpl->nlock != 0) {
+	/* lock is busy, is this thread the owner? */
+	if (!pthread_equal (fpl->owner, pthread_self ())) {
+	    /* not owner, return error */
+	    pthread_mutex_unlock (&fpl->mx);
 	    return -1;
-	if (fpl->nlock != 0) {
-	    /* lock is busy, is this thread the owner? */
-	    if (!pthread_equal (fpl->owner, pthread_self ())) {
-		/* not owner, return error */
-		pthread_mutex_unlock (&fpl->mx);
-		return -1;
-	    }
 	}
-	/* record the lock */
-	fpl->owner = pthread_self ();
-	fpl->nlock++;
-	pthread_mutex_unlock (&fpl->mx);
     }
+    /* record the lock */
+    fpl->owner = pthread_self ();
+    fpl->nlock++;
+    pthread_mutex_unlock (&fpl->mx);
     return 0;
 }
 
-
-/* Unlock a stdio file handle. */
+/* Unlock a file lock. */
 void
-funlockfile (FILE * fp)
+__sdethread_flock_unlock (__sdethread_flock_t fpl)
 {
-    pthread_flock_np_t *fpl = fplockget (fp);
-    if (fpl) {
-	unsigned int nlock;
-	pthread_mutex_lock (&fpl->mx);
-	nlock = --fpl->nlock;
-	pthread_mutex_unlock (&fpl->mx);
-	if (nlock == 0)
-	    /* all our locks removed, wake up other threads, */
-	    pthread_cond_signal (&fpl->notbusy);
-    }
+    unsigned int nlock;
+    pthread_mutex_lock (&fpl->mx);
+    nlock = --fpl->nlock;
+    pthread_mutex_unlock (&fpl->mx);
+    if (nlock == 0)
+	/* all our locks removed, wake up other threads, */
+	pthread_cond_signal (&fpl->notbusy);
 }
 
-
-/* Worker function to totally release a lock when file is closed, or a
-   thread exits with locks still held. */
-static void
-flock_release (pthread_flock_np_t * fpl)
+/* Release all recursive locks when file is closed, or a thread exits
+   with locks still held. */
+void
+__sdethread_flock_release (__sdethread_flock_t fpl)
 {
     if (pthread_mutex_lock (&fpl->mx) == 0) {
 	if (fpl->nlock != 0 && pthread_equal (fpl->owner, pthread_self ())) {
@@ -1735,40 +1865,117 @@ flock_release (pthread_flock_np_t * fpl)
     }
 }
 
-/* Release and free an flock structure when a stream is closed.
-   Typically called by fclose(). Should be called with stream
-   already flocked. If any one */
+/* Release and free lock when file is closed */
 void
-_flockfree (FILE *fp)
+__sdethread_flock_free (__sdethread_flock_t fpl)
 {
-    pthread_flock_np_t *fpl;
-    if (fpl = fp->_io_lock) {
-	fp->_io_lock = NULL;
-	flock_release (fpl);
-	free (fpl);
+    __sdethread_flock_release (fpl);
+    free (fpl);
+}
+
+/*
+ * SDE C library thread support
+ */
+
+/* Apart from __sdethread_mutex_init, most sdethread functions map
+   one-to-one with the similarly named pthread functions. The
+   sdethread objects are designed to be large enough to hold RTPX's
+   equivalent pthread object implementations directly. This may not be
+   true for other thread libraries/kernels, of course; in which case
+   some indirection will be required. */
+
+int __sdethread_mutex_init (__sdethread_mutex_t *mx, const char *name)
+{
+    /* Add mutexattr argument */
+    return pthread_mutex_init ((pthread_mutex_t *)mx, NULL);
+}
+
+#if 0
+/* For even more efficiency we could do a direct alias like this... */
+int __sdethread_mutex_lock (__sdethread_mutex_t *)
+	__attribute__((alias("pthread_mutex_lock")));
+#endif
+
+int __sdethread_mutex_lock (__sdethread_mutex_t *mx)
+{
+    return pthread_mutex_lock ((pthread_mutex_t *)mx);
+}
+
+int __sdethread_mutex_trylock (__sdethread_mutex_t *mx)
+{
+    return pthread_mutex_trylock ((pthread_mutex_t *)mx);
+}
+
+int __sdethread_mutex_unlock (__sdethread_mutex_t *mx)
+{
+    return pthread_mutex_unlock ((pthread_mutex_t *)mx);
+}
+
+int __sdethread_mutex_destroy (__sdethread_mutex_t *mx)
+{
+    return pthread_mutex_destroy ((pthread_mutex_t *)mx);
+}
+
+
+int ___sdethread_once (__sdethread_once_t *oncep, void (*funcp)(void))
+{
+    return _pthread_once ((pthread_once_t *)oncep, funcp);
+}
+
+#undef __sdethread_once
+int __sdethread_once (__sdethread_once_t *oncep, void (*funcp)(void))
+{
+    return _pthread_once ((pthread_once_t *)oncep, funcp);
+}
+
+
+int __sdethread_key_create (__sdethread_key_t *keyp, void (*dtor)(void *))
+{
+    return pthread_key_create ((pthread_key_t *)keyp, dtor);
+}
+
+int __sdethread_key_delete (__sdethread_key_t key)
+{
+    return pthread_key_delete ((pthread_key_t)key);
+}
+
+int __sdethread_setspecific (__sdethread_key_t key, const void *data)
+{
+    return pthread_setspecific ((pthread_key_t)key, data);
+}
+
+void * __sdethread_getspecific (__sdethread_key_t key)
+{
+    return pthread_getspecific ((pthread_key_t)key);
+}
+
+/* helper function for assembler routines to set errno */
+__attribute__((__nomips16__))
+int __sdethread_set_errno (int err, int rv)
+{
+    errno = err;
+    return rv;
+}
+
+#undef errno
+int * __sdethread_errno_pointer (void)
+{
+    if (__isthreaded) {
+	rtpx_thread_t *cth = rtpx_self ();
+	return &cth->th_errno;
     }
+    return &errno;
 }
 
+void __sdethread_sigdisable (__sdethread_sigstate_t *state)
+{/* no signal support */}
+    
+void __sdethread_sigrestore (const __sdethread_sigstate_t *state)
+{/* no signal support */}
 
-/* Release an flock owned by current thread when it exits, but don't
-   free the lock, as other threads may be waiting for it. */
-static int
-flock_cleanup (FILE *fp)
-{
-    pthread_flock_np_t *fpl;
-    if (fpl = fp->_io_lock) 
-	flock_release (fpl);
-    return 0;
-}
+int __sdethread_sigdeferred (void)
+{return 0;}
 
-/* Clean up all of a thread's file locks when it calls
-   pthread_exit(). */
-void
-_rtpx_flockfilecleanup (void)
-{
-    /* release all locks owned by current thread */
-    _fwalk (flock_cleanup);
-}
 
 #ifndef SDEMDI_GLUE
 /* Arrange to have initialisation function called by SDE startup code. */
@@ -1776,9 +1983,8 @@ _rtpx_flockfilecleanup (void)
 #include <sys/init.h>
 
 static void
-sde_pthread_init ()
+sde_pthread_init (void)
 {
-    extern void     _pthread_init (void);
     _pthread_init ();
 }
 
@@ -1788,9 +1994,8 @@ DECL_INIT_FUNC (IF_RTOS, sde_pthread_init)
 static void sdemdi_pthread_init (void) __attribute__((constructor));
 
 static void
-sdemdi_pthread_init ()
+sdemdi_pthread_init (void)
 {
-    extern void     _pthread_init (void);
     _pthread_init ();
 }
 #endif

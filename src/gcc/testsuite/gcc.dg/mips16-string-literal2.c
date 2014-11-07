@@ -2,6 +2,7 @@
 /* { dg-options "-mips16" } */
 /* { dg-final { scan-assembler "la" } } */
 /* { dg-final { scan-assembler-not "rdata" } } */
+/* { dg-skip-if "-mno-data-in-code not supported" "mips*-sde-elf" "-mno-data-in-code" "" } */
 
 #if defined(__mips16)
 

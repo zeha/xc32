@@ -3742,6 +3742,10 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
 	    }
 	  continue;
 
+	case '2':
+	  insn.insn_opcode |= va_arg (args, int) << OP_SH_BP;
+	  continue;
+
 	case 't':
 	case 'w':
 	case 'E':
@@ -4853,6 +4857,16 @@ macro (struct mips_cl_insn *ip)
 
   switch (mask)
     {
+    case M_BALIGN:
+      if (imm_expr.X_add_number == 0)
+	macro_build (NULL, "nop", "");
+      else if (imm_expr.X_add_number == 2)
+	macro_build (NULL, "packrl.ph", "d,s,t", treg, treg, sreg);
+      else
+	macro_build (NULL, "balign", "t,s,2", treg, sreg,
+		     imm_expr.X_add_number);
+      return;
+
     case M_DABS:
       dbl = 1;
     case M_ABS:
@@ -8557,6 +8571,7 @@ validate_mips_insn (const struct mips_opcode *opc)
       case '%': USE_BITS (OP_MASK_VECALIGN,	OP_SH_VECALIGN); break;
       case '[': break;
       case ']': break;
+      case '2': USE_BITS (OP_MASK_BP,		OP_SH_BP);	break;
       case '3': USE_BITS (OP_MASK_SA3,		OP_SH_SA3);	break;
       case '4': USE_BITS (OP_MASK_SA4,		OP_SH_SA4);	break;
       case '5': USE_BITS (OP_MASK_IMM8,		OP_SH_IMM8);	break;
@@ -8778,6 +8793,21 @@ mips_ip (char *str, struct mips_cl_insn *ip)
 	  is_mdmx = 0;
 	  switch (*args)
 	    {
+	    case '2': /* dsp 2-bit unsigned immediate in bit 11 */
+	      my_getExpression (&imm_expr, s);
+	      check_absolute_expr (ip, &imm_expr);
+	      if ((unsigned long) imm_expr.X_add_number != 1 &&
+		  (unsigned long) imm_expr.X_add_number != 3)
+		{
+		  as_warn (_("BALIGN immediate not 1 or 3 (%lu)"),
+			   (unsigned long) imm_expr.X_add_number);
+		  imm_expr.X_add_number &= OP_MASK_BP;
+		}
+	      ip->insn_opcode |= imm_expr.X_add_number << OP_SH_BP;
+	      imm_expr.X_op = O_absent;
+	      s = expr_end;
+	      continue;
+
 	    case '3': /* dsp 3-bit unsigned immediate in bit 21 */
 	      my_getExpression (&imm_expr, s);
 	      check_absolute_expr (ip, &imm_expr);
@@ -10478,7 +10508,7 @@ mips16_ip (char *str, struct mips_cl_insn *ip)
 		      {
 			if (reg1 >= 4 && reg1 <= 7)
 			  {
-			    if (c == 'm' && !seen_framesz)
+			    if (!seen_framesz)
 				/* args $a0-$a3 */
 				args |= 1 << (reg1 - 4);
 			    else
@@ -11920,6 +11950,9 @@ md_pcrel_from_section (fixS *fixP, segT current_segment)
       /* Return the address of the delay slot.  */
       return addr + 4;
     default:
+      if (fixP->fx_addsy && S_GET_SEGMENT (fixP->fx_addsy) != current_segment)
+	as_bad_where (fixP->fx_file, fixP->fx_line,
+		      _("PC relative instruction references a different section"));
       return addr;
     }
 }
@@ -12239,15 +12272,9 @@ md_apply_fix3 (fixS *fixP, valueT *valP, segT seg)
     case BFD_RELOC_MIPS16_GPREL:
     case BFD_RELOC_MIPS16_HI16:
     case BFD_RELOC_MIPS16_HI16_S:
+    case BFD_RELOC_MIPS16_JMP:
       assert (! fixP->fx_pcrel);
       /* Nothing needed to do. The value comes from the reloc entry */
-      break;
-
-    case BFD_RELOC_MIPS16_JMP:
-      /* We currently always generate a reloc against a symbol, which
-         means that we don't want an addend even if the symbol is
-         defined.  */
-      *valP = 0;
       break;
 
     case BFD_RELOC_64:
@@ -14136,10 +14163,6 @@ tc_gen_reloc (asection *section ATTRIBUTE_UNUSED, fixS *fixp)
 #endif
   reloc->addend = fixp->fx_addnumber;
 
-  /* Handle relocs adjusted against a section section.  */
-  if (fixp->fx_r_type == BFD_RELOC_MIPS16_JMP)
-    reloc->addend += fixp->fx_offset;
-
   /* Since the old MIPS ELF ABI uses Rel instead of Rela, encode the vtable
      entry to be used in the relocation's section offset.  */
   if (! HAVE_NEWABI && fixp->fx_r_type == BFD_RELOC_VTABLE_ENTRY)
@@ -15173,7 +15196,7 @@ static const struct mips_cpu_info mips_cpu_info_table[] =
   { "4ksc",           MIPS_CPU_ASE_SMARTMIPS,      
     			      ISA_MIPS32,     CPU_MIPS32 },
 
-  /* MIPS 32 Release 2*/
+  /* MIPS 32 Release 2 */
   { "4kec",           0,      ISA_MIPS32R2,   CPU_MIPS32 },
   { "4kem",           0,      ISA_MIPS32R2,   CPU_MIPS32 },
   { "4kep",           0,      ISA_MIPS32R2,   CPU_MIPS32 },
@@ -15181,30 +15204,62 @@ static const struct mips_cpu_info mips_cpu_info_table[] =
     			      ISA_MIPS32R2,   CPU_MIPS32 },
   { "m4k",            0,      ISA_MIPS32R2,   CPU_MIPS32 },
   { "m4kp",           0,      ISA_MIPS32R2,   CPU_MIPS32 },
+
   { "24k",            0,      ISA_MIPS32R2,   CPU_MIPS32 },
   { "24kc",           0,      ISA_MIPS32R2,   CPU_MIPS32 },
+  { "24kf2_1",        0,      ISA_MIPS32R2,   CPU_MIPS32 },
   { "24kf",           0,      ISA_MIPS32R2,   CPU_MIPS32 },
+  { "24kf1_1",        0,      ISA_MIPS32R2,   CPU_MIPS32 },
   { "24kfx",          0,      ISA_MIPS32R2,   CPU_MIPS32 },
+  { "24kx",           0,      ISA_MIPS32R2,   CPU_MIPS32 },
 
   /* 24ke is an alias for 24K, but with DSP ASE. */
   { "24ke",           MIPS_CPU_ASE_DSP,      
     			      ISA_MIPS32R2,   CPU_MIPS32 },
   { "24kec",          MIPS_CPU_ASE_DSP,      
     			      ISA_MIPS32R2,   CPU_MIPS32 },
+  { "24kef2_1",       MIPS_CPU_ASE_DSP,      
+    			      ISA_MIPS32R2,   CPU_MIPS32 },
   { "24kef",          MIPS_CPU_ASE_DSP,      
+    			      ISA_MIPS32R2,   CPU_MIPS32 },
+  { "24kef1_1",       MIPS_CPU_ASE_DSP,      
     			      ISA_MIPS32R2,   CPU_MIPS32 },
   { "24kefx",         MIPS_CPU_ASE_DSP,      
     			      ISA_MIPS32R2,   CPU_MIPS32 },
+  { "24kex",          MIPS_CPU_ASE_DSP,
+			      ISA_MIPS32R2,   CPU_MIPS32 },
 
-  /* 24ke is an alias for 24K, but with MT & DSP ASE. */
+  /* 34k is an alias for 24K, but with MT & DSP ASE. */
   { "34k",            MIPS_CPU_ASE_MT | MIPS_CPU_ASE_DSP,      
     			      ISA_MIPS32R2,   CPU_MIPS32 },
   { "34kc",           MIPS_CPU_ASE_MT | MIPS_CPU_ASE_DSP,      
     			      ISA_MIPS32R2,   CPU_MIPS32 },
+  { "34kf2_1",        MIPS_CPU_ASE_MT | MIPS_CPU_ASE_DSP,      
+    			      ISA_MIPS32R2,   CPU_MIPS32 },
   { "34kf",           MIPS_CPU_ASE_MT | MIPS_CPU_ASE_DSP,      
+    			      ISA_MIPS32R2,   CPU_MIPS32 },
+  { "34kf1_1",          MIPS_CPU_ASE_MT | MIPS_CPU_ASE_DSP,      
     			      ISA_MIPS32R2,   CPU_MIPS32 },
   { "34kfx",          MIPS_CPU_ASE_MT | MIPS_CPU_ASE_DSP,      
     			      ISA_MIPS32R2,   CPU_MIPS32 },
+  { "34kx",           MIPS_CPU_ASE_MT | MIPS_CPU_ASE_DSP,
+			      ISA_MIPS32R2,   CPU_MIPS32 },
+
+  /* 74k family */
+  { "74kc",           MIPS_CPU_ASE_DSP,
+    			      ISA_MIPS32R2,   CPU_MIPS32 },
+  { "74kf2_1",        MIPS_CPU_ASE_DSP,
+    			      ISA_MIPS32R2,   CPU_MIPS32 },
+  { "74kf",           MIPS_CPU_ASE_DSP,
+    			      ISA_MIPS32R2,   CPU_MIPS32 },
+  { "74kf1_1",        MIPS_CPU_ASE_DSP,
+    			      ISA_MIPS32R2,   CPU_MIPS32 },
+  { "74kfx",          MIPS_CPU_ASE_DSP,
+    			      ISA_MIPS32R2,   CPU_MIPS32 },
+  { "74kx",           MIPS_CPU_ASE_DSP,
+			      ISA_MIPS32R2,   CPU_MIPS32 },
+  { "74kf3_2",        MIPS_CPU_ASE_DSP,
+			      ISA_MIPS32R2,   CPU_MIPS32 },
 
   /* MIPS 64 */
   { "5kc",            0,      ISA_MIPS64,     CPU_MIPS64 },

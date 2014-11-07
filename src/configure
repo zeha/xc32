@@ -1063,7 +1063,10 @@ case "${host}" in
     noconfigdirs="$noconfigdirs tk itcl tix libgui gdb dejagnu readline"
     ;;
   *-*-darwin*)
-    noconfigdirs="$noconfigdirs tk itcl tix libgui"
+    noconfigdirs="$noconfigdirs tk itcl tix libgui gdb"
+    ;;
+  *-*-linux*)
+    noconfigdirs="$noconfigdirs tk itcl tix libgui gdb"
     ;;
 esac
 

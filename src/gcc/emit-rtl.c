@@ -4914,6 +4914,27 @@ set_unique_reg_note (rtx insn, enum reg_note kind, rtx datum)
 	 It serves no useful purpose and breaks eliminate_regs.  */
       if (GET_CODE (datum) == ASM_OPERANDS)
 	return NULL_RTX;
+
+      /* If current note is a section relative address - either with offset
+	 zero or of type (const (plus (symbol_ref const_int))), 
+	 then we wont't replace the existing note.
+	 We want to aviod having different symbol_ref names (one for the name
+	 of the user variable, the other is a section relative name) aliasing
+	 each other, which can confuse CSE by producing different canon_rtx
+	 expressions referencing the same memory location.  */
+      if (flag_section_relative_addressing
+	  && note
+	  && GET_CODE (XEXP (note, 0)) == SYMBOL_REF
+	  && SYMBOL_REF_SECTION_RELATIVE_P (XEXP (note, 0)))
+	return NULL_RTX;
+
+      if (flag_section_relative_addressing
+	  && note
+	  && GET_CODE (XEXP (note, 0)) == CONST
+	  && GET_CODE (XEXP (XEXP (note, 0), 0)) == PLUS
+	  && GET_CODE (XEXP (XEXP (XEXP (note, 0), 0), 0)) == SYMBOL_REF
+	  && SYMBOL_REF_SECTION_RELATIVE_P (XEXP (XEXP (XEXP (note, 0), 0), 0)))
+	return NULL_RTX;
       break;
 
     default:
@@ -4923,31 +4944,6 @@ set_unique_reg_note (rtx insn, enum reg_note kind, rtx datum)
   if (note)
     { 
       rtx body = XEXP (note, 0);
-      /* If current note is a section relative address of type 
-	 (const (plus (symbol_ref const_int))), then we don't want to replace
-	 it if datum is not a section relative address.  The reason for this
-	 is to aviod having different symbol_ref names (one for the name
-	 of the user variable, the other is a section relative name) aliasing
-	 each other, which can confuse CSE by producing different canon_rtx
-	 expressions referencing the same memory location. */
-      if (flag_section_relative_addressing
-	  && GET_CODE (body) == CONST
-	  && GET_CODE (XEXP (body, 0)) == PLUS
-	  && GET_CODE (XEXP (XEXP (body, 0), 0)) == SYMBOL_REF
-	  && SYMBOL_REF_SECTION_RELATIVE_P (XEXP (XEXP (body, 0), 0)))
-	{
-	  struct cgraph_varpool_node *node;
-	  node = section_relative_symbol (datum);
-	  if (node)
-	    {
-	      rtx base = XEXP (XEXP (body, 0), 0);
-	      int offset = INTVAL (XEXP (XEXP (body, 0), 1));
-	      if (node->bss_off != -1 && node->bss_off == offset)
-		return 0;
-	      if (node->data_off != -1 && node->data_off == offset)
-		return 0;
-	    }
-	}  
       XEXP (note, 0) = datum;
       return note;
     }

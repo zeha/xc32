@@ -857,7 +857,7 @@ store_fixed_bit_field (rtx op0, unsigned HOST_WIDE_INT offset,
     }
   else
     {
-#if 0 
+#if 1
       int must_and = (GET_MODE_BITSIZE (GET_MODE (value)) != bitsize
 		      && bitpos + bitsize != GET_MODE_BITSIZE (mode));
 #endif
@@ -869,7 +869,7 @@ store_fixed_bit_field (rtx op0, unsigned HOST_WIDE_INT offset,
 	  else
 	    value = convert_to_mode (mode, value, 1);
 	}
-#if 0
+#if 1
       if (must_and)
 	value = expand_binop (mode, and_optab, value,
 			      mask_rtx (mode, 0, bitsize, 0),
@@ -885,6 +885,7 @@ store_fixed_bit_field (rtx op0, unsigned HOST_WIDE_INT offset,
 
   subtarget = (GET_CODE (op0) == REG || ! flag_force_mem) ? op0 : 0;
 
+#if 0
   if (GET_CODE (value) != CONST_INT)
     {
       rtx xop0;
@@ -911,6 +912,7 @@ store_fixed_bit_field (rtx op0, unsigned HOST_WIDE_INT offset,
 	emit_move_insn (op0, temp);
       return;
     }
+#endif
 
   if (! all_one)
     {
@@ -1960,9 +1962,17 @@ extract_split_bit_field (rtx op0, unsigned HOST_WIDE_INT bitsize,
 	 whose meaning is determined by BYTES_PER_UNIT.
 	 OFFSET is in UNITs, and UNIT is in bits.
 	 extract_fixed_bit_field wants offset in bytes.  */
-      part = extract_fixed_bit_field (word_mode, word,
-				      offset * unit / BITS_PER_UNIT,
-				      thissize, thispos, 0, 1);
+      if (BYTES_BIG_ENDIAN)
+	part = extract_fixed_bit_field (word_mode, word,
+					offset * unit / BITS_PER_UNIT,
+					thissize, thispos, 0,
+					first ? unsignedp : 1);
+      else
+	part = extract_fixed_bit_field (word_mode, word,
+					offset * unit / BITS_PER_UNIT,
+					thissize, thispos, 0,
+					bitsdone + thissize == bitsize
+					? unsignedp : 1);
       bitsdone += thissize;
 
       /* Shift this part into place for the result.  */
@@ -1970,35 +1980,32 @@ extract_split_bit_field (rtx op0, unsigned HOST_WIDE_INT bitsize,
 	{
 	  if (bitsize != bitsdone)
 	    part = expand_shift (LSHIFT_EXPR, word_mode, part,
-				 build_int_2 (bitsize - bitsdone, 0), 0, 1);
+				 build_int_2 (bitsize - bitsdone, 0), 0, 
+				 first ? unsignedp : 1);
 	}
       else
 	{
 	  if (bitsdone != thissize)
 	    part = expand_shift (LSHIFT_EXPR, word_mode, part,
-				 build_int_2 (bitsdone - thissize, 0), 0, 1);
+				 build_int_2 (bitsdone - thissize, 0), 0,
+				 bitsdone == bitsize ? unsignedp : 1);
 	}
 
       if (first)
 	result = part;
       else
 	/* Combine the parts with bitwise or.  This works
-	   because we extracted each part as an unsigned bit field.  */
+	   because we extracted each part as an unsigned bit field (except
+	   for the most significant byte).  */
 	result = expand_binop (word_mode, ior_optab, part, result, NULL_RTX, 1,
 			       OPTAB_LIB_WIDEN);
 
       first = 0;
     }
 
-  /* Unsigned bit field: we are done.  */
-  if (unsignedp)
-    return result;
-  /* Signed bit field: sign-extend with two arithmetic shifts.  */
-  result = expand_shift (LSHIFT_EXPR, word_mode, result,
-			 build_int_2 (BITS_PER_WORD - bitsize, 0),
-			 NULL_RTX, 0);
-  return expand_shift (RSHIFT_EXPR, word_mode, result,
-		       build_int_2 (BITS_PER_WORD - bitsize, 0), NULL_RTX, 0);
+  /* We no longer need to handle the sign-bit by sign-extend with two 
+     arithmetic shifts.  This is now handled as part of the code above.  */
+  return result;
 }
 
 /* Add INC into TARGET.  */

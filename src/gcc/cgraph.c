@@ -870,7 +870,7 @@ cgraph_varpool_calculate_offsets ()
 	  offset = curr_bss_off + (align / BITS_PER_UNIT) - 1;
 	  offset -= offset % (align / BITS_PER_UNIT);
 
-	  if (!SMALL_OPERAND (offset))
+	  if (!((unsigned HOST_WIDE_INT) (offset) + 0x8000 < 0x10000))
 	    {
 	      node->sectrel_node = false;
 	      TREE_ASM_WRITTEN (node->decl) = 0;
@@ -923,7 +923,7 @@ cgraph_varpool_calculate_offsets ()
 	  offset = curr_data_off + (align / BITS_PER_UNIT) - 1;
 	  offset -= offset % (align / BITS_PER_UNIT);
 	  
-	  if (!SMALL_OPERAND (offset))
+	  if (!((unsigned HOST_WIDE_INT) (offset) + 0x8000 < 0x10000))
 	    {
 	      node->sectrel_node = false;
 	      TREE_ASM_WRITTEN (node->decl) = 0;

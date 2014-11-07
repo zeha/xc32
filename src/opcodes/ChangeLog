@@ -1,3 +1,30 @@
+2007-01-05  Chao-ying Fu  <fu@mips.com>
+
+	[mti-dsp-rev2]
+	* opcodes/mips-opc.c (balign): Add a new macro instruction for balign.
+
+2006-12-05  Chao-ying Fu  <fu@mips.com>
+
+	[mti-dsp-rev2]
+	* mips-opc.c (mips_builtin_op): Change opcodes for adduh.qb,
+	adduh_r.qb, mul.ph, mul_s.ph, subuh.qb, subuh_r.qb.
+	Add addqh.ph, addqh_r.ph, addqh.w, addqh_r.w, subqh.ph, subqh_r.ph,
+	subqh.w, subqh_r.w, dpax.w.ph, dpsx.w.ph, dpaqx_s.w.ph, dpaqx_sa.w.ph,
+	dpsqx_s.w.ph, dpsqx_sa.w.ph.
+
+2006-07-06  Nigel Stephens  <nigel@mips.com>
+
+	[mti-mtase-vpeopt]
+	* mips-dis.c (mips_cp0sel_names_mips3264r2): Add "c0_vpeopt"
+	register. 
+
+2006-06-20  Chao-ying Fu  <fu@mips.com>
+
+	[mti-dsp-rev2]
+	* mips-dis.c (print_insn_args): Supported '2'.
+	* mips-opc.c (D32R2): New define.
+	(mips_builtin_op): Added DSP Rev2 instructions.
+
 2006-05-02  Thiemo Seufer  <ths@mips.com>
 
 	* mips.ops.c (mips_builtin_opcodes): Fix mftr argument order.

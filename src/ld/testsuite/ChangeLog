@@ -1,3 +1,37 @@
+2006-10-26  Thiemo Seufer  <ths@mips.com>
+
+	* ld-elfcomm/elfcomm.exp: Don't run for MIPS16 with section
+	relative addressing.
+
+2006-10-25  Thiemo Seufer  <ths@mips.com>
+
+	* ld-srec/srec.exp: XFAIL srec with constructors for mips16.
+
+2006-10-25  Thiemo Seufer  <ths@mips.com>
+
+	* ld-undefined/undefined.exp: Extend XFAIL pattern to match
+	mips*-*-elf.
+
+2006-10-24  Thiemo Seufer  <ths@mips.com>
+
+	* ld-undefined/undefined.exp: XFAIL the undefined line case.
+
+2006-10-10  Thiemo Seufer  <ths@mips.com>
+
+	* ld-selective/selective.exp: Remmove the XFAIL for
+	selective2 and selective3 testcases on mips.
+
+2006-07-25  Thiemo Seufer  <ths@mips.com>
+
+	[mti-uk-bugzilla-409]
+	* ld-mips-elf/mips16-call-global-1.s,
+	ld-mips-elf/mips16-call-global-2.s,
+	ld-mips-elf/mips16-call-global-3.s,
+	ld-mips-elf/mips16-call-global.d: New test to check section
+	relative addressing.
+	* ld-mips-elf/mips-elf.exp (mips16_call_global_test): Run new
+	test.
+
 2005-02-16  Maciej W. Rozycki <macro@mips.com>
 
 	[mti-mips16e-reloc-hilo]

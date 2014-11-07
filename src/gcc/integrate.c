@@ -2104,6 +2104,7 @@ copy_rtx_and_substitute (rtx orig, struct inline_remap *map, int for_lhs)
 	   : get_label_from_map (map, CODE_LABEL_NUMBER (XEXP (orig, 0))));
 
       LABEL_OUTSIDE_LOOP_P (copy) = LABEL_OUTSIDE_LOOP_P (orig);
+      LABEL_REF_JUMP_TABLE_P (copy) = LABEL_REF_JUMP_TABLE_P (orig);
 
       /* The fact that this label was previously nonlocal does not mean
 	 it still is, so we must check if it is within the range of

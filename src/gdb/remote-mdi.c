@@ -45,6 +45,7 @@ typedef void * HMODULE;
 
 #ifdef __CYGWIN32__
 #include <sys/cygwin.h>
+#include <cygwin/version.h>
 #endif
 
 #ifndef MAX_PATH
@@ -185,7 +186,8 @@ static ULONGEST mdi_readpc (void);
 static void mdi_writepc (ULONGEST val);
 
 static void mdi_reset_breakpoints (void);
-static MDIBpDataT * mdi_find_breakpoint (MDIBpIdT id);
+static MDIBpDataT * mdi_find_breakpoint (MDIHandleT devhandle, MDIBpIdT id);
+static MDIBpDataT * mdi_find_usr_breakpoint (CORE_ADDR addr);
 static int mdi_insert_breakpoint1 (CORE_ADDR addr, MDIInt32);
 static int mdi_insert_breakpoint (CORE_ADDR addr, char *save);
 static int mdi_remove_breakpoint1 (CORE_ADDR addr, MDIInt32);
@@ -218,32 +220,44 @@ static void mdi_find_new_threads (void);
 
 static ptid_t mdi_ptid;
 
-enum mdiTlb { R3000_TLB, R4000_32TLB, R4000_64TLB };
+enum mdiTlb { NO_TLB, R3000_TLB, R4000_32TLB, R4000_64TLB };
 
 /* List of MDI team members.  */
 struct mdi_tm_data_list
 {
-  MDITMDataT tmdata;
+  MDITMDataT tmdata;		/* MDI handle, TG id, Dev id */
   struct mdi_tm_data_list *next;
+};
+
+/* List of MDI group members.  */
+struct mdi_gm_data
+{
+  MDITMDataT tmdata;		/* MDI handle, TG ID, Dev ID */
+  MDIHandleT TGHandle;		/* Target handle */
+  MDIHandleT DevHandle;		/* Device handle */
+  MDIDDataT DeviceData;		/* Device data */
+  MDICacheInfoT CacheInfo[4];	/* Cache information */
+  int disabled;			/* The device is disabled. */
+  int probed;			/* The device has been probed. */
+  int ntlb;			/* Number of TLB entries */
 };
 
 /* MDI connection state. */
 struct mdi_state
 {
-  MDIHandleT MDIhandle;		/* MDI handle */
-  MDIHandleT TGhandle;		/* Target handle */
-  MDIHandleT Devhandle;		/* Device handle */
+  MDIHandleT MDIHandle;		/* MDI handle */
+  MDITeamIdT gid;		/* Team ID for the group */
+  struct mdi_gm_data gmdata[256];
+				/* Devices opened */
+  int gmcount;			/* Number of devices opened */
+  int gmindex;			/* Index of the selected device */
 
   MDIConfigT Config;		/* Configuration data */
-  MDITGIdT TGid;		/* Target ID */
-  MDIDDataT DeviceData;		/* Device data */
-  MDICacheInfoT CacheInfo[4];	/* Cache information */
 
   int mipssim_p;		/* Connected to MIPSsim */
   char *cfgfile;		/* MIPSsim temp config file */
 
   enum mdiTlb tlb;		/* TLB type */
-  int ntlb;			/* Number of TLB entries */
   int regsize;			/* Device register size */
 };
 
@@ -307,8 +321,11 @@ static const struct errorcodes_struct errorcodes[] =
   ec (MDIErrRecursive),
   ec (MDIErrObjectSize),
   ec (MDIErrTCId),
-  ec (MDIErrNoMulTeams),
+  ec (MDIErrTooManyTeams),
   ec (MDIErrTeamId),
+  ec (MDIErrDisabled),
+  ec (MDIErrAlreadyMember),
+  ec (MDIErrNotMember),
   {0, 0}
 };
 
@@ -583,14 +600,21 @@ static const struct libsymbol symbols[] = {
   sym (MDITCSetRunMode, 0),
   sym (MDISetTCRunMode, 0),
   /* Optional team support extensions */
-  sym (MDICreateTeam, 0),
+  sym (MDITeamCreate, 0),
   sym (MDIQueryTeams, 0),
+  sym (MDITeamClear, 0),
+  sym (MDITeamDestroy, 0),
+  sym (MDITMAttach, 0),
+  sym (MDITMDetach, 0),
+  sym (MDIQueryTM, 0),
+  sym (MDITeamExecute, 0),
+  /* Early MT MDI spec revision names */
+  sym (MDICreateTeam, 0),
   sym (MDIClearTeam, 0),
   sym (MDIDestroyTeam, 0),
   sym (MDIAttachTM, 0),
   sym (MDIDetachTM, 0),
   sym (MDITMQuery, 0),
-  sym (MDITeamExecute, 0),
   /* MIPSsim special interfaces */
   sym (MIPSsim_SetConfigFile, 0),
   sym (MIPSsim_CreateProfile, 0),
@@ -610,6 +634,57 @@ static const struct libsymbol symbols[] = {
   sym (MIPSsim_GetVersion, 0),
   {0, 0, 0}
 };
+
+
+#ifdef __CYGWIN32__
+/* Copy Cygwin environment variables to Windows. */
+static void
+cygwin_sync_winenv (void)
+{
+#if CYGWIN_VERSION_API_MAJOR > 0 || CYGWIN_VERSION_API_MINOR >= 154
+  /* Only available in Cygwin 1.15.20+ */
+  cygwin_internal (CW_SYNC_WINENV);
+#else
+  extern char **environ;
+  char **envp = environ;
+
+  if (!envp)
+    return;
+
+  while (*envp)
+    {
+      char *var = xmalloc (strlen (*envp) + 1);
+      char *eq;
+
+      strcpy (var, *envp);
+      eq = strchr (var, '=');
+      if (eq)
+	{
+	  /* environment variables that need special handling. */
+	  static const char * const skipenv[] = {
+	    "PATH", "HOME", "LD_LIBRARY_PATH", "TMPDIR", "TMP", "TEMP", NULL
+	  };
+	  const char **skip;
+
+	  /* Split into name/value pair */
+	  *eq = '\0';
+	  
+	  /* Check for special variables. */
+	  for (skip = skipenv; *skip; skip++)
+	    if (strcmp (var, *skip) == 0)
+	      break;
+
+	  /* Add non-special variables to Windows environment */
+	  if (!*skip)
+	    SetEnvironmentVariable (var, eq + 1);
+	}
+      xfree (var);
+      ++envp;
+    }
+#endif /* CYGWIN_VERSION_API_MAJOR == 0 && CYGWIN_VERSION_API_MINOR < 154 */
+}
+#endif /* __CYGWIN__ */
+
 
 /* Debuggers and other MDILib using applications must call this
    function prior to calling any of the MDI API functions.  MDIInit()
@@ -641,6 +716,14 @@ MDIInit (char *libname, HMODULE *handle)
 
   if (!mdilib)
     mdilib = DEFAULT_LIB_NAME;
+
+#ifdef __CYGWIN32__
+  /* Sync Cygwin & Windows environments now, in case we're loading a
+     native Windows DLL which might needs a env variable set up within
+     the Cygwin environment. Cygwin does this automatically only when
+     spawning a new process, not when loading a DLL. */
+  cygwin_sync_winenv ();
+#endif
 
   lib = OpenLib (mdilib);
   if (!lib)
@@ -1434,12 +1517,14 @@ mdiSetRunMode (MDIHandleT Device, MDITCIdT TCId, MDIUint32 StepMode,
 }
 
 static MDIInt32
-mdiCreateTeam (MDIHandleT MDIHandle, MDITeamIdT *TeamId)
+mdiTeamCreate (MDIHandleT MDIHandle, MDITeamIdT *TeamId)
 {
   MDIInt32 stat;
   if (remote_debug > 1)
-    fprintf_unfiltered (mdi_logfp, "mdiCreateTeam (0x%x, -)\n", MDIHandle);
-  if (MDICreateTeam)
+    fprintf_unfiltered (mdi_logfp, "mdiTeamCreate (0x%x, -)\n", MDIHandle);
+  if (MDITeamCreate)
+    stat = MDITeamCreate (MDIHandle, TeamId);
+  else if (MDICreateTeam)
     stat = MDICreateTeam (MDIHandle, TeamId);
   else
     stat = MDIErrUnsupported;
@@ -1475,13 +1560,15 @@ mdiQueryTeams (MDIHandleT MDIHandle, MDIInt32 *HowMany, MDITeamIdT *TeamId)
 }
 
 static MDIInt32
-mdiClearTeam (MDIHandleT MDIHandle, MDITeamIdT TeamId)
+mdiTeamClear (MDIHandleT MDIHandle, MDITeamIdT TeamId)
 {
   MDIInt32 stat;
   if (remote_debug > 1)
-    fprintf_unfiltered (mdi_logfp, "mdiClearTeam (0x%x, TeamId 0x%x)\n",
+    fprintf_unfiltered (mdi_logfp, "mdiTeamClear (0x%x, TeamId 0x%x)\n",
 			MDIHandle, TeamId);
-  if (MDIClearTeam)
+  if (MDITeamClear)
+    stat = MDITeamClear (MDIHandle, TeamId);
+  else if (MDIClearTeam)
     stat = MDIClearTeam (MDIHandle, TeamId);
   else
     stat = MDIErrUnsupported;
@@ -1491,13 +1578,15 @@ mdiClearTeam (MDIHandleT MDIHandle, MDITeamIdT TeamId)
 }
 
 static MDIInt32
-mdiDestroyTeam (MDIHandleT MDIHandle, MDITeamIdT TeamId)
+mdiTeamDestroy (MDIHandleT MDIHandle, MDITeamIdT TeamId)
 {
   MDIInt32 stat;
   if (remote_debug > 1)
-    fprintf_unfiltered (mdi_logfp, "mdiDestroyTeam (0x%x, TeamId 0x%x)\n",
+    fprintf_unfiltered (mdi_logfp, "mdiTeamDestroy (0x%x, TeamId 0x%x)\n",
 			MDIHandle, TeamId);
-  if (MDIDestroyTeam)
+  if (MDITeamDestroy)
+    stat = MDITeamDestroy (MDIHandle, TeamId);
+  else if (MDIDestroyTeam)
     stat = MDIDestroyTeam (MDIHandle, TeamId);
   else
     stat = MDIErrUnsupported;
@@ -1507,15 +1596,17 @@ mdiDestroyTeam (MDIHandleT MDIHandle, MDITeamIdT TeamId)
 }
 
 static MDIInt32
-mdiAttachTM (MDIHandleT MDIHandle, MDITeamIdT TeamId, MDITMDataT *TMData)
+mdiTMAttach (MDIHandleT MDIHandle, MDITeamIdT TeamId, MDITMDataT *TMData)
 {
   MDIInt32 stat;
   if (remote_debug > 1)
-    fprintf_unfiltered (mdi_logfp, "mdiAttachTM "
+    fprintf_unfiltered (mdi_logfp, "mdiTMAttach "
 			"(0x%x, TeamId 0x%x, { 0x%x, TGId 0x%x, 0x%x })\n",
 			MDIHandle, TeamId,
 			TMData->MDIHandle, TMData->TGId, TMData->DevId);
-  if (MDIAttachTM)
+  if (MDITMAttach)
+    stat = MDITMAttach (MDIHandle, TeamId, TMData);
+  else if (MDIAttachTM)
     stat = MDIAttachTM (MDIHandle, TeamId, TMData);
   else
     stat = MDIErrUnsupported;
@@ -1525,15 +1616,17 @@ mdiAttachTM (MDIHandleT MDIHandle, MDITeamIdT TeamId, MDITMDataT *TMData)
 }
 
 static MDIInt32
-mdiDetachTM (MDIHandleT MDIHandle, MDITeamIdT TeamId, MDITMDataT *TMData)
+mdiTMDetach (MDIHandleT MDIHandle, MDITeamIdT TeamId, MDITMDataT *TMData)
 {
   MDIInt32 stat;
   if (remote_debug > 1)
-    fprintf_unfiltered (mdi_logfp, "mdiDetachTM "
+    fprintf_unfiltered (mdi_logfp, "mdiTMDetach "
 			"(0x%x, TeamId 0x%x, { 0x%x, TGId 0x%x, 0x%x })\n",
 			MDIHandle, TeamId,
 			TMData->MDIHandle, TMData->TGId, TMData->DevId);
-  if (MDIDetachTM)
+  if (MDITMDetach)
+    stat = MDITMDetach (MDIHandle, TeamId, TMData);
+  else if (MDIDetachTM)
     stat = MDIDetachTM (MDIHandle, TeamId, TMData);
   else
     stat = MDIErrUnsupported;
@@ -1543,14 +1636,16 @@ mdiDetachTM (MDIHandleT MDIHandle, MDITeamIdT TeamId, MDITMDataT *TMData)
 }
 
 static MDIInt32
-mdiTMQuery (MDIHandleT MDIHandle, MDITeamIdT TeamId, MDIInt32 *HowMany,
+mdiQueryTM (MDIHandleT MDIHandle, MDITeamIdT TeamId, MDIInt32 *HowMany,
 	    MDITMDataT *TMData)
 {
   MDIInt32 stat;
   if (remote_debug > 1)
-    fprintf_unfiltered (mdi_logfp, "mdiTMQuery (0x%x, TeamId 0x%x, &%d, -)\n",
+    fprintf_unfiltered (mdi_logfp, "mdiQueryTM (0x%x, TeamId 0x%x, &%d, -)\n",
 			MDIHandle, TeamId, *HowMany);
-  if (MDITMQuery)
+  if (MDIQueryTM)
+    stat = MDIQueryTM (MDIHandle, TeamId, HowMany, TMData);
+  else if (MDITMQuery)
     stat = MDITMQuery (MDIHandle, TeamId, HowMany, TMData);
   else
     stat = MDIErrUnsupported;
@@ -1564,7 +1659,6 @@ mdiTMQuery (MDIHandleT MDIHandle, MDITeamIdT TeamId, MDIInt32 *HowMany,
   return stat;
 }
 
-#if notyet
 static MDIInt32
 mdiTeamExecute (MDIHandleT MDIHandle, MDITeamIdT TeamId)
 {
@@ -1580,7 +1674,6 @@ mdiTeamExecute (MDIHandleT MDIHandle, MDITeamIdT TeamId)
     fprintf_unfiltered (mdi_logfp, "returned: %s\n", mdierrcode (stat));
   return stat;
 }
-#endif
 
 static MDIInt32
 mipssim_SetConfigFile (MDIHandleT handle, char *name)
@@ -2024,7 +2117,7 @@ mdi_setconfigfile (struct mdi_state *mdi, MDIDDataT *ddata, char *cfg)
       major = MIPSsim_ZeroPerfCounter ? 4 : 3;
       minor =0; patch=0;
       if (MIPSsim_GetVersion)
-	(void) MIPSsim_GetVersion (mdi->MDIhandle, &major, &minor, &patch);
+	(void) MIPSsim_GetVersion (mdi->MDIHandle, &major, &minor, &patch);
 
       dname = ddata->DName;
 
@@ -2147,7 +2240,7 @@ mdi_setconfigfile (struct mdi_state *mdi, MDIDDataT *ddata, char *cfg)
   }
 #endif
 
-  mdistat = mipssim_SetConfigFile (mdi->MDIhandle, cfg);
+  mdistat = mipssim_SetConfigFile (mdi->MDIHandle, cfg);
   if (mdistat != MDISuccess)
     error ("MIPSsim cannot access config file: \"%s\"", cfg);
 
@@ -2269,85 +2362,14 @@ open_cleanup (void)
 }
 
 static void
-openDev (struct mdi_state *mdi, int device, char *configfile, int connreset)
+haltDev (struct mdi_state *mdi)
 {
-  struct cleanup *cleanups;
-  MDIDDataT *ddata = NULL;
-  MDIDDataT *dp;
-  MDIInt32 devices;
   MDIInt32 mdistat;
-  MDIHandleT handle;
   MDIRunStateT runstate;
   struct timeval now, when;
   int timedout, interrupted, forever;
-
-  devices = 0;
-  mdistat = mdiDQuery (mdi->TGhandle, &devices, NULL);
-  MDIERR (mdistat, "device query");
-
-  ddata = (MDIDDataT *) xmalloc (devices * sizeof (MDIDDataT));
-  cleanups = make_cleanup (xfree, ddata);
-
-  mdistat = mdiDQuery (mdi->TGhandle, &devices, ddata);
-  MDIERR (mdistat, "device query");
-
-  if (devices == 0)
-    error ("No MDI devices available");
-
-  device = SelectDevice (ddata, devices, device);
-  dp = &ddata[device];
-
-  if (remote_debug)
-    fprintf_unfiltered (mdi_logfp,
-			"selected dname '%s' fpart '%s' vendor '%s' vfamily '%s' vpart '%s' vpartrev '%s' vpartdata '%s'\n",
-			dp->DName, dp->FPart, dp->Vendor, dp->VFamily,
-			dp->VPart, dp->VPartRev, dp->VPartData);
-
-  mdi->mipssim_p = (strcmp (dp->VPartData, "MIPSsim") == 0);
-  if (mdi->mipssim_p)
-    mdi_setconfigfile (mdi, dp, configfile);
-
-  /* Old versions used to force mdi_continueonclose to "0" for
-     MIPSsim.  Not anymore, but keep this value as the default.  */
-  if (mdi_continueonclose == -1)
-    {
-      if (mdi->mipssim_p)
-	mdi_continueonclose = 0;
-      else
-	mdi_continueonclose = 1;
-    }
-
-  mdistat = mdiOpen (mdi->TGhandle, dp->Id, MDIExclusiveAccess,
-		     &mdi->Devhandle);
-  MDIERR (mdistat, "device open");
-
-  memmove (&mdi->DeviceData, dp, sizeof (MDIDDataT));
-
-  if (connreset >= 0)
-    {
-      /* Reset the device, wait "connectreset" seconds, then stop it. */
-      mdistat = mdiReset (mdi->Devhandle, MDIFullReset);
-      if (mdistat == MDISuccess && connreset > 0  && ! mdi->mipssim_p)
-	{
-	  /* Start CPU execution. */
-	  mdistat = mdiExecute (mdi->Devhandle);
-	  if (mdistat == MDISuccess)
-	    {
-	      /* Keep polling MDI until "connectreset" seconds elapsed. */
-	      gettimeofday (&now, NULL);
-	      when = now;
-	      when.tv_sec += connreset;
-	      do {
-		/* Poll MDI - may be necessary for some probes. */
-		(void) mdiRunState (mdi->Devhandle, 200, &runstate);
-		sleep_ms (200);
-		gettimeofday (&now, NULL);
-	      } while (timercmp (&now, &when, <));
-	      /* Halt CPU. */
-	      (void) mdiStop (mdi->Devhandle);
-	    }
-	}
-    }
+  int stopcount;
+  int i;
 
   /* Wait the specified number of seconds for CPU to halt */
   gettimeofday (&now, NULL);
@@ -2360,22 +2382,50 @@ openDev (struct mdi_state *mdi, int device, char *configfile, int connreset)
   interrupt_cleanup = open_cleanup;
   ofunc = signal (SIGINT, mdi_interrupt);
 
+  stopcount = 0;
+  i = 0;
+
   do {
-    mdistat = mdiRunState (mdi->Devhandle, 100, &runstate);
+    mdistat = mdiRunState (mdi->gmdata[i].DevHandle, 100, &runstate);
     if (mdistat != MDISuccess)
       break;
 
-    if ((runstate.Status & MDIStatusMask) == MDIStatusDisabled
-	|| (runstate.Status & MDIStatusMask) == MDIStatusVPEDisabled)
-      forever = 1;
-    else if ((runstate.Status & MDIStatusMask) != MDIStatusRunning)
-      break;
+    if ((runstate.Status & MDIStatusMask) == MDIStatusRunning
+	|| runstate.Status == MDIStatusDisabled
+	|| runstate.Status == MDIStatusVPEDisabled)
+      {
+	mdistat = mdiStop (mdi->gmdata[i].DevHandle);
+	if (mdistat != MDISuccess)
+	  break;
 
-    mdistat = mdiStop (mdi->Devhandle);
-    if (mdistat != MDISuccess)
-      break;
+	mdistat = mdiRunState (mdi->gmdata[i].DevHandle, 100, &runstate);
+	if (mdistat != MDISuccess)
+	  break;
+      }
 
-    if (!forever)
+    if (runstate.Status == MDIStatusDisabled
+	|| runstate.Status == MDIStatusVPEDisabled)
+      {
+	mdi->gmdata[i].disabled = 1;
+	if (mdi->gmcount == 1)
+	  forever = 1;
+      }
+    else if ((runstate.Status & MDIStatusMask) == MDIStatusRunning)
+      forever = (mdi_connecttimeout == UINT_MAX);
+    else
+      {
+	mdi->gmdata[i].disabled = 0;
+	stopcount++;
+	if (stopcount == 1)
+	  mdi->gmindex = i;
+	if (stopcount == mdi->gmcount)
+	  break;
+      }
+
+    i = (i + 1) % mdi->gmcount;
+
+    /* Only time out after a full poll of all devices.  */
+    if (i == 0 && (!forever || stopcount > 0))
       {
 	gettimeofday (&now, NULL);
 	if (timercmp (&now, &when, >))
@@ -2396,12 +2446,149 @@ openDev (struct mdi_state *mdi, int device, char *configfile, int connreset)
   /* Restore old SIGINT handler. */
   signal (SIGINT, ofunc);
 
-  if (timedout)
+  if (timedout && stopcount == 0)
     error ("Cannot halt CPU");
   else if (interrupted)
     error ("Interrupted while waiting for the device");
   else
     MDIERR (mdistat, "halting CPU");
+}
+
+static void
+resetDev (struct mdi_state *mdi, int connreset)
+{
+  MDIInt32 mdistat;
+  MDIRunStateT runstate;
+  struct timeval now, when;
+
+  if (connreset >= 0)
+    {
+      /* Reset the device, wait "connectreset" seconds, then stop it. */
+      mdistat = mdiReset (mdi->gmdata[0].DevHandle, MDIFullReset);
+      if (mdistat == MDISuccess && connreset > 0  && ! mdi->mipssim_p)
+	{
+	  /* Start CPU execution. */
+	  if (mdi->gmcount > 1)
+	    {
+	      mdistat = mdiTeamExecute (mdi->MDIHandle, mdi->gid);
+	      if (mdistat == MDIErrUnsupported)
+		{
+		  int i;
+
+		  for (i = 0; i < mdi->gmcount; i++)
+		    {
+		      mdistat = mdiExecute (mdi->gmdata[i].DevHandle);
+		      if (mdistat != MDIErrDisabled)
+			MDIWARN (mdistat, "starting execution");
+		    }
+		  mdistat = MDISuccess;
+		}
+	    }
+	  else
+	    mdistat = mdiExecute (mdi->gmdata[0].DevHandle);
+	  if (mdistat == MDISuccess)
+	    {
+	      /* Keep polling MDI until "connectreset" seconds elapsed. */
+	      gettimeofday (&now, NULL);
+	      when = now;
+	      when.tv_sec += connreset;
+	      do {
+		/* Poll MDI - may be necessary for some probes. */
+		(void) mdiRunState (mdi->gmdata[0].DevHandle, 200, &runstate);
+		sleep_ms (200);
+		gettimeofday (&now, NULL);
+	      } while (timercmp (&now, &when, <));
+	      /* Halt CPU. */
+	      (void) mdiStop (mdi->gmdata[0].DevHandle);
+	    }
+	}
+    }
+}
+
+static MDIInt32
+getDevs (MDIHandleT tg, int index, MDIDDataT **ddata, MDIInt32 *devices)
+{
+  MDIInt32 mdistat;
+
+  *ddata = NULL;
+  *devices = 0;
+
+  mdistat = mdiDQuery (tg, devices, NULL);
+  if (mdistat != MDISuccess)
+    return mdistat;
+
+  *ddata = (MDIDDataT *) xmalloc (*devices * sizeof (MDIDDataT));
+  mdistat = mdiDQuery (tg, devices, *ddata);
+
+  return mdistat;
+}
+
+static void
+updateDev (struct mdi_state *mdi, int index, MDIDeviceIdT device)
+{
+  struct cleanup *cleanups;
+  MDIDDataT *ddata = NULL;
+  MDIInt32 devices, i;
+  MDIInt32 mdistat;
+
+  mdistat = getDevs (mdi->gmdata[index].TGHandle, index, &ddata, &devices);
+  cleanups = make_cleanup (xfree, ddata);
+  MDIERR (mdistat, "device query");
+
+  for (i = 0; i < devices; i++)
+    if (ddata[i].Id == device)
+      memmove (&mdi->gmdata[index].DeviceData, ddata + i, sizeof (MDIDDataT));
+
+  do_cleanups (cleanups);
+}
+
+static void
+openDev (struct mdi_state *mdi, int index, char *configfile)
+{
+  struct cleanup *cleanups;
+  MDIDDataT *ddata = NULL;
+  MDIDDataT *dp;
+  MDIInt32 devices;
+  MDIDeviceIdT device;
+  MDIInt32 mdistat;
+
+  mdi->gmdata[index].disabled = 1;
+
+  device = mdi->gmdata[index].tmdata.DevId + 1;
+
+  mdistat = getDevs (mdi->gmdata[index].TGHandle, index, &ddata, &devices);
+  cleanups = make_cleanup (xfree, ddata);
+  MDIERR (mdistat, "device query");
+
+  if (devices == 0)
+    error ("No MDI devices available");
+
+  device = SelectDevice (ddata, devices, device);
+  dp = &ddata[device];
+
+  if (remote_debug)
+    fprintf_unfiltered (mdi_logfp,
+			"selected dname '%s' fpart '%s' vendor '%s' vfamily '%s' vpart '%s' vpartrev '%s' vpartdata '%s'\n",
+			dp->DName, dp->FPart, dp->Vendor, dp->VFamily,
+			dp->VPart, dp->VPartRev, dp->VPartData);
+
+  mdi->mipssim_p = (strcmp (dp->VPartData, "MIPSsim") == 0);
+  if (mdi->mipssim_p && index == 0)
+    mdi_setconfigfile (mdi, dp, configfile);
+
+  /* Old versions used to force mdi_continueonclose to "0" for
+     MIPSsim.  Not anymore, but keep this value as the default.  */
+  if (mdi_continueonclose == -1)
+    {
+      if (mdi->mipssim_p)
+	mdi_continueonclose = 0;
+      else
+	mdi_continueonclose = 1;
+    }
+
+  mdistat = mdiOpen (mdi->gmdata[index].TGHandle, dp->Id, MDIExclusiveAccess,
+		     &mdi->gmdata[index].DevHandle);
+  MDIERR (mdistat, "device open");
 
   if (dp->VPartData[0] && strcmp (dp->VPartData, "Unknown") != 0)
     printf_filtered ("Selected device %s on %s %s\n", dp->DName,
@@ -2409,47 +2596,53 @@ openDev (struct mdi_state *mdi, int device, char *configfile, int connreset)
   else
     printf_filtered ("Selected device %s\n", dp->DName);
 
+  updateDev (mdi, index, dp->Id);
+
   do_cleanups (cleanups);
 }
 
 
 static void
-openTG (struct mdi_state *mdi, int target)
+openTG (struct mdi_state *mdi, int index)
 {
   struct cleanup *cleanups;
   MDIInt32 mdistat = MDISuccess;
   MDITGDataT *tgdata = NULL;
   MDIInt32 targets;
+  MDITGIdT target;
 
   if ((mdi->Config.MDICapability & MDICAP_TargetGroups) == 0)
     {
-      mdi->TGhandle = mdi->MDIhandle;
+      mdi->gmdata[index].TGHandle = mdi->gmdata[index].tmdata.MDIHandle;
       return;
     }
 
+  target = mdi->gmdata[index].tmdata.TGId + 1;
   targets = 0;
-  mdistat = mdiTGQuery (mdi->MDIhandle, &targets, NULL);
+  mdistat = mdiTGQuery (mdi->gmdata[index].tmdata.MDIHandle, &targets, NULL);
   MDIERR (mdistat, "target group query");
 
   tgdata = (MDITGDataT *) xmalloc (targets * sizeof (MDITGDataT));
   cleanups = make_cleanup (xfree, tgdata);
 
-  mdistat = mdiTGQuery (mdi->MDIhandle, &targets, tgdata);
+  mdistat = mdiTGQuery (mdi->gmdata[index].tmdata.MDIHandle, &targets, tgdata);
   MDIERR (mdistat, "target group query");
 
   target = SelectTarget (tgdata, targets, target);
 
-  mdistat = mdiTGOpen (mdi->MDIhandle, tgdata[target].TGId,
-		       MDISharedAccess, &mdi->TGhandle);
+  mdistat = mdiTGOpen (mdi->gmdata[index].tmdata.MDIHandle,
+		       tgdata[target].TGId, MDISharedAccess,
+		       &mdi->gmdata[index].TGHandle);
   if (mdistat != MDISuccess)
     /* Failed shared access - try exclusive access. */
-    mdistat = mdiTGOpen (mdi->MDIhandle, tgdata[target].TGId,
-			 MDIExclusiveAccess, &mdi->TGhandle);
+    mdistat = mdiTGOpen (mdi->gmdata[index].tmdata.MDIHandle,
+			 tgdata[target].TGId, MDIExclusiveAccess,
+			 &mdi->gmdata[index].TGHandle);
   MDIERR (mdistat, "target group open");
 
   if (remote_debug)
     printf_filtered ("Selected target group %s\n", tgdata[target].TGName);
-  mdi->TGid = tgdata[target].TGId;
+  mdi->gmdata[index].tmdata.TGId = tgdata[target].TGId;
 
   do_cleanups (cleanups);
 }
@@ -2583,7 +2776,7 @@ mdi_dlopen (char *lib, struct mdi_state *mdi, int from_tty)
   mdi->Config.MDICBInput = mdiDbgInput;
   mdi->Config.MDICBPeriodic = mdiPeriodic;
 
-  mdistat = mdiConnect (api, &mdi->MDIhandle, &mdi->Config);
+  mdistat = mdiConnect (api, &mdi->MDIHandle, &mdi->Config);
   MDIERR (mdistat, "MDI connect");
 
   if (remote_debug)
@@ -2639,58 +2832,77 @@ mdi_dlopen (char *lib, struct mdi_state *mdi, int from_tty)
 #define CFG2_SASHIFT	0
 
 static void
-mdi_probe_cpu (struct mdi_state *mdi)
+mdi_probe_cpu (struct mdi_state *mdi, int index)
 {
+  enum mdiTlb tlb;
+  int regsize;
   unsigned long cfg0 = 0, cfg1 = 0, cfg2 = 0;
   MDIInt32 mdistat;
   char data[4];
   int isa;
 
-  isa = isa2int (mdi->DeviceData.FISA);
+  isa = isa2int (mdi->gmdata[index].DeviceData.FISA);
   if (isa <= 2)
     {
-      mdi->regsize = 4;
-      mdi->tlb = R3000_TLB;
+      regsize = 4;
+      tlb = R3000_TLB;
     }
   else if (isa == 32 || isa == 64)
     {
       if (isa == 32)
 	{
-	  mdi->regsize = 4;
-	  mdi->tlb = R4000_32TLB;
+	  regsize = 4;
+	  tlb = R4000_32TLB;
 	}
       else
 	{
-	  mdi->regsize = 8;
-	  mdi->tlb = R4000_64TLB;
+	  regsize = 8;
+	  tlb = R4000_64TLB;
 	}
-      mdi->ntlb = -1;
+      mdi->gmdata[index].ntlb = -1;
 
       /* Determine TLB size from Config0 and Config1 registers. */
 
       /* MIPS32 Config0 Register  (CP0 Register 16, Select 0). */
-      mdistat = mdiRead (mdi->Devhandle, MDIMIPCP0, 16, data, 4, 1);
+      mdistat = mdiRead (mdi->gmdata[index].DevHandle,
+			 MDIMIPCP0, 16, data, 4, 1);
       cfg0 = (unsigned long) extract_signed_integer (data, 4);
       if (cfg0 & CFG_M)
 	{
 	  /* MIPS32 Config1 Register  (CP0 Register 16, Select 1). */
 	  mdistat =
-	    mdiRead (mdi->Devhandle, MDIMIPCP0, 16 | (1 << 5), data, 4, 1);
+	    mdiRead (mdi->gmdata[index].DevHandle,
+		     MDIMIPCP0, 16 | (1 << 5), data, 4, 1);
 	  if (mdistat == MDISuccess)
 	    cfg1 = (unsigned long) extract_signed_integer (data, 4);
 	}
 
       if (mdistat == MDISuccess && (cfg0 & CFG0_MTMASK) == CFG0_MT_TLB
 	  && cfg1 != 0)
-	mdi->ntlb = ((cfg1 & CFG1_MMUSMASK) >> CFG1_MMUSSHIFT) + 1;
+	mdi->gmdata[index].ntlb = ((cfg1 & CFG1_MMUSMASK) >> CFG1_MMUSSHIFT)
+				  + 1;
     }
   else
     {
-      mdi->regsize = 8;
-      mdi->tlb = R4000_64TLB;
+      regsize = 8;
+      tlb = R4000_64TLB;
     }
 
-  if (mdi->ntlb == 0)
+  if (mdi->gmdata[index].ntlb <= 0)
+    tlb = NO_TLB;
+
+  if (index != 0)
+    {
+      if (regsize != mdi->regsize)
+	error ("Cannot support multiple devices of different register size.");
+      if (tlb != mdi->tlb)
+	error ("Cannot support multiple devices of different TLB type.");
+    }
+
+  mdi->regsize = regsize;
+  mdi->tlb = tlb;
+
+  if (mdi->gmdata[index].ntlb == 0)
     {
       /* Do a binary search to find the number of TLB entries. */
       int min = 0, max = 256;
@@ -2705,21 +2917,21 @@ mdi_probe_cpu (struct mdi_state *mdi)
 	    case R3000_TLB:
 	      {
 		MDIUint32 data[2];
-		mdistat = mdiRead (mdi->Devhandle, MDIMIPTLB,
+		mdistat = mdiRead (mdi->gmdata[index].DevHandle, MDIMIPTLB,
 				   (min + half) * 2, data, 4, 2);
 	      }
 	      break;
 	    case R4000_32TLB:
 	      {
 		MDIUint32 data[4];
-		mdistat = mdiRead (mdi->Devhandle, MDIMIPTLB,
+		mdistat = mdiRead (mdi->gmdata[index].DevHandle, MDIMIPTLB,
 				   (min + half) * 4, data, 4, 4);
 	      }
 	      break;
 	    case R4000_64TLB:
 	      {
 		MDIUint64 data[4];
-		mdistat = mdiRead (mdi->Devhandle, MDIMIPTLB,
+		mdistat = mdiRead (mdi->gmdata[index].DevHandle, MDIMIPTLB,
 				   (min + half) * 4, data, 8, 4);
 	      }
 	      break;
@@ -2733,19 +2945,19 @@ mdi_probe_cpu (struct mdi_state *mdi)
 	    max = min + half;
 	}
 
-      mdi->ntlb = max;
+      mdi->gmdata[index].ntlb = max;
     }
 
   /* Probe cache layout. */
   if (isa == 32 || isa == 64)
     {
-      MDICacheInfoT *cache = mdi->CacheInfo;
+      MDICacheInfoT *cache = mdi->gmdata[index].CacheInfo;
 
       if (cfg1 & CFG_M)
 	{
 	  /* MIPS32 Config1 Register  (CP0 Register 16, Select 2). */
-	  mdistat =
-	    mdiRead (mdi->Devhandle, MDIMIPCP0, 16 | (2 << 5), data, 4, 1);
+	  mdistat = mdiRead (mdi->gmdata[index].DevHandle, MDIMIPCP0,
+			     16 | (2 << 5), data, 4, 1);
 	  if (mdistat == MDISuccess)
 	    cfg2 = (unsigned long) extract_signed_integer (data, 4);
 	}
@@ -2786,7 +2998,8 @@ mdi_probe_cpu (struct mdi_state *mdi)
   else
     {
       /* Ask MDI, but quietly ignore any error. */
-      (void) mdiCacheQuery (mdi->Devhandle, &mdi->CacheInfo[0]);
+      (void) mdiCacheQuery (mdi->gmdata[index].DevHandle,
+			    &mdi->gmdata[index].CacheInfo[0]);
     }
 }
 
@@ -2808,8 +3021,8 @@ mdi_cleanup (void *arg)
 	unlink (mdi->cfgfile);
       xfree (mdi->cfgfile);
     }
-  if (mdi->MDIhandle != MDINoHandle)
-    mdiDisconnect (mdi->MDIhandle, MDICurrentState);
+  if (mdi->MDIHandle != MDINoHandle)
+    mdiDisconnect (mdi->MDIHandle, MDICurrentState);
   xfree (mdi);
 
   if (mdi_logging)
@@ -2835,11 +3048,13 @@ mdi_set_inferior_ptid (void)
 
   inferior_ptid = mdi_ptid;
   mdi_find_new_threads ();
-  mdistat = mdiGetTC (mdi_desc->Devhandle, &TCId);
+  mdistat = mdiGetTC (mdi_desc->gmdata[mdi_desc->gmindex].DevHandle, &TCId);
   if (mdistat != MDISuccess)
     return;
 
-  inferior_ptid = MERGEPID (GET_PID (mdi_ptid), TCId);
+  inferior_ptid = ptid_build (GET_PID (inferior_ptid),
+			      mdi_desc->gmdata[mdi_desc->gmindex].DevHandle,
+			      TCId);
   if (!in_thread_list (inferior_ptid))
     {
       tp = iterate_over_threads (mdi_first_ptid, NULL);
@@ -2860,6 +3075,7 @@ static void
 mdi_open (char *args, int from_tty)
 {
   struct mdi_tm_data_list *tmdatalist = NULL, **listp = &tmdatalist;
+  int group_mode = 0, team_mode = 0;
   struct cleanup *cleanups;
   int len;
   char *arg_buf;
@@ -2871,7 +3087,7 @@ mdi_open (char *args, int from_tty)
   unsigned long device, target;
   int byte_order;
   int connreset;
-  int i;
+  int i, j;
 
   if (remote_debug && mdi_logfile)
     {
@@ -2927,6 +3143,36 @@ mdi_open (char *args, int from_tty)
 	      if (*p)
 		configfile = p;
 	    }
+	  else if (strncmp (p, "group=", sizeof "group=" - 1) == 0)
+	    {
+	      unsigned long tm_device, tm_target;
+
+	      if (team_mode)
+		error ("Cannot mix group= and team= options.");
+
+	      group_mode = 1;
+	      p += sizeof "group=" - 1;
+	      if (isdigit (*p))
+		{
+		  tm_target = mdi_target;
+		  tm_device = strtoul (p, &p, 0);
+		  if (*p == ':' && isdigit (p[1]))
+		    {
+		      tm_target = tm_device;
+		      tm_device = strtoul (p + 1, &p, 0);
+		    }
+		  if (*p)
+		    error ("Bad [TARGET:]DEVICE number.");
+    
+		  *listp = alloca (sizeof (**listp));
+		  (*listp)->next = NULL;
+		  (*listp)->tmdata.TGId = tm_target - 1;
+		  (*listp)->tmdata.DevId = tm_device - 1;
+		  listp = &(*listp)->next;
+		}
+	      else
+		error ("Bad group= option.");
+	    }
 	  else if (strncmp (p, "rst=", sizeof "rst=" - 1) == 0)
 	    {
 	      p += sizeof "rst=" - 1;
@@ -2945,6 +3191,10 @@ mdi_open (char *args, int from_tty)
 	    {
 	      unsigned long tm_device, tm_target;
 
+	      if (group_mode)
+		error ("Cannot mix team= and group= options.");
+
+	      team_mode = 1;
 	      p += sizeof "team=" - 1;
 	      if (isdigit (*p))
 		{
@@ -2992,8 +3242,7 @@ mdi_open (char *args, int from_tty)
 
   mdi = (struct mdi_state *) xmalloc (sizeof (struct mdi_state));
   memset (mdi, 0, sizeof (struct mdi_state));
-  mdi->MDIhandle = MDINoHandle;
-  mdi->TGhandle = MDINoHandle;
+  mdi->MDIHandle = MDINoHandle;
 
   /* Failed coprocessor register masks. */
   memset (mdi_cpdreg_miss, 0, sizeof (mdi_cpdreg_miss));
@@ -3030,35 +3279,74 @@ mdi_open (char *args, int from_tty)
       tmdatathis.tmdata.DevId = device - 1;
       tmdatalist = &tmdatathis;
 
-      if (mdi_team <= 0)
+      if (mdi_team <= 0 || group_mode)
 	{
-	  mdistat = mdiCreateTeam (mdi->MDIhandle, &mdi_team);
+	  mdistat = mdiTeamCreate (mdi->MDIHandle, &mdi_team);
 	  if (mdistat != MDISuccess)
 	    {
 	      mdi_team = 0;
-	      mdi_team_status (mdistat);
+	      if (group_mode && mdistat != MDIErrUnsupported)
+		mdi_team_status (mdistat);
+	      else
+		MDIWARN (mdistat, "creating team");
 	    }
 	  mdi_team += 1;
 	}
-    
+
+      if (group_mode)
+	mdi->gid = mdi_team - 1;
+
       for (listp = &tmdatalist; *listp; listp = &(*listp)->next)
 	{
-	  (*listp)->tmdata.MDIHandle = mdi->MDIhandle;
-	  mdistat = mdiAttachTM (mdi->MDIhandle, mdi_team - 1,
+	  (*listp)->tmdata.MDIHandle = mdi->MDIHandle;
+	  mdistat = mdiTMAttach (mdi->MDIHandle, mdi_team - 1,
 				 &(*listp)->tmdata);
-	  mdi_tm_status (mdistat, (*listp)->tmdata.TGId + 1,
-			 (*listp)->tmdata.DevId + 1);
+
+	  if (group_mode && mdistat != MDIErrUnsupported)
+	    mdi_tm_status (mdistat, (*listp)->tmdata.TGId + 1,
+			   (*listp)->tmdata.DevId + 1);
+	  else
+	    MDIWARN (mdistat, "adding team member");
+	  if (group_mode || !mdi->gmcount)
+	    mdi->gmdata[mdi->gmcount++].tmdata = (*listp)->tmdata;
 	}
     }
+  else
+    {
+      mdi->gmdata[mdi->gmcount].tmdata.MDIHandle = mdi->MDIHandle;
+      mdi->gmdata[mdi->gmcount].tmdata.TGId = target - 1;
+      mdi->gmdata[mdi->gmcount].tmdata.DevId = device - 1;
+      mdi->gmcount++;
+    }
 
-  /* Connect to target group. */
-  openTG (mdi, target);
+  for (i = 0; i < mdi->gmcount; i++)
+    {
+      /* Reuse the target group handle if possible. */
+      mdi->gmdata[i].TGHandle = MDINoHandle;
+      for (j = 0; j < i; j++)
+	if (mdi->gmdata[i].tmdata.TGId == mdi->gmdata[j].tmdata.TGId)
+	  mdi->gmdata[i].TGHandle = mdi->gmdata[j].TGHandle;
 
-  /* Connect to device in group. */
-  openDev (mdi, device, configfile, connreset);
+      /* Connect to target group. */
+      if (mdi->gmdata[i].TGHandle == MDINoHandle)
+	openTG (mdi, i);
+
+      /* Connect to device in group. */
+      openDev (mdi, i, configfile);
+    }
+
+  /* Reset the primary device.  */
+  resetDev (mdi, connreset);
+
+  /* Halt the devices. */
+  haltDev (mdi);
+
+  for (i = 0; i < mdi->gmcount; i++)
+    if (mdi->gmdata[i].DeviceData.Endian != mdi->gmdata[0].DeviceData.Endian)
+      error ("Cannot support multiple devices of mixed endianness.");
 
   /* Set gdb byte order to match target. */
-  byte_order = mdi->DeviceData.Endian == MDIEndianBig
+  byte_order = mdi->gmdata[0].DeviceData.Endian == MDIEndianBig
     ? BFD_ENDIAN_BIG : BFD_ENDIAN_LITTLE;
 
   if (TARGET_BYTE_ORDER != byte_order)
@@ -3112,7 +3400,12 @@ Do you want to connect anyway? ",
     }
 
   /* Probe target CPU for other internal information. */
-  mdi_probe_cpu (mdi);
+  for (i = 0; i < mdi->gmcount; i++)
+    if (!mdi->gmdata[i].disabled)
+      {
+	mdi_probe_cpu (mdi, i);
+	mdi->gmdata[i].probed = 1;
+      }
 
   /* No access to DEPC, DESAVE or other debug mode registers,
      except on MIPSsim, where they aren't used by the debug
@@ -3328,6 +3621,7 @@ mdi_close (int quitting)
   MDIInt32 mdistat;
   MDIUint32 flags;
   struct mdi_state *mdi;
+  int i;
 
   if ((mdi = mdi_desc) == NULL)
     return;
@@ -3363,39 +3657,72 @@ mdi_close (int quitting)
 #endif
 
   if (mdi_continueonclose)
+    for (i = 0; i < mdi_desc->gmcount; i++)
+      {
+	mdistat = mdiSetRunMode (mdi_desc->gmdata[i].DevHandle,
+				 -1, MDINoStep, 0);
+	/* Let the target continue when we disconnect from it. */
+	mdistat = mdiExecute (mdi->gmdata[i].DevHandle);
+	if (mdistat != MDIErrDisabled)
+	  MDIWARN (mdistat, "continue execution");
+      }
+
+  for (i = 0; i < mdi->gmcount; i++)
     {
-      /* Let the target continue when we disconnect from it. */
-      mdistat = mdiExecute (mdi->Devhandle);
-      MDIWARN (mdistat, "continue execution");
-    }
+      mdistat = mdiClose (mdi->gmdata[i].DevHandle, flags);
+      if (mdistat != MDISuccess)
+	{
+	  MDIRunStateT runstate;
 
-  mdistat = mdiClose (mdi->Devhandle, flags);
-  if (mdistat != MDISuccess)
-    {
-      MDIRunStateT runstate;
+	  if (! mdi_continueonclose || mdistat != MDIErrTargetRunning)
+	    MDIWARN (mdistat, "closing device");
 
-      if (! mdi_continueonclose || mdistat != MDIErrTargetRunning)
-	MDIWARN (mdistat, "closing device");
+	  /* Try stopping the target again. */
+	  mdistat = mdiStop (mdi->gmdata[i].DevHandle);
+	  MDIWARN (mdistat, "stopping CPU");
 
-      /* Try stopping the target again. */
-      mdistat = mdiStop (mdi->Devhandle);
-      MDIWARN (mdistat, "stopping CPU");
+	  /* Let it report that it has stopped. */
+	  mdiRunState (mdi->gmdata[i].DevHandle, 200, &runstate);
 
-      /* Let it report that it has stopped. */
-      mdiRunState (mdi->Devhandle, 200, &runstate);
+	  if (mdi_continueonclose)
+	    {
+	      mdistat = mdiSetRunMode (mdi_desc->gmdata[i].DevHandle,
+				       -1, MDINoStep, 0);
+	      /* Let the target continue when we disconnect from it. */
+	      mdistat = mdiExecute (mdi->gmdata[i].DevHandle);
+	      if (mdistat != MDIErrDisabled)
+		MDIWARN (mdistat, "continue execution");
+	    }
 
-      /* Try the close again. */
-      mdistat = mdiClose (mdi->Devhandle, flags);
-      MDIWARN (mdistat, "closing device again");
+	  /* Try the close again. */
+	  mdistat = mdiClose (mdi->gmdata[i].DevHandle, flags);
+	  MDIWARN (mdistat, "closing device again");
+	}
     }
 
   if (mdi->Config.MDICapability & MDICAP_TargetGroups)
+    for (i = 0; i < mdi->gmcount; i++)
+      if (mdi->gmdata[i].TGHandle != MDINoHandle)
+	{
+	  int j;
+
+	  mdistat = mdiTGClose (mdi->gmdata[i].TGHandle, flags);
+	  MDIWARN (mdistat, "target group close");
+
+	  for (j = i + 1; j < mdi->gmcount; j++)
+	    if (mdi->gmdata[i].tmdata.TGId == mdi->gmdata[j].tmdata.TGId)
+	      mdi->gmdata[j].TGHandle = MDINoHandle;
+	}
+
+  if (mdi->gmcount > 1)
     {
-      mdistat = mdiTGClose (mdi->TGhandle, flags);
-      MDIWARN (mdistat, "target group close");
+      mdistat = mdiTeamClear (mdi->MDIHandle, mdi->gid);
+      MDIWARN (mdistat, "clearing team");
+      mdistat = mdiTeamDestroy (mdi->MDIHandle, mdi->gid);
+      MDIWARN (mdistat, "destroying team");
     }
 
-  mdistat = mdiDisconnect (mdi->MDIhandle, flags);
+  mdistat = mdiDisconnect (mdi->MDIHandle, flags);
   MDIWARN (mdistat, "MDI disconnect");
 
   if (mdi->cfgfile)
@@ -3478,6 +3805,7 @@ mdi_attach (char *args, int from_tty)
 {
   MDIInt32 mdistat;
   MDIRunStateT runstate;
+  int i;
 
   if (args && *args)
     error ("Can't pass arguments to MDI.");
@@ -3490,8 +3818,11 @@ mdi_attach (char *args, int from_tty)
   if (from_tty)
     printf_unfiltered ("Attaching to MDI target...\n");
 
-  mdiStop (mdi_desc->Devhandle);
-  mdiRunState (mdi_desc->Devhandle, 200, &runstate);
+  for (i = 0; i < mdi_desc->gmcount; i++)
+    {
+      mdiStop (mdi_desc->gmdata[i].DevHandle);
+      mdiRunState (mdi_desc->gmdata[i].DevHandle, 200, &runstate);
+    }
 
   inferior_ptid = null_ptid;
   mdi_exited = mdi_signalled = 0;
@@ -3507,6 +3838,9 @@ mdi_resume (ptid_t ptid, int step, enum target_signal ssignal)
 {
   MDIInt32 mdistat;
   MDIUint32 stepmode = MDINoStep;
+  MDIUint32 stepallmode = MDINoStep;
+  MDIUint32 freezeallmode = 1;
+  int i;
 
   if (mdi_exited)
     error ("The program is not being run.\nPlease %s.\n",
@@ -3531,12 +3865,16 @@ mdi_resume (ptid_t ptid, int step, enum target_signal ssignal)
 	 instructions: synchronise the i- and d-caches. */
       /* XXX Would be better if we could use an address range,
 	 but the MDI API doesn't support this. */
-      mdiCacheFlush (mdi_desc->Devhandle, MDICacheTypeData,
-		     MDICacheWriteBack | MDICacheInvalidate);
-      mdiCacheFlush (mdi_desc->Devhandle, MDICacheTypeUnified,
-		     MDICacheWriteBack | MDICacheInvalidate);
-      mdiCacheFlush (mdi_desc->Devhandle, MDICacheTypeInstruction,
-		     MDICacheInvalidate);
+      for (i = 0; i < mdi_desc->gmcount; i++)
+	if (!mdi_desc->gmdata[i].disabled)
+	  {
+	    mdiCacheFlush (mdi_desc->gmdata[i].DevHandle, MDICacheTypeData,
+			   MDICacheWriteBack | MDICacheInvalidate);
+	    mdiCacheFlush (mdi_desc->gmdata[i].DevHandle, MDICacheTypeUnified,
+			   MDICacheWriteBack | MDICacheInvalidate);
+	    mdiCacheFlush (mdi_desc->gmdata[i].DevHandle,
+			   MDICacheTypeInstruction, MDICacheInvalidate);
+	  }
       mdi_mem_written = 0;
     }
 
@@ -3547,20 +3885,28 @@ mdi_resume (ptid_t ptid, int step, enum target_signal ssignal)
 
   if (step)
     stepmode = mdi_stepinto ? MDIStepInto : MDIStepForward;
+  if (step && mdi_threadstepall)
+    stepallmode = stepmode;
+  if ((step && mdi_threadstepall) || ptid_equal (ptid, pid_to_ptid (-1)))
+    freezeallmode = 0;
 
-  if (!ptid_equal (ptid, pid_to_ptid (-1)))
-    {
-      if (step && mdi_threadstepall)
-	mdistat = mdiSetRunMode (mdi_desc->Devhandle, -1, stepmode, 0);
-      else
-	{
-	  mdistat = mdiSetRunMode (mdi_desc->Devhandle, -1, MDINoStep, 1);
-	  mdistat = mdiSetRunMode (mdi_desc->Devhandle,
-				   TIDGET (ptid), stepmode, 0);
-	}
-    }
+  for (i = 0; i < mdi_desc->gmcount; i++)
+    if (!mdi_desc->gmdata[i].disabled)
+      mdistat = mdiSetRunMode (mdi_desc->gmdata[i].DevHandle,
+			       -1, stepallmode, freezeallmode);
+
+  if (!ptid_equal (inferior_ptid, null_ptid))
+    mdistat = mdiSetRunMode (mdi_desc->gmdata[mdi_desc->gmindex].DevHandle,
+			     ptid_get_tid (inferior_ptid), stepmode, 0);
   else
-    mdistat = mdiSetRunMode (mdi_desc->Devhandle, -1, MDINoStep, 0);
+    {
+      MDIInt32 tid = -1;
+
+      mdistat = mdiGetTC (mdi_desc->gmdata[mdi_desc->gmindex].DevHandle, &tid);
+      MDIWARN (mdistat, "getting current thread");
+      mdistat = mdiSetRunMode (mdi_desc->gmdata[mdi_desc->gmindex].DevHandle,
+			       tid, stepmode, 0);
+    }
 
   if (step)
     {
@@ -3569,7 +3915,24 @@ mdi_resume (ptid_t ptid, int step, enum target_signal ssignal)
 			    phex (mdi_readpc (), sizeof (ULONGEST)));
 
       mdi_step_active = 1;
-      mdistat = mdiStep (mdi_desc->Devhandle, 1, stepmode);
+      if (mdi_desc->gmcount > 1)
+	{
+	  mdistat = mdiTeamExecute (mdi_desc->MDIHandle, mdi_desc->gid);
+	  if (mdistat == MDIErrUnsupported)
+	    {
+	      for (i = 1; i < mdi_desc->gmcount + 1; i++)
+		{
+		  int index = (mdi_desc->gmindex + i) % mdi_desc->gmcount;
+		  mdistat = mdiExecute (mdi_desc->gmdata[index].DevHandle);
+		  if (mdistat != MDIErrDisabled)
+		    MDIWARN (mdistat, "starting single step");
+		}
+	      mdistat = MDISuccess;
+	    }
+	}
+      else
+	mdistat = mdiStep (mdi_desc->gmdata[mdi_desc->gmindex].DevHandle,
+			   1, stepmode);
       mdi_step_active = 0;
       MDIERR (mdistat, "starting single step");
     }
@@ -3579,7 +3942,23 @@ mdi_resume (ptid_t ptid, int step, enum target_signal ssignal)
 	fprintf_unfiltered (mdi_logfp, "mdi_resume: resuming at 0x%s\n", 
 			    phex (mdi_readpc (), sizeof (ULONGEST)));
 
-      mdistat = mdiExecute (mdi_desc->Devhandle);
+      if (mdi_desc->gmcount > 1)
+	{
+	  mdistat = mdiTeamExecute (mdi_desc->MDIHandle, mdi_desc->gid);
+	  if (mdistat == MDIErrUnsupported)
+	    {
+	      for (i = 1; i < mdi_desc->gmcount + 1; i++)
+		{
+		  int index = (mdi_desc->gmindex + i) % mdi_desc->gmcount;
+		  mdistat = mdiExecute (mdi_desc->gmdata[index].DevHandle);
+		  if (mdistat != MDIErrDisabled)
+		    MDIWARN (mdistat, "starting execution");
+		}
+	      mdistat = MDISuccess;
+	    }
+	}
+      else
+	mdistat = mdiExecute (mdi_desc->gmdata[mdi_desc->gmindex].DevHandle);
       MDIERR (mdistat, "starting execution");
     }
 }
@@ -3629,9 +4008,14 @@ wait_cleanup (void)
 {
   /* Stop it manually. */
   MDIRunStateT runstate;
+  int i;
+
   mdi_wait_active = 0;
-  mdiStop (mdi_desc->Devhandle);
-  mdiRunState (mdi_desc->Devhandle, 200, &runstate);
+  for (i = 0; i < mdi_desc->gmcount; i++)
+    {
+      mdiStop (mdi_desc->gmdata[i].DevHandle);
+      mdiRunState (mdi_desc->gmdata[i].DevHandle, 200, &runstate);
+    }
   target_mourn_inferior ();
   throw_exception (RETURN_QUIT);
 }
@@ -3687,10 +4071,11 @@ mdi_profiling_cleanup (void *arg)
       if (mdi_profreg[i].valid)
 	{
 	  if (mdi_profreg[i].counts)
-	    (void) mipssim_FreeProfileData (mdi_desc->Devhandle, 
-					    &mdi_profreg[i].counts);
-	  (void) mipssim_DestroyProfile (mdi_desc->Devhandle, 
-					 mdi_profreg[i].id);
+	    (void) mipssim_FreeProfileData
+	      (mdi_desc->gmdata[mdi_desc->gmindex].DevHandle,
+	       &mdi_profreg[i].counts);
+	  (void) mipssim_DestroyProfile
+	    (mdi_desc->gmdata[mdi_desc->gmindex].DevHandle, mdi_profreg[i].id);
 	  mdi_profreg[i].counts = 0;
 	  mdi_profreg[i].valid = 0;
 	}
@@ -3716,8 +4101,9 @@ mdi_profiling_close_1 (PTR writep)
   for (i = 0; i < 2; i++)
     if (mdi_profreg[i].valid)
       {
-	mdistat = mipssim_StopProfile (mdi_desc->Devhandle,
-				       mdi_profreg[i].id);
+	mdistat =
+	  mipssim_StopProfile (mdi_desc->gmdata[mdi_desc->gmindex].DevHandle,
+			       mdi_profreg[i].id);
 	MDIWARN (mdistat, "Stop Profiling");
       }
 
@@ -3748,7 +4134,8 @@ mdi_profiling_close_1 (PTR writep)
 
       tracelev = 0; 
       if (MIPSsim_GetTraceLevel)
-	(void) MIPSsim_GetTraceLevel (mdi_desc->Devhandle, &tracelev);
+	(void) MIPSsim_GetTraceLevel
+	  (mdi_desc->gmdata[mdi_desc->gmindex].DevHandle, &tracelev);
       counting = (tracelev & 1) ? "cycles" : "insns";
 
       /* Allocate gmon histogram buffer of textsize / HISTFRACTION, */
@@ -3779,10 +4166,10 @@ mdi_profiling_close_1 (PTR writep)
 	  if (! mdi_profreg[i].valid)
 	    continue;
 
-	  mdistat = mipssim_FetchProfile (mdi_desc->Devhandle, 
-					  mdi_profreg[i].id,
-					  &mdi_profreg[i].counts,
-					  &total);
+	  mdistat =
+	    mipssim_FetchProfile
+	      (mdi_desc->gmdata[mdi_desc->gmindex].DevHandle,
+	       mdi_profreg[i].id, &mdi_profreg[i].counts, &total);
 	  MDIERR (mdistat, "Fetch Profile");
 
 	  mdicount = (mdi_profreg[i].high - mdi_profreg[i].low) / 2;
@@ -4062,11 +4449,12 @@ mdi_profiling_start (void)
 	    }
 
 	  /* Create profile region. */
-	  mdistat = mipssim_CreateProfile (mdi_desc->Devhandle, 
-					   &mdi_profreg[i].id, 
-					   mdi_profreg[i].low, 
-					   mdi_profreg[i].high
-					   - mdi_profreg[i].low);
+	  mdistat =
+	    mipssim_CreateProfile
+	      (mdi_desc->gmdata[mdi_desc->gmindex].DevHandle,
+	       &mdi_profreg[i].id,
+	       mdi_profreg[i].low,
+	       mdi_profreg[i].high - mdi_profreg[i].low);
 	  if (mdistat != MDISuccess)
 	    break;
 
@@ -4080,8 +4468,10 @@ mdi_profiling_start (void)
 	if (mdi_profreg[i].valid)
 	  {
 	    /* Start accumulating profile data. */
-	    mdistat = mipssim_StartProfile (mdi_desc->Devhandle, 
-					    mdi_profreg[i].id);
+	    mdistat =
+	      mipssim_StartProfile
+		(mdi_desc->gmdata[mdi_desc->gmindex].DevHandle,
+		 mdi_profreg[i].id);
 	    if (mdistat != MDISuccess)
 	      break;
 	  }
@@ -4095,8 +4485,8 @@ mdi_profiling_start (void)
 
       for (i = 0; i < 2; i++)
 	if (mdi_profreg[i].valid)
-	  mipssim_DestroyProfile (mdi_desc->Devhandle,
-				  mdi_profreg[i].id);
+	  mipssim_DestroyProfile
+	    (mdi_desc->gmdata[mdi_desc->gmindex].DevHandle, mdi_profreg[i].id);
       return;
     }
 
@@ -4120,7 +4510,7 @@ mdi_readstring (ULONGEST memaddr, char *mybuf, int len)
   MDIInt32 mdistat;
 
   /* Just read a full buffer's worth. */
-  mdistat = mdiRead (mdi_desc->Devhandle,
+  mdistat = mdiRead (mdi_desc->gmdata[mdi_desc->gmindex].DevHandle,
 		     mdi_memresource (memaddr), 
 		     mdi_memoffset (memaddr),
 		     mybuf, 0, len);
@@ -4133,7 +4523,7 @@ mdi_writestring (ULONGEST memaddr, char *mybuf, int len)
   MDIInt32 mdistat;
 
   /* Write a full buffer's worth. */
-  mdistat = mdiWrite (mdi_desc->Devhandle,
+  mdistat = mdiWrite (mdi_desc->gmdata[mdi_desc->gmindex].DevHandle,
 		      mdi_memresource (memaddr), 
 		      mdi_memoffset (memaddr),
 		      mybuf, 0, len);
@@ -4796,11 +5186,13 @@ mdi_do_syscall (void)
 	      if (mdi_profreg[i].valid)
 		{
 		  if (a0)
-		    mipssim_StartProfile (mdi_desc->Devhandle, 
-					  mdi_profreg[i].id);
+		    mipssim_StartProfile
+		      (mdi_desc->gmdata[mdi_desc->gmindex].DevHandle,
+		       mdi_profreg[i].id);
 		  else
-		    mipssim_StopProfile (mdi_desc->Devhandle, 
-					 mdi_profreg[i].id);
+		    mipssim_StopProfile
+		      (mdi_desc->gmdata[mdi_desc->gmindex].DevHandle,
+		       mdi_profreg[i].id);
 		}
 	    }
 	}
@@ -4893,6 +5285,8 @@ mdi_wait (ptid_t ptid, struct target_waitstatus *status)
   CORE_ADDR pc;
   int stop;
   int restarted;
+  int quit_printed;
+  int i;
 
   if (mdi_starting)
     {
@@ -4922,6 +5316,10 @@ mdi_wait (ptid_t ptid, struct target_waitstatus *status)
       int not_running;
       int seen_reset;
 
+      restarted = 0;
+
+      i = (mdi_desc->gmindex + 1) % mdi_desc->gmcount;
+
       /* Install our SIGINT signal handler. */
       interrupt_cleanup = wait_cleanup;
       ofunc = signal (SIGINT, mdi_interrupt);
@@ -4929,14 +5327,17 @@ mdi_wait (ptid_t ptid, struct target_waitstatus *status)
       sleep_time = 10;		/* start off with 10ms and increase */
       not_running = 0;
       seen_reset = 0;
+      quit_printed = 0;
 
       do
 	{
+	  int disabled;
+
 	  runstate.Status = MDIStatusNotRunning;
 
 	  mdi_wait_active = 1;
-	  mdistat =
-	    mdiRunState (mdi_desc->Devhandle, mdi_waittime, &runstate);
+	  mdistat = mdiRunState (mdi_desc->gmdata[i].DevHandle,
+				 mdi_waittime, &runstate);
 	  mdi_wait_active = 0;
 
 	  if (mdistat != MDISuccess)
@@ -4946,26 +5347,35 @@ mdi_wait (ptid_t ptid, struct target_waitstatus *status)
 	    }
 
 	  /* See if the user has asked us to stop. */
-	  if (deprecated_ui_loop_hook != NULL)
-	    stop = deprecated_ui_loop_hook (0);
-
-	  if (quit_flag)
+	  if (ptid_equal (ptid, pid_to_ptid (-1))
+	      || mdi_desc->gmdata[i].DevHandle == ptid_get_lwp (ptid))
 	    {
-	      quit_flag = 0;
-	      stop = 1;
+	      if (!stop && deprecated_ui_loop_hook != NULL)
+		stop = deprecated_ui_loop_hook (0);
+    
+	      if (quit_flag)
+		{
+		  quit_flag = 0;
+		  stop = 1;
+		}
 	    }
 
 	  if (runstate.Status == MDIStatusNotRunning) 
 	    {
 	      /* Accumulate time spent NotRunning. */
 	      not_running += mdi_waittime;
-	      /* Time out after 5000ms, or immediately if called from start_remote. */
+	      /* Time out after 5000ms,
+	         or immediately if called from start_remote.  */
 	      if (not_running >= 5000)
 		break;
 	    }
 
+	  disabled = (runstate.Status == MDIStatusDisabled
+		      || runstate.Status == MDIStatusVPEDisabled);
+
 	  if ((runstate.Status & MDIStatusMask) != MDIStatusRunning
-	      && runstate.Status != MDIStatusNotRunning) 
+	      && runstate.Status != MDIStatusNotRunning
+	      && !disabled)
 	    /* Terminate wait loop when an interesting new state occurs. */
 	    break;
 
@@ -4980,14 +5390,16 @@ mdi_wait (ptid_t ptid, struct target_waitstatus *status)
 	      seen_reset = 0;
 	    }
 
-	  if (stop)
+	  if (stop && (!disabled || mdi_desc->gmcount == 1))
 	    {
-	      printf_filtered ("Quit received: Stopping target\n");
-	      if ((mdistat = mdiStop (mdi_desc->Devhandle)) != MDISuccess)
+	      if (!quit_printed)
 		{
-		  MDIWARN (mdistat, "stopping CPU");
-		  break;
+		  printf_filtered ("Quit received: Stopping target\n");
+		  quit_printed = 1;
 		}
+	      mdistat = mdiStop (mdi_desc->gmdata[i].DevHandle);
+	      if (mdistat != MDISuccess)
+		MDIWARN (mdistat, "stopping CPU");
 	    }
 
 	  /* Give the rest of the system a chance to do something. */
@@ -5003,14 +5415,18 @@ mdi_wait (ptid_t ptid, struct target_waitstatus *status)
 	  if (sleep_time > 200)
 	    sleep_time = 200;
 
+	  if (!stop || disabled)
+	    i = (i + 1) % mdi_desc->gmcount;
 	}
       while (1);
 
       /* Restore old SIGINT handler. */
       signal (SIGINT, ofunc);
 
+      mdi_desc->gmindex = i;
+
       /* This is a hook for when we need to do something (perhaps the
-         collection of trace data) every time the target stops.  */
+	 collection of trace data) every time the target stops.  */
       if (target_wait_loop_hook)
 	(*target_wait_loop_hook) ();
 
@@ -5023,8 +5439,8 @@ mdi_wait (ptid_t ptid, struct target_waitstatus *status)
 	}
 
       /* Check for a host i/o "system call". */
-      restarted = 0;
       if ((runstate.Status == MDIStatusBPHit
+	   || runstate.Status == MDIStatusUsrBPHit
 	   || runstate.Status == MDIStatusStepsDone)
 	  && mdi_syscall_inserted
 	  && (pc = mdi_kva2phys ((CORE_ADDR) mdi_readpc ()))
@@ -5037,8 +5453,8 @@ mdi_wait (ptid_t ptid, struct target_waitstatus *status)
 	  switch (result)
 	    {
 	    case MDI_SYS_RESUME:
-	      /* I/o complete - restart target. */
-	      mdistat = mdiExecute (mdi_desc->Devhandle);
+	      /* I/O complete - restart target. */
+	      mdistat = mdiExecute (mdi_desc->gmdata[i].DevHandle);
 	      if (mdistat != MDISuccess)
 		MDIWARN (mdistat, "resume execution after syscall");
 	      else
@@ -5055,13 +5471,69 @@ mdi_wait (ptid_t ptid, struct target_waitstatus *status)
 	    case MDI_SYS_SIGNALLED:
 	      /* Signal occurred. */
 	      runstate.Status = MDIStatusHalted;
-  	      mdi_signalled = 1;
+		mdi_signalled = 1;
 	      break;
 	    }
 	}
-
     }
   while (restarted);
+
+  for (i = (mdi_desc->gmindex + 1) % mdi_desc->gmcount; i != mdi_desc->gmindex;
+       i = (i + 1) % mdi_desc->gmcount)
+    {
+      mdistat = mdiStop (mdi_desc->gmdata[i].DevHandle);
+      if (mdistat != MDISuccess)
+	MDIWARN (mdistat, "stopping CPU");
+    }
+
+  for (i = (mdi_desc->gmindex + 1) % mdi_desc->gmcount; i != mdi_desc->gmindex;
+       i = (i + 1) % mdi_desc->gmcount)
+    {
+      MDIRunStateT rs;
+      int sleep_time = 10;	/* start off with 10ms and increase */
+
+      while (1)
+	{
+	  rs.Status = MDIStatusNotRunning;
+
+	  mdi_wait_active = 1;
+	  mdistat = mdiRunState (mdi_desc->gmdata[i].DevHandle,
+				 mdi_waittime, &rs);
+	  mdi_wait_active = 0;
+
+	  if (mdistat != MDISuccess)
+	    {
+	      MDIWARN (mdistat, "fetching CPU run state");
+	      break;
+	    }
+
+	  if ((rs.Status & MDIStatusMask) != MDIStatusRunning)
+	    break;
+
+	  /* Keep increasing the length of the sleep, but limit to
+	     200ms to avoid long GUI delays when hitting the stop
+	     button. */
+	  sleep_time *= 2;
+	  if (sleep_time > 200)
+	    sleep_time = 200;
+	}
+
+	if (rs.Status == MDIStatusDisabled
+	    || rs.Status == MDIStatusVPEDisabled)
+	  {
+	    mdi_desc->gmdata[i].disabled = 1;
+	  }
+	else
+	  {
+	    mdi_desc->gmdata[i].disabled = 0;
+	    if (!mdi_desc->gmdata[i].probed)
+	      {
+		updateDev (mdi_desc, i, mdi_desc->gmdata[i].DeviceData.Id);
+		mdi_probe_cpu (mdi_desc, i);
+		mdi_desc->gmdata[i].probed = 1;
+	      }
+	  }
+    }
 
   quit_flag = 0;		/* consume any left over quit signal */
   mdi_runstate = runstate;
@@ -5080,6 +5552,10 @@ mdi_wait (ptid_t ptid, struct target_waitstatus *status)
       status->kind = TARGET_WAITKIND_SPURIOUS;
       status->value.sig = TARGET_SIGNAL_0;
       break;
+    case MDIStatusDisabled:
+      /* Can't happen... */
+      internal_error (__FILE__, __LINE__,
+		      "MDIRunState.Status = MDIStatusDisabled");
     case MDIStatusRunning:
       /* Can't happen... */
       internal_error (__FILE__, __LINE__,
@@ -5143,14 +5619,24 @@ mdi_wait (ptid_t ptid, struct target_waitstatus *status)
       status->kind = TARGET_WAITKIND_STOPPED;
       status->value.sig = TARGET_SIGNAL_TRAP;
       {
-	MDIBpDataT *bpt = mdi_find_breakpoint (runstate.Info.value);
+	MDIBpDataT *bpt =
+	  mdi_find_breakpoint (mdi_desc->gmdata[mdi_desc->gmindex].DevHandle,
+			       runstate.Info.value);
 	if (bpt)
-	  mdi_curbpt = *bpt;
+	  {
+	    mdi_curbpt = *bpt;
+	    break;
+	  }
       }
-      break;
+      /* Fall through in case something has gone wrong in MDIlib.  */
     case MDIStatusUsrBPHit:
       status->kind = TARGET_WAITKIND_STOPPED;
       status->value.sig = TARGET_SIGNAL_TRAP;
+      {
+	MDIBpDataT *bpt = mdi_find_usr_breakpoint ((CORE_ADDR) mdi_readpc ());
+	if (bpt)
+	  mdi_curbpt = *bpt;
+      }
       break;
     case MDIStatusException:
       status->kind = TARGET_WAITKIND_STOPPED;
@@ -5249,10 +5735,10 @@ mdi_map_regno (int regno, MDIResourceT * rsrc, MDIOffsetT * offs, int write)
 	{
 	  /* Check for availability of new MDI FPR resource. */
 	  char tmp[8];
-	  mdi_fpr_avail
-	    = (mdiRead (mdi_desc->Devhandle, MDIMIPFPR, 0, tmp, 
-			register_size (current_gdbarch, regnum->fp0), 1)
-	       == MDISuccess);
+	  mdi_fpr_avail =
+	    (mdiRead (mdi_desc->gmdata[mdi_desc->gmindex].DevHandle, MDIMIPFPR,
+		      0, tmp, register_size (current_gdbarch, regnum->fp0), 1)
+	     == MDISuccess);
 	}
 
       if (mdi_fpr_avail)
@@ -5487,8 +5973,8 @@ mdi_fetch_register (int regno)
       if (nr_bytes > 0)
 	{
 	  MDIInt32 mdistat;
-	  mdistat = mdiRead (mdi_desc->Devhandle, rsrc, offs,
-			     tmp, nr_bytes, 1);
+	  mdistat = mdiRead (mdi_desc->gmdata[mdi_desc->gmindex].DevHandle,
+			     rsrc, offs, tmp, nr_bytes, 1);
 	  if (mdistat == MDISuccess)
 	    {
 	      /* Register arrives in target byte order,
@@ -5552,7 +6038,8 @@ mdi_store_register (int regno)
       /* Send in target order. */
       store_signed_integer (tmp, nr_bytes, val);
 
-      mdistat = mdiWrite (mdi_desc->Devhandle, rsrc, offs, tmp, nr_bytes, 1);
+      mdistat = mdiWrite (mdi_desc->gmdata[mdi_desc->gmindex].DevHandle,
+			  rsrc, offs, tmp, nr_bytes, 1);
       if (mdistat != MDISuccess)
 	mdi_bad_register (mdistat, rsrc, offs, "storing register");
     }
@@ -5572,7 +6059,8 @@ mdi_readreg (int regno)
   if (nr_bytes > 0)
     {
       MDIInt32 mdistat;
-      mdistat = mdiRead (mdi_desc->Devhandle, rsrc, offs, tmp, nr_bytes, 1);
+      mdistat = mdiRead (mdi_desc->gmdata[mdi_desc->gmindex].DevHandle,
+			 rsrc, offs, tmp, nr_bytes, 1);
       if (mdistat == MDISuccess)
 	{
 	  /* Register arrives in target byte order,
@@ -5602,7 +6090,8 @@ mdi_writereg (int regno, ULONGEST val)
     {
       /* Send in target order. */
       store_unsigned_integer (tmp, nr_bytes, val);
-      mdistat = mdiWrite (mdi_desc->Devhandle, rsrc, offs, tmp, nr_bytes, 1);
+      mdistat = mdiWrite (mdi_desc->gmdata[mdi_desc->gmindex].DevHandle,
+			  rsrc, offs, tmp, nr_bytes, 1);
       MDIERR (mdistat, "writing register");
     }
 }
@@ -5720,7 +6209,7 @@ mdi_memaddr (MDIOffsetT offs)
 static int
 mdi_read_bytes (CORE_ADDR memaddr, char *myaddr, int len)
 {
-  if (mdiRead (mdi_desc->Devhandle,
+  if (mdiRead (mdi_desc->gmdata[mdi_desc->gmindex].DevHandle,
 	       mdi_memresource (memaddr),
 	       mdi_memoffset (memaddr),
 	       myaddr, 0, len) != MDISuccess)
@@ -5732,7 +6221,7 @@ mdi_read_bytes (CORE_ADDR memaddr, char *myaddr, int len)
 static int
 mdi_write_bytes (CORE_ADDR memaddr, char *myaddr, int len)
 {
-  if (mdiWrite (mdi_desc->Devhandle, 
+  if (mdiWrite (mdi_desc->gmdata[mdi_desc->gmindex].DevHandle, 
 		mdi_memresource (memaddr),
 		mdi_memoffset (memaddr),
 		myaddr, 0, len) != MDISuccess)
@@ -5774,15 +6263,16 @@ mdi_files_info (struct target_ops *ops)
       return;
     }
 
-  if (mdi_desc->DeviceData.VPartData[0] 
-      && strcmp (mdi_desc->DeviceData.VPartData, "Unknown") != 0)
+  if (mdi_desc->gmdata[mdi_desc->gmindex].DeviceData.VPartData[0] 
+      && strcmp (mdi_desc->gmdata[mdi_desc->gmindex].DeviceData.VPartData,
+		 "Unknown") != 0)
     printf_filtered ("\tAttached to %s on %s %s\n",
-		     mdi_desc->DeviceData.DName,
-		     mdi_desc->DeviceData.Vendor,
-		     mdi_desc->DeviceData.VPartData);
+		     mdi_desc->gmdata[mdi_desc->gmindex].DeviceData.DName,
+		     mdi_desc->gmdata[mdi_desc->gmindex].DeviceData.Vendor,
+		     mdi_desc->gmdata[mdi_desc->gmindex].DeviceData.VPartData);
   else
     printf_filtered ("\tAttached to %s\n",
-		     mdi_desc->DeviceData.DName);
+		     mdi_desc->gmdata[mdi_desc->gmindex].DeviceData.DName);
   if (exec_bfd)
     {
       printf_filtered ("\tand running program %s.\n",
@@ -5814,6 +6304,7 @@ mdi_load (char *prog, int fromtty)
   char *ext;
   CORE_ADDR pc;
   CORE_ADDR entry;
+  int i;
 
   if (remote_debug)
     fprintf_unfiltered (mdi_logfp, "mdi_load: prog \"%s\"\n", prog);
@@ -5830,10 +6321,14 @@ mdi_load (char *prog, int fromtty)
   mdi_remove_syscallbreakpoint ();
 
   /* Writeback and invalidate data caches. */
-  mdiCacheFlush (mdi_desc->Devhandle, MDICacheTypeData,
-		 MDICacheWriteBack | MDICacheInvalidate);
-  mdiCacheFlush (mdi_desc->Devhandle, MDICacheTypeUnified,
-		 MDICacheWriteBack | MDICacheInvalidate);
+  for (i = 0; i < mdi_desc->gmcount; i++)
+    if (!mdi_desc->gmdata[i].disabled)
+      {
+	mdiCacheFlush (mdi_desc->gmdata[i].DevHandle, MDICacheTypeData,
+		       MDICacheWriteBack | MDICacheInvalidate);
+	mdiCacheFlush (mdi_desc->gmdata[i].DevHandle, MDICacheTypeUnified,
+		       MDICacheWriteBack | MDICacheInvalidate);
+      }
 
   mdi_found_relf = 0;
   mdi_entrypoint = 0;
@@ -5889,6 +6384,7 @@ mdi_load (char *prog, int fromtty)
 struct mdi_bpt
 {
   struct mdi_bpt *next;
+  MDIHandleT devhandle;
   MDIBpDataT mdibp;
 };
 
@@ -5909,12 +6405,27 @@ mdi_reset_breakpoints (void)
 
 
 static MDIBpDataT *
-mdi_find_breakpoint (MDIBpIdT id)
+mdi_find_breakpoint (MDIHandleT devhandle, MDIBpIdT id)
 {
   struct mdi_bpt *bpt;
 
   for (bpt = mdi_bpts; bpt; bpt = bpt->next)
-    if (bpt->mdibp.Id == id)
+    if (bpt->devhandle == devhandle && bpt->mdibp.Id == id)
+      return &bpt->mdibp;
+  return NULL;
+}
+
+
+static MDIBpDataT *
+mdi_find_usr_breakpoint (CORE_ADDR addr)
+{
+  struct mdi_bpt *bpt;
+
+  for (bpt = mdi_bpts; bpt; bpt = bpt->next)
+    if (bpt->mdibp.Type == MDIBPT_SWInstruction
+	&& bpt->mdibp.Enabled == 1
+	&& bpt->mdibp.Resource == mdi_memresource (addr)
+	&& bpt->mdibp.Range.Start == mdi_memoffset (addr))
       return &bpt->mdibp;
   return NULL;
 }
@@ -5931,6 +6442,9 @@ mdi_insert_breakpoint1 (CORE_ADDR addr, MDIInt32 rsrc)
 			(unsigned int) addr);
 
   bpt = xcalloc (1, sizeof (struct mdi_bpt));
+  /* Set the breakpoint for the first device only; others will get
+     MDIStatusUsrBPHit.  */
+  bpt->devhandle = mdi_desc->gmdata[0].DevHandle;
   bpt->mdibp.Id = 0;
   bpt->mdibp.Type = MDIBPT_SWInstruction;
   bpt->mdibp.Enabled = 1;
@@ -5943,7 +6457,8 @@ mdi_insert_breakpoint1 (CORE_ADDR addr, MDIInt32 rsrc)
     {
       bpdata = *next;
 
-      if (bpdata->mdibp.Type == bpt->mdibp.Type
+      if (bpdata->devhandle == bpt->devhandle
+	  && bpdata->mdibp.Type == bpt->mdibp.Type
 	  && bpdata->mdibp.Resource == bpt->mdibp.Resource
 	  && bpdata->mdibp.Range.Start == bpt->mdibp.Range.Start
 	  && bpdata->mdibp.Enabled == 1)
@@ -5954,7 +6469,7 @@ mdi_insert_breakpoint1 (CORE_ADDR addr, MDIInt32 rsrc)
 
   if (bpt->mdibp.Enabled != ~0)
     {
-      mdistat = mdiSetBp (mdi_desc->Devhandle, &bpt->mdibp);
+      mdistat = mdiSetBp (bpt->devhandle, &bpt->mdibp);
       if (mdistat != MDISuccess)
 	{
 	  xfree (bpt);
@@ -6004,6 +6519,7 @@ mdi_insert_syscallbreakpoint (void)
 static int
 mdi_remove_bpt (MDIInt32 type, CORE_ADDR addr, MDIInt32 rsrc)
 {
+  MDIHandleT devhandle = mdi_desc->gmdata[0].DevHandle;
   MDIOffsetT off = mdi_memoffset (addr);
   struct mdi_bpt *bpt, *pbpt;
   MDIInt32 mdistat;
@@ -6011,7 +6527,8 @@ mdi_remove_bpt (MDIInt32 type, CORE_ADDR addr, MDIInt32 rsrc)
   /* Find matching breakpoint. */
   for (bpt = mdi_bpts, pbpt = NULL; bpt; pbpt = bpt, bpt = bpt->next)
     {
-      if ((bpt->mdibp.Type & MDIBPT_TypeMask) == type
+      if (bpt->devhandle == devhandle
+	  && (bpt->mdibp.Type & MDIBPT_TypeMask) == type
 	  && bpt->mdibp.Range.Start == off
 	  && bpt->mdibp.Resource == rsrc)
 	break;
@@ -6023,7 +6540,7 @@ mdi_remove_bpt (MDIInt32 type, CORE_ADDR addr, MDIInt32 rsrc)
 
   if (bpt->mdibp.Enabled != ~0)
     {
-      mdistat = mdiClearBp (mdi_desc->Devhandle, bpt->mdibp.Id);
+      mdistat = mdiClearBp (bpt->devhandle, bpt->mdibp.Id);
       if (mdistat != MDISuccess)
 	{
 	  MDIWARN (mdistat, "clearing breakpoint");
@@ -6077,100 +6594,153 @@ mdi_mourn_inferior (void)
 static void
 mdi_switch_to_thread (void)
 {
-  MDIInt32 mdistat, TCId;
+  MDIInt32 mdistat;
+  MDIHandleT devhandle;
+  MDITCIdT TCId;
+  int i, j;
 
-  TCId = TIDGET (inferior_ptid);
-  mdistat = mdiSetTC (mdi_desc->Devhandle, TCId);
-  if (mdistat != MDISuccess)
+  j = mdi_desc->gmindex;
+  devhandle = ptid_get_lwp (inferior_ptid);
+  for (i = 0; i < mdi_desc->gmcount; i++)
+    if (!mdi_desc->gmdata[i].disabled
+	&& mdi_desc->gmdata[i].DevHandle == devhandle)
+      {
+	j = i;
+	break;
+      }
+
+  TCId = ptid_get_tid (inferior_ptid);
+  mdistat = mdiSetTC (mdi_desc->gmdata[j].DevHandle, TCId);
+  if (mdistat == MDISuccess)
+    mdi_desc->gmindex = j;
+  else
     {
       warning ("Thread %d (%s) unavailable.",
 	       pid_to_thread_id (inferior_ptid),
 	       target_tid_to_str (inferior_ptid));
 
       /* Attempt to recover.  */
-      mdistat = mdiGetTC (mdi_desc->Devhandle, &TCId);
+      mdistat = mdiGetTC (mdi_desc->gmdata[mdi_desc->gmindex].DevHandle,
+			  &TCId);
       if (mdistat != MDISuccess)
 	/* Too bad...  */
 	error ("Current thread went away!?");
 
-      inferior_ptid = MERGEPID (GET_PID (inferior_ptid), TCId);
+      inferior_ptid =
+	ptid_build (GET_PID (inferior_ptid),
+		    mdi_desc->gmdata[mdi_desc->gmindex].DevHandle, TCId);
     }
 }
 
 static int
 mdi_thread_alive (ptid_t ptid)
 {
-  MDIInt32 howmany = 0;
+  MDIInt32 howmany;
   MDITCDataT *tcdata;
   MDIInt32 mdistat;
-  int res = 0;
-  int i;
+  int i, j;
 
-  mdistat = mdiTCQuery (mdi_desc->Devhandle, &howmany, NULL);
-  if (mdistat != MDISuccess)
-    return 0;
-
-  if (howmany > 0)
+  for (i = 0; i < mdi_desc->gmcount; i++)
     {
-      tcdata = alloca (howmany * sizeof (*tcdata));
-      mdistat = mdiTCQuery (mdi_desc->Devhandle, &howmany, tcdata);
-      if (mdistat != MDISuccess)
-	return 0;				/* Shouldn't happen.  */
-      for (i = 0; i < howmany; i++)
-	{
-	  int active;
+      if (mdi_desc->gmdata[i].disabled)
+	continue;
 
-	  active = mdi_threadviewinactive
-		   || ((tcdata[i].Status != MDITCStatusHalted)
-		       && (tcdata[i].Status != MDITCStatusFree));
-	  if (active && TIDGET (ptid) == tcdata[i].TCId)
+      howmany = 0;
+
+      mdistat = mdiTCQuery (mdi_desc->gmdata[i].DevHandle, &howmany, NULL);
+      if (mdistat == MDIErrUnsupported && mdi_desc->gmcount > 1)
+	{
+	  if (ptid_get_lwp (ptid) == mdi_desc->gmdata[i].DevHandle
+	      && ptid_get_tid (ptid) == 0)
+	    return 1;
+	}
+      else if (mdistat != MDISuccess)
+	return 0;
+
+      if (howmany > 0)
+	{
+	  tcdata = alloca (howmany * sizeof (*tcdata));
+	  mdistat = mdiTCQuery (mdi_desc->gmdata[i].DevHandle,
+				&howmany, tcdata);
+	  if (mdistat != MDISuccess)
+	    return 0;				/* Shouldn't happen.  */
+	  for (j = 0; j < howmany; j++)
 	    {
-	      res = 1;
-	      break;
+	      int active;
+
+	      active = mdi_threadviewinactive
+		       || ((tcdata[j].Status != MDITCStatusHalted)
+			   && (tcdata[j].Status != MDITCStatusFree));
+	      if (active
+		  && ptid_get_lwp (ptid) == mdi_desc->gmdata[i].DevHandle
+		  && ptid_get_tid (ptid) == tcdata[j].TCId)
+		return 1;
 	    }
 	}
     }
-  return res;
+  return 0;
 }
 
 static void
 mdi_find_new_threads (void)
 {
-  MDIInt32 howmany = 0;
+  MDIInt32 howmany;
   MDITCDataT *tcdata;
   MDIInt32 mdistat;
   ptid_t ptid;
-  int i;
+  int i, j;
 
   /* Don't add threads till a running program is available.  */
   if (ptid_equal (inferior_ptid, null_ptid))
     return;
 
-  mdistat = mdiTCQuery (mdi_desc->Devhandle, &howmany, NULL);
-  if (mdistat != MDISuccess)
-    return;
-
-  if (howmany > 0)
+  for (i = 0; i < mdi_desc->gmcount; i++)
     {
-      tcdata = alloca (howmany * sizeof (*tcdata));
-      mdistat = mdiTCQuery (mdi_desc->Devhandle, &howmany, tcdata);
-      if (mdistat != MDISuccess)
-	return;					/* Shouldn't happen.  */
-      for (i = 0; i < howmany; i++)
-	{
-	  int active;
+      if (mdi_desc->gmdata[i].disabled)
+	continue;
 
-	  active = mdi_threadviewinactive
-		   || ((tcdata[i].Status != MDITCStatusHalted)
-		       && (tcdata[i].Status != MDITCStatusFree));
-	  ptid = MERGEPID (GET_PID (inferior_ptid), tcdata[i].TCId);
-	  if (active && !in_thread_list (ptid))
+      howmany = 0;
+
+      mdistat = mdiTCQuery (mdi_desc->gmdata[i].DevHandle, &howmany, NULL);
+      if (mdistat == MDIErrUnsupported && mdi_desc->gmcount > 1)
+	{
+	  ptid = ptid_build (GET_PID (inferior_ptid),
+			     mdi_desc->gmdata[i].DevHandle, 0);
+	  if (!in_thread_list (ptid))
 	    {
 	      add_thread (ptid);
 	      printf_unfiltered ("[New %s]\n", target_pid_to_str (ptid));
 	    }
-	  else if (!active)
-	    delete_thread (ptid);
+	  continue;
+	}
+      else if (mdistat != MDISuccess)
+	return;
+
+      if (howmany > 0)
+	{
+	  tcdata = alloca (howmany * sizeof (*tcdata));
+	  mdistat = mdiTCQuery (mdi_desc->gmdata[i].DevHandle,
+				&howmany, tcdata);
+	  if (mdistat != MDISuccess)
+	    return;				/* Shouldn't happen.  */
+	  for (j = 0; j < howmany; j++)
+	    {
+	      int active;
+
+	      active = mdi_threadviewinactive
+		       || ((tcdata[j].Status != MDITCStatusHalted)
+			   && (tcdata[j].Status != MDITCStatusFree));
+	      ptid = ptid_build (GET_PID (inferior_ptid),
+				 mdi_desc->gmdata[i].DevHandle,
+				 tcdata[j].TCId);
+	      if (active && !in_thread_list (ptid))
+		{
+		  add_thread (ptid);
+		  printf_unfiltered ("[New %s]\n", target_pid_to_str (ptid));
+		}
+	      else if (!active)
+		delete_thread (ptid);
+	    }
 	}
     }
 }
@@ -6178,10 +6748,24 @@ mdi_find_new_threads (void)
 static char *
 mdi_pid_to_str (ptid_t ptid)
 {
+  MDIHandleT devhandle;
   static char *buf = NULL;
+  int i;
 
-  xfree (buf);
-  buf = xstrprintf ("Thread Context %ld", TIDGET (ptid));
+  devhandle = ptid_get_lwp (ptid);
+  for (i = 0; i < mdi_desc->gmcount; i++)
+    if (devhandle == mdi_desc->gmdata[i].DevHandle)
+      {
+	xfree (buf);
+	if (mdi_desc->gmcount > 1)
+	  buf = xstrprintf ("Thread Context %d:%d:%ld",
+			    mdi_desc->gmdata[i].tmdata.TGId + 1,
+			    mdi_desc->gmdata[i].tmdata.DevId + 1,
+			    ptid_get_tid (ptid));
+	else
+	  buf = xstrprintf ("Thread Context %ld", ptid_get_tid (ptid));
+	break;
+      }
   return buf;
 }
 
@@ -6255,41 +6839,63 @@ mdi_data_address_match (CORE_ADDR vaddr, int len)
 
 
 static int
-mdi_breakpoint_type_supported(MDIUint32 bptype)
+mdi_breakpoint_type_supported (MDIUint32 bptype)
 {
-  MDIInt32 howmany = 0;
+  MDIInt32 howmany;
   MDIBpInfoT *bpinfo;
   MDIInt32 mdistat;
   int i;
 
-  mdistat = mdiHwBpQuery (mdi_desc->Devhandle, &howmany, NULL);
-  if (mdistat == MDIErrUnsupported)
+  for (i = 0; i < mdi_desc->gmcount; i++)
     {
-      if (mdi_hwbpq_avail < 0)
+      if (mdi_desc->gmdata[i].disabled)
+	return 0;
+
+      howmany = 0;
+
+      mdistat = mdiHwBpQuery (mdi_desc->gmdata[i].DevHandle, &howmany, NULL);
+      if (mdistat == MDIErrUnsupported)
 	{
-	  warning ("Cannot query hardware breakpoint/watchpoint resources.");
-	  warning ("Available functionality may be limited.");
-	  mdi_hwbpq_avail = 0;
+	  if (mdi_hwbpq_avail < 0)
+	    {
+	      warning
+		("Cannot query hardware breakpoint/watchpoint resources.");
+	      warning ("Available functionality may be limited.");
+	      mdi_hwbpq_avail = 0;
+	    }
+	  return 0;
 	}
-      return 0;
-    }
-  mdi_hwbpq_avail = 1;
-  if (mdistat != MDISuccess)
-    return -1;
-
-  if (howmany > 0)
-    {
-      bpinfo = alloca (howmany * sizeof (*bpinfo));
-      mdistat = mdiHwBpQuery (mdi_desc->Devhandle, &howmany, bpinfo);
+      mdi_hwbpq_avail = 1;
       if (mdistat != MDISuccess)
-	return -1;				/* Shouldn't happen.  */
-
-      for (i = 0; i < howmany; i++)
-	if ((bpinfo[i].Type & bptype) == bptype)
-	  return 1;
+	return -1;
     }
 
-  return -1;
+  for (i = 0; i < mdi_desc->gmcount; i++)
+    {
+      int found = 0;
+      int j;
+
+      if (howmany > 0)
+	{
+	  bpinfo = alloca (howmany * sizeof (*bpinfo));
+	  mdistat = mdiHwBpQuery (mdi_desc->gmdata[i].DevHandle,
+				  &howmany, bpinfo);
+	  if (mdistat != MDISuccess)
+	    return -1;				/* Shouldn't happen.  */
+
+	  for (j = 0; j < howmany; j++)
+	    if ((bpinfo[j].Type & bptype) == bptype)
+	      {
+		found = 1;
+		break;
+	      }
+	}
+
+      if (!found)
+        return -1;
+    }
+
+  return 1;
 }
 
 static int
@@ -6362,7 +6968,7 @@ mdi_watchpoint_mask_to_range (MDIRangeT addrmask)
 }
 
 static int
-mdi_insert_hw_any (MDIBpDataT bp)
+mdi_insert_hw_any (MDIHandleT devhandle, MDIBpDataT bp)
 {
   MDIBpDataT bpcopy;
   int maskok = 0, rangeok, needrange, usedmask = 0;
@@ -6403,14 +7009,16 @@ mdi_insert_hw_any (MDIBpDataT bp)
       if ((bpdata->mdibp.Type & MDIBPT_HWFlg_AddrMask) != 0)
 	bpdatarange = mdi_watchpoint_mask_to_range (bpdatarange);
 
-      if (bptype == bp.Type
+      if (bpdata->devhandle == devhandle
+	  && bptype == bp.Type
 	  && bpdata->mdibp.Resource == bp.Resource
 	  && bpdatarange.Start == bprange.Start
 	  && bpdata->mdibp.Enabled == 1)
 	{
 	  if (bpdatarange.End < bprange.End)
 	    {
-	      mdistat = mdiClearBp (mdi_desc->Devhandle, bpdata->mdibp.Id);
+	      mdistat =
+		mdiClearBp (bpdata->devhandle, bpdata->mdibp.Id);
 	      if (mdistat != MDISuccess)
 		return -1;
 
@@ -6427,6 +7035,7 @@ mdi_insert_hw_any (MDIBpDataT bp)
 
   bpdata = xmalloc (sizeof (*bpdata));
   bpdata->next = NULL;
+  bpdata->devhandle = devhandle;
 
   bpcopy = bp;
   mdistat = MDIErrFailure;
@@ -6439,7 +7048,7 @@ mdi_insert_hw_any (MDIBpDataT bp)
 	bpcopy.Range.End = 0;
       if (bpcopy.Enabled != ~0)
 	{
-	  mdistat = mdiSetBp (mdi_desc->Devhandle, &bpcopy);
+	  mdistat = mdiSetBp (bpdata->devhandle, &bpcopy);
 	  if (mdistat != MDISuccess)
 	    bpcopy = bp;
 	}
@@ -6452,7 +7061,7 @@ mdi_insert_hw_any (MDIBpDataT bp)
       bpcopy.Type |= MDIBPT_HWFlg_AddrMask;
       bpcopy.Range = bpmask;
       if (bpcopy.Enabled != ~0)
-	mdistat = mdiSetBp (mdi_desc->Devhandle, &bpcopy);
+	mdistat = mdiSetBp (bpdata->devhandle, &bpcopy);
       else
 	mdistat = MDISuccess;
     }
@@ -6470,7 +7079,7 @@ mdi_insert_hw_any (MDIBpDataT bp)
 }
 
 static int
-mdi_remove_hw_any (MDIBpDataT bp)
+mdi_remove_hw_any (MDIHandleT devhandle, MDIBpDataT bp)
 {
   MDIRangeT bprange = bp.Range;
   MDIRangeT bpmask = mdi_watchpoint_range_to_mask (bp.Range);
@@ -6485,7 +7094,8 @@ mdi_remove_hw_any (MDIBpDataT bp)
       bptype = bpdata->mdibp.Type & ~(MDIBpT)(MDIBPT_HWFlg_AddrMask
 					      | MDIBPT_HWFlg_AddrRange);
 
-      if (bptype == bp.Type
+      if (bpdata->devhandle == devhandle
+	  && bptype == bp.Type
 	  && bpdata->mdibp.Resource == bp.Resource
 	  && (((bpdata->mdibp.Type & MDIBPT_HWFlg_AddrMask) != 0
 	       && bpdata->mdibp.Range.Start == bpmask.Start
@@ -6499,7 +7109,8 @@ mdi_remove_hw_any (MDIBpDataT bp)
 	{
 	  if (bpdata->mdibp.Enabled != ~0)
 	    {
-	      mdistat = mdiClearBp (mdi_desc->Devhandle, bpdata->mdibp.Id);
+	      mdistat =
+		mdiClearBp (bpdata->devhandle, bpdata->mdibp.Id);
 	      if (mdistat != MDISuccess)
 		return -1;
 	    }
@@ -6535,13 +7146,38 @@ mdi_setup_hw_breakpoint (CORE_ADDR addr)
 static int
 mdi_insert_hw_breakpoint (CORE_ADDR addr, char *shadow)
 {
-  return mdi_insert_hw_any (mdi_setup_hw_breakpoint (addr));
+  MDIBpDataT bp;
+  int i;
+
+  bp = mdi_setup_hw_breakpoint (addr);
+
+  for (i = 0; i < mdi_desc->gmcount; i++)
+    if (!mdi_desc->gmdata[i].disabled)
+      if (mdi_insert_hw_any (mdi_desc->gmdata[i].DevHandle, bp) < 0)
+	{
+	  for (i--; i >= 0; i--)
+	    if (!mdi_desc->gmdata[i].disabled)
+	      mdi_remove_hw_any (mdi_desc->gmdata[i].DevHandle, bp);
+	  return -1;
+	}
+
+  return 0;
 }
 
 static int
 mdi_remove_hw_breakpoint (CORE_ADDR addr, char *shadow)
 {
-  return mdi_remove_hw_any (mdi_setup_hw_breakpoint (addr));
+  MDIBpDataT bp;
+  int i, result = 0;
+
+  bp = mdi_setup_hw_breakpoint (addr);
+
+  for (i = 0; i < mdi_desc->gmcount; i++)
+    if (!mdi_desc->gmdata[i].disabled)
+      if (mdi_remove_hw_any (mdi_desc->gmdata[i].DevHandle, bp) < 0)
+	result = -1;
+
+  return result;
 }
 
 
@@ -6579,13 +7215,38 @@ mdi_setup_watchpoint (CORE_ADDR addr, int len, int type)
 static int
 mdi_insert_watchpoint (CORE_ADDR addr, int len, int type)
 {
-  return mdi_insert_hw_any (mdi_setup_watchpoint (addr, len, type));
+  MDIBpDataT bp;
+  int i;
+
+  bp = mdi_setup_watchpoint (addr, len, type);
+
+  for (i = 0; i < mdi_desc->gmcount; i++)
+    if (!mdi_desc->gmdata[i].disabled)
+      if (mdi_insert_hw_any (mdi_desc->gmdata[i].DevHandle, bp) < 0)
+	{
+	  for (i--; i >= 0; i--)
+	    if (!mdi_desc->gmdata[i].disabled)
+	      mdi_remove_hw_any (mdi_desc->gmdata[i].DevHandle, bp);
+	  return -1;
+	}
+
+  return 0;
 }
 
 static int
 mdi_remove_watchpoint (CORE_ADDR addr, int len, int type)
 {
-  return mdi_remove_hw_any (mdi_setup_watchpoint (addr, len, type));
+  MDIBpDataT bp;
+  int i, result = 0;
+
+  bp = mdi_setup_watchpoint (addr, len, type);
+
+  for (i = 0; i < mdi_desc->gmcount; i++)
+    if (!mdi_desc->gmdata[i].disabled)
+      if (mdi_remove_hw_any (mdi_desc->gmdata[i].DevHandle, bp) < 0)
+	result = -1;
+
+  return result;
 }
 
 
@@ -6622,8 +7283,8 @@ show_tlb_command1 (int entry)
 	  printf_filtered ("TLB  VPN        ASID  PFN        N D V G\n");
 	else
 	  {
-	    mdistat =
-	      mdiRead (mdi_desc->Devhandle, MDIMIPTLB, entry * 2, data, 4, 2);
+	    mdistat = mdiRead (mdi_desc->gmdata[mdi_desc->gmindex].DevHandle,
+			       MDIMIPTLB, entry * 2, data, 4, 2);
 	    if (mdistat != MDISuccess)
 	      return mdistat;
 	    lo = extract_unsigned_integer (&data[0], 4);
@@ -6654,8 +7315,8 @@ show_tlb_command1 (int entry)
 	    ("TLB  Mask    VPN2       ASID  R X PFN0       C D V G  R X PFN1       C D V G\n");
 	else
 	  {
-	    mdistat =
-	      mdiRead (mdi_desc->Devhandle, MDIMIPTLB, entry * 4, data, 4, 4);
+	    mdistat = mdiRead (mdi_desc->gmdata[mdi_desc->gmindex].DevHandle,
+			       MDIMIPTLB, entry * 4, data, 4, 4);
 	    if (mdistat != MDISuccess)
 	      return mdistat;
 	    lo0 = extract_unsigned_integer (&data[0], 4);
@@ -6702,8 +7363,8 @@ show_tlb_command1 (int entry)
 	    ("TLB  Mask    VPN2       ASID PFN0       C D V G PFN1       C D V G\n");
 	else
 	  {
-	    mdistat =
-	      mdiRead (mdi_desc->Devhandle, MDIMIPTLB, entry * 4, data, 8, 4);
+	    mdistat = mdiRead (mdi_desc->gmdata[mdi_desc->gmindex].DevHandle,
+			       MDIMIPTLB, entry * 4, data, 8, 4);
 	    if (mdistat != MDISuccess)
 	      return mdistat;
 	    lo0 = extract_unsigned_integer (&data[0], 8);
@@ -6747,12 +7408,12 @@ show_tlb_command (char *args, int from_tty)
 
   check_mdi ();
 
-  if (mdi_desc->ntlb <= 0)
+  if (mdi_desc->gmdata[mdi_desc->gmindex].ntlb <= 0)
     error ("No TLB on this CPU");
   if (args == NULL || *args == '\0' || (strcmp (args, "all") == 0))
     {
       show_tlb_command1 (-1);
-      for (i = 0; i < mdi_desc->ntlb; i++)
+      for (i = 0; i < mdi_desc->gmdata[mdi_desc->gmindex].ntlb; i++)
 	{
 	  mdistat = show_tlb_command1 (i);
 	  if (mdistat != MDISuccess)
@@ -6762,7 +7423,7 @@ show_tlb_command (char *args, int from_tty)
   else
     {
       n = strtoul (args, &args, 0);
-      if (*args || n < 0 || n >= mdi_desc->ntlb)
+      if (*args || n < 0 || n >= mdi_desc->gmdata[mdi_desc->gmindex].ntlb)
 	{
 	  error ("Usage: show mdi tlb [all | INDEX]");
 	}
@@ -6784,7 +7445,7 @@ set_tlb_command (char *args, int from_tty)
 
   check_mdi ();
 
-  if (mdi_desc->ntlb <= 0)
+  if (mdi_desc->gmdata[mdi_desc->gmindex].ntlb <= 0)
     error ("No TLB on this CPU");
 
   if (s)
@@ -6813,7 +7474,8 @@ set_tlb_command (char *args, int from_tty)
 	entry = data[0];
 	store_unsigned_integer (&tlb[0], sizeof (tlb[0]), data[1]);
 	store_unsigned_integer (&tlb[1], sizeof (tlb[1]), data[2]);
-	mdistat = mdiWrite (mdi_desc->Devhandle, MDIMIPTLB, entry,
+	mdistat = mdiWrite (mdi_desc->gmdata[mdi_desc->gmindex].DevHandle,
+			    MDIMIPTLB, entry,
 			    tlb, sizeof (tlb[0]), 2);
 	MDIERR (mdistat, "writing TLB entry");
       }
@@ -6828,8 +7490,8 @@ set_tlb_command (char *args, int from_tty)
 	store_unsigned_integer (&tlb[1], sizeof (tlb[1]), data[3]);
 	store_unsigned_integer (&tlb[2], sizeof (tlb[2]), data[1]);
 	store_unsigned_integer (&tlb[3], sizeof (tlb[3]), data[4]);
-	mdistat = mdiWrite (mdi_desc->Devhandle, MDIMIPTLB, entry * 4,
-			    tlb, sizeof (tlb[0]), 4);
+	mdistat = mdiWrite (mdi_desc->gmdata[mdi_desc->gmindex].DevHandle,
+			    MDIMIPTLB, entry * 4, tlb, sizeof (tlb[0]), 4);
 	MDIERR (mdistat, "writing TLB entry");
       }
       break;
@@ -6843,8 +7505,8 @@ set_tlb_command (char *args, int from_tty)
 	store_unsigned_integer (&tlb[1], sizeof (tlb[1]), data[3]);
 	store_unsigned_integer (&tlb[2], sizeof (tlb[2]), data[1]);
 	store_unsigned_integer (&tlb[3], sizeof (tlb[3]), data[4]);
-	mdistat = mdiWrite (mdi_desc->Devhandle, MDIMIPTLB, entry * 4,
-			    tlb, sizeof (tlb[0]), 4);
+	mdistat = mdiWrite (mdi_desc->gmdata[mdi_desc->gmindex].DevHandle,
+			    MDIMIPTLB, entry * 4, tlb, sizeof (tlb[0]), 4);
 	MDIERR (mdistat, "writing TLB entry");
       }
       break;
@@ -6894,7 +7556,7 @@ show_cache1 (int which, char *args)
       error ("Invalid cache");
     }
 
-  cache = &mdi_desc->CacheInfo[which];
+  cache = &mdi_desc->gmdata[mdi_desc->gmindex].CacheInfo[which];
   if (cache->Type == MDICacheTypeNone)
     error ("No information about %s", name);
 
@@ -6940,8 +7602,8 @@ show_cache1 (int which, char *args)
       /* Get tags and parity. */
       offset = (addr / cache->LineSize);	/* cache line number */
       SrcOffset = (offset + (set * cache->LinesPerSet)) * 2;
-      mdistat = mdiRead (mdi_desc->Devhandle, tagrsrc, SrcOffset,
-			 info, 4, 2);
+      mdistat = mdiRead (mdi_desc->gmdata[mdi_desc->gmindex].DevHandle,
+			 tagrsrc, SrcOffset, info, 4, 2);
       MDIERR (mdistat, "reading cache tags");
 
       tag = extract_unsigned_integer (&info[0], 4);
@@ -6956,8 +7618,8 @@ show_cache1 (int which, char *args)
 
       /* Get data. */
       SrcOffset = addr + (set * cache->LinesPerSet * cache->LineSize);
-      mdistat = mdiRead (mdi_desc->Devhandle, datarsrc, SrcOffset,
-			 info, 1, cache->LineSize);
+      mdistat = mdiRead (mdi_desc->gmdata[mdi_desc->gmindex].DevHandle,
+			 datarsrc, SrcOffset, info, 1, cache->LineSize);
       MDIERR (mdistat, "reading cache data");
 
       for (j = 0; j < (cache->LineSize / 4); j++)
@@ -7140,7 +7802,7 @@ set_cache1 (int which, char *args)
       error ("Invalid cache");
     }
 
-  cache = &mdi_desc->CacheInfo[which];
+  cache = &mdi_desc->gmdata[mdi_desc->gmindex].CacheInfo[which];
   if (cache->Type == MDICacheTypeNone)
     error ("No information about %s", name);
 
@@ -7196,14 +7858,14 @@ set_cache1 (int which, char *args)
   DstOffset = (offset + (set * cache->LinesPerSet)) * 2;
   store_unsigned_integer (&tagbuf[0], 4, (ULONGEST) tag);
   store_unsigned_integer (&tagbuf[1], 4, (ULONGEST) parity);
-  mdistat = mdiWrite (mdi_desc->Devhandle, tagrsrc, DstOffset,
-		      tagbuf, 4, 2);
+  mdistat = mdiWrite (mdi_desc->gmdata[mdi_desc->gmindex].DevHandle,
+		      tagrsrc, DstOffset, tagbuf, 4, 2);
   MDIERR (mdistat, "writing cache tags");
 
   /* Write Data. */
   DstOffset = addr + (set * cache->LinesPerSet * cache->LineSize);
-  mdistat = mdiWrite (mdi_desc->Devhandle, datarsrc, DstOffset,
-		      info, 4, cache->LineSize / 4);
+  mdistat = mdiWrite (mdi_desc->gmdata[mdi_desc->gmindex].DevHandle,
+		      datarsrc, DstOffset, info, 4, cache->LineSize / 4);
   MDIERR (mdistat, "writing cache data");
 }
 
@@ -7253,7 +7915,8 @@ mdi_rcmd (char *command, struct ui_file *outbuf)
 
   check_mdi ();
 
-  mdistat = mdiDoCommand (mdi_desc->Devhandle, command);
+  mdistat = mdiDoCommand (mdi_desc->gmdata[mdi_desc->gmindex].DevHandle,
+			  command);
   if (mdistat == MDIErrUnsupported)
     error ("MDI library does not recognise this command");
   else
@@ -7295,7 +7958,7 @@ mdi_log_command (const char *cmd)
       else
 	strcpy (logcmd, mdi_logdocommand);
 
-      mdiDoCommand (mdi_desc->Devhandle, logcmd);
+      mdiDoCommand (mdi_desc->gmdata[mdi_desc->gmindex].DevHandle, logcmd);
     }
 }
 
@@ -7481,7 +8144,7 @@ mdi_team_attach_command (char *args, int from_tty)
 
 	      *listp = alloca (sizeof (**listp));
 	      (*listp)->next = NULL;
-	      (*listp)->tmdata.MDIHandle = mdi_desc->MDIhandle;
+	      (*listp)->tmdata.MDIHandle = mdi_desc->MDIHandle;
 	      (*listp)->tmdata.TGId = tm_target - 1;
 	      (*listp)->tmdata.DevId = tm_device - 1;
 	      listp = &(*listp)->next;
@@ -7492,7 +8155,7 @@ mdi_team_attach_command (char *args, int from_tty)
 
       if (mdi_team <= 0)
 	{
-	  mdistat = mdiCreateTeam (mdi_desc->MDIhandle, &mdi_team);
+	  mdistat = mdiTeamCreate (mdi_desc->MDIHandle, &mdi_team);
 	  if (mdistat != MDISuccess)
 	    {
 	      mdi_team = 0;
@@ -7503,7 +8166,7 @@ mdi_team_attach_command (char *args, int from_tty)
 
       for (listp = &tmdatalist; *listp; listp = &(*listp)->next)
 	{
-	  mdistat = mdiAttachTM (mdi_desc->MDIhandle, mdi_team - 1,
+	  mdistat = mdiTMAttach (mdi_desc->MDIHandle, mdi_team - 1,
 				 &(*listp)->tmdata);
           mdi_tm_status (mdistat, (*listp)->tmdata.TGId + 1,
 			 (*listp)->tmdata.DevId + 1);
@@ -7526,9 +8189,9 @@ mdi_team_clear_command (char *args, int from_tty)
   if (mdi_team <= 0)
     error ("No MDI team selected.");
 
-  mdistat = mdiClearTeam (mdi_desc->MDIhandle, mdi_team - 1);
+  mdistat = mdiTeamClear (mdi_desc->MDIHandle, mdi_team - 1);
   mdi_team_status (mdistat);
-  mdistat = mdiDestroyTeam (mdi_desc->MDIhandle, mdi_team - 1);
+  mdistat = mdiTeamDestroy (mdi_desc->MDIHandle, mdi_team - 1);
   mdi_team_status (mdistat);
   mdi_team = 0;
 }
@@ -7566,7 +8229,7 @@ mdi_team_detach_command (char *args, int from_tty)
 
 	      *listp = alloca (sizeof (**listp));
 	      (*listp)->next = NULL;
-	      (*listp)->tmdata.MDIHandle = mdi_desc->MDIhandle;
+	      (*listp)->tmdata.MDIHandle = mdi_desc->MDIHandle;
 	      (*listp)->tmdata.TGId = tm_target - 1;
 	      (*listp)->tmdata.DevId = tm_device - 1;
 	      listp = &(*listp)->next;
@@ -7577,7 +8240,7 @@ mdi_team_detach_command (char *args, int from_tty)
 
       for (listp = &tmdatalist; *listp; listp = &(*listp)->next)
 	{
-	  mdistat = mdiDetachTM (mdi_desc->MDIhandle, mdi_team - 1,
+	  mdistat = mdiTMDetach (mdi_desc->MDIHandle, mdi_team - 1,
 				 &(*listp)->tmdata);
           mdi_tm_status (mdistat, (*listp)->tmdata.TGId + 1,
 			 (*listp)->tmdata.DevId + 1);
@@ -7602,24 +8265,24 @@ mdi_team_list_command (char *args, int from_tty)
 
   check_mdi ();
 
-  mdistat = mdiQueryTeams (mdi_desc->MDIhandle, &nteamids, NULL);
+  mdistat = mdiQueryTeams (mdi_desc->MDIHandle, &nteamids, NULL);
   if (mdistat != MDISuccess || nteamids <= 0)
     return;
 
   teamid = alloca (nteamids * sizeof (*teamid));
-  mdistat = mdiQueryTeams (mdi_desc->MDIhandle, &nteamids, teamid);
+  mdistat = mdiQueryTeams (mdi_desc->MDIHandle, &nteamids, teamid);
   if (mdistat != MDISuccess)
     return;					/* Shouldn't happen.  */
 
   for (i = 0; i < nteamids; i++)
     {
       ntms = 0;
-      mdistat = mdiTMQuery (mdi_desc->MDIhandle, teamid[i], &ntms, NULL);
+      mdistat = mdiQueryTM (mdi_desc->MDIHandle, teamid[i], &ntms, NULL);
       if (mdistat != MDISuccess)
 	continue;				/* Shouldn't happen.  */
 
       tmdata = xmalloc (ntms * sizeof (*tmdata));
-      mdistat = mdiTMQuery (mdi_desc->MDIhandle, teamid[i], &ntms, tmdata);
+      mdistat = mdiQueryTM (mdi_desc->MDIHandle, teamid[i], &ntms, tmdata);
 
       if (mdistat == MDISuccess)
 	{
@@ -7651,6 +8314,7 @@ mdi_reset_command (char *arg, int from_tty)
 {
   MDIInt32 mdistat;
   MDIUint32 flag = MDIFullReset;
+  int i;
 
   if (arg != NULL && *arg != '\0')
     {
@@ -7668,8 +8332,23 @@ mdi_reset_command (char *arg, int from_tty)
 
   check_mdi ();
 
-  mdistat = mdiReset (mdi_desc->Devhandle, flag);
-  (void) mdiStop (mdi_desc->Devhandle);
+  mdistat = mdiReset (mdi_desc->gmdata[mdi_desc->gmindex].DevHandle, flag);
+  for (i = 0; i < mdi_desc->gmcount; i++)
+      (void) mdiStop (mdi_desc->gmdata[i].DevHandle);
+
+  for (i = 0; i < mdi_desc->gmcount; i++)
+    {
+      MDIRunStateT runstate;
+
+      mdi_desc->gmdata[i].disabled = 1;
+      mdistat = mdiRunState (mdi_desc->gmdata[i].DevHandle, 100, &runstate);
+      if (mdistat != MDISuccess)
+	continue;
+
+      if (runstate.Status != MDIStatusDisabled
+	  && runstate.Status != MDIStatusVPEDisabled)
+	mdi_desc->gmdata[i].disabled = 0;
+    }
 
   /* Note that the inferior is no longer running. */
   target_mourn_inferior ();
@@ -7708,6 +8387,7 @@ static void
 mdi_cacheflush_command (char *arg, int from_tty)
 {
   MDIInt32 mdistat;
+  int i;
 
   if (arg && *arg)
     error ("Usage: mdi cacheflush");
@@ -7715,15 +8395,27 @@ mdi_cacheflush_command (char *arg, int from_tty)
   check_mdi ();
 
   /* Writeback and invalidate all caches. */
-  mdiCacheFlush (mdi_desc->Devhandle, MDICacheTypeData,
-		 MDICacheWriteBack | MDICacheInvalidate);
-  mdiCacheFlush (mdi_desc->Devhandle, MDICacheTypeUnified,
-		 MDICacheWriteBack | MDICacheInvalidate);
-  mdiCacheFlush (mdi_desc->Devhandle, MDICacheTypeInstruction,
-		 MDICacheInvalidate);
+  for (i = 0; i < mdi_desc->gmcount; i++)
+    if (!mdi_desc->gmdata[i].disabled)
+      {
+	mdiCacheFlush (mdi_desc->gmdata[i].DevHandle, MDICacheTypeData,
+		       MDICacheWriteBack | MDICacheInvalidate);
+	mdiCacheFlush (mdi_desc->gmdata[i].DevHandle, MDICacheTypeUnified,
+		       MDICacheWriteBack | MDICacheInvalidate);
+	mdiCacheFlush (mdi_desc->gmdata[i].DevHandle, MDICacheTypeInstruction,
+		       MDICacheInvalidate);
+      }
 }
 
 
+static void
+mdi_load_plugins_command (char *args, int from_tty)
+{
+  void *lib_handle = dlopen (args, RTLD_LAZY);
+  if (!lib_handle)
+    error ("Unable to load plugin extension \"%s\".  Error: %s\n",
+	   args, dlerror());
+}
 
 
 static struct cmd_list_element *mdicycleslist = NULL;
@@ -7736,29 +8428,33 @@ static int
 mdi_cycles_enable (PTR dummy)
 {
   static int cycle_failure = 0;
+  int i;
 
   if (! mdi_desc->mipssim_p)
     error ("Cycle counting only available with MIPSsim");
   if (! MIPSsim_SetTraceLevel)
     error ("Cycle counting not supported on this version of MIPSsim");
-  if (! cycle_failure)
+  for (i = 0; i < mdi_desc->gmcount; i++)
     {
       int tracelev = 0;
-      (void) MIPSsim_GetTraceLevel (mdi_desc->Devhandle, &tracelev);
+      (void) MIPSsim_GetTraceLevel (mdi_desc->gmdata[i].DevHandle, &tracelev);
       if (! (tracelev & 1))
 	{
-	  if (MIPSsim_SetTraceLevel (mdi_desc->Devhandle, tracelev | 1)
+	  if (MIPSsim_SetTraceLevel (mdi_desc->gmdata[i].DevHandle,
+				     tracelev | 1)
 	      != MDISuccess)
 	    cycle_failure = 1;
 	  else {
 	    int newlev = 0;
-	    (void) MIPSsim_GetTraceLevel (mdi_desc->Devhandle, &newlev);
+	    (void) MIPSsim_GetTraceLevel (mdi_desc->gmdata[i].DevHandle,
+					  &newlev);
 	    if (! (newlev & 1))
 	      cycle_failure = 1;
 	  }
 	  if (dummy)
 	    /* reset to previous trace level */
-	    (void) MIPSsim_SetTraceLevel (mdi_desc->Devhandle, tracelev);
+	    (void) MIPSsim_SetTraceLevel (mdi_desc->gmdata[i].DevHandle,
+					  tracelev);
 
 	}
     }
@@ -7771,25 +8467,32 @@ mdi_cycles_enable (PTR dummy)
 static void
 mdi_cycles_update (void)
 {
-  MDIUint64 cycles = 0;
+  MDIUint64 cycles = 0, allcycles = 0;
   MDIInt32 stat;
+  int i;
   
-  if (MIPSsim_GetPerfCounter)
-    stat = MIPSsim_GetPerfCounter (mdi_desc->Devhandle, 
-				   MIPS_E_PerfCntMode_ALL,
-				   MIPS_PerfCntSel_Cycles0,
-				   MIPS_PerfCntInd_Cycles0,
-				   &cycles);
-  else if (MIPSsim_GetStats)
-    stat = MIPSsim_GetStats (mdi_desc->Devhandle, MIPS_MDI_PerfCycles,
-			     &cycles);
-  else
-    stat = MDINotFound;
+  for (i = 0; i < mdi_desc->gmcount; i++)
+    {
+      if (MIPSsim_GetPerfCounter)
+	stat = MIPSsim_GetPerfCounter (mdi_desc->gmdata[i].DevHandle,
+				       MIPS_E_PerfCntMode_ALL,
+				       MIPS_PerfCntSel_Cycles0,
+				       MIPS_PerfCntInd_Cycles0, &cycles);
+      else if (MIPSsim_GetStats)
+	stat = MIPSsim_GetStats (mdi_desc->gmdata[i].DevHandle,
+				 MIPS_MDI_PerfCycles, &cycles);
+      else
+	stat = MDINotFound;
 
-  if (stat == MDISuccess)
-    set_internalvar (lookup_internalvar ("cycles"),
-		     value_from_longest (builtin_type_uint64,
-					 (LONGEST) cycles));
+      if (stat != MDISuccess)
+	return;
+
+      allcycles += cycles;
+    }
+
+  set_internalvar (lookup_internalvar ("cycles"),
+		   value_from_longest (builtin_type_uint64,
+				       (LONGEST) allcycles));
 }
 
 static void
@@ -7806,10 +8509,16 @@ mdi_cycles_disable_command (char *args, int from_tty)
   check_mdi ();
   if (mdi_desc->mipssim_p && MIPSsim_SetTraceLevel)
     {
-      int tracelev;
-      (void) MIPSsim_GetTraceLevel (mdi_desc->Devhandle, &tracelev);
-      if (tracelev & 1)
-	(void) MIPSsim_SetTraceLevel (mdi_desc->Devhandle, tracelev & ~1);
+      int tracelev, i;
+
+      for (i = 0; i < mdi_desc->gmcount; i++)
+	{
+	  (void) MIPSsim_GetTraceLevel (mdi_desc->gmdata[i].DevHandle,
+					&tracelev);
+	  if (tracelev & 1)
+	    (void) MIPSsim_SetTraceLevel (mdi_desc->gmdata[i].DevHandle,
+					  tracelev & ~1);
+	}
     }
 }
 
@@ -7821,13 +8530,17 @@ mdi_cycles_clear_command (char *args, int from_tty)
   /* Clear cycle counter */
   if (mdi_desc->mipssim_p)
     {
-      if (MIPSsim_ZeroPerfCounter)
-	MIPSsim_ZeroPerfCounter (mdi_desc->Devhandle, 
-				 MIPS_E_PerfCntMode_ALL,
-				 MIPS_PerfCntSel_Cycles0,
-				 MIPS_PerfCntInd_Cycles0);
-      else if (MIPSsim_ClearStats)
-	MIPSsim_ClearStats (mdi_desc->Devhandle, MIPS_MDI_PerfCycles);
+      int i;
+
+      for (i = 0; i < mdi_desc->gmcount; i++)
+	if (MIPSsim_ZeroPerfCounter)
+	  MIPSsim_ZeroPerfCounter (mdi_desc->gmdata[i].DevHandle,
+				   MIPS_E_PerfCntMode_ALL,
+				   MIPS_PerfCntSel_Cycles0,
+				   MIPS_PerfCntInd_Cycles0);
+	else if (MIPSsim_ClearStats)
+	  MIPSsim_ClearStats (mdi_desc->gmdata[i].DevHandle,
+			      MIPS_MDI_PerfCycles);
     }
 
   /* Enable cycle counting and set $cycles */
@@ -7845,7 +8558,8 @@ mdi_cycles_status_command (char *args, int from_tty)
      after checking that it is possible to enable it. */
   mdi_cycles_enable ((PTR)1);
 
-  (void) MIPSsim_GetTraceLevel (mdi_desc->Devhandle, &tracelev);
+  (void) MIPSsim_GetTraceLevel (mdi_desc->gmdata[mdi_desc->gmindex].DevHandle,
+				&tracelev);
   fprintf_filtered (gdb_stdout, "Cycle counting: %s\n",
 		    (tracelev & 1) ? "enabled" : "disabled");
 }
@@ -7885,9 +8599,10 @@ mdi_showdev_cleanup (void *arg)
     mdiTGClose (state->TGhandle, MDICurrentState);
 
   /* Disconnect from DLL. */
-  if (state->desc != mdi_desc && state->desc->MDIhandle != MDINoHandle)
+  if (state->desc != mdi_desc
+      && state->desc->MDIHandle != MDINoHandle)
     {
-      mdistat = mdiDisconnect (state->desc->MDIhandle, MDICurrentState);
+      mdistat = mdiDisconnect (state->desc->MDIHandle, MDICurrentState);
       MDIWARN (mdistat, "MDI disconnect");
       if (mdi_releaseonclose)
 	{
@@ -7931,8 +8646,8 @@ mdi_show_devices_command (char *arg, int from_tty)
       /* None: open a new temporary connection to DLL. */
       state.desc = &mdi_local;
       memset (&mdi_local, 0, sizeof (mdi_local));
-      mdi_local.TGhandle = MDINoHandle;
-      mdi_local.MDIhandle = MDINoHandle;
+      mdi_local.gmdata[mdi_local.gmindex].TGHandle = MDINoHandle;
+      mdi_local.MDIHandle = MDINoHandle;
       mdi_dlopen (lib, &mdi_local, from_tty);
     }
 
@@ -7948,11 +8663,11 @@ mdi_show_devices_command (char *arg, int from_tty)
     {
       /* Fetch target groups. */
       ntargets = 0;
-      mdistat = mdiTGQuery (state.desc->MDIhandle, &ntargets, NULL);
+      mdistat = mdiTGQuery (state.desc->MDIHandle, &ntargets, NULL);
       if (mdistat != MDISuccess)
 	goto err;
       state.tgdata = (MDITGDataT *) xmalloc (ntargets * sizeof (MDITGDataT));
-      mdistat = mdiTGQuery (state.desc->MDIhandle, &ntargets, state.tgdata);
+      mdistat = mdiTGQuery (state.desc->MDIHandle, &ntargets, state.tgdata);
       if (mdistat != MDISuccess)
 	goto err;
     }
@@ -7966,35 +8681,40 @@ mdi_show_devices_command (char *arg, int from_tty)
 
       if (targetgroups_p)
 	{
-	  if (state.tgdata[t].TGId == state.desc->TGid
-	      && state.desc->TGhandle != MDINoHandle)
+	  int i;
+
+	  for (i = 0; i < state.desc->gmcount; i++)
 	    {
-	      /* We've already got this TargetID open, use our
-		 existing handle, since MDITGOpen may fail
-		 if it's an exclusive open. */
-	      state.TGshared = 1;
-	      state.TGhandle = state.desc->TGhandle;
+	      if (state.tgdata[t].TGId == state.desc->gmdata[i].tmdata.TGId
+		  && state.desc->gmdata[i].TGHandle != MDINoHandle)
+		{
+		  /* We've already got this TargetID open, use our
+		     existing handle, since MDITGOpen may fail
+		     if it's an exclusive open. */
+		  state.TGshared = 1;
+		  state.TGhandle = state.desc->gmdata[i].TGHandle;
+		}
 	    }
-	  else
+	  if (state.TGhandle == MDINoHandle)
 	    {
 	      state.TGshared = 0;
-	      mdistat = mdiTGOpen (state.desc->MDIhandle,
-				   state.tgdata[t].TGId,
-				   MDISharedAccess, &state.TGhandle);
+	      mdistat = mdiTGOpen (state.desc->MDIHandle,
+				   state.tgdata[t].TGId, MDISharedAccess,
+				   &state.TGhandle);
 	      if (mdistat != MDISuccess)
 		/* Failed shared access - try exclusive access. */
-		mdistat = mdiTGOpen (state.desc->MDIhandle,
-				     state.tgdata[t].TGId,
-				     MDIExclusiveAccess, &state.TGhandle);
+		mdistat = mdiTGOpen (state.desc->MDIHandle,
+				     state.tgdata[t].TGId, MDIExclusiveAccess,
+				     &state.TGhandle);
 	      if (mdistat != MDISuccess)
 		continue;
 	    }
 	}
       else
 	{
-	  /* Not target groups, reuse MDI handle */
+	  /* No target groups, reuse MDI handle */
 	  state.TGshared = 1;
-	  state.TGhandle = state.desc->MDIhandle;
+	  state.TGhandle = state.desc->MDIHandle;
 	}
 
       /* Fetch list of devices in this target group. */
@@ -8210,7 +8930,7 @@ Show simultaneous thread stepping mode.", "\
 When on, all threads are stepped together with the scheduler locking\n\
 mode enabled, otherwise single-stepping only enables execution in the\n\
 selected thread.", "\
-Step-into mode is %s.",
+Simultaneous thread stepping mode is %s.",
 			   NULL, NULL,
 			   &setmdicmdlist, &showmdicmdlist);
 
@@ -8523,15 +9243,17 @@ assumed.  This facility is intended as a last-resort for when\n\
 gdb does not know about a particular CP0 register.",
 	   &setmdicmdlist);
 
-  add_cmd ("dcache", class_obscure, show_dcache_command, "\
-Display a line from the data cache.\n\
-ADDRESS and SET are used to select a particular cache line.\n\
-Once a line has been selected, the tag and parity entries for\n\
-the line are displayed, followed by the cache line data.",
+  add_cmd ("dcache", class_support, show_dcache_command, "\
+Display data cache information.\n\
+Without arguments the topology is shown.\n\
+An argument of ADDRESS[,SET] is used to select a particular cache line\n\
+and optionally a set.  Once a line has been selected, the tag and parity\n\
+entries for the line are displayed, followed by the cache line data.",
 	   &showmdicmdlist);
 
-  add_cmd ("dcache", class_obscure, set_dcache_command, "\
+  add_cmd ("dcache", class_support, set_dcache_command, "\
 Change a line in the data cache.\n\
+An argument of ADDRESS,SET,TAG,PARITY,DATA,... follows.\n\
 ADDRESS and SET are used to select a particular cache line.\n\
 Once a line has been selected, TAG and PARITY are written to the\n\
 the cache line tag and parity fields. The DATA values are\n\
@@ -8542,14 +9264,16 @@ command.",
 	   &setmdicmdlist);
 
   add_cmd ("icache", class_support, show_icache_command, "\
-Display a line from the instruction cache.\n\
-ADDRESS and SET are used to select a particular cache line.\n\
-Once a line has been selected, the tag and parity entries for\n\
-the line are displayed, followed by the cache line data.",
+Display instruction cache information.\n\
+Without arguments the topology is shown.\n\
+An argument of ADDRESS[,SET] is used to select a particular cache line\n\
+and optionally a set.  Once a line has been selected, the tag and parity\n\
+entries for the line are displayed, followed by the cache line data.",
 	   &showmdicmdlist);
 
   add_cmd ("icache", class_support, set_icache_command, "\
 Change a line in the instruction cache.\n\
+An argument of ADDRESS,SET,TAG,PARITY,DATA,... follows.\n\
 ADDRESS and SET are used to select a particular cache line.\n\
 Once a line has been selected, TAG and PARITY are written to the\n\
 the cache line tag and parity fields. The DATA values are\n\
@@ -8559,15 +9283,17 @@ It's unlikely that you will achieve anything useful with this\n\
 command.", 
 	   &setmdicmdlist);
 
-  add_cmd ("scache", class_obscure, show_scache_command, "\
-Display a line from the secondary cache.\n\
-ADDRESS and SET are used to select a particular cache line.\n\
-Once a line has been selected, the tag and parity entries for\n\
-the line are displayed, followed by the cache line data.",
+  add_cmd ("scache", class_support, show_scache_command, "\
+Display secondary cache information.\n\
+Without arguments the topology is shown.\n\
+An argument of ADDRESS[,SET] is used to select a particular cache line\n\
+and optionally a set.  Once a line has been selected, the tag and parity\n\
+entries for the line are displayed, followed by the cache line data.",
 	   &showmdicmdlist);
 
-  add_cmd ("scache", class_obscure, set_scache_command, "\
+  add_cmd ("scache", class_support, set_scache_command, "\
 Change a line in the secondary cache.\n\
+An argument of ADDRESS,SET,TAG,PARITY,DATA,... follows.\n\
 ADDRESS and SET are used to select a particular cache line.\n\
 Once a line has been selected, TAG and PARITY are written to the\n\
 the cache line tag and parity fields. The DATA values are\n\
@@ -8617,6 +9343,10 @@ register may have changed due to a previous MDI operation.",
 
   add_cmd ("cacheflush", class_obscure, mdi_cacheflush_command, "\
 Flush (writeback and invalidate) all CPU caches.", 
+	   &mdicmdlist);
+
+  add_cmd ("load-plugins", class_obscure, mdi_load_plugins_command, "\
+Load gdb plug-in extensions",
 	   &mdicmdlist);
 
   add_prefix_cmd ("cycles", class_obscure, mdi_cycles_command, "\

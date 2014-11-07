@@ -207,7 +207,7 @@ do_jump (tree exp, rtx if_false_label, rtx if_true_label)
           || TREE_CODE (TREE_OPERAND (exp, 0)) == ARRAY_REF
           || TREE_CODE (TREE_OPERAND (exp, 0)) == ARRAY_RANGE_REF)
         goto normal;
-    case CONVERT_EXPR:      
+    case CONVERT_EXPR:
       /* TYPE_PRECISION on vector types has different meaning,
          so avoid them here.  */
       if (TREE_CODE (TREE_TYPE (TREE_OPERAND (exp, 0))) == VECTOR_TYPE)

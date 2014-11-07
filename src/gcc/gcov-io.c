@@ -45,11 +45,16 @@ static inline gcov_unsigned_t from_file (gcov_unsigned_t value)
   return value;
 }
 
+#if IN_LIBGCOV
+#if #system(sde)
+#include <alloca.h>
 const char * __gcov_prefix (void) __attribute__((weak));
 const char * __gcov_prefix (void)
 {
   return 0;
 }
+#endif
+#endif
 
 /* Open a gcov file. NAME is the name of the file to open and MODE
    indicates whether a new file should be created, or an existing file

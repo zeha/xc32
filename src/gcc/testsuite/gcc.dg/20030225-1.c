@@ -7,7 +7,7 @@
 /* { dg-options "-O2 -fPIC" } */
 /* { dg-warning "not supported" "PIC unsupported" { target cris-*-elf* mmix-*-* } 0 } */
 /* { dg-xfail-if "PIC not supported for MIPS16" "mips*-*-*" { "-mips16" "-mips16e" } "" } */
-/* { dg-xfail-if "PIC not supported" "mips*-*-elf" "*" "" } */
+/* { dg-skip-if "PIC not supported" "mips*-*-elf" "*" "" } */
 
 extern void exit (int);
 

@@ -41,6 +41,12 @@ case $target in
     configdirs="$configdirs gdb.hp" ;;
 esac
 
+# Add SDE-specific tests when appropriate.
+case $target in
+  mips*-sde*-*)
+    configdirs="$configdirs gdb.sde" ;;
+esac
+
 # With stabs.
 AC_ARG_WITH(stabs,
 [  --with-stabs            arrange to use stabs instead of host debug format],,

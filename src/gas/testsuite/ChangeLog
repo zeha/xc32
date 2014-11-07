@@ -1,3 +1,44 @@
+2007-01-05  Chao-ying Fu  <fu@mips.com>
+
+	[mti-dsp-rev2]
+	* gas/mips/mips32-dspr2.d: Change balign to nop or packrl when bp = 0
+	or 2.
+
+2006-12-05  Chao-ying Fu  <fu@mips.com>
+
+	[mti-dsp-rev2]
+	* gas/mips/mips32-dspr2.s: Add tests for addqh.ph, addqh_r.ph, addqh.w,
+	addqh_r.w, subqh.ph, subqh_r.ph, subqh.w, subqh_r.w, dpax.w.ph,
+	dpsx.w.ph, dpaqx_s.w.ph, dpaqx_sa.w.ph, dpsqx_s.w.ph, dpsqx_sa.w.ph.
+	* gas/mips/mips32-dspr2.d: Change encoding for adduh.qb,
+	adduh_r.qb, mul.ph, mul_s.ph, subuh.qb, subuh_r.qb.
+	Add addqh.ph, addqh_r.ph, addqh.w, addqh_r.w, subqh.ph, subqh_r.ph,
+	subqh.w, subqh_r.w, dpax.w.ph, dpsx.w.ph, dpaqx_s.w.ph, dpaqx_sa.w.ph,
+	dpsqx_s.w.ph, dpsqx_sa.w.ph.
+
+2006-08-12  Thiemo Seufer  <ths@mips.com>
+
+	* gas/mips/mips16e.s, gas/mips/mips16e.d: Cover also extended
+	restore instructions.
+
+2006-07-28  Thiemo Seufer  <ths@mips.com>
+
+	[mti-mtase-vpeopt]
+	* gas/mips/cp0sel-names-mips64r2.d: Add c0_vpeopt in place of $1,7.
+
+2006-07-06  Nigel Stephens  <nigel@mips.com>
+
+	[mti-mtase-vpeopt]
+	* gas/mips/cp0sel-names-mips32r2.d: Add c0_vpeopt in place of $1,7.
+
+2006-06-20  Chao-ying Fu  <fu@mips.com>
+
+	[mti-dsp-rev2]
+	* gas/mips/mips32-dspr2.d: New file.
+	* gas/mips/mips32-dspr2.l: New file.
+	* gas/mips/mips32-dspr2.s: New file.
+	* gas/mips/mips.exp: Run DSP Rev2 tests.
+
 2006-05-04  Thiemo Seufer  <ths@mips.com>
 
 	* gas/mips/mips32-mt.d: Fix mftr argument order.

@@ -125,6 +125,9 @@
 *mips16:
 *vr4100:
 {
+  if (STATE & simSPRAM)
+    sim_engine_abort (SD, CPU, CIA, "SPRAM: %s at 0x%08lx\n",
+		      itable[MY_INDEX].name, (long) CIA);
   GPR[TRX] = EXTEND32 (do_load (SD_, AccessLength_WORD,
 				basepc (SD_) & ~3, IMMED << 2));
 }
@@ -134,6 +137,9 @@
 *mips16:
 *vr4100:
 {
+  if (STATE & simSPRAM)
+    sim_engine_abort (SD, CPU, CIA, "SPRAM: %s at 0x%08lx\n",
+		      itable[MY_INDEX].name, (long) CIA);
   GPR[TRX] = EXTEND32 (do_load (SD_, AccessLength_WORD, basepc (SD_) & ~3, EXTEND16 (IMMEDIATE)));
 }
 
@@ -198,6 +204,9 @@
 *mips16:
 *vr4100:
 {
+  if (STATE & simSPRAM)
+    sim_engine_abort (SD, CPU, CIA, "SPRAM: %s at 0x%08lx\n",
+		      itable[MY_INDEX].name, (long) CIA);
   GPR[TRY] = do_load (SD_, AccessLength_DOUBLEWORD,
 		      basepc (SD_) & ~7, IMMED << 3);
 }
@@ -207,6 +216,9 @@
 *mips16:
 *vr4100:
 {
+  if (STATE & simSPRAM)
+    sim_engine_abort (SD, CPU, CIA, "SPRAM: %s at 0x%08lx\n",
+		      itable[MY_INDEX].name, (long) CIA);
   GPR[TRY] = do_load (SD_, AccessLength_DOUBLEWORD, basepc (SD_) & ~7, EXTEND16 (IMMEDIATE));
 }
 
@@ -454,7 +466,11 @@
 *mips16:
 *vr4100:
 {
-  unsigned32 temp = (basepc (SD_) & ~3) + (IMMED << 2);
+  unsigned32 temp;
+  if (STATE & simSPRAM)
+    sim_engine_abort (SD, CPU, CIA, "SPRAM: %s at 0x%08lx\n",
+		      itable[MY_INDEX].name, (long) CIA);
+  temp = (basepc (SD_) & ~3) + (IMMED << 2);
   GPR[TRX] = EXTEND32 (temp);
 }
 
@@ -463,7 +479,11 @@
 *mips16:
 *vr4100:
 {
-  unsigned32 temp = (basepc (SD_) & ~3) + EXTEND16 (IMMEDIATE);
+  unsigned32 temp;
+  if (STATE & simSPRAM)
+    sim_engine_abort (SD, CPU, CIA, "SPRAM: %s at 0x%08lx\n",
+		      itable[MY_INDEX].name, (long) CIA);
+  temp = (basepc (SD_) & ~3) + EXTEND16 (IMMEDIATE);
   GPR[TRX] = EXTEND32 (temp);
 }
 

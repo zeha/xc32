@@ -3979,7 +3979,7 @@ expand_decl (tree decl)
       /* If something wants our address, try to use ADDRESSOF.  */
       if (TREE_ADDRESSABLE (decl) 
 	  || (targetm.spill_auto_register
-	      && (* targetm.spill_auto_register) (decl)))
+	      && (* targetm.spill_auto_register) (decl, false)))
 	put_var_into_stack (decl, /*rescan=*/false);
     }
 

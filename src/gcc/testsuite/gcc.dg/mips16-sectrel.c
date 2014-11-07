@@ -1,5 +1,6 @@
 /* { dg-do run { target mips*-*-* } } */
 /* { dg-options "-funit-at-a-time -fsection-relative-addressing" } */
+/* { dg-skip-if "-mno-data-in-code not supported" "mips*-sde-elf" "-mno-data-in-code" "" } */
 
 #include <stdio.h>
 

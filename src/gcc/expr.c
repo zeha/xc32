@@ -9928,7 +9928,7 @@ static void
 do_tablejump (rtx index, enum machine_mode mode, rtx range, rtx table_label,
 	      rtx default_label)
 {
-  rtx temp, vector;
+  rtx temp, vector, label_ref;
 
   if (INTVAL (range) > cfun->max_jumptable_ents)
     cfun->max_jumptable_ents = INTVAL (range);
@@ -9965,10 +9965,12 @@ do_tablejump (rtx index, enum machine_mode mode, rtx range, rtx table_label,
      GET_MODE_SIZE, because this indicates how large insns are.  The other
      uses should all be Pmode, because they are addresses.  This code
      could fail if addresses and insns are not the same size.  */
+  label_ref = gen_rtx_LABEL_REF (Pmode, table_label);
+  LABEL_REF_JUMP_TABLE_P (label_ref) = 1;
   index = gen_rtx_PLUS (Pmode,
 			gen_rtx_MULT (Pmode, index,
 				      GEN_INT (GET_MODE_SIZE (CASE_VECTOR_MODE))),
-			gen_rtx_LABEL_REF (Pmode, table_label));
+			label_ref);
 #ifdef PIC_CASE_VECTOR_ADDRESS
   if (flag_pic)
     index = PIC_CASE_VECTOR_ADDRESS (index);

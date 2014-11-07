@@ -1,5 +1,6 @@
 /* { dg-do run { target mips*-*-* } } */
 
+#if (__mips == 32)
 __attribute__((nomips16))
 static
 long m32_static (double x)
@@ -49,12 +50,15 @@ f16 (long i)
     abort ();
   return m16_static (i);
 }
+#endif
 
 int main ()
 {
+#if (__mips == 32)
   if (f32 (123456789L) != m32_static (123456789L))
     abort ();
   if (f16 (123456789L) != m16_static (123456789L))
     abort ();
+#endif
   exit (0);
 }

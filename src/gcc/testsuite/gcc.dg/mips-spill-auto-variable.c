@@ -1,6 +1,9 @@
 /* { dg-do compile { target mips*-sde-* } } */
 /* { dg-options "-O" } */
 
+/* FIXME: -mips64 is not yet supported for this test. */
+/* { dg-skip-if "Unsupported test" "mips*-sde-elf" "-mips64" "" } */
+
 typedef unsigned short int WORD;            // 16-bit
 typedef unsigned char BYTE;
 typedef union _WORD_VAL

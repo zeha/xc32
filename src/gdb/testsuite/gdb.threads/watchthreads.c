@@ -28,7 +28,8 @@ void *thread_function(void *arg); /* Pointer to function executed by each thread
 
 #define NUM 5
 
-unsigned int args[NUM+1];
+unsigned int args[NUM + 1];
+volatile int flag[NUM + 1];
 
 int main() {
     int res;
@@ -54,6 +55,16 @@ int main() {
 void *thread_function(void *arg) {
     int my_number =  (long) arg;
     int *myp = (int *) &args[my_number];
+    int go, i;
+
+    /* Raise the flag and wait till all threads have risen.  */
+    flag[my_number] = 1;
+    do {
+	go = 1;
+	for (i = 0; i < NUM + 1; i++)
+	    if (!flag[i])
+		go = 0;
+    } while (!go);
 
     /* Don't run forever.  Run just short of it :)  */
     while (*myp > 0)

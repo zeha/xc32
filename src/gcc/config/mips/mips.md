@@ -412,6 +412,66 @@
    (UNSPEC_WRDSP		609)
    (UNSPEC_RDDSP		610)
 
+   ;; MIPS DSP ASE Rev2 Revision 0.02 12/12/2006
+   (UNSPEC_ABSQ_S_QB		700)
+   (UNSPEC_ADDU_PH		701)
+   (UNSPEC_ADDU_S_PH		702)
+   (UNSPEC_ADDUH_QB		703)
+   (UNSPEC_ADDUH_R_QB		704)
+   (UNSPEC_APPEND		705)
+   (UNSPEC_BALIGN		706)
+   (UNSPEC_CMPGDU_EQ_QB		707)
+   (UNSPEC_CMPGDU_LT_QB		708)
+   (UNSPEC_CMPGDU_LE_QB		709)
+   (UNSPEC_DPA_W_PH		710)
+   (UNSPEC_DPA_W_PH_64		711)
+   (UNSPEC_DPS_W_PH		712)
+   (UNSPEC_DPS_W_PH_64		713)
+   (UNSPEC_MADD			714)
+   (UNSPEC_MADDU		715)
+   (UNSPEC_MSUB			716)
+   (UNSPEC_MSUBU		717)
+   (UNSPEC_MUL_PH		718)
+   (UNSPEC_MUL_S_PH		719)
+   (UNSPEC_MULQ_RS_W		720)
+   (UNSPEC_MULQ_S_PH		721)
+   (UNSPEC_MULQ_S_W		722)
+   (UNSPEC_MULSA_W_PH		723)
+   (UNSPEC_MULSA_W_PH_64	724)
+   (UNSPEC_MULT			725)
+   (UNSPEC_MULTU		726)
+   (UNSPEC_PRECR_QB_PH		727)
+   (UNSPEC_PRECR_SRA_PH_W	728)
+   (UNSPEC_PRECR_SRA_R_PH_W	729)
+   (UNSPEC_PREPEND		730)
+   (UNSPEC_SHRA_QB		731)
+   (UNSPEC_SHRA_R_QB		732)
+   (UNSPEC_SHRL_PH		733)
+   (UNSPEC_SUBU_PH		734)
+   (UNSPEC_SUBU_S_PH		735)
+   (UNSPEC_SUBUH_QB		736)
+   (UNSPEC_SUBUH_R_QB		737)
+   (UNSPEC_ADDQH_PH		738)
+   (UNSPEC_ADDQH_R_PH		739)
+   (UNSPEC_ADDQH_W		740)
+   (UNSPEC_ADDQH_R_W		741)
+   (UNSPEC_SUBQH_PH		742)
+   (UNSPEC_SUBQH_R_PH		743)
+   (UNSPEC_SUBQH_W		744)
+   (UNSPEC_SUBQH_R_W		745)
+   (UNSPEC_DPAX_W_PH		746)
+   (UNSPEC_DPSX_W_PH		747)
+   (UNSPEC_DPAQX_S_W_PH		748)
+   (UNSPEC_DPAQX_SA_W_PH	749)
+   (UNSPEC_DPSQX_S_W_PH		750)
+   (UNSPEC_DPSQX_SA_W_PH	751)
+   (UNSPEC_DPAX_W_PH_64         752)
+   (UNSPEC_DPSX_W_PH_64         753)
+   (UNSPEC_DPAQX_S_W_PH_64      754)
+   (UNSPEC_DPAQX_SA_W_PH_64     755)
+   (UNSPEC_DPSQX_S_W_PH_64      756)
+   (UNSPEC_DPSQX_SA_W_PH_64     757)
+
 ])
 
 ;; ....................
@@ -456,11 +516,14 @@
 ;; xfer		transfer to/from coprocessor
 ;; mthilo	transfer to hi/lo registers
 ;; mfhilo	transfer from hi/lo registers
+;; const	load constant
 ;; arith	integer arithmetic instruction
 ;; darith	double precision integer arithmetic instructions
+;; logical      logical operations
 ;; shift	integer shift instructions
 ;; vshift	variable shift
-;; const	load constant
+;; slt		set less than instructions
+;; signext      sign extend instuctions
 ;; imul		integer multiply
 ;; imul3	integer multiply 3 operand
 ;; imadd	integer multiply-add
@@ -480,11 +543,12 @@
 ;; dspmacsat    DSP MAC instructions that saturate the accumulator
 ;; accext       DSP accumulator extract instructions
 ;; accmod       DSP accumulator modify instructions
-;; dspalu       DSP ALU instructions
+;; dspalu       DSP ALU instructions not saturating the result
+;; dspalusat    DSP ALU instructions that saturate the result
 ;; multi	multiword sequence (or user asm statements)
 ;; nop		no operation
 (define_attr "type"
-  "unknown,branch,jump,call,load,fpload,store,fpstore,prefetch,prefetchx,move,condmove,xfer,mthilo,mfhilo,const,arith,darith,shift,vshift,imul,imul3,imadd,idiv,icmp,fadd,fmul,fmadd,fdiv,fabs,fneg,fcmp,fcvt,fsqrt,frsqrt,dspmac,dspmacsat,accext,accmod,dspalu,multi,nop"
+  "unknown,branch,jump,call,load,fpload,store,fpstore,prefetch,prefetchx,move,condmove,xfer,mthilo,mfhilo,const,arith,darith,logical,,shift,vshift,signext,slt,imul,imul3,imadd,idiv,icmp,fadd,fmul,fmadd,fdiv,fabs,fneg,fcmp,fcvt,fsqrt,frsqrt,dspmac,dspmacsat,accext,accmod,dspalu,dspalusat,multi,nop"
   (cond [(eq_attr "jal" "!unset") (const_string "call")
 	 (eq_attr "got" "load") (const_string "load")]
 	(const_string "unknown")))
@@ -590,7 +654,7 @@
 ;; Attribute describing the processor.  This attribute must match exactly
 ;; with the processor_type enumeration in mips.h.
 (define_attr "cpu"
-  "default,4kc,4kp,5kc,20kc,r24k,r24kx,r3000,r3900,r6000,r4000,r4100,r4111,r4120,r4300,r4600,r4650,r5000,r5400,r5500,r7000,r8000,r9000,sb1,sr71000"
+  "default,4kc,4kp,5kc,20kc,r24k,r24kx,r74k,r74kx,r74kz,r3000,r3900,r6000,r4000,r4100,r4111,r4120,r4300,r4600,r4650,r5000,r5400,r5500,r7000,r8000,r9000,sb1,sr71000"
   (const (symbol_ref "mips_tune")))
 
 ;; The type of hardware hazard associated with this instruction.
@@ -990,7 +1054,8 @@
 (include "7000.md")
 (include "9000.md")
 (include "sr71k.md")
-
+(include "74k.md")
+
 ;;
 ;;  ....................
 ;;
@@ -2304,7 +2369,7 @@
 	(mult:DI
 	   (sign_extend:DI (match_operand:SI 1 "register_operand" "d"))
 	   (sign_extend:DI (match_operand:SI 2 "register_operand" "d"))))]
-  "!TARGET_64BIT"
+  "!TARGET_MIPS_DSP32R2 && !TARGET_64BIT"
   "mult\t%1,%2"
   [(set_attr "type"	"imul")
    (set_attr "mode"	"SI")])
@@ -2403,7 +2468,7 @@
 	(mult:DI
 	   (zero_extend:DI (match_operand:SI 1 "register_operand" "d"))
 	   (zero_extend:DI (match_operand:SI 2 "register_operand" "d"))))]
-  "!TARGET_64BIT"
+  "!TARGET_MIPS_DSP32R2 && !TARGET_64BIT"
   "multu\t%1,%2"
   [(set_attr "type"	"imul")
    (set_attr "mode"	"SI")])
@@ -2666,7 +2731,7 @@
 	 (mult:DI (zero_extend:DI (match_operand:SI 1 "register_operand" "d"))
 		  (zero_extend:DI (match_operand:SI 2 "register_operand" "d")))
 	 (match_operand:DI 3 "register_operand" "0")))]
-  "(TARGET_MAD || ISA_HAS_MACC || ISA_HAS_MADD_MSUB)
+  "!TARGET_MIPS_DSP32R2 && (TARGET_MAD || ISA_HAS_MACC || ISA_HAS_MADD_MSUB)
    && !TARGET_64BIT"
 {
   if (TARGET_MAD)
@@ -2686,7 +2751,7 @@
 	 (mult:DI (sign_extend:DI (match_operand:SI 1 "register_operand" "d"))
 		  (sign_extend:DI (match_operand:SI 2 "register_operand" "d")))
 	 (match_operand:DI 3 "register_operand" "0")))]
-  "(TARGET_MAD || ISA_HAS_MACC || ISA_HAS_MADD_MSUB)
+  "!TARGET_MIPS_DSP32R2 && (TARGET_MAD || ISA_HAS_MACC || ISA_HAS_MADD_MSUB)
    && !TARGET_64BIT"
 {
   if (TARGET_MAD)
@@ -2706,7 +2771,7 @@
 	 (match_operand:DI 1 "register_operand" "0")
 	 (mult:DI (zero_extend:DI (match_operand:SI 2 "register_operand" "d"))
 		  (zero_extend:DI (match_operand:SI 3 "register_operand" "d")))))]
-  "ISA_HAS_MADD_MSUB && !TARGET_64BIT"
+  "!TARGET_MIPS_DSP32R2 && ISA_HAS_MADD_MSUB && !TARGET_64BIT"
   "msubu\t%2,%3"
   [(set_attr "type"   "imadd")
    (set_attr "mode"   "SI")])
@@ -2717,7 +2782,7 @@
 	 (match_operand:DI 1 "register_operand" "0")
 	 (mult:DI (sign_extend:DI (match_operand:SI 2 "register_operand" "d"))
 		  (sign_extend:DI (match_operand:SI 3 "register_operand" "d")))))]
-  "ISA_HAS_MADD_MSUB && !TARGET_64BIT"
+  "!TARGET_MIPS_DSP32R2 && ISA_HAS_MADD_MSUB && !TARGET_64BIT"
   "msub\t%2,%3"
   [(set_attr "type"   "imadd")
    (set_attr "mode"   "SI")])
@@ -3099,7 +3164,7 @@
     return "%(bgez\t%1,1f\;move\t%0,%1\;subu\t%0,%z2,%0\n%~1:%)";
 }
   [(set_attr "type"	"multi")
-   (set_attr "mode"	"SI")
+   (set_attr "mode"	"SI")   
    (set_attr "length"	"12")])
 
 (define_insn "absdi2"
@@ -3335,7 +3400,7 @@
   else
     return "nor\t%0,%.,%1";
 }
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"logical")
    (set_attr "mode"	"SI")])
 
 (define_insn "one_cmpldi2"
@@ -3383,7 +3448,7 @@
   "@
    and\t%0,%1,%2
    andi\t%0,%1,%x2"
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"logical")
    (set_attr "mode"	"SI")])
 
 (define_insn ""
@@ -3392,7 +3457,7 @@
 		(match_operand:SI 2 "register_operand" "d")))]
   "TARGET_MIPS16"
   "and\t%0,%2"
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"logical")
    (set_attr "mode"	"SI")])
 
 (define_expand "anddi3"
@@ -3416,7 +3481,7 @@
   "@
    and\t%0,%1,%2
    andi\t%0,%1,%x2"
-  [(set_attr "type"	"darith")
+  [(set_attr "type"	"logical")
    (set_attr "mode"	"DI")])
 
 (define_insn ""
@@ -3425,7 +3490,7 @@
 		(match_operand:DI 2 "register_operand" "d")))]
   "TARGET_64BIT && TARGET_MIPS16"
   "and\t%0,%2"
-  [(set_attr "type"	"darith")
+  [(set_attr "type"	"logical")
    (set_attr "mode"	"DI")])
 
 (define_expand "iorsi3"
@@ -3449,7 +3514,7 @@
   "@
    or\t%0,%1,%2
    ori\t%0,%1,%x2"
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"logical")
    (set_attr "mode"	"SI")])
 
 (define_insn ""
@@ -3458,7 +3523,7 @@
 		(match_operand:SI 2 "register_operand" "d")))]
   "TARGET_MIPS16"
   "or\t%0,%2"
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"logical")
    (set_attr "mode"	"SI")])
 
 (define_expand "iordi3"
@@ -3482,7 +3547,7 @@
   "@
    or\t%0,%1,%2
    ori\t%0,%1,%x2"
-  [(set_attr "type"	"darith")
+  [(set_attr "type"	"logical")
    (set_attr "mode"	"DI")])
 
 (define_insn ""
@@ -3491,7 +3556,7 @@
 		(match_operand:DI 2 "register_operand" "d")))]
   "TARGET_64BIT && TARGET_MIPS16"
   "or\t%0,%2"
-  [(set_attr "type"	"darith")
+  [(set_attr "type"	"logical")
    (set_attr "mode"	"DI")])
 
 (define_expand "xorsi3"
@@ -3509,7 +3574,7 @@
   "@
    xor\t%0,%1,%2
    xori\t%0,%1,%x2"
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"logical")
    (set_attr "mode"	"SI")])
 
 (define_insn ""
@@ -3521,7 +3586,7 @@
    xor\t%0,%2
    cmpi\t%1,%2
    cmp\t%1,%2"
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"logical")
    (set_attr "mode"	"SI")
    (set_attr_alternative "length"
 		[(const_int 4)
@@ -3551,7 +3616,7 @@
   "@
    xor\t%0,%1,%2
    xori\t%0,%1,%x2"
-  [(set_attr "type"	"darith")
+  [(set_attr "type"	"logical")
    (set_attr "mode"	"DI")])
 
 (define_insn ""
@@ -3563,7 +3628,7 @@
    xor\t%0,%2
    cmpi\t%1,%2
    cmp\t%1,%2"
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"logical")
    (set_attr "mode"	"DI")
    (set_attr_alternative "length"
 		[(const_int 4)
@@ -3578,7 +3643,7 @@
 		(not:SI (match_operand:SI 2 "register_operand" "d"))))]
   "!TARGET_MIPS16"
   "nor\t%0,%z1,%z2"
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"logical")
    (set_attr "mode"	"SI")])
 
 (define_insn "*nordi3"
@@ -3587,7 +3652,7 @@
 		(not:DI (match_operand:DI 2 "register_operand" "d"))))]
   "TARGET_64BIT && !TARGET_MIPS16"
   "nor\t%0,%z1,%z2"
-  [(set_attr "type"	"darith")
+  [(set_attr "type"	"logical")
    (set_attr "mode"	"DI")])
 
 ;;
@@ -3777,7 +3842,7 @@
                          (match_operand:DI 1 "register_operand" "d"))))]
   "TARGET_64BIT && !TARGET_MIPS16"
   "andi\t%0,%1,0xffff"
-  [(set_attr "type"     "darith")
+  [(set_attr "type"     "logical")
    (set_attr "mode"     "SI")])
 
 (define_insn ""
@@ -3786,7 +3851,7 @@
                          (match_operand:DI 1 "register_operand" "d"))))]
   "TARGET_64BIT && !TARGET_MIPS16"
   "andi\t%0,%1,0xff"
-  [(set_attr "type"     "darith")
+  [(set_attr "type"     "logical")
    (set_attr "mode"     "SI")])
 
 (define_insn ""
@@ -3795,7 +3860,7 @@
                          (match_operand:DI 1 "register_operand" "d"))))]
   "TARGET_64BIT && !TARGET_MIPS16"
   "andi\t%0,%1,0xff"
-  [(set_attr "type"     "darith")
+  [(set_attr "type"     "logical")
    (set_attr "mode"     "HI")])
 
 ;;
@@ -3872,7 +3937,7 @@
   "@
    andi\t%0,%1,0xffff
    lhu\t%0,%1"
-  [(set_attr "type"     "arith,load")
+  [(set_attr "type"     "logical,load")
    (set_attr "mode"     "SI")
    (set_attr "length"   "4,*")])
 
@@ -3914,7 +3979,7 @@
   "@
    andi\t%0,%1,0xffff
    lhu\t%0,%1"
-  [(set_attr "type"     "arith,load")
+  [(set_attr "type"     "logical,load")
    (set_attr "mode"     "DI")
    (set_attr "length"   "4,*")])
 
@@ -3957,7 +4022,7 @@
   "@
    andi\t%0,%1,0x00ff
    lbu\t%0,%1"
-  [(set_attr "type"     "arith,load")
+  [(set_attr "type"     "logical,load")
    (set_attr "mode"     "HI")
    (set_attr "length"   "4,*")])
 
@@ -3999,7 +4064,7 @@
   "@
    andi\t%0,%1,0x00ff
    lbu\t%0,%1"
-  [(set_attr "type"     "arith,load")
+  [(set_attr "type"     "logical,load")
    (set_attr "mode"     "SI")
    (set_attr "length"   "4,*")])
 
@@ -4041,7 +4106,7 @@
   "@
    andi\t%0,%1,0x00ff
    lbu\t%0,%1"
-  [(set_attr "type"     "arith,load")
+  [(set_attr "type"     "logical,load")
    (set_attr "mode"     "DI")
    (set_attr "length"   "4,*")])
 
@@ -4144,7 +4209,7 @@
         (sign_extend:DI (match_operand:HI 1 "register_operand" "d")))]
   "TARGET_64BIT && ISA_HAS_SEB_SEH"
   "seh\t%0,%1"
-  [(set_attr "type"     "arith")
+  [(set_attr "type"     "signext")
    (set_attr "mode"     "DI")])
 
 (define_insn "extendhidi2_mips16e"
@@ -4152,7 +4217,7 @@
         (sign_extend:DI (match_operand:HI 1 "register_operand" "0")))]
   "TARGET_64BIT && TARGET_MIPS16E"
   "seh\t%0"
-  [(set_attr "type"     "arith")
+  [(set_attr "type"     "signext")
    (set_attr "mode"     "DI")])
 
 (define_expand "extendhisi2"
@@ -4190,7 +4255,7 @@
 	(sign_extend:SI (match_operand:HI 1 "register_operand" "d")))]
   "ISA_HAS_SEB_SEH"
   "seh\t%0,%1"
-  [(set_attr "type" "arith")
+  [(set_attr "type" "signext")
    (set_attr "mode" "SI")])
 
 (define_insn "extendhisi2_mips16e"
@@ -4198,7 +4263,7 @@
         (sign_extend:SI (match_operand:HI 1 "register_operand" "0")))]
   "TARGET_MIPS16E"
   "seh\t%0"
-  [(set_attr "type"     "arith")
+  [(set_attr "type"     "signext")
    (set_attr "mode"     "SI")])
 
 (define_expand "extendqihi2"
@@ -4237,7 +4302,7 @@
 	(sign_extend:HI (match_operand:QI 1 "register_operand" "d")))]
   "ISA_HAS_SEB_SEH"
   "seb\t%0,%1"
-  [(set_attr "type" "arith")
+  [(set_attr "type" "signext")
    (set_attr "mode" "SI")])
 
 (define_insn "extendqihi2_mips16e"
@@ -4283,7 +4348,7 @@
 	(sign_extend:SI (match_operand:QI 1 "register_operand" "d")))]
   "ISA_HAS_SEB_SEH"
   "seb\t%0,%1"
-  [(set_attr "type" "arith")
+  [(set_attr "type" "signext")
    (set_attr "mode" "SI")])
 
 (define_insn "extendqisi2_mips16e"
@@ -4291,7 +4356,7 @@
         (sign_extend:SI (match_operand:QI 1 "register_operand" "0")))]
   "TARGET_MIPS16E"
   "seb\t%0"
-  [(set_attr "type"     "arith")
+  [(set_attr "type"     "signext")
    (set_attr "mode"     "SI")])
 
 (define_expand "extendqidi2"
@@ -4329,7 +4394,7 @@
         (sign_extend:DI (match_operand:QI 1 "register_operand" "d")))]
   "TARGET_64BIT && ISA_HAS_SEB_SEH"
   "seb\t%0,%1"
-  [(set_attr "type"     "arith")
+  [(set_attr "type"     "signext")
    (set_attr "mode"     "DI")])
 
 (define_insn "extendqidi2_mips16e"
@@ -4337,7 +4402,7 @@
         (sign_extend:DI (match_operand:QI 1 "register_operand" "0")))]
   "TARGET_64BIT && TARGET_MIPS16E"
   "seb\t%0"
-  [(set_attr "type"     "arith")
+  [(set_attr "type"     "signext")
    (set_attr "mode"     "DI")])
 
 (define_insn "extendsfdf2"
@@ -7924,7 +7989,7 @@ movn\t%M0,%.,%3"
 	       (const_int 0)))]
   "!TARGET_MIPS16"
   "sltu\t%0,%1,1"
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"slt")
    (set_attr "mode"	"SI")])
 
 (define_insn ""
@@ -7933,7 +7998,7 @@ movn\t%M0,%.,%3"
 	       (const_int 0)))]
   "TARGET_MIPS16"
   "sltu\t%1,1"
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"slt")
    (set_attr "mode"	"SI")])
 
 (define_insn "seq_di_zero"
@@ -7942,7 +8007,7 @@ movn\t%M0,%.,%3"
 	       (const_int 0)))]
   "TARGET_64BIT && !TARGET_MIPS16"
   "sltu\t%0,%1,1"
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"slt")
    (set_attr "mode"	"DI")])
 
 (define_insn ""
@@ -7951,7 +8016,7 @@ movn\t%M0,%.,%3"
 	       (const_int 0)))]
   "TARGET_64BIT && TARGET_MIPS16"
   "sltu\t%1,1"
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"slt")
    (set_attr "mode"	"DI")])
 
 (define_insn "seq_si"
@@ -7962,7 +8027,7 @@ movn\t%M0,%.,%3"
   "@
    xor\t%0,%1,%2\;sltu\t%0,%0,1
    xori\t%0,%1,%2\;sltu\t%0,%0,1"
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"slt")
    (set_attr "mode"	"SI")
    (set_attr "length"	"8")])
 
@@ -7988,7 +8053,7 @@ movn\t%M0,%.,%3"
   "@
    xor\t%0,%1,%2\;sltu\t%0,%0,1
    xori\t%0,%1,%2\;sltu\t%0,%0,1"
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"slt")
    (set_attr "mode"	"DI")
    (set_attr "length"	"8")])
 
@@ -8040,7 +8105,7 @@ movn\t%M0,%.,%3"
 	       (const_int 0)))]
   "!TARGET_MIPS16"
   "sltu\t%0,%.,%1"
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"slt")
    (set_attr "mode"	"SI")])
 
 (define_insn "sne_di_zero"
@@ -8049,7 +8114,7 @@ movn\t%M0,%.,%3"
 	       (const_int 0)))]
   "TARGET_64BIT && !TARGET_MIPS16"
   "sltu\t%0,%.,%1"
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"slt")
    (set_attr "mode"	"DI")])
 
 (define_insn "sne_si"
@@ -8060,7 +8125,7 @@ movn\t%M0,%.,%3"
   "@
     xor\t%0,%1,%2\;sltu\t%0,%.,%0
     xori\t%0,%1,%x2\;sltu\t%0,%.,%0"
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"slt")
    (set_attr "mode"	"SI")
    (set_attr "length"	"8")])
 
@@ -8086,7 +8151,7 @@ movn\t%M0,%.,%3"
   "@
     xor\t%0,%1,%2\;sltu\t%0,%.,%0
     xori\t%0,%1,%x2\;sltu\t%0,%.,%0"
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"slt")
    (set_attr "mode"	"DI")
    (set_attr "length"	"8")])
 
@@ -8136,7 +8201,7 @@ movn\t%M0,%.,%3"
 	       (match_operand:SI 2 "reg_or_0_operand" "dJ")))]
   "!TARGET_MIPS16"
   "slt\t%0,%z2,%1"
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"slt")
    (set_attr "mode"	"SI")])
 
 (define_insn ""
@@ -8145,7 +8210,7 @@ movn\t%M0,%.,%3"
 	       (match_operand:SI 2 "register_operand" "d")))]
   "TARGET_MIPS16"
   "slt\t%2,%1"
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"slt")
    (set_attr "mode"	"SI")])
 
 (define_insn "sgt_di"
@@ -8154,7 +8219,7 @@ movn\t%M0,%.,%3"
 	       (match_operand:DI 2 "reg_or_0_operand" "dJ")))]
   "TARGET_64BIT && !TARGET_MIPS16"
   "slt\t%0,%z2,%1"
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"slt")
    (set_attr "mode"	"DI")])
 
 (define_insn ""
@@ -8163,7 +8228,7 @@ movn\t%M0,%.,%3"
 	       (match_operand:DI 2 "register_operand" "d")))]
   "TARGET_64BIT && TARGET_MIPS16"
   "slt\t%2,%1"
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"slt")
    (set_attr "mode"	"DI")])
 
 (define_expand "sge"
@@ -8194,7 +8259,7 @@ movn\t%M0,%.,%3"
 	       (match_operand:SI 2 "arith_operand" "dI")))]
   "TARGET_DEBUG_C_MODE && !TARGET_MIPS16"
   "slt\t%0,%1,%2\;xori\t%0,%0,0x0001"
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"slt")
    (set_attr "mode"	"SI")
    (set_attr "length"	"8")])
 
@@ -8217,7 +8282,7 @@ movn\t%M0,%.,%3"
 	       (match_operand:DI 2 "arith_operand" "dI")))]
   "TARGET_64BIT && TARGET_DEBUG_C_MODE && !TARGET_MIPS16"
   "slt\t%0,%1,%2\;xori\t%0,%0,0x0001"
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"slt")
    (set_attr "mode"	"DI")
    (set_attr "length"	"8")])
 
@@ -8263,7 +8328,7 @@ movn\t%M0,%.,%3"
 	       (match_operand:SI 2 "arith_operand" "dI")))]
   "!TARGET_MIPS16"
   "slt\t%0,%1,%2"
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"slt")
    (set_attr "mode"	"SI")])
 
 (define_insn ""
@@ -8272,7 +8337,7 @@ movn\t%M0,%.,%3"
 	       (match_operand:SI 2 "arith_operand" "d,I")))]
   "TARGET_MIPS16"
   "slt\t%1,%2"
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"slt")
    (set_attr "mode"	"SI")
    (set_attr_alternative "length"
 		[(const_int 4)
@@ -8286,7 +8351,7 @@ movn\t%M0,%.,%3"
 	       (match_operand:DI 2 "arith_operand" "dI")))]
   "TARGET_64BIT && !TARGET_MIPS16"
   "slt\t%0,%1,%2"
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"slt")
    (set_attr "mode"	"DI")])
 
 (define_insn ""
@@ -8295,7 +8360,7 @@ movn\t%M0,%.,%3"
 	       (match_operand:DI 2 "arith_operand" "d,I")))]
   "TARGET_64BIT && TARGET_MIPS16"
   "slt\t%1,%2"
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"slt")
    (set_attr "mode"	"DI")
    (set_attr_alternative "length"
 		[(const_int 4)
@@ -8337,7 +8402,7 @@ movn\t%M0,%.,%3"
   operands[2] = GEN_INT (INTVAL (operands[2])+1);
   return "slt\t%0,%1,%2";
 }
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"slt")
    (set_attr "mode"	"SI")])
 
 (define_insn ""
@@ -8349,7 +8414,7 @@ movn\t%M0,%.,%3"
   operands[2] = GEN_INT (INTVAL (operands[2])+1);
   return "slt\t%1,%2";
 }
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"slt")
    (set_attr "mode"	"SI")
    (set (attr "length") (if_then_else (match_operand:VOID 2 "m16_uimm8_m1_1" "")
 				      (const_int 4)
@@ -8364,7 +8429,7 @@ movn\t%M0,%.,%3"
   operands[2] = GEN_INT (INTVAL (operands[2])+1);
   return "slt\t%0,%1,%2";
 }
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"slt")
    (set_attr "mode"	"DI")])
 
 (define_insn ""
@@ -8376,7 +8441,7 @@ movn\t%M0,%.,%3"
   operands[2] = GEN_INT (INTVAL (operands[2])+1);
   return "slt\t%1,%2";
 }
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"slt")
    (set_attr "mode"	"DI")
    (set (attr "length") (if_then_else (match_operand:VOID 2 "m16_uimm8_m1_1" "")
 				      (const_int 4)
@@ -8388,7 +8453,7 @@ movn\t%M0,%.,%3"
 	       (match_operand:SI 2 "register_operand" "d")))]
   "TARGET_DEBUG_C_MODE && !TARGET_MIPS16"
   "slt\t%0,%z2,%1\;xori\t%0,%0,0x0001"
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"slt")
    (set_attr "mode"	"SI")
    (set_attr "length"	"8")])
 
@@ -8411,7 +8476,7 @@ movn\t%M0,%.,%3"
 	       (match_operand:DI 2 "register_operand" "d")))]
   "TARGET_64BIT && TARGET_DEBUG_C_MODE && !TARGET_MIPS16"
   "slt\t%0,%z2,%1\;xori\t%0,%0,0x0001"
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"slt")
    (set_attr "mode"	"DI")
    (set_attr "length"	"8")])
 
@@ -8460,7 +8525,7 @@ movn\t%M0,%.,%3"
 		(match_operand:SI 2 "reg_or_0_operand" "dJ")))]
   "!TARGET_MIPS16"
   "sltu\t%0,%z2,%1"
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"slt")
    (set_attr "mode"	"SI")])
 
 (define_insn ""
@@ -8469,7 +8534,7 @@ movn\t%M0,%.,%3"
 		(match_operand:SI 2 "register_operand" "d")))]
   "TARGET_MIPS16"
   "sltu\t%2,%1"
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"slt")
    (set_attr "mode"	"SI")])
 
 (define_insn "sgtu_di"
@@ -8478,7 +8543,7 @@ movn\t%M0,%.,%3"
 		(match_operand:DI 2 "reg_or_0_operand" "dJ")))]
   "TARGET_64BIT && !TARGET_MIPS16"
   "sltu\t%0,%z2,%1"
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"slt")
    (set_attr "mode"	"DI")])
 
 (define_insn ""
@@ -8487,7 +8552,7 @@ movn\t%M0,%.,%3"
 		(match_operand:DI 2 "register_operand" "d")))]
   "TARGET_64BIT && TARGET_MIPS16"
   "sltu\t%2,%1"
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"slt")
    (set_attr "mode"	"DI")])
 
 (define_expand "sgeu"
@@ -8518,7 +8583,7 @@ movn\t%M0,%.,%3"
 		(match_operand:SI 2 "arith_operand" "dI")))]
   "TARGET_DEBUG_C_MODE && !TARGET_MIPS16"
   "sltu\t%0,%1,%2\;xori\t%0,%0,0x0001"
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"slt")
    (set_attr "mode"	"SI")
    (set_attr "length"	"8")])
 
@@ -8541,7 +8606,7 @@ movn\t%M0,%.,%3"
 		(match_operand:DI 2 "arith_operand" "dI")))]
   "TARGET_64BIT && TARGET_DEBUG_C_MODE && !TARGET_MIPS16"
   "sltu\t%0,%1,%2\;xori\t%0,%0,0x0001"
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"slt")
    (set_attr "mode"	"DI")
    (set_attr "length"	"8")])
 
@@ -8587,7 +8652,7 @@ movn\t%M0,%.,%3"
 		(match_operand:SI 2 "arith_operand" "dI")))]
   "!TARGET_MIPS16"
   "sltu\t%0,%1,%2"
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"slt")
    (set_attr "mode"	"SI")])
 
 (define_insn ""
@@ -8596,7 +8661,7 @@ movn\t%M0,%.,%3"
 		(match_operand:SI 2 "arith_operand" "d,I")))]
   "TARGET_MIPS16"
   "sltu\t%1,%2"
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"slt")
    (set_attr "mode"	"SI")
    (set_attr_alternative "length"
 		[(const_int 4)
@@ -8610,7 +8675,7 @@ movn\t%M0,%.,%3"
 		(match_operand:DI 2 "arith_operand" "dI")))]
   "TARGET_64BIT && !TARGET_MIPS16"
   "sltu\t%0,%1,%2"
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"slt")
    (set_attr "mode"	"DI")])
 
 (define_insn ""
@@ -8619,7 +8684,7 @@ movn\t%M0,%.,%3"
 		(match_operand:DI 2 "arith_operand" "d,I")))]
   "TARGET_64BIT && TARGET_MIPS16"
   "sltu\t%1,%2"
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"slt")
    (set_attr "mode"	"DI")
    (set_attr_alternative "length"
 		[(const_int 4)
@@ -8661,7 +8726,7 @@ movn\t%M0,%.,%3"
   operands[2] = GEN_INT (INTVAL (operands[2]) + 1);
   return "sltu\t%0,%1,%2";
 }
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"slt")
    (set_attr "mode"	"SI")])
 
 (define_insn ""
@@ -8673,7 +8738,7 @@ movn\t%M0,%.,%3"
   operands[2] = GEN_INT (INTVAL (operands[2])+1);
   return "sltu\t%1,%2";
 }
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"slt")
    (set_attr "mode"	"SI")
    (set (attr "length") (if_then_else (match_operand:VOID 2 "m16_uimm8_m1_1" "")
 				      (const_int 4)
@@ -8688,7 +8753,7 @@ movn\t%M0,%.,%3"
   operands[2] = GEN_INT (INTVAL (operands[2]) + 1);
   return "sltu\t%0,%1,%2";
 }
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"slt")
    (set_attr "mode"	"DI")])
 
 (define_insn ""
@@ -8700,7 +8765,7 @@ movn\t%M0,%.,%3"
   operands[2] = GEN_INT (INTVAL (operands[2])+1);
   return "sltu\t%1,%2";
 }
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"slt")
    (set_attr "mode"	"DI")
    (set (attr "length") (if_then_else (match_operand:VOID 2 "m16_uimm8_m1_1" "")
 				      (const_int 4)
@@ -8712,7 +8777,7 @@ movn\t%M0,%.,%3"
 		(match_operand:SI 2 "register_operand" "d")))]
   "TARGET_DEBUG_C_MODE && !TARGET_MIPS16"
   "sltu\t%0,%z2,%1\;xori\t%0,%0,0x0001"
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"slt")
    (set_attr "mode"	"SI")
    (set_attr "length"	"8")])
 
@@ -8735,7 +8800,7 @@ movn\t%M0,%.,%3"
 		(match_operand:DI 2 "register_operand" "d")))]
   "TARGET_64BIT && TARGET_DEBUG_C_MODE && !TARGET_MIPS16"
   "sltu\t%0,%z2,%1\;xori\t%0,%0,0x0001"
-  [(set_attr "type"	"arith")
+  [(set_attr "type"	"slt")
    (set_attr "mode"	"DI")
    (set_attr "length"	"8")])
 
@@ -12101,6 +12166,7 @@ ld\\t%2,%1-%S1(%2)\;daddu\\t%2,%2,$31\\n\\t%*j\\t%2%/"
 ; The MIPS DSP ASE to the MIPS32 and MIPS64 Architecture
 ;----------------------------------------------------------------------------
 (include "mips-dsp.md")
+(include "mips-dspr2.md")
 
 ;; This pattern supports loading HIGH addresses with two instructions instead
 ;; of using the macro instruction lui.
@@ -12136,3 +12202,23 @@ ld\\t%2,%1-%S1(%2)\;daddu\\t%2,%2,$31\\n\\t%*j\\t%2%/"
   "mult\t$0,$0\t# Clear HI/LO"
   [(set_attr "type"	"imul")
    (set_attr "mode"	"SI")])
+
+;; HACK: crudely merges 2 consecutive prefetches if they lie within 32bytes
+;; of each other.
+(define_peephole2
+  [(prefetch (plus:SI (match_operand:SI 0 "register_operand" "")
+		      (match_operand:SI 1 "const_int_operand" ""))
+	     (match_operand:SI 2 "const_int_operand" "")
+	     (match_operand:SI 3 "const_int_operand" ""))
+   (prefetch (plus:SI (match_operand:SI 4 "register_operand" "")
+		      (match_operand:SI 5 "const_int_operand" ""))
+	     (match_operand:SI 6 "const_int_operand" "")
+	     (match_operand:SI 7 "const_int_operand" ""))]
+  "REGNO (operands[0]) == REGNO (operands[4])
+   && INTVAL (operands[2]) == INTVAL (operands[6])
+   && INTVAL (operands[3]) == INTVAL (operands[7])
+   && INTVAL (operands[5]) / 32 == INTVAL (operands[1]) / 32"
+  [(prefetch (plus:SI (match_dup 0) (match_dup 1))
+	     (match_dup 2)
+	     (match_dup 3))]
+)

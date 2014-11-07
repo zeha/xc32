@@ -44,7 +44,7 @@ hertz ()
   tim.it_value.tv_sec = 0;
   tim.it_value.tv_usec = 0;
   setitimer (ITIMER_REAL, &tim, 0);
-  setitimer (ITIMER_REAL, 0, &tim);
+  getitimer (ITIMER_REAL, &tim);
   if (tim.it_interval.tv_usec >= 2)
     {
       return 1000000 / tim.it_interval.tv_usec;

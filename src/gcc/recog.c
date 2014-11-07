@@ -3322,6 +3322,12 @@ store_data_bypass_p (rtx out_insn, rtx in_insn)
 {
   rtx out_set, in_set;
 
+  if (GET_CODE (PATTERN (in_insn)) == UNSPEC_VOLATILE)
+    return false;
+
+  if (GET_CODE (PATTERN (out_insn)) == PREFETCH)
+    return false;
+
   in_set = single_set (in_insn);
   if (! in_set)
     abort ();

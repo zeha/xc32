@@ -957,7 +957,7 @@ case "${targ}" in
 
   pic32mx-mchp-elf)
     targ_defvec=bfd_elf32_tradlittlemips_vec
-    targ_cflags="-DMIPSSDE"
+    targ_cflags="-DMIPSSDE -DTARGET_IS_PIC32MX"
     ;;
 
   pj-*-*)

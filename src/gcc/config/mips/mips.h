@@ -52,6 +52,9 @@ enum processor_type {
   PROCESSOR_20KC,
   PROCESSOR_24K,
   PROCESSOR_24KX,
+  PROCESSOR_74K,
+  PROCESSOR_74KX,
+  PROCESSOR_74KZ,
   PROCESSOR_R3000,
   PROCESSOR_R3900,
   PROCESSOR_R6000,
@@ -198,7 +201,7 @@ extern const struct mips_cpu_info *mips_tune_info;
 #define MASK_MIPS16E       0x10000000   /* Generate mips16e code  */
 #define MASK_NO_FLOAT      0x20000000   /* No floating point */
 #define MASK_DSP	   0x40000000	/* Support MIPS DSP instructions.  */
-
+#define MASK_DSPR2	   0x80000000	/* Support MIPS DSPR2 instructions.  */
 					/* Debug switches, not documented */
 #define MASK_DEBUG	0		/* unused */
 #define MASK_DEBUG_A	0		/* don't allow <label>($reg) addrs */
@@ -365,6 +368,9 @@ extern const struct mips_cpu_info *mips_tune_info;
 #define TARGET_MIPS20KC             (mips_arch == PROCESSOR_20KC)
 #define TARGET_MIPS24K              (mips_arch == PROCESSOR_24K)
 #define TARGET_MIPS24KX             (mips_arch == PROCESSOR_24KX)
+#define TARGET_MIPS74K              (mips_arch == PROCESSOR_74K     \
+				     || mips_arch == PROCESSOR_74KX \
+				     || mips_arch == PROCESSOR_74KZ)
 #define TARGET_MIPS3900             (mips_arch == PROCESSOR_R3900)
 #define TARGET_MIPS4000             (mips_arch == PROCESSOR_R4000)
 #define TARGET_MIPS4100             (mips_arch == PROCESSOR_R4100)
@@ -383,6 +389,9 @@ extern const struct mips_cpu_info *mips_tune_info;
 /* Scheduling target defines.  */
 #define TUNE_MIPS24K                (mips_tune == PROCESSOR_24K)
 #define TUNE_MIPS24KX               (mips_tune == PROCESSOR_24KX)
+#define TUNE_MIPS74K                (mips_tune == PROCESSOR_74K     \
+				     || mips_tune == PROCESSOR_74KX \
+				     || mips_tune == PROCESSOR_74KZ)
 #define TUNE_MIPS20KC               (mips_tune == PROCESSOR_20KC)
 #define TUNE_MIPS3000               (mips_tune == PROCESSOR_R3000)
 #define TUNE_MIPS3900               (mips_tune == PROCESSOR_R3900)
@@ -406,6 +415,9 @@ extern const struct mips_cpu_info *mips_tune_info;
 #define TARGET_MIPS3D		    (target_flags & MASK_MIPS3D)
 #define TARGET_MIPS_DSP32	    (target_flags & MASK_DSP)
 #define TARGET_MIPS_DSP64	    (TARGET_MIPS_DSP32 && TARGET_64BIT)
+#define TARGET_MIPS_DSP32R2	    (TARGET_MIPS_DSP32 \
+				     && (target_flags & MASK_DSPR2))
+#define TARGET_MIPS_DSP64R2	    (TARGET_MIPS_DSP32R2 && TARGET_64BIT)
 
 #define TARGET_GP_OPT		    (mips_section_threshold > 0)
 
@@ -1019,6 +1031,66 @@ enum mips_builtins
   MIPS_BUILTIN_BPOSGE32,
   MIPS_BUILTIN_BPOSGE64,
 
+  /* MIPS DSP ASE Rev2 Revision 0.02 5/19/2006 */
+  MIPS_BUILTIN_ABSQ_S_QB,
+  MIPS_BUILTIN_ADDU_PH,
+  MIPS_BUILTIN_ADDU_S_PH,
+  MIPS_BUILTIN_ADDUH_QB,
+  MIPS_BUILTIN_ADDUH_R_QB,
+  MIPS_BUILTIN_APPEND,
+  MIPS_BUILTIN_BALIGN,
+  MIPS_BUILTIN_CMPGDU_EQ_QB,
+  MIPS_BUILTIN_CMPGDU_LT_QB,
+  MIPS_BUILTIN_CMPGDU_LE_QB,
+  MIPS_BUILTIN_DPA_W_PH,
+  MIPS_BUILTIN_DPA_W_PH_64,
+  MIPS_BUILTIN_DPS_W_PH,
+  MIPS_BUILTIN_DPS_W_PH_64,
+  MIPS_BUILTIN_MADD,
+  MIPS_BUILTIN_MADDU,
+  MIPS_BUILTIN_MSUB,
+  MIPS_BUILTIN_MSUBU,
+  MIPS_BUILTIN_MUL_PH,
+  MIPS_BUILTIN_MUL_S_PH,
+  MIPS_BUILTIN_MULQ_RS_W,
+  MIPS_BUILTIN_MULQ_S_PH,
+  MIPS_BUILTIN_MULQ_S_W,
+  MIPS_BUILTIN_MULSA_W_PH,
+  MIPS_BUILTIN_MULSA_W_PH_64,
+  MIPS_BUILTIN_MULT,
+  MIPS_BUILTIN_MULTU,
+  MIPS_BUILTIN_PRECR_QB_PH,
+  MIPS_BUILTIN_PRECR_SRA_PH_W,
+  MIPS_BUILTIN_PRECR_SRA_R_PH_W,
+  MIPS_BUILTIN_PREPEND,
+  MIPS_BUILTIN_SHRA_QB,
+  MIPS_BUILTIN_SHRA_R_QB,
+  MIPS_BUILTIN_SHRL_PH,
+  MIPS_BUILTIN_SUBU_PH,
+  MIPS_BUILTIN_SUBU_S_PH,
+  MIPS_BUILTIN_SUBUH_QB,
+  MIPS_BUILTIN_SUBUH_R_QB,
+  MIPS_BUILTIN_ADDQH_PH,
+  MIPS_BUILTIN_ADDQH_R_PH,
+  MIPS_BUILTIN_ADDQH_W,
+  MIPS_BUILTIN_ADDQH_R_W,
+  MIPS_BUILTIN_SUBQH_PH,
+  MIPS_BUILTIN_SUBQH_R_PH,
+  MIPS_BUILTIN_SUBQH_W,
+  MIPS_BUILTIN_SUBQH_R_W,
+  MIPS_BUILTIN_DPAX_W_PH,
+  MIPS_BUILTIN_DPSX_W_PH,
+  MIPS_BUILTIN_DPAQX_S_W_PH,
+  MIPS_BUILTIN_DPAQX_SA_W_PH,
+  MIPS_BUILTIN_DPSQX_S_W_PH,
+  MIPS_BUILTIN_DPSQX_SA_W_PH,
+  MIPS_BUILTIN_DPAX_W_PH_64,
+  MIPS_BUILTIN_DPSX_W_PH_64,
+  MIPS_BUILTIN_DPAQX_S_W_PH_64,
+  MIPS_BUILTIN_DPAQX_SA_W_PH_64,
+  MIPS_BUILTIN_DPSQX_S_W_PH_64,
+  MIPS_BUILTIN_DPSQX_SA_W_PH_64,
+
   /* THE LAST BUILTIN */
   MIPS_BUILTIN_MAX_BUILTIN
 };
@@ -1081,6 +1153,7 @@ enum mips_function_type
   MIPS_DI_FTYPE_DI_SI_SI,
   MIPS_TI_FTYPE_TI_SI_SI,
   MIPS_TI_FTYPE_TI_DI_DI,
+  MIPS_TI_FTYPE_TI_UDI_UDI,
   MIPS_DI_FTYPE_DI_DI,
   MIPS_V4QI_FTYPE_SI,
   MIPS_V8QI_FTYPE_DI,
@@ -1103,6 +1176,13 @@ enum mips_function_type
   MIPS_SI_FTYPE_PTR_SI,
   MIPS_DI_FTYPE_PTR_DI,
   MIPS_SI_FTYPE_VOID,
+
+  MIPS_V4QI_FTYPE_V4QI,
+  MIPS_SI_FTYPE_SI_SI_SI,
+  MIPS_DI_FTYPE_SI_SI,
+  MIPS_V2HI_FTYPE_SI_SI_SI,
+  MIPS_DI_FTYPE_DI_USI_USI,
+  MIPS_DI_FTYPE_USI_USI,
 
   /* The last type */
   MIPS_MAX_FTYPE_MAX
@@ -4019,6 +4099,9 @@ extern int mips_branch_cost;
    option in declarations to refer to registers using alternate
    names.
 
+   TODO: needs to be done some different way, which takes account
+   of the different ABI software register name conventions.
+
    We define both names for the integer registers here.  */
 
 #define ADDITIONAL_REGISTER_NAMES					\
@@ -4086,6 +4169,7 @@ extern int mips_branch_cost;
   { "k1",	27 + GP_REG_FIRST },					\
   { "gp",	28 + GP_REG_FIRST },					\
   { "sp",	29 + GP_REG_FIRST },					\
+  { "s8",	30 + GP_REG_FIRST },					\
   { "fp",	30 + GP_REG_FIRST },					\
   { "ra",	31 + GP_REG_FIRST },					\
   { "$sp",	29 + GP_REG_FIRST },					\
@@ -4269,6 +4353,8 @@ while (0)
 	   LOCAL_LABEL_PREFIX,						\
 	   VALUE)
 
+#define ADDR_VEC_ALIGN(ADDR_VEC) mips_addr_vec_align (ADDR_VEC)
+
 /* This is how to output an element of a case-vector that is relative.
    This is used for pc-relative code (e.g. when TARGET_ABICALLS or
    TARGET_EMBEDDED_PIC).  */
@@ -4353,8 +4439,8 @@ do {									\
 #define ASM_OUTPUT_REG_PUSH(STREAM,REGNO)				\
 do									\
   {									\
-    fprintf (STREAM, "\t%s\t%s,%s,8\n\t%s\t%s,0(%s)\n",			\
-	     TARGET_64BIT ? "dsubu" : "subu",				\
+    fprintf (STREAM, "\t%s\t%s,%s,-8\n\t%s\t%s,0(%s)\n",		\
+	     TARGET_64BIT ? "daddiu" : "addiu",				\
 	     reg_names[STACK_POINTER_REGNUM],				\
 	     reg_names[STACK_POINTER_REGNUM],				\
 	     TARGET_64BIT ? "sd" : "sw",				\

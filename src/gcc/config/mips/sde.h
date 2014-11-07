@@ -69,7 +69,7 @@ Boston, MA 02111-1307, USA.  */
 /* Define this as 1 if `char' should by default be signed; else as 0.  */
 
 #undef DEFAULT_SIGNED_CHAR
-#define DEFAULT_SIGNED_CHAR 0
+#define DEFAULT_SIGNED_CHAR 1
 
 /* SDE-MIPS won't ever support SDB or MIPS debugging info. */
 
@@ -79,11 +79,6 @@ Boston, MA 02111-1307, USA.  */
 /* But we will allow DWARF-1 for backwards compatibility. */
 
 #define DWARF_DEBUGGING_INFO
-
-/* Put small constants in .rodata, not .sdata. */
-
-#undef TARGET_DEFAULT
-#define TARGET_DEFAULT		MASK_EMBEDDED_DATA
 
 #undef SUBTARGET_TARGET_SWITCHES
 #define SUBTARGET_TARGET_SWITCHES					\
@@ -204,8 +199,14 @@ Boston, MA 02111-1307, USA.  */
 #undef PTRDIFF_TYPE
 #define PTRDIFF_TYPE	"long int"
 
-/* For an IEEE-compliant sqrt we must define SDE's value of EDOM */
+#if 0
+/* We now have an indirect errno pointer, and might want to support
+   matherr at some point, so we can't do this any more. */
 
+/* This is the value of the error code EDOM for this machine,
+   used by the sqrt instruction.  */
+
+/* For an IEEE-compliant sqrt we must define SDE's value of EDOM */
 #define TARGET_EDOM	33
 
 /* This is how to refer to the variable errno. 
@@ -214,6 +215,7 @@ Boston, MA 02111-1307, USA.  */
 #define GEN_ERRNO_RTX \
   gen_rtx_MEM (TARGET_INT64 ? DImode : SImode, \
 	       gen_rtx_SYMBOL_REF (Pmode, "errno"))
+#endif
 
 /* Tell calls.c about SDE-MIPS standard library functions that look
    like setjmp and longjmp. */

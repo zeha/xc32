@@ -1,12 +1,223 @@
-2006-05-15  Chao-ying Fu  <fu@mips.com>
+2007-04-11  David Ung  <davidu@mips.com>
 
+	Merged from mips-sde-gcc3_4-branch
+
+	2007-02-27  David Ung  <davidu@mips.com>
+	[uk-bugzilla-557]
+	* gcc.dg/mips-unaligned-extract-bitfield-e[lb]-16.c: Removed by
+	merging both test into ...
+	* gcc.dg/mips-unaligned-extract-bitfield-16.c: .. this one.  Skip
+	test for MIPS64 as the assembler check would fail due to the
+	return value being truncated by the compiler.  For MIPS16, check
+	that we are not generating and "seh" insn.
+
+	2007-02-23  David Ung  <davidu@mips.com>
+	[uk-bugzilla-557]
+	* gcc.dg/mips-unaligned-extract-bitfield-e[lb]-16.c: New test.
+
+2007-01-18  David Ung  <davidu@mips.com>	
+
+	[UK-bugzilla-456]
+	* gcc.dg/mips16-array.c: New regression test.
+	
+2007-01-18  David Ung  <davidu@mips.com>
+
+	[UK-bugzilla-497]
+	* g++.old-deja/g++.pt/const2.C: Use the value p so that the linker
+	won't optimize it away with -gc-sections.  Backport change from
+	upstream.
+
+2006-12-15  Chao-ying Fu  <fu@mips.com>
+
+	[dsp-rev2-intrinsics]
+	* gcc.dg/mips-dspr2.c, gcc.dg/mips-dspr2-madd.c,
+	gcc.dg/mips-dspr2-msub.c: New tests.
+
+2006-11-16  David Ung  <davidu@mips.com>
+
+	* gcc.dg/mips-3d-1.c, gcc.dg/mips-3d-2.c, gcc.dg/mips-3d-3.c,
+	gcc.dg/mips-3d-4.c, gcc.dg/mips-3d-5.c, gcc.dg/mips-3d-6.c,
+	gcc.dg/mips-3d-7.c, gcc.dg/mips-3d-8.c, gcc.dg/mips-3d-9.c,
+	gcc.dg/mips-3d-10.c: Skip for -mips32*, except if -mfp64 is passed
+	explicitly.
+
+2006-10-27  Thiemo Seufer  <ths@mips.com>
+
+	* gcc.dg/mips-profile.c: Skip for -ffunction-sections.
+
+2006-10-27  Thiemo Seufer  <ths@mips.com>
+
+	* g++.dg/debug/trivial.C, gcc.dg/debug/20020220-1.c,
+	gcc.dg/debug/trivial.c: Skip for gstabs+, which breaks when used
+	with -ffunctions-sections and -Wl,--gc-sections.
+
+2006-10-16  Thiemo Seufer  <ths@mips.com>
+
+	* gcc.dg/mips-dsp.c, gcc.dg/mips-dspcntl.c,
+	gcc.dg/mips-spill-auto-variable.c,
+	gcc.dg/mips-spill-auto-variable2.c: Fix typo in comment.
+	* gcc.dg/mips-3d-1.c, gcc.dg/mips-3d-2.c, gcc.dg/mips-3d-3.c,
+	gcc.dg/mips-3d-4.c, gcc.dg/mips-3d-5.c, gcc.dg/mips-3d-6.c,
+	gcc.dg/mips-3d-7.c, gcc.dg/mips-3d-8.c, gcc.dg/mips-3d-9.c,
+	gcc.dg/mips-3d-10.c, gcc.dg/mips-ps-1.c, gcc.dg/mips-ps-2.c,
+	gcc.dg/mips-ps-3.c, gcc.dg/mips-ps-4.c, gcc.dg/mips-ps-type.c:
+	Likewise. Skip for -mips32, which indicates no 64-bit FP support.
+
+2006-10-13  David Ung  <davidu@mips.com>
+
+	* g++.old-deja/g++.pt/friend44.C: Changed dg-do run to compile.
+	* g++.old-deja/g++.other/enum5.C: Similarly.
+	* g++.old-deja/g++.mike/p10769a.C: ..
+
+2006-09-20  David Ung  <davidu@mips.com>
+
+	[UK-bugzilla-405]
+	* gcc.dg/mips16-mthi.c: New test.
+
+2006-09-14  David Ung  <davidu@mips.com>
+
+	* gcc.dg/mips-smartmips.c: Change include option from -mips16 to
+	-mips16* so that both -mips16/-mips16e is valid.
+	* gcc.dg/const-elim-1.c: Similarly.
+
+2006-09-13  David Ung  <davidu@mips.com>
+
+	[mti-dg-skip-if]
+	* lib/gcc-dg.exp (check-flags): New function - Ported from FSF
+	mainline.  Support function for dg-skip if to check against
+	multilib flags passed to the regression.
+	(dg-skip-if): Call check-flags.
+	
+2006-09-12  David Ung  <davidu@mips.com>
+
+	* gcc.dg/mips-spill-auto-variable.c: dg-skip-if -mips64.
+	* gcc.dg/mips-spill-auto-variable2.c: dg-skip-if -mips64.
+	* gcc.dg/const-elim-1.c: dg-skip-if -mips16.
+
+2006-09-11  David Ung  <davidu@mips.com>
+
+	* gcc.dg/mips16-string-literal1.c: dg-skip-if test for -G0.
+
+2006-09-11  David Ung  <davidu@mips.com>
+
+	* gcc.dg/mips-smartmips.c: dg-skip-if -mips16.
+	* gcc.dg/mips-dsp.c: ..
+	* gcc.dg/mips-dspcntl.c: ..
+
+2006-09-11  David Ung  <davidu@mips.com>
+
+	[mti-msub_di-patterns]
+	* gcc.dg/mips32-msub.c: Pickup multilib_flags check for dg-final.
+	* gcc.dg/mips32-msubu.c: ..
+
+2006-09-11  David Ung  <davidu@mips.com>
+
+	* gcc.dg/mips-ps-1.c: dg-skip-if -mips16.
+	* gcc.dg/mips-ps-2.c: ..
+	* gcc.dg/mips-ps-3.c: ..
+	* gcc.dg/mips-ps-4.c: ..
+	* gcc.dg/mips-ps-type.c: .. 
+
+2006-09-08  David Ung  <davidu@mips.com>
+
+	* gcc.dg/mips-3d-1.c: dg-skip-if -mips16.
+	* gcc.dg/mips-3d-2.c: Similarly.
+	* gcc.dg/mips-3d-3.c: ..
+	* gcc.dg/mips-3d-4.c: ..
+	* gcc.dg/mips-3d-5.c: ..
+	* gcc.dg/mips-3d-6.c: ..
+	* gcc.dg/mips-3d-7.c: ..
+	* gcc.dg/mips-3d-8.c: ..
+	* gcc.dg/mips-3d-9.c: ..
+	* gcc.dg/mips-3d-10.c: ..
+
+2006-09-08  David Ung  <davidu@mips.com>
+
+	* g++.dg/opt/vt1.C: dg-skip-if -fpic tests.
+
+2006-09-07  David Ung  <davidu@mips.com>
+
+	[mti-o32-arguments]
+	* gcc.dg/mips-o32-arguments1.c: Handle -soft-float case.
+	* gcc.dg/mips-o32-arguments2.c: Handle -soft-float case.
+
+2006-09-07  David Ung  <davidu@mips.com>
+
+	[mti-mips16-sectrel-ref-counting]
+	* gcc.dg/mips16-sectrel.c: dg-skip-if for -mno-data-in-code.
+
+2006-09-07  David Ung  <davidu@mips.com>
+
+	[mti-mips16-string-literal-sections]
+	* gcc.dg/mips16-string-literal2.c: dg-skip-if for
+	-mno-data-in-code.
+	* gcc.dg/mips16-string-literal3.c: New test for
+	-mno-data-in-code only.
+
+2006-09-07  David Ung  <davidu@mips.com>
+
+	* gcc.dg/20030225-1.c: dg-skip-if -fpic tests.
+	* g++.old-deja/g++.jason/thunk2.C: dg-skip-if -fpic tests.
+
+2006-09-06  David Ung  <davidu@mips.com>
+
+	* gcc.dg/torture/mips-sdata-1.c: dg-skip-if test if passing -G0 to
+	the compliler.
+
+2006-09-04  David Ung  <davidu@mips.com>
+
+	* gcc.dg/20021018-1.c: dg-skip-if -fpic test for mips*-sde-elf.
+
+2006-09-01  David Ung  <davidu@mips.com>
+
+	[mti-dg-skip-if]
+	* lib/gcc-dg.exp (dg-skip-if): New function. Skips tests that
+	matches target "selector".  This is like dg-xfail-if, but does not
+	cause a warning if "dg-do run" is use but fails compilation.
+	* gcc.dg/20010912-1.c: Replace dg-xfail-if with dg-skip-if.
+	
+2006-08-30  David Ung  <davidu@mips.com>
+
+	[mti-mips16-intermix-builtins]
+	* gcc.dg/mips16-intermix-builtin.c: Remove dg-option. The test is
+	meaniful for multilib flags with the -mips16 flag only.
+
+	[mti-mips16-intermix-callstub]
+	* gcc.dg/mips16-intermix.c: Disable this test for mips64 since no
+	mips16 multilibs is built.
+
+2006-07-05  David Ung  <davidu@mips.com>
+
+	[mti-mips16-intermix-callstub]
+	* gcc.dg/mips16-intermix.c: Enable this test only for
+	mips32*/mips16 combinations.
+
+	[mti-mips16-intermix-builtins]
+	* gcc.dg/mips16-intermix-builtin.c: Similarly.
+
+2006-06-29  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-mips3d]
+	* gcc.dg/mips-3d-1.c: Handle an error from the assembler.
+	* gcc.dg/mips-3d-2.c: Likewise.
+	* gcc.dg/mips-3d-3.c: Likewise.
+	* gcc.dg/mips-3d-4.c: Likewise.
+	* gcc.dg/mips-3d-5.c: Likewise.
+	* gcc.dg/mips-3d-6.c: Likewise.
+	* gcc.dg/mips-3d-7.c: Likewise.
+	* gcc.dg/mips-3d-8.c: Likewise.
+	* gcc.dg/mips-3d-9.c: Likewise.
+	* gcc.dg/mips-3d-10.c: Likewise.
+
+2006-05-10  Chao-ying Fu  <fu@mips.com>
+	
 	[mti-v2q15-castcompare]
 	* gcc.dg/mips-v2q15-1.c: New test to cast v2q15 variables and compare.
 	* gcc.dg/mips-v2q15-2.c: Same.
 	* gcc.dg/mips-v2q15-3.c: Same.
 	* gcc.dg/mips-v2q15-4.c: Same.
-	
-2006-05-15  David Ung  <davidu@mips.com>
+
+2006-05-10  David Ung  <davidu@mips.com>
 	
 	[mti-spill-auto-variables]
 	* gcc.dg/mips-spill-auto-variable2.c: New tests for checking

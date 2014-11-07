@@ -8759,7 +8759,9 @@ num_sign_bit_copies1 (rtx x, enum machine_mode mode, rtx known_x,
 #endif
 
       if (reg_last_set_value[REGNO (x)] != 0
-	  && reg_last_set_mode[REGNO (x)] == mode
+	  && (reg_last_set_mode[REGNO (x)] == mode
+	      || (GET_MODE_CLASS (reg_last_set_mode[REGNO (x)]) == MODE_INT
+		  && GET_MODE_CLASS (mode) == MODE_INT))
 	  && (reg_last_set_label[REGNO (x)] == label_tick
 	      || (REGNO (x) >= FIRST_PSEUDO_REGISTER
 		  && REG_N_SETS (REGNO (x)) == 1

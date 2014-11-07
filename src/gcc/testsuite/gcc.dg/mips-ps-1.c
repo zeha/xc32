@@ -1,6 +1,8 @@
 /* { dg-do run { target mips*-*-* } } */
 /* { dg-options "-O2 -mpaired-single" } */
 /* { dg-prune-output "require 64-bit h/w floating point" } */
+/* { dg-skip-if "-mpaired-single && -mips16 not supported" "mips*-sde-elf" "-mips16" "" } */
+/* { dg-skip-if "-mpaired-single needs 64-bit floating point support" "mips*-sde-elf" "-mips32" "" } */
 
 /* Test v2sf calculations */
 

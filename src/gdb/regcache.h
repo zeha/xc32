@@ -61,6 +61,8 @@ void regcache_raw_write_part (struct regcache *regcache, int regnum,
 
 int regcache_valid_p (struct regcache *regcache, int regnum);
 
+void set_regcache_valid_p (struct regcache *regcache, int regnum, int valid);
+
 /* Transfer a cooked register [0..NUM_REGS+NUM_PSEUDO_REGS).  */
 void regcache_cooked_read (struct regcache *regcache, int rawnum, void *buf);
 void regcache_cooked_write (struct regcache *regcache, int rawnum,

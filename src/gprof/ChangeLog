@@ -1,3 +1,9 @@
+2007-04-12  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-gprof-bug435]
+	* hertz.c (hertz): Use getitimer() rather than setitimer() to
+	retrieve the timer set.
+
 2005-10-17  Nigel Stephens  <nigel@mips.com>
 
 	[mti-gprof-mips16]

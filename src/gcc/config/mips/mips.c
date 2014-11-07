@@ -298,6 +298,10 @@ static bool mips_matching_cpu_name_p (const char *, const char *);
 static const struct mips_cpu_info *mips_parse_cpu (const char *, const char *);
 static const struct mips_cpu_info *mips_cpu_info_from_isa (int);
 static int mips_adjust_cost (rtx, rtx, rtx, int);
+static bool mips_is_costly_dependence (rtx, rtx, rtx, int, int);
+static int mips_sched_reorder (FILE *, int, rtx *, int *, int);
+static int mips_variable_issue (FILE *, int, rtx, int);
+static int mips_dfa_new_cycle (FILE *, int, rtx, int, int, int *sort_p);
 static int mips_issue_rate (void);
 static int mips_use_dfa_pipeline_interface (void);
 static bool mips_sched_regno_clobber_dependencies (int);
@@ -307,7 +311,7 @@ static void mips_set_mips16_mode (int);
 static void mips_prepare_function_start (tree);
 static const char *mips_pch_valid_p  (const void *, size_t);
 static void mips_web_mark_register (rtx, char *);
-static bool mips_spill_auto_register (tree);
+static bool mips_spill_auto_register (tree, bool);
 
 #if TARGET_IRIX
 static void irix_asm_named_section_1 (const char *, unsigned int,
@@ -345,6 +349,8 @@ static tree mchp_at_vector_attribute (tree *decl, tree identifier,
     tree args, int flags, bool *no_add_attrs);
 static tree mchp_vector_attribute (tree *decl, tree identifier, tree args,
     int flags, bool *no_add_attrs);
+static int mchp_vector_attribute_compound_expr (tree *node, tree expr, 
+    bool *no_add_attrs);
 static int mchp_register_interrupt_context_p (unsigned regno);
 
 /* Structure to be filled in by compute_frame_size with register
@@ -537,7 +543,7 @@ static rtx mips_base_bss_rtx (void);
 /* Return symbol_ref which points to base of .data section. */
 static rtx mips_base_data_rtx (void);
 
-static rtx mips_legitimize_section_relative_address (rtx, tree);
+static rtx mips_legitimize_section_relative_address (rtx, rtx, tree);
 
 /* Name of the file containing the current function.  */
 const char *current_function_file = "";
@@ -896,7 +902,7 @@ const struct mips_cpu_info mips_cpu_info_table[] = {
   { "4km", PROCESSOR_4KC, 32,
     MIPS_OPT_BRANCHLIKELY | MIPS_OPT_SOFTFLOAT,
     4, 0, 0, 0 },
-  { "4kp", PROCESSOR_4KP, 32,           /* 4K + slow multiplier */
+  { "4kp", PROCESSOR_4KP, 32,		/* 4K + slow multiplier */
     MIPS_OPT_BRANCHLIKELY | MIPS_OPT_SOFTFLOAT,
     32, 0, 0, 0 },
 
@@ -910,7 +916,7 @@ const struct mips_cpu_info mips_cpu_info_table[] = {
   { "m4k", PROCESSOR_4KC, 33,
     MIPS_OPT_BRANCHLIKELY | MIPS_OPT_SOFTFLOAT,
     4, 0, 0, 0 },
-  { "m4kp", PROCESSOR_4KP, 33,          /* M4K with slow multiplier */
+  { "m4kp", PROCESSOR_4KP, 33,		/* M4K with slow multiplier */
     MIPS_OPT_BRANCHLIKELY | MIPS_OPT_SOFTFLOAT,
     32, 0, 0, 0 },
 
@@ -921,7 +927,7 @@ const struct mips_cpu_info mips_cpu_info_table[] = {
   { "4kem", PROCESSOR_4KC, 33,
     MIPS_OPT_BRANCHLIKELY | MIPS_OPT_SOFTFLOAT,
     4, 0, 0, 0 },
-  { "4kep", PROCESSOR_4KP, 33,          /* 4KE with slow multiplier */
+  { "4kep", PROCESSOR_4KP, 33,		/* 4KE with slow multiplier */
     MIPS_OPT_BRANCHLIKELY | MIPS_OPT_SOFTFLOAT,
     32, 0, 0, 0 },
 
@@ -930,68 +936,118 @@ const struct mips_cpu_info mips_cpu_info_table[] = {
     4, 0, 0, 0 },
 
   /* 24K family */
-  { "24k", PROCESSOR_24K, 33,
+  { "24k", PROCESSOR_24K, 33, 		/* Alias to 24kf2_1 */
     MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64,
     5, 0, 8, 10 },
-  { "24kc", PROCESSOR_24K, 33,          /* 24K no FPU */
+  { "24kc", PROCESSOR_24K, 33, 		/* 24K no FPU */
     MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_SOFTFLOAT,
     5, 0, 8, 10 },
-  { "24kf", PROCESSOR_24K, 33,          /* 24K 1:2 FPU */
+  { "24kf2_1", PROCESSOR_24K, 33,	/* 24K 2:1 core/fpu ratio */
     MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64,
     5, 0, 8, 10 },
-  { "24kfx", PROCESSOR_24KX, 33,        /* 24K 1:1 FPU */
+  { "24kf", PROCESSOR_24K, 33, 		/* Alias to 24kf2_1 */
+    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64,
+    5, 0, 8, 10 },
+  { "24kf1_1", PROCESSOR_24KX, 33,	/* 24K 1:1 core/fpu ratio */
+    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64,
+    5, 0, 4, 5 },
+  { "24kfx", PROCESSOR_24KX, 33, 	/* Alias to 24kf1_1 */
+    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64,
+    5, 0, 4, 5 },
+  { "24kx", PROCESSOR_24KX, 33, 	/* Alias to 24kf1_1 */
     MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64,
     5, 0, 4, 5 },
 
   /* 24ke family - identical to 24k for the compiler */
-  { "24ke", PROCESSOR_24K, 33,
+  { "24ke", PROCESSOR_24K, 33,		/* Alias to 24kef2_1 */
     MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
     5, 0, 8, 10 },
-  { "24kec", PROCESSOR_24K, 33,         /* 24KE no FPU */
+  { "24kec", PROCESSOR_24K, 33, 	/* 24KE no FPU */
     MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_SOFTFLOAT | MIPS_OPT_DSP,
     5, 0, 8, 10 },
-  { "24kef", PROCESSOR_24K, 33, /* 24KE 1:2 FPU */
+  { "24kef2_1", PROCESSOR_24K, 33,	/* 24KE 2:1 core/fpu ratio */
     MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
     5, 0, 8, 10 },
-  { "24kefx", PROCESSOR_24KX, 33,       /* 24KE 1:1 FPU */
+  { "24kef", PROCESSOR_24K, 33,		/* Alias to 24kef2_1 */
+    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
+    5, 0, 8, 10 },
+  { "24kef1_1", PROCESSOR_24KX, 33,	/* 24KE 1:1 FPU */
+    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
+    5, 0, 4, 5 },
+  { "24kefx", PROCESSOR_24KX, 33,	/* Alias to 24kef1_1 */
+    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
+    5, 0, 4, 5 },
+  { "24kex", PROCESSOR_24KX, 33,	/* Alias to 24kef1_1 */
     MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
     5, 0, 4, 5 },
 
   /* 34K family - identical pipeline to 24ke, currently. */
-  { "34k", PROCESSOR_24K, 33,
+  { "34k", PROCESSOR_24K, 33,		/* Alias to 34kf2_1 */
     MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
     5, 0, 8, 10 },
-  { "34kc", PROCESSOR_24K, 33,          /* 34K no FPU */
+  { "34kc", PROCESSOR_24K, 33,		/* 34K no FPU */
     MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_SOFTFLOAT | MIPS_OPT_DSP,
     5, 0, 8, 10 },
-  { "34kf", PROCESSOR_24K, 33,          /* 34K 1:2 FPU */
+  { "34kf2_1", PROCESSOR_24K, 33,	/* 34K 2:1 core/fpu ratio */
     MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
     5, 0, 8, 10 },
-  { "34kfx", PROCESSOR_24KX, 33,        /* 34K 1:1 FPU */
+  { "34kf", PROCESSOR_24K, 33,		/* Alias to 34kf2_1 */
+    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
+    5, 0, 8, 10 },
+  { "34kf1_1", PROCESSOR_24KX, 33,	/* 34K 1:1 core/fpu ratio */
     MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
     5, 0, 4, 5 },
+  { "34kfx", PROCESSOR_24KX, 33,	/* Alias to 34kf1_1 */
+    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
+    5, 0, 4, 5 },
+  { "34kx", PROCESSOR_24KX, 33,	        /* Alias to 34kf1_1 */
+    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
+    5, 0, 4, 5 },
+
+  /* 74K family */
+  { "74kc", PROCESSOR_74K, 33,          /* 74K no FPU */
+    MIPS_OPT_FETCH64 | MIPS_OPT_DSP | MIPS_OPT_SOFTFLOAT,
+    4, 0, 0, 0 },
+  { "74kf2_1", PROCESSOR_74K, 33,	/* 74K 2:1 core/fpu ratio */
+    MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
+    4, 0, 10, 10 },
+  { "74kf", PROCESSOR_74K, 33,		/* Alias to 74kf2_1 */
+    MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
+    4, 0, 10, 10 },
+  { "74kf1_1", PROCESSOR_74KX, 33,	/* 74K 1:1 core/fpu ratio */
+    MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
+    4, 0, 5, 5 },
+  { "74kfx", PROCESSOR_74KX, 33,	/* Alias to 74kf1_1 */
+    MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
+    4, 0, 5, 5 },
+  { "74kx", PROCESSOR_74KX, 33,	        /* Alias to 74kf1_1 */
+    MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
+    4, 0, 5, 5 },
+  { "74kf3_2", PROCESSOR_74KZ, 33,      /* 74k 3:2 core/fpu ratio */
+    MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
+    4, 0, 7, 7 },
 
   /* MIPS64 */
 
   /* 5K family */
-  { "5kc", PROCESSOR_5KC, 64,           /* 5K no FPU */
+  { "5kc", PROCESSOR_5KC, 64,		/* 5K no FPU */
     MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_SOFTFLOAT,
     4, 11, 4, 5 },
-  { "5kf", PROCESSOR_5KC, 64,           /* 5K + FPU */
+  { "5kf", PROCESSOR_5KC, 64,		/* 5K + FPU */
     MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64,
     4, 11, 4, 5 },
 
   /* 20Kc family */
-  { "20kc", PROCESSOR_20KC, 64,         /* 20Kc + FPU */
+  { "20kc", PROCESSOR_20KC, 64, 	/* 20Kc + FPU */
     MIPS_OPT_PREDICTLIKELY | MIPS_OPT_FETCH64,
     4, 7, 4, 5 },
-  { "25kf", PROCESSOR_20KC, 64,         /* 25Kf + FPU */
+  { "25kf", PROCESSOR_20KC, 64, 	/* 25Kf + FPU */
     MIPS_OPT_PREDICTLIKELY | MIPS_OPT_FETCH64,
     4, 7, 4, 5 },
 
   { "sb1", PROCESSOR_SB1, 64,
     0,
-    4, 7, 0, 0 },               /* guess! */
+    4, 7, 0, 0 },		/* guess! */
 
   /* Microchip PIC32MX - Copy of m4k */
   { "pic32mx", PROCESSOR_4KC, 33,
@@ -1081,6 +1137,14 @@ enum function_type_tag current_function_type;
 
 #undef TARGET_SCHED_ADJUST_COST
 #define TARGET_SCHED_ADJUST_COST mips_adjust_cost
+#undef TARGET_SCHED_IS_COSTLY_DEPENDENCE      
+#define TARGET_SCHED_IS_COSTLY_DEPENDENCE mips_is_costly_dependence
+#undef TARGET_SCHED_VARIABLE_ISSUE
+#define TARGET_SCHED_VARIABLE_ISSUE mips_variable_issue
+#undef  TARGET_SCHED_REORDER
+#define TARGET_SCHED_REORDER mips_sched_reorder
+#undef TARGET_SCHED_DFA_NEW_CYCLE
+#define TARGET_SCHED_DFA_NEW_CYCLE mips_dfa_new_cycle
 #undef TARGET_SCHED_ISSUE_RATE
 #define TARGET_SCHED_ISSUE_RATE mips_issue_rate
 #undef TARGET_SCHED_USE_DFA_PIPELINE_INTERFACE
@@ -1240,11 +1304,14 @@ mips_classify_symbol (rtx x)
     {
       if (TARGET_MIPS16)
         {
-          /* We will use gp-relative addressing for this symbol. */
-          if (TARGET_NO_DATA_IN_CODE && TARGET_GP_OPT)
-            return SYMBOL_SMALL_DATA;
-          else
-            return SYMBOL_CONSTANT_POOL;
+	  /* Use gp-relative addressing if allowed, otherwise return 
+	     SYMBOL_CONSTANT_POOL which will be put into .rodata if
+	     TARGET_EMBEDDED_DATA, access is split into hi/lo pair.  */
+	  if (TARGET_NO_DATA_IN_CODE
+	      && GET_MODE_SIZE (get_pool_mode (x)) <= mips_section_threshold)
+	    return SYMBOL_SMALL_DATA;
+	  else
+	    return SYMBOL_CONSTANT_POOL;
         }
 
       if (TARGET_ABICALLS)
@@ -1407,7 +1474,6 @@ mips_symbolic_constant_p (rtx x, enum mips_symbol_type *symbol_type)
 
     case SYMBOL_SMALL_DATA:
     case SYMBOL_CONSTANT_POOL:
-    case SYMBOL_SECTION_RELATIVE:
       /* Make sure that the offset refers to something within the
          underlying object.  This should guarantee that the final
          PC- or GP-relative offset is within the 16-bit limit.  */
@@ -1419,6 +1485,7 @@ mips_symbolic_constant_p (rtx x, enum mips_symbol_type *symbol_type)
          16-bit offset.  Larger offsets may lead to GOT overflow.  */
       return SMALL_OPERAND (offset);
 
+    case SYMBOL_SECTION_RELATIVE:
     case SYMBOL_GOT_GLOBAL:
     case SYMBOL_GOTOFF_GLOBAL:
     case SYMBOL_GOTOFF_CALL:
@@ -2091,9 +2158,17 @@ move_operand (rtx op, enum machine_mode mode)
          instruction.  */
       return LUI_INT (op) || SMALL_INT (op) || SMALL_INT_UNSIGNED (op);
 
-    case CONST:
-    case SYMBOL_REF:
     case LABEL_REF:
+      if (TARGET_MIPS16 && (TARGET_NO_DATA_IN_CODE || TARGET_CODE_XONLY)
+	  && LABEL_REF_JUMP_TABLE_P (op))
+	return false;
+      /* fall through..  */
+    case SYMBOL_REF:
+      if (TARGET_MIPS16 && TARGET_NO_DATA_IN_CODE 
+	  && CONSTANT_POOL_ADDRESS_P (op))
+	return false;
+      /* fall through..  */
+    case CONST:
       if (CONST_GP_P (op))
         return true;
 
@@ -2253,7 +2328,7 @@ mips_split_symbol (rtx temp, rtx addr, enum mips_symbol_type symbol_type)
           decl = SYMBOL_REF_DECL (sym);
 
           sectrel_address =
-            mips_legitimize_section_relative_address (temp, decl);
+            mips_legitimize_section_relative_address (temp, addr, decl);
           if (sectrel_address)
             return sectrel_address;
           else
@@ -2430,7 +2505,8 @@ mips_legitimize_address (rtx *xloc, enum machine_mode mode)
 
           mips_split_const (src, &base, &offset);
           sectrel_addr =
-            mips_legitimize_section_relative_address (0, SYMBOL_REF_DECL (base));
+            mips_legitimize_section_relative_address (0, *xloc,
+						      SYMBOL_REF_DECL (base));
           if (sectrel_addr)
             {
               *xloc = mips_add_offset (0, sectrel_addr, offset);
@@ -2712,50 +2788,6 @@ mips_legitimize_move (enum machine_mode mode, rtx dest, rtx src)
       emit_move_insn (dest, force_reg (mode, src));
       return true;
     }
-
-#if 0
-  if (flag_section_relative_addressing && TARGET_MIPS16
-      && (
-#if 0
-          (GET_CODE (src) == SYMBOL_REF
-           && !TREE_CONSTANT_POOL_ADDRESS_P (src)  /* Don't handle strings */
-           && SYMBOL_REF_FLAGS (src) == SYMBOL_FLAG_LOCAL)
-          ||
-#endif
-          (GET_CODE (src) == MEM
-              && GET_CODE (XEXP (src, 0)) == SYMBOL_REF
-              && !TREE_CONSTANT_POOL_ADDRESS_P (XEXP (src, 0))  /* Don't handle strings */
-              && SYMBOL_REF_FLAGS (XEXP (src, 0)) == SYMBOL_FLAG_LOCAL)))
-    {
-      tree decl = 0;
-      rtx sectrel_address;
-      rtx sym = src;
-
-      if (GET_CODE (src) == SYMBOL_REF)
-        decl = SYMBOL_REF_DECL (src);
-      else
-        if (GET_CODE (src) == MEM)
-          {
-            decl = SYMBOL_REF_DECL (XEXP (src, 0));
-            sym = XEXP (src, 0);
-          }
-      if (!decl)  /* Skip if this rtx is generated by the backend. */
-        return false;
-
-      if (TREE_READONLY_DECL_P (decl))
-        return false;
-
-      sectrel_address = mips_legitimize_section_relative_address (decl);
-      if (sectrel_address)
-        {
-          if (GET_CODE (src) == MEM)
-            sectrel_address = gen_rtx_MEM (GET_MODE (src), sectrel_address);
-
-          emit_move_insn (dest, sectrel_address);
-          return true;
-        }
-    }
-#endif
 
   /* The source of an SImode move must be a move_operand.  Likewise
      DImode moves on 64-bit targets.  We need to deal with constants
@@ -5778,11 +5810,16 @@ mips_prepare_function_start (fndecl)
 
   mips_set_mips16_mode (SYMBOL_REF_MIPS16_P (XEXP (DECL_RTL (fndecl), 0)));
 
+#ifdef TARGET_MCHP_PIC32MX
   /* If we're in MIPS16[e] mode for an interrupt function, that's an error */
   if (mchp_function_interrupt_p (fndecl) && TARGET_MIPS16)
-    error ("interrupt handler functions cannot be mips16");
+    {
+      warning ("interrupt handler functions cannot be mips16, "
+               "assuming nomips16 attribute");
+      mips_set_mips16_mode (0);
+    }
+#endif
 }
-
 
 /* Set up the threshold for data to go into the small data area, instead
    of the normal data area, and detect any conflicts in the switches.  */
@@ -5792,11 +5829,26 @@ override_options (void)
 {
   int i, start;
 
+#ifdef TARGET_MCHP_PIC32MX
   if (profile_flag == 1) 
     {
-      warning ("-p not supported.");
+      warning ("-p not supported, ignored");
+      profile_flag = 0;
     }
-      
+
+  /* PIC32MX cannot use Position Independent Code yet.  */
+  if (flag_pie || flag_pic || TARGET_ABICALLS)
+    {
+      error ("%s is not supported on PIC32 targets",
+               (flag_pic > 1 ? "-fPIC" :
+                flag_pic ? "-fpic" :
+                "-mabicalls"));
+      target_flags &= ~MASK_ABICALLS;
+      flag_pic = flag_pie = flag_shlib = 0;
+    }
+
+#endif
+
   /* Make sure that the user didn't turn off MIPS16 support when
      MIPS16E support is requested.  */
   if (TARGET_MIPS16E
@@ -5876,9 +5928,9 @@ override_options (void)
          There's no harm in specifying both as long as the ISA levels
          are the same.  */
       if (mips_arch_info != 0 && mips_isa != isa_info->isa)
-        error ("-mips%s conflicts with the other architecture options, "
-               "which specify a MIPS%d processor",
-               mips_isa_string, mips_isa);
+	error ("-mips%s conflicts with the other architecture options, "
+	       "which specify a %s processor",
+	       mips_isa_string, mips_cpu_info_from_isa (mips_isa)->name);
 
       /* Set architecture based on the given option.  */
       mips_set_architecture (isa_info);
@@ -6135,14 +6187,35 @@ override_options (void)
   if (! mips_branch_cost_string)
     {
       /* Branch is very expensive on super-scalar cpus, and on most of
-         these we can use conditional move.  Branch is also more
-         expensive on the super- or long-pipelined cpus (r4000,
-         r6000), but branch cost 2 seems to generate best code for
-         simple short pipeline, single-issue cpus. */
-      mips_branch_cost =
-        (mips_issue_rate () > 1 && ISA_HAS_CONDMOVE) ? 4
-        : (TUNE_MIPS4000 || TUNE_MIPS6000 || TUNE_MIPS5KC) ? 3
-        : 2;
+	 these we can use conditional move.  Branch is also more
+	 expensive on the super- or long-pipelined cpus (r4000,
+	 r6000), but branch cost 2 seems to generate best code for
+	 simple short pipeline, single-issue cpus. */
+      switch (mips_tune)
+	{
+	case PROCESSOR_R4000:
+	case PROCESSOR_R6000:
+	case PROCESSOR_5KC:
+	  mips_branch_cost = 3;
+	  break;
+	case PROCESSOR_20KC:
+	case PROCESSOR_R5400:
+	case PROCESSOR_R7000:
+	case PROCESSOR_R9000:
+	  mips_branch_cost = 4;
+	  break;
+	case PROCESSOR_74K:
+	case PROCESSOR_74KX:
+	case PROCESSOR_74KZ:
+	  /* Although the 74k has a fairly long pipe and is dual-issued.
+	     It ALU & AGEN are relatively short overall and a cost of 2 seem
+	     to generate good code.  */
+	  mips_branch_cost = 2;
+	  break;
+	default:
+	  mips_branch_cost = 2;
+	  break;
+	}
     }
   else
     {
@@ -6346,7 +6419,11 @@ override_options (void)
       && (target_flags_explicit & MASK_DSP) == 0)
     target_flags |= MASK_DSP;
 
-  /* Enable SmartMIPS ASE by default if architecture supports it. */
+  /* Enable DSPR2 by default for the target is 74K or 74KX.  */
+  if (TARGET_MIPS_DSP32 && TARGET_MIPS74K)
+    target_flags |= MASK_DSPR2;
+
+  /* Enable SmartMIPS ASE by default if architecture supports it. */ 
   if ((mips_arch_info->options & MIPS_OPT_SMARTMIPS)
       && (target_flags_explicit & MASK_SMARTMIPS) == 0)
     target_flags |= MASK_SMARTMIPS;
@@ -6372,8 +6449,9 @@ override_options (void)
        unless -mno-data-in-code also used, in which case use the
        MIPS_DEFAULT_GVALUE set above. */
     mips_section_threshold = 0;
-
-  if (mips_section_threshold != 0)
+      
+  if (TARGET_NO_DATA_IN_CODE
+      || mips_section_threshold != 0)
     /* When forced to use gp-relative addressing, disable
        section-relative addressing, since with additional small data
        sections there will be too many active section bases.  */
@@ -6443,10 +6521,22 @@ override_options (void)
   /* Create a unique alias set for GOT references.  */
   mips_got_alias_set = new_alias_set ();
 
+  /* Save base state of options for 32-bit ISA. */
+  mips_base_target_flags = target_flags;
+  mips_base_branch_cost = mips_branch_cost;
+  mips_base_brlikely = mips_brlikely;
+  mips_base_split_addresses = mips_split_addresses;
+  mips_base_schedule_insns = flag_schedule_insns;
+  mips_base_align_loops = align_loops;
+  mips_base_align_jumps = align_jumps;
+  mips_base_align_functions = align_functions;
+
   /*
    *  On systems where we have a licence manager, call it
    */
 #ifdef TARGET_MCHP_PIC32MX
+#define PIC32_EXPIRED_LICENSE -243
+#define PIC32_ACADEMIC_LICENSE -100
 #ifdef __MINGW32__
 #ifndef SKIP_LICENSE_MANAGER
   { char *path;
@@ -6469,35 +6559,45 @@ override_options (void)
     args[0] = exec;
     pid = pexecute(exec, args, "MPLAB C Compiler for PIC32", 0, &err_msg, &err_arg,
                    PEXECUTE_FIRST | PEXECUTE_LAST);
-    if (pid == -1) fatal_error (err_msg, exec);
     pid = pwait(pid, &status, 0);
-    if (pid < 0) abort();
-    if (WIFEXITED(status) && (WEXITSTATUS(status) == 0)) {
-      pic32_license_valid=1;
-    } else if (WIFEXITED(status)) {
-      pic32_license_valid=WEXITSTATUS(status) - 256;
+    if (pid < 0) {
+      /* Set academic edition if the license manager isn't available. */
+      /* The academic edition disables optimization options without an eval period. */
+      pic32_license_valid=PIC32_ACADEMIC_LICENSE;
+    }
+    else {
+       if (WIFEXITED(status) && (WEXITSTATUS(status) == 0)) {
+         pic32_license_valid=1;
+       } else if (WIFEXITED(status)) {
+         pic32_license_valid=WEXITSTATUS(status) - 256;
+       }
     }
   }
 #endif /* SKIP_LICENSE_MANAGER */
-  if (pic32_license_valid < 0) {
+
+  if (pic32_license_valid != 1) {
     static int message_displayed = 0;
-    char *invalid = (char*) "invalid";
+    static int message_purchase_displayed = 0;
+    char *invalid = (char*) "an invalid license";
 
     #define NULLIFY(X) \
-    if ((X) && (message_displayed++ == 0)) \
-      warning("Options have been disabled due to %s license\n" \
-              "Visit http://www.microchip.com/c32 to purchase a full license.", \
-              invalid); \
+    if ((X) && (message_displayed++ == 0)) {\
+      warning("Compiler option ignored due to %s", invalid); \
+      if (message_purchase_displayed++ == 0) { \
+        warning ("Disable the option or visit http://www.microchip.com/c32 " \
+                 "to purchase a full license."); \
+      } \
+    } \
     X
 
-    if (pic32_license_valid == -243) invalid = "expired";
+    if (pic32_license_valid == PIC32_EXPIRED_LICENSE) {
+      invalid = "an expired evaluation period";
+    } else if (pic32_license_valid == PIC32_ACADEMIC_LICENSE) {
+      invalid = "academic-edition limitations";
+      /* Suppress the purchase suggestion for the academic edition. */
+      message_purchase_displayed++;
+    }
 
-    if (optimize > 1) {
-        optimize = 1;
-      }
-    if (optimize_size != 0) {
-        optimize_size = 0;
-      }
     /* Disable -O2 optimizations */
     NULLIFY(flag_crossjumping) = 0;
     NULLIFY(flag_optimize_sibling_calls) = 0;
@@ -6518,19 +6618,13 @@ override_options (void)
     NULLIFY(flag_delete_null_pointer_checks) = 0;
     NULLIFY(flag_reorder_blocks) = 0;
     NULLIFY(flag_reorder_functions) = 0;
+    NULLIFY(flag_unit_at_a_time) = 0;
     NULLIFY(flag_web) = 0;
     NULLIFY(flag_rename_registers) = 0;
-    NULLIFY(flag_unit_at_a_time) = 0;
-    flag_section_relative_addressing = 0;
 
     /* Disable -O3 optimizations */
     NULLIFY(flag_inline_functions) = 0;
     NULLIFY(flag_unswitch_loops) = 0;
-
-    align_loops = 1;
-    align_jumps = 1;
-    align_labels = 1;
-    align_functions = 1;
 
     /* Disable -Os optimization(s) */
     /* flag_web and flag_inline_functions already disabled */
@@ -6541,17 +6635,9 @@ override_options (void)
     #undef NULLIFY
   }
 #endif /* __MINGW32__ */
+#undef PIC32_EXPIRED_LICENSE
+#undef PIC32_ACADEMIC_LICENSE
 #endif /* TARGET_MCHP_PIC32MX */
-
-  /* Save base state of options for 32-bit ISA. */
-  mips_base_target_flags = target_flags;
-  mips_base_branch_cost = mips_branch_cost;
-  mips_base_brlikely = mips_brlikely;
-  mips_base_split_addresses = mips_split_addresses;
-  mips_base_schedule_insns = flag_schedule_insns;
-  mips_base_align_loops = align_loops;
-  mips_base_align_jumps = align_jumps;
-  mips_base_align_functions = align_functions;
 
   /* Now select the mips16 or 32-bit instruction set, as requested. */
   mips_set_mips16_mode (mips_base_mips16 != 0);
@@ -8329,10 +8415,12 @@ mips_save_restore_reg (enum machine_mode mode, int regno,
   rtx mem;
 
   mem = gen_rtx_MEM (mode, plus_constant (stack_pointer_rtx, offset));
+
   if (!current_function_calls_eh_return)
     RTX_UNCHANGING_P (mem) = 1;
 
   fn (gen_rtx_REG (mode, regno), mem);
+
 }
 
 
@@ -8431,6 +8519,13 @@ mips_output_function_prologue (FILE *file, HOST_WIDE_INT size ATTRIBUTE_UNUSED)
     fprintf (file, "\t.set\tmips16\n");
   else
     fprintf (file, "\t.set\tnomips16\n");
+
+  /* Required to context preserve $at in software ISR context saving */
+  if (set_noat == 0)
+    {
+      fprintf (file, "\t.set\tnoat\n");
+      set_noat++;
+    }
 
   if (!FUNCTION_NAME_ALREADY_DECLARED)
     {
@@ -8603,12 +8698,12 @@ mips_output_function_prologue (FILE *file, HOST_WIDE_INT size ATTRIBUTE_UNUSED)
         fprintf (file, "\tins\t$k1, $0, %d, %d\n", SR_EXL, 4);
       else {
         fprintf (file, "\tins\t$k1, $0, %d, %d\n", SR_IE, 5);
-	/*
- 	In current PIC32 IPL7 is the ONLY one with a SRS
- 	so we can set the IPL in Status directly IPL=bits 15-10
- 	*/
-        fprintf (file, "\tori\t$k1, $k1, 0x1c00\n");  
-	}
+        /*
+         In current PIC32 IPL7 is the ONLY one with a SRS
+         so we can set the IPL in Status directly IPL=bits 15-10
+         */
+          fprintf (file, "\tori\t$k1, $k1, 0x1c00\n");  
+        }
       fprintf (file, "\tmtc0\t$k1, $12\n");
     }
 }
@@ -8653,7 +8748,9 @@ mips_save_reg (rtx reg, rtx mem)
       if (mips_split_64bit_move_p (mem, reg))
         mips_split_64bit_move (mem, reg);
       else
-        emit_move_insn (mem, reg);
+        {
+          emit_move_insn (mem, reg);
+        }            
 
       x1 = mips_frame_set (mips_subword (mem, 0), mips_subword (reg, 0));
       x2 = mips_frame_set (mips_subword (mem, 1), mips_subword (reg, 1));
@@ -8672,7 +8769,9 @@ mips_save_reg (rtx reg, rtx mem)
           emit_move_insn (mem, MIPS_PROLOGUE_TEMP (GET_MODE (reg)));
         }
       else
-        emit_move_insn (mem, reg);
+        {
+            emit_move_insn (mem, reg);
+        }
 
       mips_set_frame_expr (mips_frame_set (mem, reg));
     }
@@ -8717,7 +8816,6 @@ mips_expand_prologue (void)
      expanding any code */
   if (mchp_function_naked_p (current_function_decl))
     return;
-
 
   /* Save the registers.  Allocate up to MIPS_MXA_FIRST_STACK_STEP
      bytes beforehand; this is enough to cover the register save area
@@ -8833,8 +8931,8 @@ mips_expand_prologue (void)
 
           /* save the general purpose registers which need to be preserved */
           mips_for_each_saved_reg (size, mips_save_reg);
-
         }
+
     }
 
   /* Allocate the rest of the frame.  */
@@ -8943,6 +9041,7 @@ mips_expand_prologue (void)
 
   if (current_function_profile)
     emit_insn (gen_blockage ());
+    
 }
 
 /* Do any necessary cleanup after a function to restore stack, frame,
@@ -9019,7 +9118,12 @@ mips_output_function_epilogue (FILE *file ATTRIBUTE_UNUSED,
       output_asm_insn (".set\treorder", 0);
       set_noreorder = set_nomacro = 0;
     }
-
+  while (set_noat > 0)
+  {
+    output_asm_insn (".set\tat", 0);
+    set_noat--;
+  }
+      
   if (!FUNCTION_NAME_ALREADY_DECLARED && !flag_inhibit_size_directive)
     {
       const char *fnname;
@@ -9597,6 +9701,17 @@ mips_in_small_data_p (tree decl)
         return false;
     }
 
+  if (DECL_EXTERNAL (decl)
+      && TREE_READONLY (decl))
+    return false;
+
+  if (DECL_ARTIFICIAL (decl)
+      || (TREE_CODE (decl) == VAR_DECL
+	  && DECL_CONTEXT (decl)
+	  && TREE_CODE (DECL_CONTEXT (decl)) == NAMESPACE_DECL
+	  && strcmp (DECL_SOURCE_FILE (DECL_CONTEXT (decl)), "<internal>") == 0))
+    return false;
+
   if (TARGET_MIPS16 && TARGET_NO_DATA_IN_CODE)
     {
       if (TREE_READONLY (decl)
@@ -9731,16 +9846,23 @@ mips_encode_section_info (tree decl, rtx rtl, int first)
                    decl);
           is_mips16 = 0;
         }
-        
+#ifdef TARGET_MCHP_PIC32MX
       /* Prevent MIPS16 selection via explicit attribute without a valid
          license. */
       if (is_mips16 && (pic32_license_valid < 0))
         {
-          warning ("Current compiler license does not allow mips16"
-                   " attribute on '%F', attribute ignored",
-                   decl);
+          if (-100 == pic32_license_valid) {
+            warning ("The academic edition does not support the mips16"
+                     " attribute on  '%F', attribute ignored",
+                     decl);
+          } else {
+            warning ("The current limited compiler license does not support the mips16"
+                     " attribute on '%F', attribute ignored",
+                     decl);
+          }
           is_mips16 = 0;
         }
+#endif /* TARGET_MCHP_PIC32MX */
 
       if (is_mips16)
         SYMBOL_REF_FLAGS (symbol) |= SYMBOL_FLAG_MIPS16;
@@ -11250,6 +11372,7 @@ mips_init_libfuncs (void)
       set_optab_libfunc (ge_optab, SFmode, "__mips16_gesf2");
       set_optab_libfunc (lt_optab, SFmode, "__mips16_ltsf2");
       set_optab_libfunc (le_optab, SFmode, "__mips16_lesf2");
+      set_optab_libfunc (unord_optab, SFmode, "__mips16_unordsf2");
 
       set_conv_libfunc (sfix_optab, SImode, SFmode, "__mips16_fixsfsi");
       set_conv_libfunc (sfloat_optab, SFmode, SImode, "__mips16_floatsisf");
@@ -11267,6 +11390,7 @@ mips_init_libfuncs (void)
           set_optab_libfunc (ge_optab, DFmode, "__mips16_gedf2");
           set_optab_libfunc (lt_optab, DFmode, "__mips16_ltdf2");
           set_optab_libfunc (le_optab, DFmode, "__mips16_ledf2");
+	  set_optab_libfunc (unord_optab, DFmode, "__mips16_unorddf2");
 
           set_conv_libfunc (sext_optab, DFmode, SFmode, "__mips16_extendsfdf2");
           set_conv_libfunc (trunc_optab, SFmode, DFmode, "__mips16_truncdfsf2");
@@ -11275,8 +11399,10 @@ mips_init_libfuncs (void)
           set_conv_libfunc (sfloat_optab, DFmode, SImode, "__mips16_floatsidf");
         }
     }
+#if (defined(TARGET_MCHP_PIC32MX) && !defined(PIC32_NO_FAST_MATH))
   else
     gofast_maybe_init_libfuncs ();
+#endif
 }
 
 /* Return a number assessing the cost of moving a register in class
@@ -11812,6 +11938,169 @@ mips_adjust_cost (rtx insn ATTRIBUTE_UNUSED, rtx link,
 }
 
 
+static bool
+mips_is_costly_dependence (rtx insn, rtx next, rtx link, int cost, int distance)
+{
+  if (TUNE_MIPS74K
+      && insn && INSN_P (insn) && GET_CODE (PATTERN (insn)) == SET 
+      && get_attr_type (insn) == TYPE_STORE
+      && next && INSN_P (next) && GET_CODE (PATTERN (next)) == SET
+      && get_attr_type (next) == TYPE_LOAD)
+    {
+      return true;
+    }
+
+  return false;
+}
+
+/* Record whether last insn is a load (value 1) or store (value 2).  */
+static int last_agen_insn = -1;
+
+/* Reorder the schedulers priority list if needed */
+#include "sched-int.h"
+
+static int
+mips_sched_reorder (FILE * stream ATTRIBUTE_UNUSED,
+		    int verbose ATTRIBUTE_UNUSED,
+		    rtx * ready, int *n_readyp,
+		    int clock ATTRIBUTE_UNUSED)
+{
+  if (TUNE_MIPS74K)
+    {
+      int i;
+      int store_pos = -1;
+      int load_pos = -1;
+
+      for (i = *n_readyp-1; i >= 0; i--)
+	{
+	  rtx insn = ready[i];
+  	  if (GET_CODE (PATTERN (insn)) == SET
+	      && get_attr_type (insn) == TYPE_STORE
+	      && store_pos == -1)
+	    store_pos = i;
+  	  else if (GET_CODE (PATTERN (insn)) == SET
+		   && get_attr_type (insn) == TYPE_LOAD
+		   && load_pos == -1)
+	    load_pos = i;
+	}
+
+      if (load_pos == -1 || store_pos == -1)
+	return mips_issue_rate ();
+	
+      switch (last_agen_insn)
+	{
+	case -1:
+	  /* Prefer to schedule loads.  */
+	case 1:
+	  /* Swap loads to the front of the queue.  */
+	  if (INSN_PRIORITY (ready[load_pos]) + 4 
+	       >= INSN_PRIORITY (ready[store_pos])
+	      && load_pos < store_pos)
+	    {
+	      rtx temp;
+	      INSN_PRIORITY (ready[load_pos]) 
+		= INSN_PRIORITY (ready[store_pos]);
+	      temp = ready[load_pos];
+	      ready[load_pos] = ready[store_pos];
+	      ready[store_pos] = temp;
+	    }
+	  break;
+	case 2:
+	  /* Swap stores to the front of the queue.  */
+	  if (INSN_PRIORITY (ready[store_pos]) + 4 
+	       >= INSN_PRIORITY (ready[load_pos])
+	      && store_pos < load_pos)
+	    {
+	      rtx temp;
+	      INSN_PRIORITY (ready[store_pos]) 
+		= INSN_PRIORITY (ready[load_pos]);
+	      temp = ready[store_pos];
+	      ready[store_pos] = ready[load_pos];
+	      ready[load_pos] = temp;
+	    }
+	  break;
+	default:
+	  break;
+	}
+      /* At this point the ready queue may no longer sorted, but thats ok
+	 since 74k can't schedule concurrent ld/st on the same cycle.  */
+    }
+
+  return mips_issue_rate ();
+}
+
+static int
+mips_variable_issue (FILE *dump, int sched_verbose, rtx insn,
+                     int can_issue_more)
+{
+  if (TUNE_MIPS74K)
+    {
+      switch (GET_CODE (insn))
+	{
+	case INSN:
+	  if (GET_CODE (PATTERN (insn)) == SET)
+	    {
+	      if (get_attr_type (insn) == TYPE_LOAD)
+		last_agen_insn = 1;
+	      else if (get_attr_type (insn) == TYPE_STORE)
+		last_agen_insn = 2;
+	    }
+	  break;
+	case JUMP_INSN:
+	  last_agen_insn = -1;
+	  break;
+	case CALL_INSN:
+	  last_agen_insn = -1;
+	  return 0;
+	default:
+	  break;
+	}
+    }
+
+  if (GET_CODE (PATTERN (insn)) == USE
+      || GET_CODE (PATTERN (insn)) == CLOBBER)
+    return can_issue_more;
+  else 
+    return can_issue_more - 1;
+}
+
+
+#define LAPSE_CYCLES 1
+
+static int
+mips_dfa_new_cycle (FILE *sched_dump,
+		    int sched_verbose,
+		    rtx insn,
+		    int last_clock_var,
+		    int clock_var,
+		    int *sort_p)
+{
+  if (TUNE_MIPS74K)
+    {
+      if (reload_completed && flag_sched2_use_superblocks)
+	return 0;
+
+      /* We reach the end of the block (at the branch insn), and if there
+	 are some spare cycles, then pull in insns from following block by
+	 advancing cycle by LAPSE_CYCLES.  Hence readies insns from the
+	 queue that stalls in LAPSE_CYCLES, effectively moving it to the
+	 ready list.  */
+     if (GET_CODE (insn) == JUMP_INSN)
+	{
+	  if (clock_var - last_clock_var != 0
+	      && clock_var - last_clock_var <= LAPSE_CYCLES)
+	    {
+	      if (sched_verbose >= 5)
+		fprintf (sched_dump, ";;\t\t*** Lapse cycle *** \n");
+	      return 1;
+	    }
+  	}
+    }
+  
+  return 0;
+}
+
+
 /* Implement TARGET_WEB_MARK_REGISTER.
    For instructions that read and write accumulators, we mark the register
    for no renamiing in the web phase.  */
@@ -11825,86 +12114,104 @@ mips_web_mark_register (rtx insn, char *use_addressof)
       rtx dest = SET_DEST (XVECEXP (PATTERN (insn), 0, 0));
       rtx src = SET_SRC (XVECEXP (PATTERN (insn), 0, 0));
       if (GET_CODE (dest) == REG && GET_CODE (src) == UNSPEC)
-        {
-          rtx op0 = XVECEXP (src, 0, 0);
-          int unspec_num = XINT (src, 1);
-          if (GET_CODE (op0) == REG &&  GET_MODE (op0) == GET_MODE (dest)
-              && REGNO (op0) == REGNO (dest)
-              && (unspec_num == UNSPEC_DPAQ_S_W_PH
-                  || unspec_num == UNSPEC_DPAQ_S_W_PH_64
-                  || unspec_num == UNSPEC_DPAQ_W_QH
-                  || unspec_num == UNSPEC_DPAQ_S_W_QH
-                  || unspec_num == UNSPEC_DPSQ_S_W_PH
-                  || unspec_num == UNSPEC_DPSQ_S_W_PH_64
-                  || unspec_num == UNSPEC_DPSQ_W_QH
-                  || unspec_num == UNSPEC_DPSQ_S_W_QH
-                  || unspec_num == UNSPEC_MULSAQ_S_W_PH
-                  || unspec_num == UNSPEC_MULSAQ_S_W_PH_64
-                  || unspec_num == UNSPEC_MULSAQ_W_QH
-                  || unspec_num == UNSPEC_MULSAQ_S_W_QH
-                  || unspec_num == UNSPEC_MULSAQ_L_PW
-                  || unspec_num == UNSPEC_MULSAQ_S_L_PW
-                  || unspec_num == UNSPEC_DPAQ_SA_L_W
-                  || unspec_num == UNSPEC_DPAQ_SA_L_W_64
-                  || unspec_num == UNSPEC_DPAQ_L_PW
-                  || unspec_num == UNSPEC_DPAQ_SA_L_PW
-                  || unspec_num == UNSPEC_DPSQ_SA_L_W
-                  || unspec_num == UNSPEC_DPSQ_SA_L_W_64
-                  || unspec_num == UNSPEC_DPSQ_L_PW
-                  || unspec_num == UNSPEC_DPSQ_SA_L_PW
-                  || unspec_num == UNSPEC_MAQ_S_W_PHL
-                  || unspec_num == UNSPEC_MAQ_S_W_PHR
-                  || unspec_num == UNSPEC_MAQ_S_W_PHL_64
-                  || unspec_num == UNSPEC_MAQ_S_W_PHR_64
-                  || unspec_num == UNSPEC_MAQ_W_QHLL
-                  || unspec_num == UNSPEC_MAQ_W_QHLR
-                  || unspec_num == UNSPEC_MAQ_W_QHRL
-                  || unspec_num == UNSPEC_MAQ_W_QHRR
-                  || unspec_num == UNSPEC_MAQ_S_W_QHLL
-                  || unspec_num == UNSPEC_MAQ_S_W_QHLR
-                  || unspec_num == UNSPEC_MAQ_S_W_QHRL
-                  || unspec_num == UNSPEC_MAQ_S_W_QHRR
-                  || unspec_num == UNSPEC_MAQ_L_PWL
-                  || unspec_num == UNSPEC_MAQ_L_PWR
-                  || unspec_num == UNSPEC_MAQ_S_L_PWL
-                  || unspec_num == UNSPEC_MAQ_S_L_PWR
-                  || unspec_num == UNSPEC_MAQ_SA_W_PHL
-                  || unspec_num == UNSPEC_MAQ_SA_W_PHR
-                  || unspec_num == UNSPEC_MAQ_SA_W_PHL_64
-                  || unspec_num == UNSPEC_MAQ_SA_W_PHR_64
-                  || unspec_num == UNSPEC_MTHLIP
-                  || unspec_num == UNSPEC_MTHLIP_64
-                  || unspec_num == UNSPEC_DMTHLIP))
-            use_addressof[REGNO (dest)] = 1;
-        }
+	{
+	  rtx op0 = XVECEXP (src, 0, 0);
+	  int unspec_num = XINT (src, 1);
+	  if (GET_CODE (op0) == REG &&  GET_MODE (op0) == GET_MODE (dest)
+	      && REGNO (op0) == REGNO (dest)
+	      && (unspec_num == UNSPEC_DPAQ_S_W_PH
+		  || unspec_num == UNSPEC_DPAQ_S_W_PH_64
+		  || unspec_num == UNSPEC_DPAQ_W_QH
+		  || unspec_num == UNSPEC_DPAQ_S_W_QH
+		  || unspec_num == UNSPEC_DPSQ_S_W_PH
+		  || unspec_num == UNSPEC_DPSQ_S_W_PH_64
+		  || unspec_num == UNSPEC_DPSQ_W_QH
+		  || unspec_num == UNSPEC_DPSQ_S_W_QH
+		  || unspec_num == UNSPEC_MULSAQ_S_W_PH
+		  || unspec_num == UNSPEC_MULSAQ_S_W_PH_64
+		  || unspec_num == UNSPEC_MULSAQ_W_QH
+		  || unspec_num == UNSPEC_MULSAQ_S_W_QH
+		  || unspec_num == UNSPEC_MULSAQ_L_PW
+		  || unspec_num == UNSPEC_MULSAQ_S_L_PW
+		  || unspec_num == UNSPEC_DPAQ_SA_L_W
+		  || unspec_num == UNSPEC_DPAQ_SA_L_W_64
+		  || unspec_num == UNSPEC_DPAQ_L_PW
+		  || unspec_num == UNSPEC_DPAQ_SA_L_PW
+		  || unspec_num == UNSPEC_DPSQ_SA_L_W
+		  || unspec_num == UNSPEC_DPSQ_SA_L_W_64
+		  || unspec_num == UNSPEC_DPSQ_L_PW
+		  || unspec_num == UNSPEC_DPSQ_SA_L_PW
+		  || unspec_num == UNSPEC_MAQ_S_W_PHL
+		  || unspec_num == UNSPEC_MAQ_S_W_PHR
+		  || unspec_num == UNSPEC_MAQ_S_W_PHL_64
+		  || unspec_num == UNSPEC_MAQ_S_W_PHR_64
+		  || unspec_num == UNSPEC_MAQ_W_QHLL
+		  || unspec_num == UNSPEC_MAQ_W_QHLR
+		  || unspec_num == UNSPEC_MAQ_W_QHRL
+		  || unspec_num == UNSPEC_MAQ_W_QHRR
+		  || unspec_num == UNSPEC_MAQ_S_W_QHLL
+		  || unspec_num == UNSPEC_MAQ_S_W_QHLR
+		  || unspec_num == UNSPEC_MAQ_S_W_QHRL
+		  || unspec_num == UNSPEC_MAQ_S_W_QHRR
+		  || unspec_num == UNSPEC_MAQ_L_PWL
+		  || unspec_num == UNSPEC_MAQ_L_PWR
+		  || unspec_num == UNSPEC_MAQ_S_L_PWL
+		  || unspec_num == UNSPEC_MAQ_S_L_PWR
+		  || unspec_num == UNSPEC_MAQ_SA_W_PHL
+		  || unspec_num == UNSPEC_MAQ_SA_W_PHR
+		  || unspec_num == UNSPEC_MAQ_SA_W_PHL_64
+		  || unspec_num == UNSPEC_MAQ_SA_W_PHR_64
+		  || unspec_num == UNSPEC_MTHLIP
+		  || unspec_num == UNSPEC_MTHLIP_64
+		  || unspec_num == UNSPEC_DMTHLIP
+		  || unspec_num == UNSPEC_DPAQX_S_W_PH
+		  || unspec_num == UNSPEC_DPAQX_SA_W_PH
+		  || unspec_num == UNSPEC_DPSQX_S_W_PH
+		  || unspec_num == UNSPEC_DPSQX_SA_W_PH
+		  || unspec_num == UNSPEC_DPAQX_S_W_PH_64
+		  || unspec_num == UNSPEC_DPAQX_SA_W_PH_64
+		  || unspec_num == UNSPEC_DPSQX_S_W_PH_64
+		  || unspec_num == UNSPEC_DPSQX_SA_W_PH_64))
+	    use_addressof[REGNO (dest)] = 1;
+	}
     }
   else if (GET_CODE (PATTERN (insn)) == SET)
     {
       rtx dest = SET_DEST (PATTERN (insn));
       rtx src = SET_SRC (PATTERN (insn));
       if (GET_CODE (dest) == REG && GET_CODE (src) == UNSPEC)
-        {
-          rtx op0 = XVECEXP (src, 0, 0);
-          int unspec_num = XINT (src, 1);
-          if (GET_CODE (op0) == REG &&  GET_MODE (op0) == GET_MODE (dest)
-              && REGNO (op0) == REGNO (dest)
-              && (unspec_num == UNSPEC_DPAU_H_QBL
-                  || unspec_num == UNSPEC_DPAU_H_QBR
-                  || unspec_num == UNSPEC_DPAU_H_QBL_64
-                  || unspec_num == UNSPEC_DPAU_H_QBR_64
-                  || unspec_num == UNSPEC_DPSU_H_QBL
-                  || unspec_num == UNSPEC_DPSU_H_QBR
-                  || unspec_num == UNSPEC_DPSU_H_QBL_64
-                  || unspec_num == UNSPEC_DPSU_H_QBR_64
-                  || unspec_num == UNSPEC_DMADD
-                  || unspec_num == UNSPEC_DMADDU
-                  || unspec_num == UNSPEC_DMSUB
-                  || unspec_num == UNSPEC_DMSUBU
-                  || unspec_num == UNSPEC_SHILO
-                  || unspec_num == UNSPEC_SHILO_64
-                  || unspec_num == UNSPEC_DSHILO))
-            use_addressof[REGNO (dest)] = 1;
-        }
+	{
+	  rtx op0 = XVECEXP (src, 0, 0);
+	  int unspec_num = XINT (src, 1);
+	  if (GET_CODE (op0) == REG &&  GET_MODE (op0) == GET_MODE (dest)
+	      && REGNO (op0) == REGNO (dest)
+	      && (unspec_num == UNSPEC_DPAU_H_QBL
+		  || unspec_num == UNSPEC_DPAU_H_QBR
+		  || unspec_num == UNSPEC_DPAU_H_QBL_64
+		  || unspec_num == UNSPEC_DPAU_H_QBR_64
+		  || unspec_num == UNSPEC_DPSU_H_QBL
+		  || unspec_num == UNSPEC_DPSU_H_QBR
+		  || unspec_num == UNSPEC_DPSU_H_QBL_64
+		  || unspec_num == UNSPEC_DPSU_H_QBR_64
+		  || unspec_num == UNSPEC_DMADD
+		  || unspec_num == UNSPEC_DMADDU
+		  || unspec_num == UNSPEC_DMSUB
+		  || unspec_num == UNSPEC_DMSUBU
+		  || unspec_num == UNSPEC_SHILO
+		  || unspec_num == UNSPEC_SHILO_64
+		  || unspec_num == UNSPEC_DSHILO
+		  || unspec_num == UNSPEC_DPA_W_PH
+		  || unspec_num == UNSPEC_DPA_W_PH_64
+		  || unspec_num == UNSPEC_DPS_W_PH
+		  || unspec_num == UNSPEC_DPS_W_PH_64
+		  || unspec_num == UNSPEC_MULSA_W_PH
+		  || unspec_num == UNSPEC_MULSA_W_PH_64
+		  || unspec_num == UNSPEC_DPAX_W_PH
+		  || unspec_num == UNSPEC_DPSX_W_PH
+		  || unspec_num == UNSPEC_DPAX_W_PH_64
+		  || unspec_num == UNSPEC_DPSX_W_PH_64))
+	    use_addressof[REGNO (dest)] = 1;
+	}
     }
 }
 
@@ -11948,6 +12255,15 @@ mips_issue_rate (void)
 {
   switch (mips_tune)
     {
+    case PROCESSOR_74K:
+    case PROCESSOR_74KX:
+    case PROCESSOR_74KZ:
+      /* The 74k is not strictly quad-issue cpu, but can be seen as one
+	 by the scheduler.  It can issue 1 ALU, 1 AGEN, 2 FPU insns, but
+	 in reality only max of 3 insn can be issued as the floating point
+	 load/stores also requires a slot in the AGEN pipe.  */
+     return 4;
+
     case PROCESSOR_20KC:
     case PROCESSOR_R5400:
     case PROCESSOR_R5500:
@@ -11974,6 +12290,9 @@ mips_use_dfa_pipeline_interface (void)
     case PROCESSOR_20KC:
     case PROCESSOR_24K:
     case PROCESSOR_24KX:
+    case PROCESSOR_74K:
+    case PROCESSOR_74KX:
+    case PROCESSOR_74KZ:
     case PROCESSOR_4KC:
     case PROCESSOR_4KP:
     case PROCESSOR_5KC:
@@ -12739,10 +13058,10 @@ static const struct builtin_description mips_bdesc[] =
   { CODE_FOR_mips_maq_sa_w_phr_64, "__builtin_mips_maq_sa_w_phr_64", MIPS_BUILTIN_MAQ_SA_W_PHR_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSP|MASK_64BIT },
   /* DMADD* */
   { CODE_FOR_mips_dmadd, "__builtin_mips_dmadd", MIPS_BUILTIN_DMADD, MIPS_TI_FTYPE_TI_DI_DI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_dmaddu, "__builtin_mips_dmaddu", MIPS_BUILTIN_DMADDU, MIPS_TI_FTYPE_TI_DI_DI, MASK_DSP|MASK_64BIT },
+  { CODE_FOR_mips_dmaddu, "__builtin_mips_dmaddu", MIPS_BUILTIN_DMADDU, MIPS_TI_FTYPE_TI_UDI_UDI, MASK_DSP|MASK_64BIT },
   /* DMSUB* */
   { CODE_FOR_mips_dmsub, "__builtin_mips_dmsub", MIPS_BUILTIN_DMSUB, MIPS_TI_FTYPE_TI_DI_DI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_dmsubu, "__builtin_mips_dmsubu", MIPS_BUILTIN_DMSUBU, MIPS_TI_FTYPE_TI_DI_DI, MASK_DSP|MASK_64BIT },
+  { CODE_FOR_mips_dmsubu, "__builtin_mips_dmsubu", MIPS_BUILTIN_DMSUBU, MIPS_TI_FTYPE_TI_UDI_UDI, MASK_DSP|MASK_64BIT },
   /* Table 2-4. MIPS DSP ASE Instructions: General Bit/Manipulation */
   /* BITREV */
   { CODE_FOR_mips_bitrev, "__builtin_mips_bitrev", MIPS_BUILTIN_BITREV, MIPS_SI_FTYPE_SI, MASK_DSP },
@@ -12834,6 +13153,66 @@ static const struct builtin_description mips_bdesc[] =
   /* BPOSGE32 */
   { CODE_FOR_mips_bposge, "__builtin_mips_bposge32", MIPS_BUILTIN_BPOSGE32, MIPS_SI_FTYPE_VOID, MASK_DSP },
   { CODE_FOR_mips_bposge, "__builtin_mips_bposge64", MIPS_BUILTIN_BPOSGE64, MIPS_SI_FTYPE_VOID, MASK_DSP|MASK_64BIT },
+
+  /* MIPS DSP ASE Rev2 Revision 0.02 5/19/2006 */
+  { CODE_FOR_mips_absq_s_qb, "__builtin_mips_absq_s_qb", MIPS_BUILTIN_ABSQ_S_QB, MIPS_V4QI_FTYPE_V4QI, MASK_DSPR2 },
+  { CODE_FOR_mips_addu_ph, "__builtin_mips_addu_ph", MIPS_BUILTIN_ADDU_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSPR2 },
+  { CODE_FOR_mips_addu_s_ph, "__builtin_mips_addu_s_ph", MIPS_BUILTIN_ADDU_S_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSPR2 },
+  { CODE_FOR_mips_adduh_qb, "__builtin_mips_adduh_qb", MIPS_BUILTIN_ADDUH_QB, MIPS_V4QI_FTYPE_V4QI_V4QI, MASK_DSPR2 },
+  { CODE_FOR_mips_adduh_r_qb, "__builtin_mips_adduh_r_qb", MIPS_BUILTIN_ADDUH_R_QB, MIPS_V4QI_FTYPE_V4QI_V4QI, MASK_DSPR2 },
+  { CODE_FOR_mips_append, "__builtin_mips_append", MIPS_BUILTIN_APPEND, MIPS_SI_FTYPE_SI_SI_SI, MASK_DSPR2 },
+  { CODE_FOR_mips_balign, "__builtin_mips_balign", MIPS_BUILTIN_BALIGN, MIPS_SI_FTYPE_SI_SI_SI, MASK_DSPR2 },
+  { CODE_FOR_mips_cmpgdu_eq_qb, "__builtin_mips_cmpgdu_eq_qb", MIPS_BUILTIN_CMPGDU_EQ_QB, MIPS_SI_FTYPE_V4QI_V4QI, MASK_DSPR2 },
+  { CODE_FOR_mips_cmpgdu_lt_qb, "__builtin_mips_cmpgdu_lt_qb", MIPS_BUILTIN_CMPGDU_LT_QB, MIPS_SI_FTYPE_V4QI_V4QI, MASK_DSPR2 },
+  { CODE_FOR_mips_cmpgdu_le_qb, "__builtin_mips_cmpgdu_le_qb", MIPS_BUILTIN_CMPGDU_LE_QB, MIPS_SI_FTYPE_V4QI_V4QI, MASK_DSPR2 },
+  { CODE_FOR_mips_dpa_w_ph, "__builtin_mips_dpa_w_ph", MIPS_BUILTIN_DPA_W_PH, MIPS_DI_FTYPE_DI_V2HI_V2HI, MASK_DSPR2 },
+  { CODE_FOR_mips_dpa_w_ph_64, "__builtin_mips_dpa_w_ph_64", MIPS_BUILTIN_DPA_W_PH_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSPR2|MASK_64BIT },
+  { CODE_FOR_mips_dps_w_ph, "__builtin_mips_dps_w_ph", MIPS_BUILTIN_DPS_W_PH, MIPS_DI_FTYPE_DI_V2HI_V2HI, MASK_DSPR2 },
+  { CODE_FOR_mips_dps_w_ph_64, "__builtin_mips_dps_w_ph_64", MIPS_BUILTIN_DPS_W_PH_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSPR2|MASK_64BIT },
+  { CODE_FOR_mips_madd, "__builtin_mips_madd", MIPS_BUILTIN_MADD, MIPS_DI_FTYPE_DI_SI_SI, MASK_DSPR2 },
+  { CODE_FOR_mips_maddu, "__builtin_mips_maddu", MIPS_BUILTIN_MADDU, MIPS_DI_FTYPE_DI_USI_USI, MASK_DSPR2 },
+  { CODE_FOR_mips_msub, "__builtin_mips_msub", MIPS_BUILTIN_MSUB, MIPS_DI_FTYPE_DI_SI_SI, MASK_DSPR2 },
+  { CODE_FOR_mips_msubu, "__builtin_mips_msubu", MIPS_BUILTIN_MSUBU, MIPS_DI_FTYPE_DI_USI_USI, MASK_DSPR2 },
+  { CODE_FOR_mulv2hi3, "__builtin_mips_mul_ph", MIPS_BUILTIN_MUL_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSPR2 },
+  { CODE_FOR_mips_mul_s_ph, "__builtin_mips_mul_s_ph", MIPS_BUILTIN_MUL_S_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSPR2 },
+  { CODE_FOR_mips_mulq_rs_w, "__builtin_mips_mulq_rs_w", MIPS_BUILTIN_MULQ_RS_W, MIPS_SI_FTYPE_SI_SI, MASK_DSPR2 },
+  { CODE_FOR_mips_mulq_s_ph, "__builtin_mips_mulq_s_ph", MIPS_BUILTIN_MULQ_S_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSPR2 },
+  { CODE_FOR_mips_mulq_s_w, "__builtin_mips_mulq_s_w", MIPS_BUILTIN_MULQ_S_W, MIPS_SI_FTYPE_SI_SI, MASK_DSPR2 },
+  { CODE_FOR_mips_mulsa_w_ph, "__builtin_mips_mulsa_w_ph", MIPS_BUILTIN_MULSA_W_PH, MIPS_DI_FTYPE_DI_V2HI_V2HI, MASK_DSPR2 },
+  { CODE_FOR_mips_mulsa_w_ph_64, "__builtin_mips_mulsa_w_ph_64", MIPS_BUILTIN_MULSA_W_PH_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSPR2|MASK_64BIT },
+  { CODE_FOR_mips_mult, "__builtin_mips_mult", MIPS_BUILTIN_MULT, MIPS_DI_FTYPE_SI_SI, MASK_DSPR2 },
+  { CODE_FOR_mips_multu, "__builtin_mips_multu", MIPS_BUILTIN_MULTU, MIPS_DI_FTYPE_USI_USI, MASK_DSPR2 },
+  { CODE_FOR_mips_precr_qb_ph, "__builtin_mips_precr_qb_ph", MIPS_BUILTIN_PRECR_QB_PH, MIPS_V4QI_FTYPE_V2HI_V2HI, MASK_DSPR2 },
+  { CODE_FOR_mips_precr_sra_ph_w, "__builtin_mips_precr_sra_ph_w", MIPS_BUILTIN_PRECR_SRA_PH_W, MIPS_V2HI_FTYPE_SI_SI_SI, MASK_DSPR2 },
+  { CODE_FOR_mips_precr_sra_r_ph_w, "__builtin_mips_precr_sra_r_ph_w", MIPS_BUILTIN_PRECR_SRA_R_PH_W, MIPS_V2HI_FTYPE_SI_SI_SI, MASK_DSPR2 },
+  { CODE_FOR_mips_prepend, "__builtin_mips_prepend", MIPS_BUILTIN_PREPEND, MIPS_SI_FTYPE_SI_SI_SI, MASK_DSPR2 },
+  { CODE_FOR_mips_shra_qb, "__builtin_mips_shra_qb", MIPS_BUILTIN_SHRA_QB, MIPS_V4QI_FTYPE_V4QI_SI, MASK_DSPR2 },
+  { CODE_FOR_mips_shra_r_qb, "__builtin_mips_shra_r_qb", MIPS_BUILTIN_SHRA_R_QB, MIPS_V4QI_FTYPE_V4QI_SI, MASK_DSPR2 },
+  { CODE_FOR_mips_shrl_ph, "__builtin_mips_shrl_ph", MIPS_BUILTIN_SHRL_PH, MIPS_V2HI_FTYPE_V2HI_SI, MASK_DSPR2 },
+  { CODE_FOR_mips_subu_ph, "__builtin_mips_subu_ph", MIPS_BUILTIN_SUBU_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSPR2 },
+  { CODE_FOR_mips_subu_s_ph, "__builtin_mips_subu_s_ph", MIPS_BUILTIN_SUBU_S_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSPR2 },
+  { CODE_FOR_mips_subuh_qb, "__builtin_mips_subuh_qb", MIPS_BUILTIN_SUBUH_QB, MIPS_V4QI_FTYPE_V4QI_V4QI, MASK_DSPR2 },
+  { CODE_FOR_mips_subuh_r_qb, "__builtin_mips_subuh_r_qb", MIPS_BUILTIN_SUBUH_R_QB, MIPS_V4QI_FTYPE_V4QI_V4QI, MASK_DSPR2 },
+  { CODE_FOR_mips_addqh_ph, "__builtin_mips_addqh_ph", MIPS_BUILTIN_ADDQH_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSPR2 },
+  { CODE_FOR_mips_addqh_r_ph, "__builtin_mips_addqh_r_ph", MIPS_BUILTIN_ADDQH_R_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSPR2 },
+  { CODE_FOR_mips_addqh_w, "__builtin_mips_addqh_w", MIPS_BUILTIN_ADDQH_W, MIPS_SI_FTYPE_SI_SI, MASK_DSPR2 },
+  { CODE_FOR_mips_addqh_r_w, "__builtin_mips_addqh_r_w", MIPS_BUILTIN_ADDQH_R_W, MIPS_SI_FTYPE_SI_SI, MASK_DSPR2 },
+  { CODE_FOR_mips_subqh_ph, "__builtin_mips_subqh_ph", MIPS_BUILTIN_SUBQH_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSPR2 },
+  { CODE_FOR_mips_subqh_r_ph, "__builtin_mips_subqh_r_ph", MIPS_BUILTIN_SUBQH_R_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSPR2 },
+  { CODE_FOR_mips_subqh_w, "__builtin_mips_subqh_w", MIPS_BUILTIN_SUBQH_W, MIPS_SI_FTYPE_SI_SI, MASK_DSPR2 },
+  { CODE_FOR_mips_subqh_r_w, "__builtin_mips_subqh_r_w", MIPS_BUILTIN_SUBQH_R_W, MIPS_SI_FTYPE_SI_SI, MASK_DSPR2 },
+  { CODE_FOR_mips_dpax_w_ph, "__builtin_mips_dpax_w_ph", MIPS_BUILTIN_DPAX_W_PH, MIPS_DI_FTYPE_DI_V2HI_V2HI, MASK_DSPR2 },
+  { CODE_FOR_mips_dpsx_w_ph, "__builtin_mips_dpsx_w_ph", MIPS_BUILTIN_DPSX_W_PH, MIPS_DI_FTYPE_DI_V2HI_V2HI, MASK_DSPR2 },
+  { CODE_FOR_mips_dpaqx_s_w_ph, "__builtin_mips_dpaqx_s_w_ph", MIPS_BUILTIN_DPAQX_S_W_PH, MIPS_DI_FTYPE_DI_V2HI_V2HI, MASK_DSPR2 },
+  { CODE_FOR_mips_dpaqx_sa_w_ph, "__builtin_mips_dpaqx_sa_w_ph", MIPS_BUILTIN_DPAQX_SA_W_PH, MIPS_DI_FTYPE_DI_V2HI_V2HI, MASK_DSPR2 },
+  { CODE_FOR_mips_dpsqx_s_w_ph, "__builtin_mips_dpsqx_s_w_ph", MIPS_BUILTIN_DPSQX_S_W_PH, MIPS_DI_FTYPE_DI_V2HI_V2HI, MASK_DSPR2 },
+  { CODE_FOR_mips_dpsqx_sa_w_ph, "__builtin_mips_dpsqx_sa_w_ph", MIPS_BUILTIN_DPSQX_SA_W_PH, MIPS_DI_FTYPE_DI_V2HI_V2HI, MASK_DSPR2 },
+  { CODE_FOR_mips_dpax_w_ph_64, "__builtin_mips_dpax_w_ph_64", MIPS_BUILTIN_DPAX_W_PH_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSPR2|MASK_64BIT },
+  { CODE_FOR_mips_dpsx_w_ph_64, "__builtin_mips_dpsx_w_ph_64", MIPS_BUILTIN_DPSX_W_PH_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSPR2|MASK_64BIT },
+  { CODE_FOR_mips_dpaqx_s_w_ph_64, "__builtin_mips_dpaqx_s_w_ph_64", MIPS_BUILTIN_DPAQX_S_W_PH_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSPR2|MASK_64BIT },
+  { CODE_FOR_mips_dpaqx_sa_w_ph_64, "__builtin_mips_dpaqx_sa_w_ph_64", MIPS_BUILTIN_DPAQX_SA_W_PH_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSPR2|MASK_64BIT },
+  { CODE_FOR_mips_dpsqx_s_w_ph_64, "__builtin_mips_dpsqx_s_w_ph_64", MIPS_BUILTIN_DPSQX_S_W_PH_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSPR2|MASK_64BIT },
+  { CODE_FOR_mips_dpsqx_sa_w_ph_64, "__builtin_mips_dpsqx_sa_w_ph_64", MIPS_BUILTIN_DPSQX_SA_W_PH_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSPR2|MASK_64BIT },
 
 };
 
@@ -13416,33 +13795,48 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
     {
       switch (fcode)
         {
-        case MIPS_BUILTIN_DPAU_H_QBL:
-        case MIPS_BUILTIN_DPAU_H_QBR:
-        case MIPS_BUILTIN_DPSU_H_QBL:
-        case MIPS_BUILTIN_DPSU_H_QBR:
-        case MIPS_BUILTIN_DPAQ_S_W_PH:
-        case MIPS_BUILTIN_DPSQ_S_W_PH:
-        case MIPS_BUILTIN_MULSAQ_S_W_PH:
-        case MIPS_BUILTIN_DPAQ_SA_L_W:
-        case MIPS_BUILTIN_DPSQ_SA_L_W:
-        case MIPS_BUILTIN_MAQ_S_W_PHL:
-        case MIPS_BUILTIN_MAQ_S_W_PHR:
-        case MIPS_BUILTIN_MAQ_SA_W_PHL:
-        case MIPS_BUILTIN_MAQ_SA_W_PHR:
-        case MIPS_BUILTIN_EXTR_W:
-        case MIPS_BUILTIN_EXTR_R_W:
-        case MIPS_BUILTIN_EXTR_RS_W:
-        case MIPS_BUILTIN_EXTR_S_H:
-        case MIPS_BUILTIN_EXTP:
-        case MIPS_BUILTIN_EXTPDP:
-        case MIPS_BUILTIN_SHILO:
-        case MIPS_BUILTIN_MTHLIP:
-          error ("This function `%s' cannot be used in MIPS64.",
-                  mips_bdesc[fcode].name);
-          return 0;
-
-        default:
-          break;
+	case MIPS_BUILTIN_DPAU_H_QBL:
+	case MIPS_BUILTIN_DPAU_H_QBR:
+	case MIPS_BUILTIN_DPSU_H_QBL:
+	case MIPS_BUILTIN_DPSU_H_QBR:
+	case MIPS_BUILTIN_DPAQ_S_W_PH:
+	case MIPS_BUILTIN_DPSQ_S_W_PH:
+	case MIPS_BUILTIN_MULSAQ_S_W_PH:
+	case MIPS_BUILTIN_DPAQ_SA_L_W:
+	case MIPS_BUILTIN_DPSQ_SA_L_W:
+	case MIPS_BUILTIN_MAQ_S_W_PHL:
+	case MIPS_BUILTIN_MAQ_S_W_PHR:
+	case MIPS_BUILTIN_MAQ_SA_W_PHL:
+	case MIPS_BUILTIN_MAQ_SA_W_PHR:
+	case MIPS_BUILTIN_EXTR_W:
+	case MIPS_BUILTIN_EXTR_R_W:
+	case MIPS_BUILTIN_EXTR_RS_W:
+	case MIPS_BUILTIN_EXTR_S_H:
+	case MIPS_BUILTIN_EXTP:
+	case MIPS_BUILTIN_EXTPDP:
+	case MIPS_BUILTIN_SHILO:
+	case MIPS_BUILTIN_MTHLIP:
+	case MIPS_BUILTIN_DPA_W_PH:
+	case MIPS_BUILTIN_DPS_W_PH:
+	case MIPS_BUILTIN_MADD:
+	case MIPS_BUILTIN_MADDU:
+	case MIPS_BUILTIN_MSUB:
+	case MIPS_BUILTIN_MSUBU:
+	case MIPS_BUILTIN_MULSA_W_PH:
+	case MIPS_BUILTIN_MULT:
+	case MIPS_BUILTIN_MULTU:
+	case MIPS_BUILTIN_DPAX_W_PH:
+	case MIPS_BUILTIN_DPSX_W_PH:
+	case MIPS_BUILTIN_DPAQX_S_W_PH:
+	case MIPS_BUILTIN_DPAQX_SA_W_PH:
+	case MIPS_BUILTIN_DPSQX_S_W_PH:
+	case MIPS_BUILTIN_DPSQX_SA_W_PH:
+	  error ("This function `%s' cannot be used in MIPS64.",
+		  mips_bdesc[fcode].name);
+	  return 0;
+ 
+	default:
+	  break;
         }
     }
 
@@ -13555,6 +13949,34 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
     case MIPS_BUILTIN_LHX:
     case MIPS_BUILTIN_LWX:
     case MIPS_BUILTIN_LDX:
+    /* DSP Rev2 */
+    case MIPS_BUILTIN_ADDU_PH:
+    case MIPS_BUILTIN_ADDU_S_PH:
+    case MIPS_BUILTIN_ADDUH_QB:
+    case MIPS_BUILTIN_ADDUH_R_QB:
+    case MIPS_BUILTIN_CMPGDU_EQ_QB:
+    case MIPS_BUILTIN_CMPGDU_LT_QB:
+    case MIPS_BUILTIN_CMPGDU_LE_QB:
+    case MIPS_BUILTIN_MUL_PH:
+    case MIPS_BUILTIN_MUL_S_PH:
+    case MIPS_BUILTIN_MULQ_RS_W:
+    case MIPS_BUILTIN_MULQ_S_PH:
+    case MIPS_BUILTIN_MULQ_S_W:
+    case MIPS_BUILTIN_MULT:
+    case MIPS_BUILTIN_MULTU:
+    case MIPS_BUILTIN_PRECR_QB_PH:
+    case MIPS_BUILTIN_SUBU_PH:
+    case MIPS_BUILTIN_SUBU_S_PH:
+    case MIPS_BUILTIN_SUBUH_QB:
+    case MIPS_BUILTIN_SUBUH_R_QB:
+    case MIPS_BUILTIN_ADDQH_PH:
+    case MIPS_BUILTIN_ADDQH_R_PH:
+    case MIPS_BUILTIN_ADDQH_W:
+    case MIPS_BUILTIN_ADDQH_R_W:
+    case MIPS_BUILTIN_SUBQH_PH:
+    case MIPS_BUILTIN_SUBQH_R_PH:
+    case MIPS_BUILTIN_SUBQH_W:
+    case MIPS_BUILTIN_SUBQH_R_W:
       icode = mips_bdesc[fcode].icode;
       arg0 = TREE_VALUE (arglist);
       arg1 = TREE_VALUE (TREE_CHAIN (arglist));
@@ -13594,7 +14016,10 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
     /* SHRL* */
     case MIPS_BUILTIN_SHRL_QB:
     case MIPS_BUILTIN_SHRL_OB:
-      return mips_expand_two_operands_with_immediate (target, fcode, arglist,
+    /* DSP Rev2 */
+    case MIPS_BUILTIN_SHRA_QB:
+    case MIPS_BUILTIN_SHRA_R_QB:
+      return mips_expand_two_operands_with_immediate (target, fcode, arglist, 
                                                       3, 0);
 
     /* Two Operands.  The 2nd operand may be a 4-bit unsigned immediate */
@@ -13608,7 +14033,9 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
     case MIPS_BUILTIN_SHRA_R_PH:
     case MIPS_BUILTIN_SHRA_QH:
     case MIPS_BUILTIN_SHRA_R_QH:
-      return mips_expand_two_operands_with_immediate (target, fcode, arglist,
+    /* DSP Rev2 */
+    case MIPS_BUILTIN_SHRL_PH:
+      return mips_expand_two_operands_with_immediate (target, fcode, arglist, 
                                                       4, 0);
 
     /* Two Operands.  The 2nd operand may be a 5-bit unsigned immediate */
@@ -13710,6 +14137,8 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
     case MIPS_BUILTIN_PRECEU_PH_QBR:
     case MIPS_BUILTIN_PRECEU_PH_QBLA:
     case MIPS_BUILTIN_PRECEU_PH_QBRA:
+    /* DSP Rev2 */
+    case MIPS_BUILTIN_ABSQ_S_QB:
       icode = mips_bdesc[fcode].icode;
       arg0 = TREE_VALUE (arglist);
       op0 = expand_expr (arg0, NULL_RTX, VOIDmode, 0);
@@ -13967,6 +14396,29 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
     /* DMSUB* */
     case MIPS_BUILTIN_DMSUB:
     case MIPS_BUILTIN_DMSUBU:
+    /* DSP Rev2 */
+    case MIPS_BUILTIN_DPA_W_PH:
+    case MIPS_BUILTIN_DPA_W_PH_64:
+    case MIPS_BUILTIN_DPS_W_PH:
+    case MIPS_BUILTIN_DPS_W_PH_64:
+    case MIPS_BUILTIN_MADD:
+    case MIPS_BUILTIN_MADDU:
+    case MIPS_BUILTIN_MSUB:
+    case MIPS_BUILTIN_MSUBU:
+    case MIPS_BUILTIN_MULSA_W_PH:
+    case MIPS_BUILTIN_MULSA_W_PH_64:
+    case MIPS_BUILTIN_DPAX_W_PH:
+    case MIPS_BUILTIN_DPSX_W_PH:
+    case MIPS_BUILTIN_DPAQX_S_W_PH:
+    case MIPS_BUILTIN_DPAQX_SA_W_PH:
+    case MIPS_BUILTIN_DPSQX_S_W_PH:
+    case MIPS_BUILTIN_DPSQX_SA_W_PH:
+    case MIPS_BUILTIN_DPAX_W_PH_64:
+    case MIPS_BUILTIN_DPSX_W_PH_64:
+    case MIPS_BUILTIN_DPAQX_S_W_PH_64:
+    case MIPS_BUILTIN_DPAQX_SA_W_PH_64:
+    case MIPS_BUILTIN_DPSQX_S_W_PH_64:
+    case MIPS_BUILTIN_DPSQX_SA_W_PH_64:
       icode = mips_bdesc[fcode].icode;
       arg0 = TREE_VALUE (arglist);
       arg1 = TREE_VALUE (TREE_CHAIN (arglist));
@@ -14006,6 +14458,101 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
       if (! pat)
         return 0;
 
+      emit_insn (pat);
+      return target;
+
+    /* Three Operands.  The 3nd operand is a 2-bit unsigned immediate. */
+    /* DSP Rev2 */
+    case MIPS_BUILTIN_BALIGN:
+      icode = mips_bdesc[fcode].icode;
+      arg0 = TREE_VALUE (arglist);
+      arg1 = TREE_VALUE (TREE_CHAIN (arglist));
+      arg2 = TREE_VALUE (TREE_CHAIN (TREE_CHAIN (arglist)));
+      op0 = expand_expr (arg0, NULL_RTX, VOIDmode, 0);
+      op1 = expand_expr (arg1, NULL_RTX, VOIDmode, 0);
+      op2 = expand_expr (arg2, NULL_RTX, VOIDmode, 0);
+      tmode = insn_data[icode].operand[0].mode;
+      mode0 = insn_data[icode].operand[1].mode;
+      mode1 = insn_data[icode].operand[2].mode;
+      mode2 = insn_data[icode].operand[3].mode;
+
+      if (VECTOR_MODE_P (mode0) && op0 == const0_rtx)
+	op0 = gen_reg_rtx (mode0);
+
+      if (VECTOR_MODE_P (mode1) && op1 == const0_rtx)
+	op1 = gen_reg_rtx (mode1);
+
+      if (TREE_CODE (arg2) != INTEGER_CST || TREE_INT_CST_LOW (arg2) > 4 )
+        {
+	  warning ("argument 3 of `%s' not in the range 0 to 3.",
+		   mips_bdesc[fcode].name);
+	  op2 = GEN_INT (INTVAL (op2) & 0x1f);
+        }
+
+      if (target == 0
+	  || GET_MODE (target) != tmode
+	  || ! (*insn_data[icode].operand[0].predicate) (target, tmode))
+        target = gen_reg_rtx (tmode);
+
+      if (! (*insn_data[icode].operand[1].predicate) (op0, mode0))
+        op0 = copy_to_mode_reg (mode0, op0);
+
+      if (! (*insn_data[icode].operand[2].predicate) (op1, mode1))
+        op1 = copy_to_mode_reg (mode1, op1);
+
+      pat = GEN_FCN (icode) (target, op0, op1, op2);
+      if (! pat)
+        return 0;
+      
+      emit_insn (pat);
+      return target;
+
+    /* Three Operands.  The 3nd operand is a 5-bit unsigned immediate. */
+    /* DSP Rev2 */
+    case MIPS_BUILTIN_APPEND:
+    case MIPS_BUILTIN_PRECR_SRA_PH_W:
+    case MIPS_BUILTIN_PRECR_SRA_R_PH_W:
+    case MIPS_BUILTIN_PREPEND:
+      icode = mips_bdesc[fcode].icode;
+      arg0 = TREE_VALUE (arglist);
+      arg1 = TREE_VALUE (TREE_CHAIN (arglist));
+      arg2 = TREE_VALUE (TREE_CHAIN (TREE_CHAIN (arglist)));
+      op0 = expand_expr (arg0, NULL_RTX, VOIDmode, 0);
+      op1 = expand_expr (arg1, NULL_RTX, VOIDmode, 0);
+      op2 = expand_expr (arg2, NULL_RTX, VOIDmode, 0);
+      tmode = insn_data[icode].operand[0].mode;
+      mode0 = insn_data[icode].operand[1].mode;
+      mode1 = insn_data[icode].operand[2].mode;
+      mode2 = insn_data[icode].operand[3].mode;
+
+      if (VECTOR_MODE_P (mode0) && op0 == const0_rtx)
+	op0 = gen_reg_rtx (mode0);
+
+      if (VECTOR_MODE_P (mode1) && op1 == const0_rtx)
+	op1 = gen_reg_rtx (mode1);
+
+      if (TREE_CODE (arg2) != INTEGER_CST || TREE_INT_CST_LOW (arg2) > 31 )
+        {
+	  warning ("argument 3 of `%s' not in the range 0 to 31.",
+		   mips_bdesc[fcode].name);
+	  op2 = GEN_INT (INTVAL (op2) & 0x1f);
+        }
+
+      if (target == 0
+	  || GET_MODE (target) != tmode
+	  || ! (*insn_data[icode].operand[0].predicate) (target, tmode))
+        target = gen_reg_rtx (tmode);
+
+      if (! (*insn_data[icode].operand[1].predicate) (op0, mode0))
+        op0 = copy_to_mode_reg (mode0, op0);
+
+      if (! (*insn_data[icode].operand[2].predicate) (op1, mode1))
+        op1 = copy_to_mode_reg (mode1, op1);
+
+      pat = GEN_FCN (icode) (target, op0, op1, op2);
+      if (! pat)
+        return 0;
+      
       emit_insn (pat);
       return target;
 
@@ -14400,6 +14947,7 @@ mips_init_builtins (void)
   tree di_ftype_di_si_si;
   tree ti_ftype_ti_si_si;
   tree ti_ftype_ti_di_di;
+  tree ti_ftype_ti_udi_udi;
   tree di_ftype_di_di;
   tree v4qi_ftype_si;
   tree v8qi_ftype_di;
@@ -14422,6 +14970,13 @@ mips_init_builtins (void)
   tree si_ftype_ptr_si;
   tree di_ftype_ptr_di;
   tree si_ftype_void;
+
+  tree v4qi_ftype_v4qi;
+  tree si_ftype_si_si_si;
+  tree di_ftype_si_si;
+  tree v2hi_ftype_si_si_si;
+  tree di_ftype_di_usi_usi;
+  tree di_ftype_usi_usi;
 
   if (TARGET_PAIRED_SINGLE_FLOAT)
     {
@@ -14622,7 +15177,39 @@ mips_init_builtins (void)
 
       si_ftype_void
         = build_function_type (intSI_type_node, void_list_node);
+    }
 
+  if (TARGET_MIPS_DSP32R2)
+    {
+      v4qi_ftype_v4qi
+	= build_function_type_list (V4QI_type_node,
+				    V4QI_type_node,
+				    NULL_TREE);
+
+      si_ftype_si_si_si
+	= build_function_type_list (intSI_type_node,
+				    intSI_type_node, intSI_type_node, intSI_type_node,
+				    NULL_TREE);
+
+      di_ftype_si_si
+	= build_function_type_list (intDI_type_node,
+				    intSI_type_node, intSI_type_node,
+				    NULL_TREE);
+
+      v2hi_ftype_si_si_si
+	= build_function_type_list (V2HI_type_node,
+				    intSI_type_node, intSI_type_node, intSI_type_node,
+				    NULL_TREE);
+
+      di_ftype_di_usi_usi
+	= build_function_type_list (intDI_type_node,
+				    intDI_type_node, unsigned_intSI_type_node, unsigned_intSI_type_node,
+				    NULL_TREE);
+
+      di_ftype_usi_usi
+	= build_function_type_list (intDI_type_node,
+				    unsigned_intSI_type_node, unsigned_intSI_type_node,
+				    NULL_TREE);
     }
 
   if (TARGET_MIPS_DSP64)
@@ -14737,6 +15324,11 @@ mips_init_builtins (void)
                                     intTI_type_node, intDI_type_node, intDI_type_node,
                                     NULL_TREE);
 
+      ti_ftype_ti_udi_udi
+	= build_function_type_list (intTI_type_node,
+				    intTI_type_node, unsigned_intDI_type_node, unsigned_intDI_type_node,
+				    NULL_TREE);
+
       di_ftype_di_di
         = build_function_type_list (intDI_type_node,
                                     intDI_type_node, intDI_type_node,
@@ -14813,8 +15405,16 @@ mips_init_builtins (void)
           && ! TARGET_MIPS_DSP32)
         continue;
 
+      if ((d->target_flags & MASK_DSPR2)
+	  && ! TARGET_MIPS_DSP32R2)
+        continue;
+
       if ((d->target_flags & MASK_DSP) && (d->target_flags & MASK_64BIT)
           && ! TARGET_MIPS_DSP64)
+        continue;
+
+      if ((d->target_flags & MASK_DSPR2) && (d->target_flags & MASK_64BIT)
+	  && ! TARGET_MIPS_DSP64R2)
         continue;
 
     switch (d->ftype)
@@ -15085,6 +15685,11 @@ mips_init_builtins (void)
                           d->code, BUILT_IN_MD, NULL, NULL_TREE);
         break;
 
+      case MIPS_TI_FTYPE_TI_UDI_UDI:
+	builtin_function (d->name, ti_ftype_ti_udi_udi,
+			  d->code, BUILT_IN_MD, NULL, NULL_TREE);
+	break;
+
       case MIPS_DI_FTYPE_DI_DI:
         builtin_function (d->name, di_ftype_di_di,
                           d->code, BUILT_IN_MD, NULL, NULL_TREE);
@@ -15194,6 +15799,37 @@ mips_init_builtins (void)
         builtin_function (d->name, si_ftype_void,
                           d->code, BUILT_IN_MD, NULL, NULL_TREE);
         break;
+
+
+      case MIPS_V4QI_FTYPE_V4QI:
+	builtin_function (d->name, v4qi_ftype_v4qi,
+			  d->code, BUILT_IN_MD, NULL, NULL_TREE);
+	break;
+
+      case MIPS_SI_FTYPE_SI_SI_SI:
+	builtin_function (d->name, si_ftype_si_si_si,
+			  d->code, BUILT_IN_MD, NULL, NULL_TREE);
+	break;
+
+      case MIPS_DI_FTYPE_SI_SI:
+	builtin_function (d->name, di_ftype_si_si,
+			  d->code, BUILT_IN_MD, NULL, NULL_TREE);
+	break;
+
+      case MIPS_V2HI_FTYPE_SI_SI_SI:
+	builtin_function (d->name, v2hi_ftype_si_si_si,
+			  d->code, BUILT_IN_MD, NULL, NULL_TREE);
+	break;
+
+      case MIPS_DI_FTYPE_DI_USI_USI:
+	builtin_function (d->name, di_ftype_di_usi_usi,
+			  d->code, BUILT_IN_MD, NULL, NULL_TREE);
+	break;
+
+      case MIPS_DI_FTYPE_USI_USI:
+	builtin_function (d->name, di_ftype_usi_usi,
+			  d->code, BUILT_IN_MD, NULL, NULL_TREE);
+	break;
 
       default:
         break;
@@ -15504,9 +16140,8 @@ mips_base_data_rtx (void)
   return base;
 }
 
-
 static rtx
-mips_legitimize_section_relative_address (rtx temp, tree decl)
+mips_legitimize_section_relative_address (rtx temp, rtx addr, tree decl)
 {
   struct cgraph_varpool_node *node;
 
@@ -15593,20 +16228,27 @@ dspalu_bypass_p (rtx out_insn, rtx in_insn)
   return false;
 }
 
-/* For automatic variables that has been identified to go into a pseudo
-   register, we make additional checks such that if all its fields are
-   aligned to boundary of byte/short/int, then its better to push it
-   onto the stack instead. */
+/* For automatic variables that have been identified as suitable for
+   allocation in a pseudo register, we make additional checks such
+   that if it's a structure type, and all of its fields are smaller
+   than 32-bits and correctly aligned, then its better to push it onto
+   the stack instead of synthesising bit insert or extract operations
+   in a register. 
+   SPILL holds the state of fields alreday looked into so far.  
+   Normally false is passes from the top level.  */
+
 static bool
-mips_spill_auto_register (tree decl)
+mips_spill_auto_register (tree decl, bool spill)
 {
   tree type = TREE_TYPE (decl);
   tree field;
-  bool spill;
 
+  /* Don't spill for 64-bit targets - seems to be broken. */
   if (TARGET_64BIT)
     return false;
 
+  /* Don't spill if ISA is MIPS32R2 or MIPS64R2, since they have
+     real register ins/ext instructions. */
   if (!TARGET_MIPS16
       && (ISA_MIPS32R2 || ISA_MIPS64R2))
     return false;
@@ -15615,34 +16257,97 @@ mips_spill_auto_register (tree decl)
     {
     case UNION_TYPE:
     case RECORD_TYPE:
-      spill = true;
+      /* Must be a struct/union to be a candidate for spilling. */
+      spill = false;
       for (field = TYPE_FIELDS (type); field != 0; field = TREE_CHAIN (field))
-        {
-          if (TREE_CODE (field) == FIELD_DECL)
-            {
-              if (TREE_CODE (TREE_TYPE (field)) == UNION_TYPE
-                  || TREE_CODE (TREE_TYPE (field)) == RECORD_TYPE)
-                spill &= mips_spill_auto_register (field);
-              else if (DECL_SIZE (field)
-                       && (tree_low_cst (DECL_SIZE (field), 1) == 8
-                           || tree_low_cst (DECL_SIZE (field), 1) == 16
-                           || tree_low_cst (DECL_SIZE (field), 1) == 32
-                           || tree_low_cst (DECL_SIZE (field), 1) == 64)
-                       && (DECL_ALIGN (field) == 8
-                           || DECL_ALIGN (field) == 16
-                           || DECL_ALIGN (field) == 32
-                           || DECL_ALIGN (field) == 64))
-                spill &= true;
-              else
-                return false;
-            }
-          else
-            return false;
-        }
+	{
+	  if (TREE_CODE (field) == FIELD_DECL)
+	    {
+	      if (TREE_CODE (TREE_TYPE (field)) == UNION_TYPE
+		  || TREE_CODE (TREE_TYPE (field)) == RECORD_TYPE
+		  || TREE_CODE (TREE_TYPE (field)) == ARRAY_TYPE)
+		{
+		  /* Sub records or array base must conform.  */
+		  if (mips_spill_auto_register (field, spill))
+		    spill |= true;
+		  else
+		    return false;
+		}
+	      else if (DECL_SIZE (field) 
+		       && host_integerp (DECL_SIZE (field), 1))
+		{
+		  unsigned int bits = tree_low_cst (DECL_SIZE (field), 1);
+		  if (bits == 8
+		      || bits == 16
+		      || (bits == 32 && TARGET_64BIT))
+		    /* Only worth spilling if there are correctly
+		       aligned partial words. */
+		    spill |= true;
+		  else if (bits == 32 || bits == 64)
+		    /* Allow word and dword fields, but they
+		       aren't enough to force spilling. */
+		    spill &= true;
+		  else
+		    return false;
+		  /* Cannot cope with fields whose positions are
+		     variable. */
+		  if (! host_integerp (bit_position (field), 0))
+		    return false;
+		  if (int_bit_position (field) % bits != 0)
+		    /* Don't spill if the fields are not aligned. */
+		    return false;
+		}
+	    }
+	  else
+	    return false;
+	}
       return spill;
+
+    case ARRAY_TYPE:
+      if (TREE_CODE (TREE_TYPE (type)) == UNION_TYPE
+	  || TREE_CODE (TREE_TYPE (type)) == RECORD_TYPE
+  	  || TREE_CODE (TREE_TYPE (type)) == ARRAY_TYPE)
+	return mips_spill_auto_register (type, spill);
+
+      if (TREE_CODE (TREE_TYPE (type)) == INTEGER_TYPE)
+	{
+	  /* Any size that's modulo of 8 is good.  */
+	  switch (tree_low_cst (TYPE_SIZE (TREE_TYPE (type)), 1))
+	    {
+	    case 8:
+	    case 16:
+	      spill |= true;
+	      break;
+	    case 32:
+	    case 64:
+	      /* Keep spill unchanged.  */
+	      break;    
+	    default:
+	      return false;
+	    }
+	}
+      return spill;
+
     default:
       return false;
     }
+}
+
+int
+mips_addr_vec_align (rtx addr_vec)
+{
+  int align = GET_MODE_SIZE (GET_MODE (PATTERN (addr_vec)));
+
+  if (TARGET_MIPS16 && JUMP_TABLES_IN_TEXT_SECTION && align < 4)
+    /* We'll be using an LA / ADDIUPC instruction to take the address
+       of an addr diff vector, then it must be 4 byte aligned to avoid
+       using an extended instruction. */
+    align = 4;
+
+  if (align > BIGGEST_ALIGNMENT / BITS_PER_UNIT)
+    align = BIGGEST_ALIGNMENT / BITS_PER_UNIT;
+  return exact_log2 (align);
+
 }
 
 /* Check if the interrupt attribute is set for a function. If it is, return
@@ -15875,7 +16580,6 @@ mchp_handle_interrupt_pragma (struct cpp_reader *pfile ATTRIBUTE_UNUSED)
     }
 }
 
-
 /* Called when a decl is being created.
 
    This allows us to add attributes based on pragmas or other target
@@ -15928,8 +16632,6 @@ mchp_target_insert_attributes (tree decl, tree *attr_ptr)
         }
     }
 }
-
-
 
 /* Callback when an interrupt attribute is recognized. 'node' points
    to the node to which the attribute is applied (which may not be a DECL).
@@ -16004,6 +16706,7 @@ mchp_at_vector_attribute (tree *node, tree name ATTRIBUTE_UNUSED, tree args,
       (int)TREE_INT_CST_LOW (TREE_VALUE (args)) < 0 ||
       (int)TREE_INT_CST_LOW (TREE_VALUE (args)) > 63)
     {
+    printf ("\nTree arg is %s\n", (char*)TREE_STRING_POINTER (TREE_VALUE (args)));
     *no_add_attrs = 1;
 
     error ("IRQ number must be an integer between 0 and 63");
@@ -16033,6 +16736,7 @@ mchp_vector_attribute (tree *node, tree name ATTRIBUTE_UNUSED, tree args,
     int flags ATTRIBUTE_UNUSED, bool *no_add_attrs)
 {
   tree decl = *node;
+    unsigned int subexpr;
   /* If this attribute isn't on the actual function declaration, we
      ignore it */
   if (TREE_CODE (decl) != FUNCTION_DECL)
@@ -16043,25 +16747,69 @@ mchp_vector_attribute (tree *node, tree name ATTRIBUTE_UNUSED, tree args,
   assert (args);
   while (args)
     {
-      /* The argument must be an integer constant between 0 and 63 */
-      if (TREE_CODE (TREE_VALUE (args)) != INTEGER_CST ||
-         (int)TREE_INT_CST_LOW (TREE_VALUE (args)) < 0 ||
-         (int)TREE_INT_CST_LOW (TREE_VALUE (args)) > 63)
+      if (TREE_CODE (TREE_VALUE (args)) == INTEGER_CST)
         {
-          *no_add_attrs = 1;
+            /* The argument must be an integer constant between 0 and 63 */
+            if ((int)TREE_INT_CST_LOW (TREE_VALUE (args)) < 0 ||
+              (int)TREE_INT_CST_LOW (TREE_VALUE (args)) > 63)
+              {
+                *no_add_attrs = 1;
 
-          error ("IRQ number must be an integer between 0 and 63");
-          return NULL_TREE;
+                error ("Vector number must be an integer between 0 and 63");
+                return NULL_TREE;
+              }
+            /* add the vector to the list of dispatch functions to emit */
+            mchp_add_vector_dispatch_entry (
+                IDENTIFIER_POINTER (DECL_NAME (*node)),
+                (int)TREE_INT_CST_LOW (TREE_VALUE (args)));
         }
-      /* add the vector to the list of dispatch functions to emit */
-      mchp_add_vector_dispatch_entry (
-          IDENTIFIER_POINTER (DECL_NAME (*node)),
-          (int)TREE_INT_CST_LOW (TREE_VALUE (args)));
-
+      else
+        {
+          if (TREE_CODE (TREE_VALUE (args)) == COMPOUND_EXPR)
+            {
+              mchp_vector_attribute_compound_expr (node, TREE_VALUE(args),
+                                                   no_add_attrs);
+            }
+        }
       args = TREE_CHAIN (args);
     }
 
   return NULL_TREE;
+}
+
+/* Handles compound expressions within the vector attribute list. 
+   Called from mchp_vector_attribute(). */
+static int
+mchp_vector_attribute_compound_expr (tree *node, tree expr, 
+                                     bool *no_add_attrs)
+{
+  int len = 0;
+
+  if (expr == NULL_TREE)
+    return 0;
+  for (; TREE_CODE (expr) == COMPOUND_EXPR; expr = TREE_OPERAND (expr, 1))
+    {
+      len += mchp_vector_attribute_compound_expr (node, TREE_OPERAND (expr, 0), 
+                                                  no_add_attrs);
+    }
+  if (TREE_CODE (expr) == INTEGER_CST)
+    {
+      /* The argument must be an integer constant between 0 and 63 */
+      if ((int)TREE_INT_CST_LOW (expr) < 0 ||
+          (int)TREE_INT_CST_LOW (expr) > 63)
+        {
+          *no_add_attrs = 1;
+
+          error ("Vector number must be an integer between 0 and 63");
+          return 0;
+        }
+      /* add the vector to the list of dispatch functions to emit */
+      mchp_add_vector_dispatch_entry (
+        IDENTIFIER_POINTER (DECL_NAME (*node)),
+        (int)TREE_INT_CST_LOW (expr));
+    }
+  ++len;
+  return len;
 }
 
 /* Returns true if regno is a register ordinarilly not callee saved which
@@ -16070,7 +16818,7 @@ static int
 mchp_register_interrupt_context_p (unsigned regno)
 {
   /* return true for v0, v1, a0-a3, t0-t9 and ra */
-  if ((regno >= 2 && regno <= 15) /* v0, v1, a0-a3, t0-t7 */
+  if ((regno >= 1 && regno <= 15) /* v0, v1, a0-a3, t0-t7 */
       || regno == 24 /* t8 */
       || regno == 25 /* t9 */
       || regno == 31) /* ra */
@@ -16105,3 +16853,4 @@ mchp_function_naked_p (tree func)
 }
 
 #include "gt-mips.h"
+

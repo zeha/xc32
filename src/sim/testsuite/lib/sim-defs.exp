@@ -330,7 +330,11 @@ proc run_sim_test { name requested_machs } {
 	    set options "$options timeout=$opts(timeout)"
 	}
 
-	set result [sim_run ${name}.x "$opts(sim,$mach) $global_sim_options" "" "" "$options"]
+	if {[board_info target exists sim]} {
+	    set result [sim_run ${name}.x "$opts(sim,$mach) $global_sim_options" "" "" "$options"]
+	} else {
+	    set result [remote_load target ${name}.x $options ""]
+	}
 	set status [lindex $result 0]
 	set output [lindex $result 1]
 

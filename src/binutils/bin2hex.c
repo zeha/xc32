@@ -44,8 +44,7 @@ static int verbose = 0;
 static int sort_by_address = 0;
 static struct section_list *outputs;
 static int physical_addresses = 1;
-/* FIXME:  After A0, we should default to 0 for A0 address mapping */
-static int a0_address_mapping = 1;
+static int a0_address_mapping = 0;
 static int show_usage = 0;
 
 static struct option long_options[] =
@@ -182,9 +181,11 @@ usage (FILE *stream, int status)
            "  -a, --sort         sort sections by address\n"
            "  -i, --virtual      use virtual addresses\n"
            "  -p, --physical     use physical addresses (default)\n"
-           /* FIXME:  After A0, we should default to standard address mapping */
-           "  -0, --a0-mapping   use A0 address mapping (default)\n"
-           "  -s, --std-mapping  use standard address mapping\n"
+#ifdef PIC32_SHOW_A0MAPPINGOPTION
+           /* After A0, we default to standard address mapping */
+           "  -0, --a0-mapping   use A0 address mapping\n"
+           "  -s, --std-mapping  use standard address mapping (default)\n"
+#endif
            "  -v, --verbose      print verbose messages\n"
            "  -?, --help         print this screen\n",
            program_name);

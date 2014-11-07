@@ -1,4 +1,4 @@
-// { dg-do run  }
+// { dg-do compile  }
 // { dg-options "-Wno-pmf-conversions" }
 // prms-id: 10769
 

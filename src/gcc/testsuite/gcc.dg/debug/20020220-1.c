@@ -3,6 +3,7 @@
    constant -4.0 in constant pool was never referenced by anything
    but Dwarf-2 location descriptor.  */
 /* { dg-do run } */
+/* { dg-skip-if "Stabs+ debugging breaks with garbage collected function sections" "mips*-sde-elf" "-gstabs+ -gstabs+1 -gstabs+3" ""  } */
 
 void __attribute__((noinline))
 foo (const char *x __attribute__((unused)),

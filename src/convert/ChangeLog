@@ -1,3 +1,8 @@
+2006-10-19  Laurence Darby  <ldarby@mips.com>
+
+	* convert.c (main): according to docs, -a is for use with -p, does
+	not necessarily imply -p
+	
 2004-10-08  Nigel Stephens  <nigel@mips.com>
 
 	* elfout.c (ElfEnd): Use ehdr.e_phnum to calculate offset of

@@ -2,6 +2,7 @@
 /* { dg-options "-mips16" } */
 /* { dg-final { scan-assembler "rdata" } } */
 /* { dg-final { scan-assembler "lw" } } */
+/* { dg-skip-if "Unsupported test" "mips*-sde-elf" "-G0" "" } */
 
 #if defined(__mips16)
 

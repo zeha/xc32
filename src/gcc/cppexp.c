@@ -164,6 +164,23 @@ cpp_classify_number (cpp_reader *pfile, const cpp_token *token)
       radix = 8;
       str++;
 
+#if !defined(_SKIP_BINARY_CONSTANT)
+#define	ISBDIGIT(c)	(ISDIGIT(c) && (((c)=='0') || ((c)=='1')))
+      /*
+      ** Require at least one binary digit to classify it as binary.
+      */
+      if (((*str == 'b') || (*str == 'B')) && ISBDIGIT(str[1]))
+      {
+	  radix = 2;
+	  str++;
+          if (CPP_OPTION(pfile, std) || CPP_OPTION(pfile, pedantic))
+          {
+	    cpp_error(pfile, CPP_DL_WARNING, "use of Microchip binary prefix");
+          }
+      }
+      else
+#endif
+
       /* Require at least one hex digit to classify it as hex.  */
       if ((*str == 'x' || *str == 'X')
 	  && (str[1] == '.' || ISXDIGIT (str[1])))
@@ -209,7 +226,16 @@ cpp_classify_number (cpp_reader *pfile, const cpp_token *token)
     radix = 10;
 
   if (max_digit >= radix)
+#if !defined(_SKIP_BINARY_CONSTANT)
+  {
+    if (radix == 2)
+      SYNTAX_ERROR2("invalid digit \"%c\" in binary constant", '0' + max_digit);
+    else
+#endif
     SYNTAX_ERROR2 ("invalid digit \"%c\" in octal constant", '0' + max_digit);
+#if !defined(_SKIP_BINARY_CONSTANT)
+  }
+#endif
 
   if (float_flag != NOT_FLOAT)
     {
@@ -293,6 +319,10 @@ cpp_classify_number (cpp_reader *pfile, const cpp_token *token)
     result |= CPP_N_DECIMAL;
   else if (radix == 16)
     result |= CPP_N_HEX;
+#if !defined(_SKIP_BINARY_CONSTANT)
+  else if (radix == 2)
+    result |= CPP_N_BINARY;
+#endif
   else
     result |= CPP_N_OCTAL;
 
@@ -338,6 +368,13 @@ cpp_interpret_integer (cpp_reader *pfile, const cpp_token *token,
 	  base = 8;
 	  p++;
 	}
+#if !defined(_SKIP_BINARY_CONSTANT)
+      else if ((type & CPP_N_RADIX) == CPP_N_BINARY)
+      {
+	  base = 2;
+	  p += 2;
+      }
+#endif
       else if ((type & CPP_N_RADIX) == CPP_N_HEX)
 	{
 	  base = 16;
@@ -404,6 +441,15 @@ append_digit (cpp_num num, int digit, int base, size_t precision)
 
   /* Multiply by 8 or 16.  Catching this overflow here means we don't
      need to worry about add_high overflowing.  */
+#if !defined(_SKIP_BINARY_CONSTANT)
+  if (base == 2)
+  {
+    /*
+    ** Multiply by 2 for binary base.
+    */
+    shift = 1;
+  }
+#endif
   overflow = !!(num.high >> (PART_PRECISION - shift));
   result.high = num.high << shift;
   result.low = num.low << shift;

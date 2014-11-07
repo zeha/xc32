@@ -1,6 +1,9 @@
 /* { dg-do compile { target mips*-sde-* } } */
 /* { dg-options "-O" } */
 
+/* FIXME: -mips64 is not yet supported for this test. */
+/* { dg-skip-if "Unsupported test" "mips*-sde-elf" "-mips64" "" } */
+
 typedef char v4i8 __attribute__((vector_size(4)));
 typedef union {v4i8 a;char b[4];} v4i8_union;
 typedef char v8i8 __attribute__((vector_size(8)));

@@ -36,12 +36,22 @@ proc run_hilo_test {testfile models nops} {
 # board really is a simulator (sim tests don't work on real HW).
 if {[istarget mips*-elf] && [board_info target exists is_simulator]} {
 
+    set is_gnusim [board_info target exists sim]
+
     if {[istarget mipsisa64sb1*-elf]} {
 	set models "sb1"
 	set submodels "mips1 mips2 mips3 mips4 mips32 mips64"
     } elseif {[istarget mipsisa64*-elf]} {
 	set models "mips32 mips64 mips32r2 mips64r2"
 	set submodels "mips1 mips2 mips3 mips4"
+    } elseif {[istarget mips*-sde-elf*]} {
+        if {$is_gnusim} {
+ 	    set models "mips32 mips64 mips32r2 mips64r2"
+ 	    set submodels ""
+ 	} else {
+ 	    set models "mips32 mips32r2"
+ 	    set submodels ""
+ 	}
     } elseif {[istarget mipsisa32*-elf]} {
 	set models "mips32 mips32r2"
 	set submodels "mips1 mips2"
@@ -59,18 +69,24 @@ if {[istarget mips*-elf] && [board_info target exists is_simulator]} {
     append submodels " " $models
     set cpu_option -march
 
-    run_sim_test sanity.s $submodels
-    foreach nops {0 1} {
-	run_hilo_test hilo-hazard-1.s $models $nops
-	run_hilo_test hilo-hazard-2.s $models $nops
+    if {$is_gnusim} {
+	run_sim_test sanity.s $submodels
+	foreach nops {0 1} {
+	    run_hilo_test hilo-hazard-1.s $models $nops
+	    run_hilo_test hilo-hazard-2.s $models $nops
+	}
+	run_hilo_test hilo-hazard-3.s $models 2
+
+      run_sim_test fpu64-ps.s $submodels
+      run_sim_test fpu64-ps-sb1.s $submodels
+
+      run_sim_test mdmx-ob.s $submodels
+      run_sim_test mdmx-ob-sb1.s $submodels
+
+      run_sim_test mips32-dsp.s $models
+      run_sim_test mips32-dsp2.s $models
+    } else {
+	run_sim_test mips32-dsp.mipssim.s $models
+	run_sim_test mips32-dsp2.mipssim.s $models
     }
-    run_hilo_test hilo-hazard-3.s $models 2
-
-    run_sim_test fpu64-ps.s $submodels
-    run_sim_test fpu64-ps-sb1.s $submodels
-
-    run_sim_test mdmx-ob.s $submodels
-    run_sim_test mdmx-ob-sb1.s $submodels
-
-    run_sim_test mips32-dsp.s $models
 }

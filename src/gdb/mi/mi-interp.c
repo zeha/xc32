@@ -122,6 +122,7 @@ mi_interpreter_resume (void *data)
   gdb_stdlog = mi->log;
   /* Route target output through the MI. */
   gdb_stdtarg = mi->targ;
+  gdb_stdtargerr = mi->targ;
 
   /* Replace all the hooks that we know about.  There really needs to
      be a better way of doing this... */

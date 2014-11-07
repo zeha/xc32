@@ -1,3 +1,45 @@
+2006-10-31  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-dbg-vpe]
+	* configure.in: Support SDE-specific tests.
+	* configure: Regenerate.
+	* gdb.sde/Makefile.in: New file.
+	* gdb.sde/configure.in: Likewise.
+	* gdb.sde/configure: Likewise.
+	* gdb.sde/mdi-team.exp: New test for MDI teams.
+	* gdb.sde/mdi-team.c: Source code to use for the test.
+
+2006-09-21  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-mips16e-nodataincode]
+	* gdb.base/maint.exp: Fix escaping of dots.
+
+2006-09-18  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-fix-scope]
+	* gdb.mi/mi-watch.exp (test_watchpoint_all): New function.
+	Move all the tests here and run them twice, once using software
+	watchpoints and once using hardware watchpoints.
+	* gdb.mi/mi2-watch.exp (test_watchpoint_all): Likewise.
+
+2006-09-13  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-fix-print-threads]
+	* gdb.threads/print-threads.exp: Accept possible additional
+	debugging information when setting a breakpoint on kill().
+
+2006-09-07  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-mips16e-nodataincode]
+	* gdb.base/maint.exp: Match the dot in .bss, .data and .text
+	section names literally.
+
+2006-05-25  Maciej W. Rozycki  <macro@mips.com>
+
+	[mti-dbg-vpe]
+	* gdb.threads/watchthreads.c (flag): New variable.
+	(thread_function): Synchronize the threads.
+
 2006-05-16  Maciej W. Rozycki  <macro@mips.com>
 
 	[mti-dbg-vpe]

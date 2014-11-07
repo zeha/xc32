@@ -1,0 +1,170 @@
+Index: mips.c
+===================================================================
+--- mips.c	(revision 1247)
++++ mips.c	(revision 1249)
+@@ -345,8 +345,6 @@
+     tree args, int flags, bool *no_add_attrs);
+ static tree mchp_vector_attribute (tree *decl, tree identifier, tree args,
+     int flags, bool *no_add_attrs);
+-static int mchp_vector_attribute_compound_expr (tree *node, tree expr, 
+-    bool *no_add_attrs);
+ static int mchp_register_interrupt_context_p (unsigned regno);
+ 
+ /* Structure to be filled in by compute_frame_size with register
+@@ -5780,9 +5778,15 @@
+ 
+   mips_set_mips16_mode (SYMBOL_REF_MIPS16_P (XEXP (DECL_RTL (fndecl), 0)));
+ 
+-  /* If we're in MIPS16[e] mode for an interrupt function, that's an error */
++#ifdef TARGET_MCHP_PIC32MX
++  /* If we're in MIPS16[e] mode for an interrupt function, that's a warning. */
+   if (mchp_function_interrupt_p (fndecl) && TARGET_MIPS16)
+-    error ("interrupt handler functions cannot be mips16");
++    {
++      warning ("interrupt handler functions cannot be mips16, "
++               "assuming nomips16 attribute");
++      mips_set_mips16_mode (0);
++    }
++#endif
+ }
+ 
+ 
+@@ -5794,10 +5798,12 @@
+ {
+   int i, start;
+ 
++#ifdef TARGET_MCHP_PIC32MX
+   if (profile_flag == 1) 
+     {
+       warning ("-p not supported.");
+     }
++#endif
+       
+   /* Make sure that the user didn't turn off MIPS16 support when
+      MIPS16E support is requested.  */
+@@ -15679,7 +15685,7 @@
+       ((int)TREE_INT_CST_LOW (tok_value) < 0 ||
+        (int)TREE_INT_CST_LOW (tok_value) > 63))
+     {
+-      error ("IRQ number must be an integer between 0 and 63");
++      error ("Vector number must be an integer between 0 and 63");
+       return;
+     }
+   /* add the vector to the list of dispatch functions to emit */
+@@ -15801,7 +15807,7 @@
+           ((int)TREE_INT_CST_LOW (tok_value) < 0 ||
+            (int)TREE_INT_CST_LOW (tok_value) > 63))
+         {
+-          error ("IRQ number must be an integer between 0 and 63");
++          error ("Vector number must be an integer between 0 and 63");
+           return;
+         }
+       /* if this is a "single" handler, the only valid vector is zero */
+@@ -15921,7 +15927,6 @@
+ }
+ 
+ 
+-
+ /* Callback when an interrupt attribute is recognized. 'node' points
+    to the node to which the attribute is applied (which may not be a DECL).
+    If it is a decl, we modify in place, otherwise we need to create a copy
+@@ -15995,10 +16000,9 @@
+       (int)TREE_INT_CST_LOW (TREE_VALUE (args)) < 0 ||
+       (int)TREE_INT_CST_LOW (TREE_VALUE (args)) > 63)
+     {
+-    printf ("\nTree arg is %s\n", (char*)TREE_STRING_POINTER (TREE_VALUE (args)));
+     *no_add_attrs = 1;
+ 
+-    error ("IRQ number must be an integer between 0 and 63");
++    error ("Vector number must be an integer between 0 and 63");
+     return NULL_TREE;
+     }
+   /* now mark the decl as going into the section for the indicated vector */
+@@ -16025,7 +16029,6 @@
+     int flags ATTRIBUTE_UNUSED, bool *no_add_attrs)
+ {
+   tree decl = *node;
+-    unsigned int subexpr;
+   /* If this attribute isn't on the actual function declaration, we
+      ignore it */
+   if (TREE_CODE (decl) != FUNCTION_DECL)
+@@ -16036,69 +16039,25 @@
+   assert (args);
+   while (args)
+     {
+-      if (TREE_CODE (TREE_VALUE (args)) == INTEGER_CST)
+-        {
+-            /* The argument must be an integer constant between 0 and 63 */
+-            if ((int)TREE_INT_CST_LOW (TREE_VALUE (args)) < 0 ||
+-              (int)TREE_INT_CST_LOW (TREE_VALUE (args)) > 63)
+-              {
+-                *no_add_attrs = 1;
+-
+-                error ("Vector number must be an integer between 0 and 63");
+-                return NULL_TREE;
+-              }
+-            /* add the vector to the list of dispatch functions to emit */
+-            mchp_add_vector_dispatch_entry (
+-                IDENTIFIER_POINTER (DECL_NAME (*node)),
+-                (int)TREE_INT_CST_LOW (TREE_VALUE (args)));
+-        }
+-      else
+-        {
+-          if (TREE_CODE (TREE_VALUE (args)) == COMPOUND_EXPR)
+-            {
+-              mchp_vector_attribute_compound_expr (node, TREE_VALUE(args),
+-                                                   no_add_attrs);
+-            }
+-        }
+-      args = TREE_CHAIN (args);
+-    }
+-
+-  return NULL_TREE;
+-}
+-
+-/* Handles compound expressions within the vector attribute list. 
+-   Called from mchp_vector_attribute(). */
+-static int
+-mchp_vector_attribute_compound_expr (tree *node, tree expr, 
+-                                     bool *no_add_attrs)
+-{
+-  int len = 0;
+-
+-  if (expr == NULL_TREE)
+-    return 0;
+-  for (; TREE_CODE (expr) == COMPOUND_EXPR; expr = TREE_OPERAND (expr, 1))
+-    {
+-      len += mchp_vector_attribute_compound_expr (node, TREE_OPERAND (expr, 0), 
+-                                                  no_add_attrs);
+-    }
+-  if (TREE_CODE (expr) == INTEGER_CST)
+-    {
+       /* The argument must be an integer constant between 0 and 63 */
+-      if ((int)TREE_INT_CST_LOW (expr) < 0 ||
+-          (int)TREE_INT_CST_LOW (expr) > 63)
++      if (TREE_CODE (TREE_VALUE (args)) != INTEGER_CST ||
++         (int)TREE_INT_CST_LOW (TREE_VALUE (args)) < 0 ||
++         (int)TREE_INT_CST_LOW (TREE_VALUE (args)) > 63)
+         {
+           *no_add_attrs = 1;
+ 
+           error ("Vector number must be an integer between 0 and 63");
+-          return 0;
++          return NULL_TREE;
+         }
+       /* add the vector to the list of dispatch functions to emit */
+       mchp_add_vector_dispatch_entry (
+-        IDENTIFIER_POINTER (DECL_NAME (*node)),
+-        (int)TREE_INT_CST_LOW (expr));
++          IDENTIFIER_POINTER (DECL_NAME (*node)),
++          (int)TREE_INT_CST_LOW (TREE_VALUE (args)));
++
++      args = TREE_CHAIN (args);
+     }
+-  ++len;
+-  return len;
++
++  return NULL_TREE;
+ }
+ 
+ /* Returns true if regno is a register ordinarilly not callee saved which

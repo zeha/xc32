@@ -1,7 +1,7 @@
 /* { dg-do run } */
 /* { dg-options "-O2 -fpic" } */
 /* { dg-xfail-if "PIC not supported for MIPS16" "mips*-*-*" { "-mips16" "-mips16e" } "" } */
-/* { dg-xfail-if "PIC not supported" "mips*-*-elf" "*" "" } */
+/* { dg-skip-if  "PIC not supported" "mips*-sde-elf" "*" "" } */
 
 extern void abort (void);
 extern void exit (int);

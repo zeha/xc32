@@ -106,7 +106,6 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 
 extern int size_directive_output;
 extern tree last_assemble_variable_decl;
-
 extern void reg_alloc (void);
 
 static void general_init (const char *);
@@ -3839,13 +3838,15 @@ set_target_switch (const char *name)
   size_t j;
   int valid_target_option = 0;
 
+
   for (j = 0; j < ARRAY_SIZE (target_switches); j++)
     if (!strcmp (target_switches[j].name, name))
       {
 	if (target_switches[j].value < 0)
 	  target_flags &= ~-target_switches[j].value;
-	else
+	else {
 	  target_flags |= target_switches[j].value;
+	}
 	if (name[0] != 0)
 	  {
 	    if (target_switches[j].value < 0)
@@ -3873,6 +3874,13 @@ set_target_switch (const char *name)
 	  {
 	    if (!strncmp (target_options[j].prefix, name, len))
 	      {
+#if TARGET_MCHP_PIC32MX 
+		if (!strncmp (target_options[j].prefix, "processor=", len)) {
+		  if (*target_options[j].variable) {
+		    error("Cannot specify -mprocessor option twice. %s", name);
+		  }
+		}
+#endif
 		*target_options[j].variable = name + len;
 		valid_target_option = 1;
 	      }

@@ -1,7 +1,7 @@
 /* { dg-do run } */
 /* { dg-options "-O2 -fpic" } */
 /* { dg-warning "not supported" "PIC unsupported" { target cris-*-elf* cris-*-aout* mmix-*-* } 0 } */
-/* { dg-xfail-if "PIC not supported" "mips*-*-elf" "*" "" } */
+/* { dg-skip-if "PIC not supported" "mips*-*-elf" "*" "" } */
 
 extern void abort (void);
 extern void exit (int);

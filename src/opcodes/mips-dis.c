@@ -196,6 +196,7 @@ static const struct mips_cp0sel_name mips_cp0sel_names_mips3264r2[] = {
   {  1, 4, "c0_yqmask"          },
   {  1, 5, "c0_vpeschedule"     },
   {  1, 6, "c0_vpeschefback"    },
+  {  1, 7, "c0_vpeopt"    	},
   {  2, 1, "c0_tcstatus"	},
   {  2, 2, "c0_tcbind"          },
   {  2, 3, "c0_tcrestart"       },
@@ -861,6 +862,11 @@ print_insn_args (d, l, pc, info, opp)
 	  if (delta & 0x40) /* test sign bit */
 	    delta |= ~0x7f;
 	  (*info->fprintf_func) (info->stream, "%d", delta);
+	  break;
+
+	case '2':
+	  (*info->fprintf_func) (info->stream, "0x%x",
+				 (l >> OP_SH_BP) & OP_MASK_BP);
 	  break;
 
 	case '3':

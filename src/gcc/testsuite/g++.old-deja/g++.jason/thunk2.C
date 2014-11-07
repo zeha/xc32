@@ -1,7 +1,7 @@
 // { dg-do run }
 // { dg-options "-fPIC" }
 // { dg-xfail-if "PIC not supported for MIPS16" "mips*-*-*" { "-mips16" "-mips16e" } "" }
-// { dg-xfail-if "PIC not supported" "mips*-*-elf" "*" "" }
+// { dg-skip-if "PIC not supported" "mips*-*-elf" "*" "" }
 
 // Test that non-variadic function calls using thunks and PIC work right.
 

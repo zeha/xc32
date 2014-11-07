@@ -1,3 +1,29 @@
+2007-04-12  Thiemo Seufer  <ths@mips.com>
+
+	[ths-sim-mipssimtests]
+	* mips32-dsp2.mipssim.s: Use -mdsp for DSPr2 in SDE6.
+
+2007-04-12  Thiemo Seufer  <ths@mips.com>
+
+	[ths-sim-mipssimtests]
+	* mips32-dsp.mipssim.s, mips32-dsp2.mipssim.s: Delete invalid
+	header line.
+
+2007-04-05  Thiemo Seufer  <ths@mips.com>
+
+	[ths-sim-mipssimtests]
+	* basic.exp: Run dsp tests for mipssim.
+	* mips32-dsp.mipssim.s, mips32-dsp2.mipssim.s: New files, DSP
+	testcases adapted for mipssim.
+	* testutils.mipssim.inc: New file, testcase harness for mipssim.
+
+2006-12-18  Chao-ying Fu  <fu@mips.com>
+
+	[mti-dsp2-sim]
+	* basic.exp: Run the dsp2 test.
+	* utils-dsp.inc (dspckacc_astio, dspck_tsimm): New macro.
+	* mips32-dsp2.s: New test.
+
 2006-01-25  Chao-ying Fu  <fu@mips.com>
  
        [mti-dsp-sim]

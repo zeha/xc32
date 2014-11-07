@@ -9,8 +9,8 @@ void bar (void)
 }
 
 /* 1st parameter in $f12. ($4 if soft-float)
-/* { dg-final { if  [string match "sde-msim-*4k*c*" [target_info name] ] { scan-assembler "\$4*" } } } */
-/* { dg-final { if ![string match "sde-msim-*4k*c*" [target_info name] ] { scan-assembler "f12"  } } } */
+/* { dg-final { if  [string match "*soft-float*" [board_info [target_info name] multilib_flags] ] { scan-assembler "\$4*" } } } */
+/* { dg-final { if ![string match "*soft-float*" [board_info [target_info name] multilib_flags] ] { scan-assembler "f12"  } } } */
 
 /* 2nd parameter in $f14, except for -mips64. ($5 if soft-float) */
 /* { dg-final { if  [string match "sde-msim-*4k*c*" [target_info name] ] { scan-assembler "\$5*" } } } */

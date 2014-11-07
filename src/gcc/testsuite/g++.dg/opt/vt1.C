@@ -1,6 +1,7 @@
 // Test whether vtable for S is not put into read-only section.
 // { dg-do compile }
 // { dg-options "-O2 -fpic -fno-rtti" }
+// { dg-skip-if "PIC not supported" "mips*-*-elf" "*" "" }
 // Origin: Jakub Jelinek <jakub@redhat.com>
 
 struct S

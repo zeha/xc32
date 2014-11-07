@@ -1,3 +1,10 @@
+2007-04-05  Thiemo Seufer  <ths@mips.com>
+
+	[ths-sim-mipssimtests]
+	* lib/sim-defs.exp (run_sim_test): Specialcase mipssim runs.
+
+-----------------------------------------------------------------------
+
 2005-01-11  Andrew Cagney  <cagney@localhost.localdomain>
 
 	* configure: Regenerated to track ../common/aclocal.m4 changes.

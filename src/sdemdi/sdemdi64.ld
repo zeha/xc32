@@ -8,6 +8,7 @@ SEARCH_DIR(.);
 SECTIONS
 {
   PROVIDE (_ebase  =  0x80000000);
+  PROVIDE (_smtc  =  _smtc_disable);
   PROVIDE (_vpe  =  _vpe_disable);
   /* Something (YAMON?) must have initialised the memory
      controller before we try to load to RAM. */

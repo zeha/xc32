@@ -1,3 +1,100 @@
+2006-10-11  Thiemo Seufer  <ths@mips.com>
+
+	* elflink.c (bfd_elf_gc_sections): Fix a stupid bug, and disable
+	a broken check acquired from upstream.
+
+2006-10-10  Thiemo Seufer  <ths@mips.com>
+
+	* section.c (asection): Add gc_mark_from_eh.
+	(STD_SECTION): Initialise gc_mark_from_eh.
+	* bfd-in2.h: Regenerate.
+	* elflink.c (_bfd_elf_gc_mark): Only exclude EH frame references
+	from garbage collection.
+
+2006-10-09  Thiemo Seufer  <ths@mips.com>
+
+	* elflink.c (bfd_elf_gc_sections): Don't garbage collect
+	.gcc_except_table.* if it is referenced by .text.*, backport
+	from upstream.
+
+2006-10-06  Thiemo Seufer  <ths@mips.com>
+
+	* elfxx-mips.c (_bfd_mips_elf_check_relocs): SEC_KEEP also
+	stubs for static functions.
+
+2006-10-04  Thiemo Seufer  <ths@mips.com>
+
+	* elfxx-mips.c (mips_elf_check_mips16_stubs,
+	mips_elf_output_extsym): Revert all of the indirect symbol
+	handling changes.
+
+2006-10-03  Thiemo Seufer  <ths@mips.com>
+
+	* elfxx-mips.c (mips_elf_sort_hash_table_f): Partially revert.
+
+2006-10-03  Thiemo Seufer  <ths@mips.com>
+
+	* elfxx-mips.c (mips_elf_calculate_relocation): Tighten test for
+	32-bit calls.
+	(_bfd_mips_elf_check_relocs): Likewise.  Discard superfluous fn
+	stubs.  Remove redundant test for STO_MIPS16 targets.
+
+2006-10-03  Thiemo Seufer  <ths@mips.com>
+
+	* elfxx-mips.c (mips_elf_check_mips16_stubs,
+	_bfd_mips_elf_check_relocs): Handle SEC_KEEP.
+	(_bfd_mips_elf_gc_mark_hook): Remove comment.
+
+2006-10-03  Thiemo Seufer  <ths@mips.com>
+
+	* elfxx-mips.c (mips_elf_check_mips16_stubs,
+	mips_elf_calculate_relocation, _bfd_mips_elf_add_symbol_hook,
+	_bfd_mips_elf_link_output_symbol_hook,
+	_bfd_mips_elf_finish_dynamic_symbol): Preserve visibility
+	attributes.
+
+2006-10-03  Thiemo Seufer  <ths@mips.com>
+
+	* elfxx-mips.c (mips_elf_check_mips16_stubs,
+	mips_elf_output_extsym, mips_elf_sort_hash_table_f): Handle
+	indirect symbols consistently.
+
+2006-10-03  Thiemo Seufer  <ths@mips.com>
+
+	* elfxx-mips.c (mips_elf_link_hash_entry): Rename need_fn_stub
+	to maybe_need_fn_stub.
+	(mips16_stub_section_p): Renamed from mips_elf_stub_section_p.
+	(FN_STUB_P, CALL_STUB_P, CALL_FP_STUB_P): New macros.
+	(mips_elf_link_hash_newfunc, mips_elf_calculate_relocation,
+	mips16_stub_section_p, _bfd_mips_elf_check_relocs,
+	_bfd_mips_elf_relocate_section): Use renamed versions and new
+	macros.
+	(_bfd_mips_elf_merge_private_bfd_data): Silence compile warning.
+
+2006-09-25  Thiemo Seufer  <ths@mips.com>
+
+	* elfxx-mips.c (mips_elf_check_mips16_stubs): Fix typo in comment.
+	(_bfd_mips_elf_check_relocs): Use mips_elf_stub_section_p.
+
+2006-07-25  Thiemo Seufer  <ths@mips.com>
+
+	[mti-uk-bugzilla-409]
+	* elf32-mips.c (mips16_jump_reloc): Remove function.
+	* elf64-mips.c (mips16_jump_reloc): Likewise.
+	(mips16_elf64_howto_table_rel, mips16_elf64_howto_table_rela):
+	Use _bfd_mips_elf_generic_reloc instead of mips16_jump_reloc.
+	* elfn32-mips.c (mips16_jump_reloc): Remove function.
+	(elf_mips_howto_table_rel, elf_mips_howto_table_rela): Use
+	_bfd_mips_elf_generic_reloc instead of mips16_jump_reloc.
+
+2006-07-12  Nigel Stephens  <nigel@mips.com>
+
+	[mti-uk-bugzilla-409]
+	* elf32-mips.c (elf_mips16_howto_table_rel): For R_MIPS16_26
+	relocs use _bfd_mips_elf_generic_reloc(), now that it handles
+	mips16 shuffling/unshuffling - instead of using the special
+	mips16_jump_reloc() function. 
+
 2006-03-08  David Ung  <davidu@mips.com>
 
 	[mti-mips16-intermix-callstub]

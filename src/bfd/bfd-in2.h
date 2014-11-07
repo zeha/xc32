@@ -1252,6 +1252,7 @@ typedef struct bfd_section
 
   /* A mark flag used by some linker backends for garbage collection.  */
   unsigned int gc_mark : 1;
+  unsigned int gc_mark_from_eh : 1;
 
   /* The following flags are used by the ELF linker. */
 

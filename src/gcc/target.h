@@ -425,7 +425,7 @@ struct gcc_target
 
   /* Decide if an automatic peudo register would be better off residing in
      memory instead.  */
-  bool (* spill_auto_register) (tree);
+  bool (* spill_auto_register) (tree, bool);
 
   /* Functions relating to calls - argument passing, returns, etc.  */
   struct calls {

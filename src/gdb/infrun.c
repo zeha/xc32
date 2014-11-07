@@ -2303,7 +2303,8 @@ process_event_stop_test:
       return;
     }
 
-  if (frame_id_eq (frame_unwind_id (get_current_frame ()), step_frame_id))
+  if (!frame_id_eq (get_frame_id (get_current_frame ()), step_frame_id)
+      && frame_id_eq (frame_unwind_id (get_current_frame ()), step_frame_id))
     {
       /* It's a subroutine call.  */
       CORE_ADDR real_stop_pc;

@@ -1229,6 +1229,9 @@ do {						\
 #define LABEL_PRESERVE_P(RTX)						\
   (RTL_FLAG_CHECK2("LABEL_PRESERVE_P", (RTX), CODE_LABEL, NOTE)->in_struct)
 
+/* 1 if RTX is a label_ref to a code_lab thats used as part of jump table.  */
+#define LABEL_REF_JUMP_TABLE_P(RTX) ((RTX)->unchanging)
+
 /* 1 if RTX is a reg that is used only in an exit test of a loop.  */
 #define REG_LOOP_TEST_P(RTX)						\
   (RTL_FLAG_CHECK1("REG_LOOP_TEST_P", (RTX), REG)->in_struct)

@@ -129,6 +129,7 @@ set ml "undefined.c:9: undefined reference to `*this_function_is_not_defined'"
 
 setup_xfail mcore-*-elf
 setup_xfail mips-sgi-irix6*
+setup_xfail mips*-*-elf
 setup_xfail "sh64-*-*"
 
 # The undefined test fails on 31 bit s/390 because the address of the 

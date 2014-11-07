@@ -168,6 +168,8 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  *
 #define OP_MASK_WRDSP		0x3f
 #define OP_SH_RDDSP		16
 #define OP_MASK_RDDSP		0x3f
+#define OP_SH_BP		11
+#define OP_MASK_BP		0x3
 
 /* MIPS MT ASE */
 #define OP_SH_MT_U              5
@@ -349,6 +351,7 @@ struct mips_opcode
    "@" 10 bit signed immediate (OP_*_IMM10)
    ":" 7 bit signed immediate (OP_*_DSPSFT_7)
    "'" 6 bit unsigned immediate (OP_*_RDDSP)
+   "2" 2 bit unsigned immediate for byte align (OP_*_BP)
 
    MT ASE usage:
    "!" 1 bit immediate at bit 5
@@ -373,7 +376,7 @@ struct mips_opcode
    "+"  Start of extension sequence.
 
    Characters used so far, for quick reference when adding more:
-   "   34567890"
+   "  234567890"
    "%[]<>(),+@!$*&:'"
    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
    "abcdefghijkl  opqrstuvwx z"
@@ -812,6 +815,7 @@ enum
   M_COP1,
   M_COP2,
   M_COP3,
+  M_BALIGN,
   M_NUM_MACROS
 };
 

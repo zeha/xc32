@@ -277,6 +277,7 @@ struct _sim_cpu {
 /* Flags in the "state" variable: */
 #define simHALTEX       (1 << 2)  /* 0 = run; 1 = halt on exception */
 #define simHALTIN       (1 << 3)  /* 0 = run; 1 = halt on interrupt */
+#define simSPRAM    	(1 << 6)  /* 1 = separate I&D SPRAM */
 #define simTRACE        (1 << 8)  /* 0 = do nothing; 1 = trace address activity */
 #define simPCOC0        (1 << 17) /* COC[1] from current */
 #define simPCOC1        (1 << 18) /* COC[1] from previous */

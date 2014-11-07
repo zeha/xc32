@@ -29,8 +29,12 @@
 	.rdata
 EXPORT(_mon_name)
 	.asciiz	"mdimon"
+
+	.balign	4
+EXPORTS(_smtc_disable, 4)
 EXPORTS(_vpe_disable, 4)
 	.word	0
+EXPORTS(_smtc_enable, 4)
 EXPORTS(_vpe_enable, 4)
 	.word	1
 
@@ -165,6 +169,8 @@ __reset:
 	and	t0,CFG3_MT
 	beqz	t0,4f
 
+	.set push
+	.set mt
 	dmt
 
 	/* Check if we want to have VPing activated */
@@ -336,6 +342,8 @@ __reset:
 	/* And wait */
 0:	wait
 	b	0b
+
+	.set pop
 #endif
 
 	/* Do initialise caches; the non-MT path */
@@ -387,9 +395,6 @@ _xcpt_end:
 
 
 #if XCP_RSIZE == 8
-# ifndef __mips64
-	.set gp64	/* force 64-bit register support */
-# endif
 # define lr	ld
 # define sr	sd
 # define rmfc0	dmfc0

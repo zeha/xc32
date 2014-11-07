@@ -97,6 +97,7 @@ IGEN_INCLUDE=\
 	$(srcdir)/m16e.igen \
 	$(srcdir)/mdmx.igen \
 	$(srcdir)/dsp.igen \
+	$(srcdir)/dsp2.igen \
 	$(srcdir)/mips3264r2.igen \
 	$(srcdir)/mips3d.igen \
 	$(srcdir)/sb1.igen \

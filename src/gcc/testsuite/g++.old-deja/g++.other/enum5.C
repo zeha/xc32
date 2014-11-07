@@ -1,4 +1,4 @@
-// { dg-do run }
+// { dg-do compile }
 // Copyright (C) 2001, 2003 Free Software Foundation, Inc.
 // Contributed by Ben Elliston <bje@redhat.com>
 

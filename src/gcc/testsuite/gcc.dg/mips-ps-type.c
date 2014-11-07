@@ -2,6 +2,8 @@
 /* { dg-do compile { target mips*-*-* } } */ 
 /* { dg-options "-O2 -mhard-float -mpaired-single -S" } */
 /* { dg-error "require 64-bit h/w floating point" "paired-single unsupported" { xfail "mips*-*-*" } 0 } */
+/* { dg-skip-if "-mpaired-single && -mips16 not supported" "mips*-sde-elf" "-mips16" "" } */
+/* { dg-skip-if "-mpaired-single needs 64-bit floating point support" "mips*-sde-elf" "-mips32" "" } */
 
 /* { dg-final { scan-assembler "cvt.ps.s" { xfail "mips*-*-*" } } } */
 /* { dg-final { scan-assembler "mov.ps" { xfail "mips*-*-*" } } } */

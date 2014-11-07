@@ -8509,6 +8509,7 @@ _bfd_elf_gc_mark (struct bfd_link_info *info,
 		  gc_mark_hook_fn gc_mark_hook)
 {
   bfd_boolean ret;
+  bfd_boolean is_eh;
   asection *group_sec;
 
   sec->gc_mark = 1;
@@ -8521,6 +8522,7 @@ _bfd_elf_gc_mark (struct bfd_link_info *info,
 
   /* Look through the section relocs.  */
   ret = TRUE;
+  is_eh = strcmp (sec->name, ".eh_frame") == 0;
   if ((sec->flags & SEC_RELOC) != 0 && sec->reloc_count > 0)
     {
       Elf_Internal_Rela *relstart, *rel, *relend;
@@ -8597,6 +8599,8 @@ _bfd_elf_gc_mark (struct bfd_link_info *info,
 	    {
 	      if (bfd_get_flavour (rsec->owner) != bfd_target_elf_flavour)
 		rsec->gc_mark = 1;
+	      else if (is_eh)
+		rsec->gc_mark_from_eh = 1;
 	      else if (!_bfd_elf_gc_mark (info, rsec, gc_mark_hook))
 		{
 		  ret = FALSE;
@@ -8853,8 +8857,9 @@ bfd_elf_gc_sections (bfd *abfd, struct bfd_link_info *info)
   asection * (*gc_mark_hook)
     (asection *, struct bfd_link_info *, Elf_Internal_Rela *,
      struct elf_link_hash_entry *h, Elf_Internal_Sym *);
+  const struct elf_backend_data *bed = get_elf_backend_data (abfd);
 
-  if (!get_elf_backend_data (abfd)->can_gc_sections
+  if (!bed->can_gc_sections
       || info->relocatable
       || info->emitrelocations
       || info->shared
@@ -8887,7 +8892,7 @@ bfd_elf_gc_sections (bfd *abfd, struct bfd_link_info *info)
     return FALSE;
 
   /* Grovel through relocs to find out who stays ...  */
-  gc_mark_hook = get_elf_backend_data (abfd)->gc_mark_hook;
+  gc_mark_hook = bed->gc_mark_hook;
   for (sub = info->input_bfds; sub != NULL; sub = sub->link_next)
     {
       asection *o;
@@ -8896,22 +8901,59 @@ bfd_elf_gc_sections (bfd *abfd, struct bfd_link_info *info)
 	continue;
 
       for (o = sub->sections; o != NULL; o = o->next)
-	{
-	  if (o->flags & SEC_KEEP)
-	    {
-	      /* _bfd_elf_discard_section_eh_frame knows how to discard
-		 orphaned FDEs so don't mark sections referenced by the
-		 EH frame section.  */  
-	      if (strcmp (o->name, ".eh_frame") == 0)
-		o->gc_mark = 1;
-	      else if (!_bfd_elf_gc_mark (info, o, gc_mark_hook))
-		return FALSE;
-	    }
-	}
+	if ((o->flags & SEC_KEEP) != 0 && !o->gc_mark)
+	  if (!_bfd_elf_gc_mark (info, o, gc_mark_hook))
+	    return FALSE;
+    }
+
+  /* ... again for sections marked from eh_frame.  */
+  for (sub = info->input_bfds; sub != NULL; sub = sub->link_next)
+    {
+      asection *o;
+
+      if (bfd_get_flavour (sub) != bfd_target_elf_flavour)
+	continue;
+
+      /* Keep .gcc_except_table.* if the associated .text.* is
+	 marked.  This isn't very nice, but the proper solution,
+	 splitting .eh_frame up and using comdat doesn't pan out
+	 easily due to needing special relocs to handle the
+	 difference of two symbols in separate sections.
+	 Don't keep code sections referenced by .eh_frame.  */
+#define TEXT_PREFIX			".text."
+#define GCC_EXCEPT_TABLE_PREFIX		".gcc_except_table."
+      for (o = sub->sections; o != NULL; o = o->next)
+	if (!o->gc_mark && o->gc_mark_from_eh /*&& (o->flags & SEC_CODE) == 0*/)
+	  {
+	    if (strncmp (o->name, GCC_EXCEPT_TABLE_PREFIX,
+			 sizeof (GCC_EXCEPT_TABLE_PREFIX) - 1) == 0)
+	      {
+		char *fn_name;
+		const char *sec_name;
+		asection *fn_text;
+		unsigned o_name_prefix_len  = strlen (GCC_EXCEPT_TABLE_PREFIX);
+		unsigned fn_name_prefix_len = strlen (TEXT_PREFIX);
+
+		sec_name = o->name + o_name_prefix_len;
+		fn_name = bfd_malloc (strlen (sec_name) + fn_name_prefix_len + 1);
+		if (fn_name == NULL)
+		  return FALSE;
+		sprintf (fn_name, "%s%s", TEXT_PREFIX, sec_name);
+		fn_text = bfd_get_section_by_name (sub, fn_name);
+		free (fn_name);
+		if (fn_text == NULL || !fn_text->gc_mark)
+		  continue;
+	      }
+
+	    /* If not using specially named exception table section,
+	       then keep whatever we are using.  */
+	    if (!_bfd_elf_gc_mark (info, o, gc_mark_hook))
+	      return FALSE;
+	  }
     }
 
   /* ... and mark SEC_EXCLUDE for those that go.  */
-  if (!elf_gc_sweep (info, get_elf_backend_data (abfd)->gc_sweep_hook))
+  if (!elf_gc_sweep (info, bed->gc_sweep_hook))
     return FALSE;
 
   return TRUE;

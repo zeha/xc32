@@ -1,12 +1,50 @@
+2007-01-05  David Ung  <davidu@mips.com>
+
+	[mti-mips16-nodataincode]
+	* m16.igen (ADDIUPC): Add detection for use of "addidpc" when
+	-mno-data-in-code is used.  
+	Note that the "addiupc" insn alone does not fault but the load
+	after does.  This hack assumes that the compiler always generates a
+	"addiupc/load" pairing.
+
+2006-12-18  Chao-ying Fu  <fu@mips.com>
+	
+	[mti-dsp2-sim]      
+	* Makefile.in (IGEN_INCLUDE): Add dsp2.igen.
+	* configure.ac (mips*-sde-elf*, mipsisa32r2*-*-*, mipsisa64r2*-*-*):
+	Add dsp2 to sim_igen_machine.
+	* configure: Regenerate.
+	* dsp.igen (do_ph_op): Add MUL support when op = 2.
+	(do_ph_mulq): New function to support mulq_rs.ph and mulq_s.ph.
+	(mulq_rs.ph): Use do_ph_mulq.
+	(MFHI, MFLO, MTHI, MTLO): Move these instructions to mips.igen.
+	* mips.igen: Add dsp2 model and include dsp2.igen.
+	(MFHI, MFLO, MTHI, MTLO): Extend these instructions for
+	for *mips32r2, *mips64r2, *dsp.
+	(MADD, MADDU, MSUB, MSUBU, MULT, MULTU): Extend these instructions
+	for *mips32r2, *mips64r2, *dsp2.
+	* dsp2.igen: New file for MIPS DSP REV 2 ASE.
+
+2006-06-28  David Ung  <davidu@mips.com>
+
+	[mti-mips16-nodataincode]
+	Ported simulator change from SDE5.
+	
+	Tue Oct 15 18:42:09 2002  Nigel Stephens  <nigel@mips.com>
+	* sim-main.h (simSPRAM): New flag.
+	* interp.c: Added --spram=on|off command line option.
+	* m16.igen: If --spram=on then throw an error if MIPS16 code
+ 	attempts to use a pc-relative add or load.
+	
 2006-01-25  Chao-ying Fu  <fu@mips.com>
 	
 	[mti-dsp-sim]      
-	dsp.igen (do_ph_shift, do_w_shra): Fix bugs for rounding instructions.
+	* dsp.igen (do_ph_shift, do_w_shra): Fix bugs for rounding instructions.
 
 2005-10-03  David Ung  <davidu@mips.com>
 
 	[mti-dsp-sim]      
-	dsp.igen: Put in the correct content for this file.
+	* dsp.igen: Put in the correct content for this file.
 	
 2005-10-03  Chao-ying Fu  <fu@mips.com>
 

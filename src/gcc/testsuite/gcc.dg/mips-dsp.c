@@ -1,5 +1,6 @@
 /* { dg-do run { target mips*-*-* } } */
 /* { dg-options "-O2" } */
+/* { dg-skip-if "DSP && -mips16 not supported" "mips*-sde-elf" "-mips16" "" } */
 
 #if __mips_dsp
 

@@ -1,6 +1,8 @@
 # The master script template file is found in
 # ${srcdir}/scripttempl/${SCRIPT_NAME}.sh
 SCRIPT_NAME=pic32mx
+TEMPLATE_NAME=elf32pic32mx
+EMULATION_NAME=elf32pic32mx
 
 # Whether this is an embedded system
 EMBEDDED=yes

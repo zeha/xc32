@@ -25,6 +25,16 @@ if ![is_elf_format] {
     return
 }
 
+# SDE defaults to -fno-common for MIPS16.
+if [board_info [target_info name] exists multilib_flags] {
+    set flags [board_info [target_info name] multilib_flags]
+    if [string match "*-mips16*" "$flags"] then {
+	if ![string match "*-fno-section-relative-addressing*" "$flags"] then {
+	    return
+	}
+    }
+}
+
 set test1	"size/aligment change of common symbols"
 set test1w1	"$test1 (warning 1)"
 set test1w2	"$test1 (warning 2)"

@@ -1,243 +1,139 @@
 #ident "sde/rtpxlite/rtpxstub.c: Copyright (c) MIPS Technologies, Inc. All rights reserved."
 
-#define SDEMDI_GLUE
-
-/*
- * [[MIPSTHREADS unpublished work copyright (c) MIPS Technologies, Inc.]]
- */
-
-
 /* 
- * Pthread stubs for pre-MIPSr2 implementations
+ * __sdethread stubs for pre-MIPSr2 implementations
  */
 
 #if __mips != 32 || __mips_isa_rev < 2
-#include <sys/types.h>
-#include <mips/cpu.h>
-#include <mips/mt.h>
-#include <mips/atomic.h>
 
-#include <sys/errno.h>
+#include <sys/types.h>
 #include <stddef.h>
 #include <stdlib.h>
-#include <assert.h>
 #include <inttypes.h>
-#include <pthread.h>
-#include <sched.h>
+
+#include <errno.h>
+#undef errno
+
+#include <libc_thread.h>
+#include <sdethread.h>
+
+#pragma weak __isthreaded
+int __isthreaded = 0;
 
 #pragma weak _pthread_init
 void _pthread_init (void);
 void _pthread_init()
-{
-}
+{}
 
-#pragma weak pthread_self=_stub_pthread_self
-pthread_t _stub_pthread_self (void);
-pthread_t _stub_pthread_self (void)
-{
-  return 0;
-}
-
-#pragma weak pthread_join=_stub_pthread_join
-pthread_t _stub_pthread_join (pthread_t, void **);
-pthread_t _stub_pthread_join (pthread_t thread, void **thread_return)
-{
-  return 0;
-}
-
-int _stub_pthread_attr_setscope (pthread_attr_t *, int);
-int _stub_pthread_attr_setscope (pthread_attr_t *attr, int scope)
-{
-  return 0;
-}
-
-#pragma weak pthread_create=_stub_pthread_create
-int _stub_pthread_create(pthread_t *, pthread_attr_t *attr, void *(*)(void *), void *);
-int _stub_pthread_create(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void * arg)
-{
-  return 0;
-}
-
-#pragma weak pthread_exit=_stub_pthread_exit
-int _stub_pthread_exit(void *);
-int _stub_pthread_exit(void *retval)
-{
-  return 0;
-}
-
-#pragma weak pthread_cond_wait=_stub_pthread_cond_wait
-int _stub_pthread_cond_wait(pthread_cond_t *, pthread_mutex_t *);
-int _stub_pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
-{
-  return 0;
-}
-
-#pragma weak pthread_cond_init=_stub_pthread_cond_init
-int _stub_pthread_cond_init(pthread_cond_t *, pthread_condattr_t *);
-int _stub_pthread_cond_init(pthread_cond_t *cond, pthread_condattr_t *cond_attr)
-{
-  return 0;
-}
-
-#pragma weak pthread_mutexattr_init=_stub_pthread_mutexattr_init
-int _stub_pthread_mutexattr_init (pthread_mutexattr_t *);
-int _stub_pthread_mutexattr_init (pthread_mutexattr_t *mxa)
-{
-  return 0;
-}
-
-#pragma weak pthread_mutexattr_destroy=_stub_pthread_mutexattr_destroy
-int _stub_pthread_mutexattr_destroy (pthread_mutexattr_t *);
-int _stub_pthread_mutexattr_destroy (pthread_mutexattr_t *mxa)
-{
-  return 0;
-}
-
-#pragma weak pthread_mutexattr_setname_np=_stub_pthread_mutexattr_setname_np
-int _stub_pthread_mutexattr_setname_np (pthread_mutexattr_t *, const char *);
-int _stub_pthread_mutexattr_setname_np (pthread_mutexattr_t *mxa, const char *name)
-{
-  return 0;
-}
-
-#pragma weak pthread_mutexattr_settype_np=_stub_pthread_mutexattr_settype_np
-int _stub_pthread_mutexattr_settype_np (pthread_mutexattr_t *, int);
-int _stub_pthread_mutexattr_settype_np (pthread_mutexattr_t *mxa, int type)
-{
-  return 0;
-}
-
-#pragma weak pthread_mutex_init
-int pthread_mutex_init(pthread_mutex_t *mx,const pthread_mutexattr_t *mxa)
-{
-  return 0;
-}
-
-#pragma weak pthread_mutex_destroy
-int pthread_mutex_destroy(pthread_mutex_t *mx)
-{
-  return 0;
-}
-
-#pragma weak pthread_mutex_lock
-int pthread_mutex_lock(pthread_mutex_t *mx)
-{
-  return 0;
-}
-
-#pragma weak pthread_mutex_unlock
-int pthread_mutex_unlock(pthread_mutex_t *mx)
-{
-  return 0;
-}
-
-#pragma weak _pthread_cleanup_push
-void _pthread_cleanup_push (struct _pthread_handler_rec *rec)
-{
-}
-
-#pragma weak _pthread_cleanup_pop
-void _pthread_cleanup_pop (struct _pthread_handler_rec *rec)
-{
-}
-
-#pragma weak _pthread_cleanup_push
-void _pthread_cleanup_push_defer (struct _pthread_handler_rec *rec)
-{
-}
-
-#pragma weak _pthread_cleanup_pop
-void _pthread_cleanup_pop_restore (struct _pthread_handler_rec *rec)
-{
-}
-
-
-
-#pragma weak _pthread_once=_stub_pthread_once
-#pragma weak pthread_once=_stub_pthread_once
-int _stub_pthread_once (pthread_once_t *, void (*)(void));
-int _stub_pthread_once (pthread_once_t *once, void (*fn)(void))
-{
-    if (once->state == PTHREAD_ONCE_NEVER) {
-	once->state = PTHREAD_ONCE_DONE;
-	(*fn) ();
-    }
-    return 0;
-}
-
-
-typedef struct stub_tsd {
-    int		tsd_used;
-    void	*tsd_value;
-} stub_tsd_t;
-
-#define STUB_KEYS_MAX	10
-static  stub_tsd_t tsd[STUB_KEYS_MAX];
-
-#pragma weak pthread_key_create=_stub_pthread_key_create
 int
-_stub_pthread_key_create (pthread_key_t * key, void (*destructor) (void *))
+__sdethread_mutex_init (__sdethread_mutex_t *mx, const char *name)
 {
-    stub_tsd_t     *tsdp;
-
-    for (tsdp = tsd; tsdp < &tsd[STUB_KEYS_MAX]; tsdp++)
-	if (!tsdp->tsd_used) {
-	    tsdp->tsd_used = 1;	/* exists but no value */
-	    *key = tsdp - tsd;
-	    return 0;
-	}
-    return EAGAIN;
+  return 0;
 }
 
-#pragma weak pthread_key_delete=_stub_pthread_key_delete
 int
-_stub_pthread_key_delete (pthread_key_t key)
+__sdethread_mutex_destroy (__sdethread_mutex_t *mx)
 {
-    stub_tsd_t     *tsdp;
-
-    if (key >= STUB_KEYS_MAX)
-	return EINVAL;
-
-    tsdp = &tsd[key];
-
-    if (!tsdp->tsd_used)
-	/* no longer valid */
-	return EINVAL;
-
-    if (tsdp->tsd_value)
-	/* value still exists */
-	return EBUSY;
-
-    tsdp->tsd_used = 0;
-    tsdp->tsd_value = NULL;
-    return 0;
+  return 0;
 }
 
-
-#pragma weak pthread_setspecific=_stub_pthread_setspecific
 int
-_stub_pthread_setspecific (pthread_key_t key, void *value)
+__sdethread_mutex_lock (__sdethread_mutex_t *mx)
 {
-    stub_tsd_t     *tsdp;
-
-    if (key >= STUB_KEYS_MAX)
-	return EINVAL;
-
-    tsdp = &tsd[key];
-    if (!tsdp->tsd_used)
-	return EINVAL;
-
-    tsdp->tsd_value = value;
-    return 0;
+  return 0;
 }
 
-#pragma weak pthread_getspecific=_stub_pthread_getspecific
-void           *
-_stub_pthread_getspecific (pthread_key_t key)
+int
+__sdethread_mutex_trylock (__sdethread_mutex_t *mx)
 {
-    if (key >= STUB_KEYS_MAX)
-	return NULL;
-    return tsd[key].tsd_value;
+  return 0;
+}
+
+int
+__sdethread_mutex_unlock (__sdethread_mutex_t *mx)
+{
+  return 0;
+}
+
+void
+__sdethread_sigdisable (__sdethread_sigstate_t *state) 
+{/* no signals */}
+
+void
+__sdethread_sigrestore (const __sdethread_sigstate_t *state) 
+{/* no signals */}
+
+int
+___sdethread_once (__sdethread_once_t *once, void (*fn)(void))
+{
+  if (once->so_state == __SDETHREAD_ONCE_NEVER) {
+    once->so_state = __SDETHREAD_ONCE_DONE;
+    (*fn) ();
+  }
+  return 0;
+}
+
+#undef __sdethread_once
+int __sdethread_once (__sdethread_once_t *oncep, void (*funcp)(void))
+{
+  return ___sdethread_once (oncep, funcp);
+}
+
+int *
+__sdethread_errno_pointer (void)
+{
+  return &errno;
+}
+
+__attribute__((__nomips16__)) 
+int
+__sdethread_set_errno (int err, int rv)
+{
+  errno = err;
+  return rv;
+}
+
+void *
+_libc_private_storage (struct _thread_private_key_struct *key,
+		       void *storage, size_t size, void *err)
+{
+  /* return static storage only */
+  return storage;
+}
+
+#include <unistd.h>
+
+pid_t
+getpid (void)
+{
+  return 1;
+}
+
+
+pid_t fork(void)
+{
+  errno = ENOSYS;
+  return -1;
+}
+
+int execl (const char *path, const char *arg, ...)
+{
+  errno = ENOSYS;
+  return -1;
+}
+
+int execv (const char *path, const char * const *argv)
+{
+  errno = ENOSYS;
+  return -1;
+}
+
+#include <sys/wait.h>
+
+pid_t	waitpid (pid_t pid, int *status, int options)
+{
+  errno = ENOSYS;
+  return -1;
 }
 
 #endif /* __mips != 32 || __mips_isa_rev < 2 */

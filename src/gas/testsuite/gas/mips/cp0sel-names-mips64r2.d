@@ -21,7 +21,7 @@ Disassembly of section .text:
 0+0028 <[^>]*> 40800804 	mtc0	\$0,c0_yqmask
 0+002c <[^>]*> 40800805 	mtc0	\$0,c0_vpeschedule
 0+0030 <[^>]*> 40800806 	mtc0	\$0,c0_vpeschefback
-0+0034 <[^>]*> 40800807 	mtc0	\$0,\$1,7
+0+0034 <[^>]*> 40800807 	mtc0	\$0,c0_vpeopt
 0+0038 <[^>]*> 40801001 	mtc0	\$0,c0_tcstatus
 0+003c <[^>]*> 40801002 	mtc0	\$0,c0_tcbind
 0+0040 <[^>]*> 40801003 	mtc0	\$0,c0_tcrestart

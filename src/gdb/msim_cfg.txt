@@ -888,7 +888,11 @@ set CPU_CORE 71
 # Only one value allowed for 34K
 set CPU_CORE 80
 
-{4\..*;(24K|24KE|34K)}
+{4\..*;74K}
+# Only one value allowed for 74K
+set CPU_CORE 90
+
+{4\..*;(24K|24KE|34K|74K)}
 # Run time out.
 # Max cycles or instructions to run.  This parameter is included
 # for the purposes of bring up only.  This will not remain.
