@@ -459,6 +459,7 @@ extern const char *mchp_config_data_dir;
       }                                                     \
                                                             \
     builtin_define_std ("PIC32MX");                         \
+    builtin_define     ("__C32__");                         \
     if ((mchp_processor_string != NULL) && *mchp_processor_string) \
       {                                                     \
         char *proc, *p;                                     \
@@ -796,6 +797,7 @@ static const int TARGET_MDMX = 0;
 
 #undef MIPS_SUBTARGET_ATTRIBUTE_TABLE
 #define MIPS_SUBTARGET_ATTRIBUTE_TABLE                                          \
+    /* { name, min_len, max_len, decl_req, type_req, fn_type_req, handler } */  \
     /* Microchip: allow functions to be specified as interrupt handlers */      \
     { "interrupt",        0, 1,  true,  true, true, mchp_interrupt_attribute }, \
     { "vector",           1, 64, true, false, false, mchp_vector_attribute },   \
@@ -805,7 +807,9 @@ static const int TARGET_MDMX = 0;
     { "address",          1, 1,  false, false, false, mchp_address_attribute }, \
     { "space",            1, 1,  false, false, false, mchp_space_attribute },   \
     { "persistent",       0, 0,  false, false, false, NULL }, \
-    { "ramfunc",          0, 0,  false, true,  true,  NULL },
+    { "ramfunc",          0, 0,  false, true,  true,  NULL }, \
+    { "unsupported",      0, 1,  false, false, false, mchp_unsupported_attribute }, \
+    { "__unsupported__",  0, 1,  false, false, false, mchp_unsupported_attribute },
 #undef MIPS_DISABLE_INTERRUPT_ATTRIBUTE
 #define MIPS_DISABLE_INTERRUPT_ATTRIBUTE
 

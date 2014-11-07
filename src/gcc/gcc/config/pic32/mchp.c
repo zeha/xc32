@@ -522,8 +522,9 @@ mchp_subtarget_override_options2 (void)
 
       NULLIFY(optimize_size, "Optimize for size") = 0;
 
-      if (optimize >= 2)
+      if (optimize >= 2) {
         NULLIFY(optimize, "Optimization level") = 1;
+      }
 
       NULLIFY(flag_inline_small_functions, "inline small functions") = 0;
       NULLIFY(flag_indirect_inlining, "indirect inlining") = 0;
@@ -1331,6 +1332,76 @@ tree mchp_address_attribute(tree *decl, tree identifier ATTRIBUTE_UNUSED,
   return NULL_TREE;
 }
 
+
+/*
+** Return nonzero if IDENTIFIER is a valid attribute.
+*/
+tree mchp_unsupported_attribute(tree *node, tree identifier ATTRIBUTE_UNUSED,
+                            tree args, int flags ATTRIBUTE_UNUSED,
+                            bool *no_add_attrs)
+{
+  tree type = NULL_TREE;
+  int warn = 0;
+  tree what = NULL_TREE;
+  const char *attached_to = 0;
+
+  if (DECL_P(*node))
+    {
+      attached_to = IDENTIFIER_POINTER(DECL_NAME(*node));
+    }
+
+  if (!args)
+    *no_add_attrs = true;
+  else if (TREE_CODE (TREE_VALUE (args)) != STRING_CST)
+    {
+      error("invalid argument to 'unsupported' attribute applied to '%s',"
+            " literal string expected", attached_to);
+      *no_add_attrs = true;
+    }
+
+  if (DECL_P (*node))
+    {
+      tree decl = *node;
+      type = TREE_TYPE (decl);
+
+      if (TREE_CODE (decl) == TYPE_DECL
+	  || TREE_CODE (decl) == PARM_DECL
+	  || TREE_CODE (decl) == VAR_DECL
+	  || TREE_CODE (decl) == FUNCTION_DECL
+	  || TREE_CODE (decl) == FIELD_DECL)
+	TREE_DEPRECATED (decl) = 1;
+      else
+	warn = 1;
+    }
+  else if (TYPE_P (*node))
+    {
+      if (!(flags & (int) ATTR_FLAG_TYPE_IN_PLACE))
+	*node = build_variant_type_copy (*node);
+      TREE_DEPRECATED (*node) = 1;
+      type = *node;
+    }
+  else
+    warn = 1;
+
+  if (warn)
+    {
+      *no_add_attrs = true;
+      if (type && TYPE_NAME (type))
+	{
+	  if (TREE_CODE (TYPE_NAME (type)) == IDENTIFIER_NODE)
+	    what = TYPE_NAME (*node);
+	  else if (TREE_CODE (TYPE_NAME (type)) == TYPE_DECL
+		   && DECL_NAME (TYPE_NAME (type)))
+	    what = DECL_NAME (TYPE_NAME (type));
+	}
+      if (what)
+	warning (OPT_Wattributes, "%qE attribute ignored for %qE", identifier, what);
+      else
+	warning (OPT_Wattributes, "%qE attribute ignored", identifier);
+    }
+
+  return NULL_TREE;
+}
 
 /*
 ** Return nonzero if IDENTIFIER is a valid space attribute.

@@ -2805,6 +2805,7 @@ mips_elf_rel_dyn_section (struct bfd_link_info *info, bfd_boolean create_p)
   dname = MIPS_ELF_REL_DYN_NAME (info);
   dynobj = elf_hash_table (info)->dynobj;
   sreloc = bfd_get_section_by_name (dynobj, dname);
+
   if (sreloc == NULL && create_p)
     {
       sreloc = bfd_make_section_with_flags (dynobj, dname,
@@ -2813,6 +2814,10 @@ mips_elf_rel_dyn_section (struct bfd_link_info *info, bfd_boolean create_p)
 					     | SEC_HAS_CONTENTS
 					     | SEC_IN_MEMORY
 					     | SEC_LINKER_CREATED
+#ifdef TARGET_IS_PIC32MX
+/* TODO: PIC32 should support .rel.dyn section in the future */
+      					     | SEC_EXCLUDE
+#endif
 					     | SEC_READONLY));
       if (sreloc == NULL
 	  || ! bfd_set_section_alignment (dynobj, sreloc,
@@ -6601,9 +6606,9 @@ _bfd_mips_elf_section_processing (bfd *abfd, Elf_Internal_Shdr *hdr)
 	 are set on .sbss if BFD creates it without reading it from an
 	 input file, and without special handling here the flags set
 	 on it in an input file will be followed.  */
-      if (strcmp (name, ".sdata") == 0
-	  || strcmp (name, ".lit8") == 0
-	  || strcmp (name, ".lit4") == 0)
+      if (strcmp (name, ".sdata") == 0 
+          || strcmp (name, ".lit8") == 0
+          || strcmp (name, ".lit4") == 0)
 	{
 	  hdr->sh_flags |= SHF_ALLOC | SHF_WRITE | SHF_MIPS_GPREL;
 	  hdr->sh_type = SHT_PROGBITS;
@@ -6629,6 +6634,29 @@ _bfd_mips_elf_section_processing (bfd *abfd, Elf_Internal_Shdr *hdr)
 		hdr->sh_size += hdr->sh_addralign - adjust;
 	    }
 	}
+#if defined(TARGET_IS_PIC32MX)
+    if (pic32_data_init)
+    {
+      struct pic32_section *s_sec;
+      for (s_sec = data_sections; s_sec != NULL; s_sec = s_sec->next)
+        {
+          if (s_sec == NULL 
+              || s_sec->sec == NULL 
+              || s_sec->sec->name == NULL)
+            continue;
+          if ((strcmp (name, s_sec->sec->name) == 0) 
+              || (strncmp (name, ".sdata", 6) == 0)
+              || (strncmp (name, ".sbss", 5) == 0)
+              || (strncmp (name, ".pbss", 5) == 0))
+            {
+            /* Add the SHF_NOLOAD flag for sections that have been added to the 
+               dinit template already. */
+               hdr->sh_flags |= SHF_NOLOAD;
+            }
+          
+        }
+     }
+#endif
     }
 
   return TRUE;
@@ -13525,7 +13553,7 @@ bfd_pic32_process_data_section(sect, fp)
   enum {CLEAR, COPY}; /* note matching definition in crt0.c */
 
   /* skip persistent or noload data sections */
-  if (PIC32_IS_PERSIST_ATTR(sect) | PIC32_IS_NOLOAD_ATTR(sect))
+  if (PIC32_IS_PERSIST_ATTR(sect) || PIC32_IS_NOLOAD_ATTR(sect))
     {
       if (pic32_debug)
         printf("  %s (skipped), size = %x\n",
@@ -13602,6 +13630,10 @@ bfd_pic32_process_data_section(sect, fp)
       /* make section not LOADable */
       sect->output_section->flags &= ~ SEC_LOAD;
       sect->output_section->flags |= SEC_NEVER_LOAD;
+
+      sect->flags &= ~ SEC_LOAD;
+      sect->flags |= SEC_NEVER_LOAD;
+      
       this_hdr = &elf_section_data (sect->output_section)->this_hdr;
       this_hdr->sh_flags &= ~(SHF_ALLOC);
 

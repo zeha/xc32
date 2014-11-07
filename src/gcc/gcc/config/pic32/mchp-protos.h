@@ -46,7 +46,9 @@ extern tree mchp_address_attribute(tree *decl, tree identifier,
 extern tree mchp_space_attribute(tree *decl, tree identifier,
                             tree args, int flags ATTRIBUTE_UNUSED,
                             bool *no_add_attrs);
-
+extern tree mchp_unsupported_attribute(tree *decl, tree identifier,
+                            tree args, int flags ATTRIBUTE_UNUSED,
+                            bool *no_add_attrs);
 extern void mchp_set_current_function (tree fndecl);
 extern bool mchp_suppress_prologue (void);
 extern bool mchp_suppress_epilogue (void);

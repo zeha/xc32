@@ -61,6 +61,8 @@ PROVIDE(_min_heap_size = 0) ;
 # These files will always be included in the link
 INPUT_FILES="
 INCLUDE procdefs.ld
+PROVIDE(_DBG_CODE_ADDR = 0xBFC02000) ;
+PROVIDE(_DBG_CODE_SIZE = 0xFF0) ;
 "
 # Initial section should go before .text
 unset INIT_AFTER_TEXT
@@ -111,7 +113,7 @@ BOOT_SECTION="
 
   .dbg_code _DBG_CODE_ADDR (NOLOAD) :
   {
-    . += (DEFINED (_DEBUGGER) ? 0xFF0 : 0x0);
+    . += (DEFINED (_DEBUGGER) ? _DBG_CODE_SIZE : 0x0);
   } > debug_exec_mem
 
   .app_excpt _GEN_EXCPT_ADDR :

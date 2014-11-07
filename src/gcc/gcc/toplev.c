@@ -930,6 +930,8 @@ void
 warn_deprecated_use (tree node, tree attr)
 {
   const char *msg;
+  tree unsupported = NULL_TREE;
+  tree deprecated = NULL_TREE;
 
   if (node == 0 || !warn_deprecated_decl)
     return;
@@ -942,30 +944,67 @@ warn_deprecated_use (tree node, tree attr)
 	{
 	  tree decl = TYPE_STUB_DECL (node);
 	  if (decl)
-	    attr = lookup_attribute ("deprecated",
-				     TYPE_ATTRIBUTES (TREE_TYPE (decl)));
+	    {
+	      attr = lookup_attribute ("deprecated",
+		  		       TYPE_ATTRIBUTES (TREE_TYPE (decl)));
+#if defined(TARGET_MCHP_PIC32MX)
+              if (!attr)
+                attr = lookup_attribute ("unsupported",
+		    		       TYPE_ATTRIBUTES (TREE_TYPE (decl)));
+              if (!attr)
+                attr = lookup_attribute ("__unsupported__",
+		  		       TYPE_ATTRIBUTES (TREE_TYPE (decl)));
+#endif
+             }
 	}
     }
 
   if (attr)
-    attr = lookup_attribute ("deprecated", attr);
+    {
+      deprecated = lookup_attribute ("deprecated", attr);
+#if defined(TARGET_MCHP_PIC32MX)
+      unsupported = lookup_attribute ("unsupported", attr);
+      if (!unsupported)
+        unsupported = lookup_attribute ("__unsupported__", attr);
+#endif
+    }
 
-  if (attr)
-    msg = TREE_STRING_POINTER (TREE_VALUE (TREE_VALUE (attr)));
+  if (deprecated)
+    msg = TREE_STRING_POINTER (TREE_VALUE (TREE_VALUE (deprecated)));
+#if defined(TARGET_MCHP_PIC32MX)
+  else if (unsupported)
+    msg = TREE_STRING_POINTER (TREE_VALUE (TREE_VALUE (unsupported)));
+#endif
   else
     msg = NULL;
 
   if (DECL_P (node))
     {
       expanded_location xloc = expand_location (DECL_SOURCE_LOCATION (node));
+#if defined(TARGET_MCHP_PIC32MX)
+      if (unsupported)
+        {
+          if (msg)
+	    warning (OPT_Wdeprecated_declarations,
+		     "%qD is unsupported: %s",
+		     node, msg);
+          else
+	    warning (OPT_Wdeprecated_declarations,
+		     "%qD is unsupported", node);
+	}
+      else  {
+#endif
       if (msg)
 	warning (OPT_Wdeprecated_declarations,
 		 "%qD is deprecated (declared at %s:%d): %s",
 		 node, xloc.file, xloc.line, msg);
       else
 	warning (OPT_Wdeprecated_declarations,
-		 "%qD is deprecated (declared at %s:%d)",
+		 "%qD is deprecated or unsupported (declared at %s:%d)",
 		 node, xloc.file, xloc.line);
+#if defined(TARGET_MCHP_PIC32MX)
+      }
+#endif
     }
   else if (TYPE_P (node))
     {
@@ -987,14 +1026,31 @@ warn_deprecated_use (tree node, tree attr)
 	    = expand_location (DECL_SOURCE_LOCATION (decl));
 	  if (what)
 	    {
+#if defined(TARGET_MCHP_PIC32MX)
+	      if (unsupported)
+ 	        {
+	          if (msg)
+		    warning (OPT_Wdeprecated_declarations,
+			     "%qE is unsupported: %s",
+			     what, msg);
+	          else
+		    warning (OPT_Wdeprecated_declarations,
+			     "%qE is unsupported", what);
+	        }
+	      else
+	      {
+#endif
 	      if (msg)
 		warning (OPT_Wdeprecated_declarations,
 			 "%qE is deprecated (declared at %s:%d): %s",
 			 what, xloc.file, xloc.line, msg);
 	      else
 		warning (OPT_Wdeprecated_declarations,
-			 "%qE is deprecated (declared at %s:%d)", what,
+			 "%qE is deprecated or unsupported (declared at %s:%d)", what,
 			 xloc.file, xloc.line);
+#if defined(TARGET_MCHP_PIC32MX)
+	      }
+#endif
 	    }
 	  else
 	    {
@@ -1004,7 +1060,8 @@ warn_deprecated_use (tree node, tree attr)
 			 xloc.file, xloc.line, msg);
 	      else
 		warning (OPT_Wdeprecated_declarations,
-			 "type is deprecated (declared at %s:%d)",
+
+			 "type is deprecated or unsupported (declared at %s:%d)",
 			 xloc.file, xloc.line);
 	    }
 	}
@@ -1012,11 +1069,26 @@ warn_deprecated_use (tree node, tree attr)
 	{
 	  if (what)
 	    {
-	      if (msg)
-		warning (OPT_Wdeprecated_declarations, "%qE is deprecated: %s",
-			 what, msg);
+#if defined(TARGET_MCHP_PIC32MX)
+	      if (unsupported)
+ 	        {
+	          if (msg)
+		    warning (OPT_Wdeprecated_declarations, "%qE is unsupported: %s",
+			     what, msg);
+	          else
+		    warning (OPT_Wdeprecated_declarations, "%qE is unsupported", what);
+	        }
 	      else
-		warning (OPT_Wdeprecated_declarations, "%qE is deprecated", what);
+	      {
+#endif
+	        if (msg)
+		  warning (OPT_Wdeprecated_declarations, "%qE is deprecated: %s",
+			   what, msg);
+	        else
+		  warning (OPT_Wdeprecated_declarations, "%qE is deprecated or unsupported", what);
+#if defined(TARGET_MCHP_PIC32MX)
+	      }
+#endif
 	    }
 	  else
 	    {
@@ -1024,7 +1096,7 @@ warn_deprecated_use (tree node, tree attr)
 		warning (OPT_Wdeprecated_declarations, "type is deprecated: %s",
 			 msg);
 	      else
-		warning (OPT_Wdeprecated_declarations, "type is deprecated");
+		warning (OPT_Wdeprecated_declarations, "type is deprecated or unsupported");
 	    }
 	}
     }

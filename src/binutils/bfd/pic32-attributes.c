@@ -404,8 +404,11 @@ char * pic32_section_size_string (asection *sec)
   else
     units = S3;
 
-  snprintf(result, MAX_LEN, "%s%ld%s", S1, sec->rawsize / 2, units);
-
+  if (sec->rawsize != 0)
+    snprintf(result, MAX_LEN, "%s%ld%s", S1, sec->rawsize / 2, units);
+  else
+    snprintf(result, MAX_LEN, "%s%ld%s", S1, sec->size / 2, units);
+    
   return result;
 }
 

@@ -6515,7 +6515,7 @@ lang_process (void)
 
   ldemul_finish ();
 
-  /* Make sure that the section addresses make sense.  */
+  /* Make sure that the section addresses make sense.  */ 
   if (command_line.check_section_addresses)
     lang_check_section_addresses ();
 

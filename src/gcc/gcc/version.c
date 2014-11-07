@@ -36,7 +36,7 @@ const char bug_report_url[] = "<URL:http://www.microchip.com/support>";
    Makefile.  */
 
 /* const char version_string[] = BASEVER DATESTAMP DEVPHASE REVISION; */
-const char version_string[] = BASEVER " " "MPLAB C Compiler for PIC32 MCUs v2.00-20110602";
+const char version_string[] = BASEVER " " "MPLAB C Compiler for PIC32 MCUs v2.01-20110816";
 const char pkgversion_string[] = PKGVERSION;
 
 

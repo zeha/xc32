@@ -411,13 +411,21 @@ allocate_data_memory() {
 
   build_free_block_list(region, mask);
 
-
   if (pic32_debug) {
     pic32_print_section_list(alloc_section_list, "allocation");
   }
 
   reset_locate_options();
   result |= locate_sections(ramfunc, 0, region);    /* most restrictive  */
+  
+  if (!bfd_pic32_is_defined_global_symbol("_ramfunc_begin"))
+  {
+    /* If there are no ram fumctions, add the _ramfunc_begin symbol with value 0 */
+    _bfd_generic_link_add_one_symbol (&link_info, link_info.output_bfd, "_ramfunc_begin",
+    BSF_GLOBAL, bfd_abs_section_ptr,
+    0, "_ramfunc_begin", 1, 0, 0);
+  }
+  
   if (ramfunc_begin != 0) {
     set_locate_options(EXCLUDE_HIGH_ADDR, ramfunc_begin);
   }
@@ -646,7 +654,7 @@ locate_sections(unsigned int mask, unsigned int block,
                 struct memory_region_struct *region) {
   struct pic32_section *s,*next;
   int result = 0;
-  int ramfunc_section_count = 0;
+  static int ramfunc_section_count = 0;
 
   if (pic32_debug) {
     printf("\nLocating sections with mask %x, but not %x\n", mask, block);
@@ -675,6 +683,10 @@ locate_sections(unsigned int mask, unsigned int block,
               s->sec->alignment_power = 11;
               ramfunc_section_count++;
               result |= locate_group_section(s, region);
+              if (s->sec->vma == 0)
+                {
+                  report_allocation_error(s);
+                }
               ramfunc_begin = s->sec->vma;
               if (!bfd_pic32_is_defined_global_symbol("_ramfunc_begin")) {
                 _bfd_generic_link_add_one_symbol (&link_info, link_info.output_bfd, "_ramfunc_begin",
@@ -1037,7 +1049,7 @@ select_free_block(struct pic32_section *s, unsigned int len) {
     }
 
     return b;
-  }
+  } 
 
   /* If we get here, a suitable block could not be found */
   if (locate_options != NO_LOCATE_OPTION)
@@ -1045,7 +1057,7 @@ select_free_block(struct pic32_section *s, unsigned int len) {
   else
     report_allocation_error(s);
 
-#if 0
+#if 1
   {
 #define PREFIX "/tmp"
     char *colon = "";

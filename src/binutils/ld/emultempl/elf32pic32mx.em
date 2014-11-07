@@ -132,7 +132,7 @@ static void bfd_pic32_skip_data_section
 
 static void pic32_strip_sections
  PARAMS ((bfd *));
-
+ 
 static asection * bfd_pic32_create_section
   PARAMS ((bfd *, const char *, int, int));
 
@@ -2334,7 +2334,7 @@ bfd_pic32_scan_data_section (sect, p)
   /*
   ** skip persistent or noload data sections
   */
-  if (PIC32_IS_PERSIST_ATTR(sect) | PIC32_IS_NOLOAD_ATTR(sect))
+  if (PIC32_IS_PERSIST_ATTR(sect) || PIC32_IS_NOLOAD_ATTR(sect))
   {
       /*
       ** issue a warning if DATA values are present
@@ -2370,7 +2370,9 @@ bfd_pic32_scan_data_section (sect, p)
   {
     /* Analyze initialization data now and find out what the after compression
        size of the data initialization template */
-          /* accout for 0-padding so that new dinit records                                  always start at a new memory location */
+          /* account for 0-padding so that new dinit records always start at a 
+          ** new memory location 
+          */
 	  int count = (sect->size % 4) ? (sect->size + (4 - sect->size % 4)) \
                                        : sect->size;
           int delta = DATA_RECORD_HEADER_SIZE + count;
@@ -2413,7 +2415,7 @@ bfd_pic32_skip_data_section (sect, p)
       ** issue a warning
       */
       einfo(_("%P: Warning: data initialization has been turned off,"
-              " therefore section %s will not be initialized using .dinti template.\n"), sect->name);
+              " therefore section %s will not be initialized using .dinit template.\n"), sect->name);
 
       if (pic32_debug)
         printf("  %s (skipped), size = %x\n",
@@ -2505,7 +2507,7 @@ bfd_pic32_finish(void)
   ** remove output sections with size = 0
   */
   pic32_strip_sections(link_info.output_bfd);
-
+  
   /* if we've encountered a fatal error, stop here */
   if (config.make_executable == FALSE)
     einfo("%P%F: Link terminated due to previous error(s).\n");
@@ -2637,9 +2639,10 @@ bfd_pic32_finish(void)
 
   if (!bfd_pic32_is_defined_global_symbol("_ramfunc_begin"))
   {
+    /* If there are no ram fumctions, add the _ramfunc_begin symbol with value 0 */
     _bfd_generic_link_add_one_symbol (&link_info, link_info.output_bfd, "_ramfunc_begin",
     BSF_GLOBAL, bfd_abs_section_ptr,
-    end_data_mem, "_ramfunc_begin", 1, 0, 0);
+    0, "_ramfunc_begin", 1, 0, 0);
   }
   if (!bfd_pic32_is_defined_global_symbol("_bmxdkpba_address"))
   {
@@ -2665,7 +2668,7 @@ bfd_pic32_finish(void)
   }
 
   /*
-  ** Set _dinti_addr symbol for data init template
+  ** Set _dinit_addr symbol for data init template
   **   so the C startup module can find it.
   */
 

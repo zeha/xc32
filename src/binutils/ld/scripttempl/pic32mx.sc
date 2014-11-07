@@ -158,7 +158,7 @@ SDATA="
    * can access them all, and initialized data all before uninitialized, so
    * we can shorten the on-disk segment size.
    */
-  .sdata ALIGN(4) /* ${RELOCATING-0} */ :
+  .sdata ALIGN(4) /*${RELOCATING-0}*/ :
   {
     ${RELOCATING+${SDATA_START_SYMBOLS}}
     *(.sdata${RELOCATING+ .sdata.* .gnu.linkonce.s.*})

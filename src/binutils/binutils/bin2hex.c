@@ -361,6 +361,7 @@ write_section (bfd *abfd, asection *sect, PTR fp)
   /* if section is load-able and has contents */
   if ((sect->flags & SEC_LOAD) &&
       (sect->flags & SEC_HAS_CONTENTS) &&
+      ((sect->flags & SEC_NEVER_LOAD) == 0) &&
       (total > 0))
   {
     start = sect->lma;
