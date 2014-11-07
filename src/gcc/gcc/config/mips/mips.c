@@ -708,12 +708,13 @@ const enum reg_class mips_regno_to_class[FIRST_PSEUDO_REGISTER] =
   COP0_REGS,  COP0_REGS,  COP0_REGS,  COP0_REGS,
   COP0_REGS,  COP0_REGS,  COP0_REGS,  COP0_REGS,
   COP0_REGS,  COP0_REGS,  COP0_REGS,  COP0_REGS,
-  COP0_REGS,
+  COP0_REGS,  COP0_REGS,  COP0_REGS,  COP0_REGS,
+  COP0_REGS,  COP0_REGS,  COP0_REGS,  COP0_REGS,
   /* End Microchip PIC32 */
   DSP_ACC_REGS,	DSP_ACC_REGS,	DSP_ACC_REGS,	DSP_ACC_REGS,
   DSP_ACC_REGS,	DSP_ACC_REGS,
   ALL_REGS,	ALL_REGS,
-  ALL_REGS,	ALL_REGS,	ALL_REGS,	ALL_REGS
+  ALL_REGS,	ALL_REGS,	ALL_REGS,	ALL_REGS,
 };
 
 #ifdef CVMX_SHARED_BSS_FLAGS
@@ -1380,7 +1381,7 @@ mips_far_type_p (const_tree type)
 static bool
 mips_mips16_decl_p (const_tree decl)
 {
-#if defined (MIPS_SUBTARGET_MIPS16_ENABLED) && 1
+#if defined (MIPS_SUBTARGET_MIPS16_ENABLED)
   if (lookup_attribute ("mips16", DECL_ATTRIBUTES (decl)) != NULL)
     {
       return MIPS_SUBTARGET_MIPS16_ENABLED(decl);
@@ -1462,7 +1463,19 @@ mips_use_mips16_mode_p (tree decl)
 static bool
 mips_micromips_decl_p (const_tree decl)
 {
+#if defined (MIPS_SUBTARGET_MICROMIPS_ENABLED)
+  if (lookup_attribute ("micromips", DECL_ATTRIBUTES (decl)) != NULL)
+    {
+      return MIPS_SUBTARGET_MICROMIPS_ENABLED(decl);
+    }
+  else
+    {
+      return false;
+    }
+#else
   return lookup_attribute ("micromips", DECL_ATTRIBUTES (decl)) != NULL;
+#endif
+
 }
 
 static bool
@@ -1491,6 +1504,16 @@ mips_use_micromips_mode_p (tree decl)
     }
   return mips_base_micromips;
 }
+
+#if defined(TARGET_MCHP_PIC32MX)
+bool mips_noreturn_function_p (tree decl) {
+  const char *attrname = "noreturn";
+  tree attrlist = DECL_ATTRIBUTES(decl);
+  bool noreturn = lookup_attribute(attrname, attrlist) != NULL_TREE;
+
+  return noreturn;
+}
+#endif
 
 /* Implement TARGET_COMP_TYPE_ATTRIBUTES.  */
 
@@ -2709,7 +2732,7 @@ mips_force_unary (enum machine_mode mode, enum rtx_code code, rtx op0)
 
 /* Emit an instruction of the form (set TARGET (CODE OP0 OP1)).  */
 
-static void
+void
 mips_emit_binary (enum rtx_code code, rtx target, rtx op0, rtx op1)
 {
   emit_insn (gen_rtx_SET (VOIDmode, target,
@@ -2750,7 +2773,10 @@ mips_force_temporary (rtx dest, rtx value)
    ADDR is the legitimized form, and LAZY_P is true if the call
    address is lazily-bound.  */
 
-static rtx
+#if !defined(TARGET_MCHP_PIC32MX)
+static
+#endif 
+rtx
 mips_emit_call_insn (rtx pattern, rtx orig_addr, rtx addr, bool lazy_p)
 {
   rtx insn, reg;
@@ -6092,8 +6118,10 @@ mips_ok_for_lazy_binding_p (rtx x)
 /* Load function address ADDR into register DEST.  TYPE is as for
    mips_expand_call.  Return true if we used an explicit lazy-binding
    sequence.  */
-
-static bool
+#if !defined(TARGET_MCHP_PIC32MX)
+static 
+#endif
+bool
 mips_load_call_address (enum mips_call_type type, rtx dest, rtx addr)
 {
   /* If we're generating PIC, and this call is to a global function,
@@ -6850,8 +6878,10 @@ mips_split_call (rtx insn, rtx call_pattern)
 }
 
 /* Implement TARGET_FUNCTION_OK_FOR_SIBCALL.  */
-
-static bool
+#if !defined(TARGET_MCHP_PIC32MX)
+static 
+#endif
+bool
 mips_function_ok_for_sibcall (tree decl, tree exp ATTRIBUTE_UNUSED)
 {
   if (!TARGET_SIBCALLS)
@@ -9985,7 +10015,7 @@ mips_save_reg_p (unsigned int regno)
     return true;
 
 #ifdef MIPS_SUBTARGET_SAVE_REG_P
-  MIPS_SUBTARGET_SAVE_REG_P
+  return MIPS_SUBTARGET_SAVE_REG_P(regno);
 #endif
 
   return false;
@@ -10213,7 +10243,7 @@ mips_compute_frame_info (bool recalculate, struct mips_frame_info *frame)
       else if (TARGET_HARD_FLOAT)
         error ("the %<interrupt%> attribute requires %<-msoft-float%>");
       else if (TARGET_MIPS16)
-        error ("an interrupt handler cannot be a MIPS16 function");
+        fatal_error ("an interrupt handler cannot be a MIPS16 function, use the %<nomips16%> function attribute");
       else
         {
           cfun->machine->interrupt_handler_p = true;
@@ -11157,11 +11187,17 @@ mips_save_reg (rtx reg, rtx mem)
   else
     {
 #if defined(TARGET_MCHP_PIC32MX)
-      if (REGNO (reg) == HI_REGNUM)
+      if ((REGNO (reg) == HI_REGNUM) || 
+          (REGNO (reg) == AC1HI_REGNUM) ||
+          (REGNO (reg) == AC2HI_REGNUM) ||
+          (REGNO (reg) == AC3HI_REGNUM))
         {
           mips_emit_save_slot_move (mem, reg, MIPS_PROLOGUE_HI_TEMP (GET_MODE (reg)));
         }
-      else if (REGNO (reg) == LO_REGNUM)
+      else if ((REGNO (reg) == LO_REGNUM) || 
+               (REGNO (reg) == AC1LO_REGNUM) ||
+               (REGNO (reg) == AC2LO_REGNUM) ||
+               (REGNO (reg) == AC3LO_REGNUM))
         {
           mips_emit_save_slot_move (mem, reg, MIPS_PROLOGUE_LO_TEMP (GET_MODE (reg)));
         }
@@ -11534,6 +11570,11 @@ mips_expand_prologue (void)
      the call to mcount.  */
   if (crtl->profile)
     emit_insn (gen_blockage ());
+    
+#if defined(MIPS_SUBTARGET_EXPAND_PROLOGUE_END)
+  MIPS_SUBTARGET_EXPAND_PROLOGUE_END(frame);
+#endif
+    
   cfun->machine->initial_total_size = frame->total_size;
 }
 
@@ -11620,6 +11661,10 @@ mips_expand_epilogue (bool sibcall_p)
   HOST_WIDE_INT step1, step2;
   rtx base, target, insn;
   bool use_jraddiusp_p = false;
+
+#if defined(MIPS_SUBTARGET_FUNCTION_PROFILING_EPILOGUE)
+  MIPS_SUBTARGET_FUNCTION_PROFILING_EPILOGUE (sibcall_p);
+#endif
 
 #if defined(MIPS_SUBTARGET_SUPPRESS_EPILOGUE)
   if (MIPS_SUBTARGET_SUPPRESS_EPILOGUE() == true)
@@ -16025,6 +16070,7 @@ pic32_expand_bcc0 (enum insn_code icode,
     {
       emit_insn (gen_blockage ());
       emit_insn (gen_pic32_switch_isabase());
+      emit_insn (gen_blockage ());
     }
 
   pat = gen_pic32_mfc0 (target, opreg, opsel);
@@ -16050,6 +16096,8 @@ pic32_expand_bcc0 (enum insn_code icode,
 
   if (TARGET_MIPS16)
     {
+      emit_insn (gen_blockage ());
+      emit_insn (gen_pic32_switch_isabase());
       emit_insn (gen_blockage ());
     }
 
@@ -19217,13 +19265,13 @@ mips_override_options (void)
 {
   int i, start, regno, mode;
 
-#ifdef SUBTARGET_OVERRIDE_OPTIONS
-  SUBTARGET_OVERRIDE_OPTIONS;
-#endif
-
   /* MIPS16 and microMIPS cannot coexist  */
   if (TARGET_MICROMIPS && TARGET_MIPS16)
     error ("unsupported combination: %s", "-mips16 -mmicromips");
+
+#ifdef MIPS_SUBTARGET_OVERRIDE_OPTIONS
+  MIPS_SUBTARGET_OVERRIDE_OPTIONS();
+#endif
 
   /* Process flags as though we were generating non-MIPS16 code.  */
   mips_base_mips16 = TARGET_MIPS16;
@@ -19232,9 +19280,9 @@ mips_override_options (void)
   mips_base_micromips = TARGET_MICROMIPS;
   target_flags &= ~MASK_MICROMIPS;
 
-#ifdef SUBTARGET_OVERRIDE_OPTIONS1
-  SUBTARGET_OVERRIDE_OPTIONS1;
-#endif
+#ifdef MIPS_SUBTARGET_OVERRIDE_OPTIONS1
+  MIPS_SUBTARGET_OVERRIDE_OPTIONS1();
+#endif 
 
   /* Set the small data limit.  */
   mips_small_data_threshold = (g_switch_set
@@ -20325,9 +20373,9 @@ void mips_function_profiler (FILE *file)
              Pmode == DImode ? 16 : 8);
 
   if (TARGET_LONG_CALLS)
-    fprintf (file, "\tjalr\t%s\n", reg_names[3]);
+    fprintf (file, "\tjalr\t%s\n\tnop\n", reg_names[3]);
   else
-    fprintf (file, "\tjal\t_mcount\n");
+    fprintf (file, "\tjal\t_mcount\n\t\nop");
   mips_pop_asm_switch (&mips_noat);
   /* _mcount treats $2 as the static chain register.  */
   if (cfun->static_chain_decl != NULL)
@@ -20872,4 +20920,5 @@ octeon_output_shared_variable (FILE *stream, tree decl, const char *name,
 struct gcc_target targetm = TARGET_INITIALIZER;
 
 #include "gt-mips.h"
+
 

@@ -9,7 +9,6 @@
 
 This file is part of GCC.
 
-GCC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 3, or (at your option)
 any later version.
@@ -22,6 +21,18 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
+
+#ifndef TARGET_IS_PIC32MX 
+#define TARGET_IS_PIC32MX 
+#endif
+
+#ifndef PIC32
+#define PIC32
+#endif
+
+#ifndef _BUILD_C32_
+#define _BUILD_C32_
+#endif
 
 #include "config.h"
 #include "system.h"
@@ -65,6 +76,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "bversion.h"
 
 #include <stdio.h>
+#include <string.h>
 #include "cpplib.h"
 #include "mchp-protos.h"
 #include "mchp-pragmas.h"
@@ -75,14 +87,20 @@ along with GCC; see the file COPYING3.  If not see
 #include "cppdefault.h"
 #include "config/mips/mips-machine-function.h"
 #include "version.h"
+
+/* splitting for lto/non-lto causes beacoup problems */
+#include "../../../../c30_resource/src/xc32/resource_info.h"
+#include "config/mchp-cci/cci.h"
+#if !defined(SKIP_LICENSE_MANAGER)
+/* include file */
+#include "config/mchp-cci/xclm_public.h"
+#endif
+
 #ifdef __MINGW32__
 void *alloca(size_t);
 #else
 #include <alloca.h>
 #endif
-
-#include "config/mchp-cci/cci.h"
-#include "config/mchp-cci/xclm_public.h"
 
 #define xstr(s) str(s)
 #define str(s) #s
@@ -91,6 +109,8 @@ void *alloca(size_t);
 #define dconst_section readonly_data_section
 
 /* Global Variables */
+ const char *mchp_resource_file = NULL;
+ char *mchp_resource_file_f;  /* stoopid options.c always makes this const */
 extern const char * mchp_text_scn;
 SECTION_FLAGS_INT mchp_text_flags = SECTION_CODE;
 extern bool user_defined_section_attribute;
@@ -104,12 +124,15 @@ extern cpp_options *cpp_opts;
  #warning MCHP_XCLM_FREE_LICENSE not defined by API
 #endif
 
+int          mchp_profile_option = 0;
+
 unsigned int mchp_pragma_align = 0;
 unsigned int mchp_pragma_inline = 0;
 unsigned int mchp_pragma_keep = 0;
 unsigned int mchp_pragma_printf_args = 0;
 unsigned int mchp_pragma_scanf_args = 0;
 tree mchp_pragma_section = NULL_TREE;
+
 
 /* Local Variables */
 
@@ -277,6 +300,14 @@ static char this_default_name[sizeof("*_012345670123456701234567")];
 static time_t current_time = 0;
 static int lfInExecutableSection = FALSE;
 
+static int pic32_num_register_sets = 2;
+static unsigned int pic32_procid = 0;
+static bool pic32_loaded_device_mask = false;
+static unsigned int pic32_device_mask = HAS_MIPS32R2 | HAS_MIPS16 | HAS_MICROMIPS;
+
+const char * mchp_target_cpu = NULL;
+char * mchp_target_cpu_id;
+
 enum
 {
   ss_pushed = 0,     /* section stack was pushed */
@@ -400,7 +431,11 @@ static HOST_WIDE_INT mchp_offset_srsctl = 0;
 
 static HOST_WIDE_INT mchp_invalid_ipl_warning = 0;
 #ifdef SKIP_LICENSE_MANAGER
+#if defined(MCHP_XCLM_VALID_CPP_FULL)
 HOST_WIDE_INT mchp_pic32_license_valid = MCHP_XCLM_VALID_CPP_FULL;
+#else
+HOST_WIDE_INT mchp_pic32_license_valid = 0x6;
+#endif
 #else
 HOST_WIDE_INT mchp_pic32_license_valid = -1;
 #endif
@@ -453,7 +488,184 @@ struct vector_dispatch_spec *vector_dispatch_list_head;
 
 struct mchp_config_specification *mchp_configuration_values;
 
+#if !defined(MCHP_SKIP_RESOURCE_FILE)
+/* This will be called by the spec parser in gcc.c when it sees
+   a %:local_cpu_detect(args) construct.
+ */
 
+static const char* mchp_get_resource_file_path(void);
+static const char* mchp_get_resource_file_path(void)
+{
+  extern char **save_argv;
+  /* TODO Correct this path */
+  //char* path = make_relative_prefix(save_argv[0], "/bin/bin", "/bin");
+  char* path = make_relative_prefix(save_argv[0],
+                                  "/pic32mx/bin/gcc/pic32mx/"
+                                  str(BUILDING_GCC_MAJOR) "."
+                                  str(BUILDING_GCC_MINOR) "."
+                                  str(BUILDING_GCC_PATCHLEVEL),
+                                  "/bin");
+
+#if defined(__MINGW32__)
+  {
+    char *convert;
+    convert = path;
+    while (*convert != '\0')
+      {
+        if (*convert == '\\')
+          *convert = '/';
+        convert++;
+      }
+  }
+#endif
+  
+  return path;
+}
+
+static unsigned int mchp_load_resource_info(char *id, char **matched_id, const char* mchp_resource_file_in);
+static unsigned int mchp_load_resource_info(char *id, char **matched_id, const char* mchp_resource_file_in) {
+  struct resource_introduction_block *rib;
+  struct resource_data d;
+  int version;
+  unsigned int mask;
+  char *Microchip;
+  char *new_version = xstrdup(version_string);
+  char *version_part1;
+  char *version_part2;
+  int mismatch=0;
+  char *match;
+  char *device_buf;
+  char *mchp_resource_file_generic;
+  int buffer_size;
+  
+  /* No device specified, use defaults */
+  if (id == NULL)
+    return 0;
+  
+  if (mchp_resource_file_in == 0) {
+    if (mchp_resource_file != 0)
+      /* specified on the command line */
+      mchp_resource_file_in = mchp_resource_file;
+    else
+      /* use the default */
+      mchp_resource_file_in = mchp_get_resource_file_path();
+  }
+
+  mchp_resource_file_generic = mchp_resource_file_in+strlen(mchp_resource_file_in)-strlen("xc32_device.info");
+
+  /* read_device_rib assumes that the resource file name is xc32_device.inf. Ensure that it is. */
+  if (strcmp (mchp_resource_file_generic, "xc32_device.info") != 0)
+  {
+    buffer_size = strlen(mchp_resource_file_in)+strlen("/xc32_device.info")+1;
+    mchp_resource_file_generic = (char *)xcalloc (buffer_size,1);
+    snprintf (mchp_resource_file_generic, buffer_size, "%s/xc32_device.info", mchp_resource_file_in);
+  }
+  else
+  {
+    buffer_size = strlen(mchp_resource_file_in)+1;
+    mchp_resource_file_generic = (char *)xcalloc (buffer_size,1);
+    snprintf (mchp_resource_file_generic, buffer_size, "%s", mchp_resource_file_in);
+  }
+  
+  rib = read_device_rib (mchp_resource_file_generic, id);
+  if (rib == 0) {
+    error("Could not open resource file for: %qs at %qs", id, mchp_resource_file_generic);
+    return 0;
+  }
+
+  if (strcmp(rib->tool_chain,"XC32")) {
+    error("Invalid resource file\n");
+    close_rib();
+    return -1;
+  }  
+  
+  if (rib->field_count >= 4) {
+    int record;
+    int isr_names_max=0;
+    int isr_names_idx=0;
+
+    for (record = 0; move_to_record(record); record++) {
+      read_value(rik_string, &d);
+      if (strcmp(d.v.s, id) == 0) {
+        /* match */
+        *matched_id = d.v.s;
+        read_value(rik_int, &d);
+        if (d.v.i & IS_DEVICE_ID) {
+          pic32_device_mask = (d.v.i & (~IS_DEVICE_ID));
+          read_value(rik_int, &d);
+          pic32_num_register_sets = d.v.i;
+          read_value(rik_int, &d);
+          pic32_procid = d.v.i;
+          break;
+        }
+      }
+    }
+  }
+  pic32_loaded_device_mask = true;
+  return pic32_device_mask;
+}
+
+unsigned int validate_device_mask (char *id, char **matched_id, const char* mchp_resource_file_in);
+unsigned int validate_device_mask (char *id, char **matched_id, const char* mchp_resource_file_in)
+{
+  mchp_load_resource_info (id, matched_id, mchp_resource_file_in);
+  /* Disable options that the target does not support */
+  if (TARGET_MIPS16 && !(pic32_device_mask & HAS_MIPS16) && pic32_loaded_device_mask)
+    {
+       error ("The selected %qs device does not support the MIPS16 ISA mode (-mips16)", mchp_processor_string);
+    }
+  if (TARGET_MICROMIPS && !(pic32_device_mask & HAS_MICROMIPS) && pic32_loaded_device_mask)
+    {
+       error ("The selected %qs device does not support the microMIPS ISA mode (-mmicromips)", mchp_processor_string);
+    }
+  if (TARGET_DSPR2 && !(pic32_device_mask & HAS_DSPR2) && pic32_loaded_device_mask)
+    {
+      warning (0, "The selected %qs device does not support the DSPr2 ASE (-mdspr2)", mchp_processor_string);
+      target_flags &= ~MASK_DSPR2;
+      target_flags &= ~MASK_DSP;
+    }
+  if (TARGET_MCU && !(pic32_device_mask & HAS_MCU) && pic32_loaded_device_mask)
+    {
+      warning (0, "The selected %qs device does not support the MCU ASE (-mmcu)", mchp_processor_string);
+      target_flags &= ~MASK_MCU;
+    }
+
+  /* Enable ASE features that the target does support */
+  if (!TARGET_DSPR2 && (pic32_device_mask & HAS_DSPR2))
+    {
+       /* Enable DSPr2 ASE by default when the target supports it */
+       target_flags |= MASK_DSP;
+       target_flags |= MASK_DSPR2;
+    }
+  if (TARGET_NO_DSPR2)
+    {
+       /* Override device defaults and disable DSPr2 ASE */
+       target_flags &= ~MASK_DSP;
+       target_flags &= ~MASK_DSPR2;
+    }
+  if (!TARGET_MCU && (pic32_device_mask & HAS_MCU))
+    {
+       /* Enable MCU ASE by default when the target supports it */
+       target_flags |= MASK_MCU;
+    }
+  if (TARGET_NO_MCU)
+    {
+       /* Override device defaults and disable MCU ASE */
+       target_flags &= ~MASK_MCU;
+    }
+    
+  return pic32_device_mask;
+}
+#endif /* (MCHP_SKIP_RESOURCE_FILE) */
+
+void 
+mchp_subtarget_override_options(void)
+{
+#if !defined(MCHP_SKIP_RESOURCE_FILE)
+  int mask;
+  mask = validate_device_mask (mchp_processor_string, &mchp_target_cpu_id, mchp_resource_file);
+#endif /* !defined(MCHP_SKIP_RESOURCE_FILE) */
+}
 
 
 /* Validate the Microchip-specific command-line options.  */
@@ -597,10 +809,6 @@ get_license_manager_path (void)
         strcat (xclmpath, "/");
       strcat (xclmpath, MCHP_XCLM_FILENAME);
 
-#if MCHP_DEBUG
-    fprintf (stderr, "%d xclmpath: %s\n", __LINE__, xclmpath);
-#endif
-
       if (-1 == stat (xclmpath, &filestat))
         {
           free (xclmpath);
@@ -611,9 +819,6 @@ get_license_manager_path (void)
           strncpy (xclmpath, "/opt/Microchip/xclm/bin/", xclmpath_length);
           /* Append the xclm executable name to the directory. */
           strcat (xclmpath, MCHP_XCLM_FILENAME);
-#if MCHP_DEBUG
-          fprintf (stderr, "%d xclmpath: %s\n", __LINE__, xclmpath);
-#endif
         }
       if (-1 == stat (xclmpath, &filestat))
         {
@@ -622,9 +827,6 @@ get_license_manager_path (void)
           strncpy (xclmpath, "/build/xc32/xclm/bin/", xclmpath_length);
           /* Append the xclm executable name to the directory. */
           strcat (xclmpath, MCHP_XCLM_FILENAME);
-#if MCHP_DEBUG
-          fprintf (stderr, "%d xclmpath: %s\n", __LINE__, xclmpath);
-#endif
         }
     }
 
@@ -643,7 +845,7 @@ get_license_manager_path (void)
   if (-1 == stat (xclmpath, &filestat))
     return NULL;
 
-#if MCHP_DEBUG
+#if defined(MCHP_DEBUG)
   fprintf (stderr, "%d Final xclmpath: %s\n", __LINE__, xclmpath);
 #endif
   return xclmpath;
@@ -666,9 +868,9 @@ pic32_get_license (int require_cpp)
 
 /* Misc. Return Codes */
 #ifndef MCHP_XCLM_EXPIRED_DEMO
-#define MCHP_XCLM_EXPIRED_DEMO 0x6
+#define MCHP_XCLM_EXPIRED_DEMO 0x10
 #endif
-
+#if defined(MCHP_XCLM_VALID_CPP_FREE)
 #define PIC32_EXPIRED_LICENSE MCHP_XCLM_EXPIRED_DEMO
 #define PIC32_FREE_LICENSE MCHP_XCLM_FREE_LICENSE
 #define PIC32_VALID_STANDARD_LICENSE MCHP_XCLM_VALID_STANDARD_LICENSE
@@ -676,6 +878,16 @@ pic32_get_license (int require_cpp)
 #define PIC32_NO_CPP_LICENSE MCHP_XCLM_NO_CPP_LICENSE
 #define PIC32_VALID_CPP_FREE MCHP_XCLM_VALID_CPP_FREE
 #define PIC32_VALID_CPP_FULL MCHP_XCLM_VALID_CPP_FULL
+#else
+#define PIC32_EXPIRED_LICENSE MCHP_XCLM_EXPIRED_DEMO
+#define PIC32_FREE_LICENSE 0
+#define PIC32_VALID_STANDARD_LICENSE 1
+#define PIC32_VALID_PRO_LICENSE 2
+#define PIC32_NO_CPP_LICENSE 4
+#define PIC32_VALID_CPP_FREE 5
+#define PIC32_VALID_CPP_FULL 6
+
+#endif
 #ifndef SKIP_LICENSE_MANAGER
   {
     char *exec;
@@ -745,10 +957,6 @@ pic32_get_license (int require_cpp)
     /* Get a path to the license manager to try */
     exec = get_license_manager_path();
 
-#if MCHP_DEBUG
-    fprintf (stderr, "exec: %s\n", exec);
-#endif
-
     if (exec == NULL)
       {
         /* Set free edition if the license manager isn't available. */
@@ -788,9 +996,6 @@ pic32_get_license (int require_cpp)
             mchp_pic32_license_valid = WEXITSTATUS(status);
           }
       }
-#if MCHP_DEBUG
-    fprintf (stderr, "valid license: %d\n", mchp_pic32_license_valid);
-#endif
   }
 #endif /* SKIP_LICENSE_MANAGER */
   return mchp_pic32_license_valid;
@@ -799,7 +1004,7 @@ pic32_get_license (int require_cpp)
 static const char *disabled_option_message = NULL;
 static int message_displayed = 0;
 static int message_purchase_display = 0;
-static const char *invalid_license = "due to an invalid license";
+static const char *invalid_license = "due to an invalid XC32 license";
 #define NULLIFY(X,S) \
     if (X) { \
       if ((S != NULL) && (disabled_option_message == NULL)) { \
@@ -912,19 +1117,19 @@ static void mchp_print_license_warning (void)
     switch (mchp_pic32_license_valid)
       {
       case PIC32_EXPIRED_LICENSE:
-        invalid_license = "because the evaluation period has expired";
+        invalid_license = "because the XC32 evaluation period has expired";
         break;
       case PIC32_FREE_LICENSE:
-        invalid_license = "because the free C compiler does not support this feature.";
+        invalid_license = "because the free XC32 C compiler does not support this feature.";
         break;
       case PIC32_VALID_CPP_FREE:
-        invalid_license = "because the free C++ compiler does not support this feature.";
+        invalid_license = "because the free XC32 C++ compiler does not support this feature.";
         break;
       case PIC32_VALID_STANDARD_LICENSE:
-        invalid_license = "because this feature requires the MPLAB XC PRO compiler";
+        invalid_license = "because this feature requires the MPLAB XC32 PRO compiler";
         break;
       default:
-        invalid_license = "due to an invalid license";
+        invalid_license = "due to an invalid XC32 license";
         break;
       }
 
@@ -993,11 +1198,14 @@ mchp_subtarget_override_options2 (void)
 {
   extern char **save_argv;
   require_cpp    = 0;
+
+#ifndef SKIP_LICENSE_MANAGER
   nullify_O2     = 1;
   nullify_O3     = 1;
   nullify_Os     = 1;
   nullify_mips16 = 1;
   nullify_lto    = 1;
+#endif /* SKIP_LICENSE_MANAGER */
 
   if (mips_base_mips16 || mips_base_micromips)
     {
@@ -1013,10 +1221,6 @@ mchp_subtarget_override_options2 (void)
     {
        mchp_pic32_license_valid = pic32_get_license (require_cpp);
     }
-
-#if MCHP_DEBUG
-  fprintf (stderr, "save_argv[0] == %s\n", save_argv[0]);
-#endif
 
     if (require_cpp && !((mchp_pic32_license_valid == PIC32_VALID_CPP_FREE) ||
                          (mchp_pic32_license_valid == PIC32_VALID_CPP_FULL)))
@@ -1101,6 +1305,12 @@ mchp_subtarget_override_options2 (void)
         TARGET_MCHP_SMARTIO = 0;
         mchp_io_size_val = 0;
       }
+      
+    if (mchp_it_transport && *mchp_it_transport) { 
+      if (strcasecmp(mchp_it_transport,"profile") == 0) {
+            mchp_profile_option = 1;
+      }
+    }
   }
 #undef PIC32_EXPIRED_LICENSE
 #undef PIC32_ACADEMIC_LICENSE
@@ -1384,14 +1594,14 @@ mchp_output_configuration_words (void)
       if (spec->referenced_bits)
         {
           fprintf (asm_out_file, "# Configuration word @ 0x%08x\n", spec->word->address);
-          fprintf (asm_out_file, "\t.section\t.config_%08X, code\n",
-                   spec->word->address);
+          fprintf (asm_out_file, "\t.section\t.config_%08X, code, keep, address(0x%08X)\n",
+                   spec->word->address, spec->word->address);
           fprintf (asm_out_file, "\t.type\t__config_%08X, @object\n",
                    spec->word->address);
           fprintf (asm_out_file, "\t.size\t__config_%08X, 4\n",
                    spec->word->address);
           fprintf (asm_out_file, "__config_%08X:\n", spec->word->address);
-          fprintf (asm_out_file, "\t.word\t%u\n", spec->value);
+          fprintf (asm_out_file, "\t.word\t0x%08X\n", spec->value);
         }
     }
 }
@@ -1667,8 +1877,6 @@ mchp_prepare_function_start (tree fndecl)
   /* XXX do we still need to do this? */
   while ((x = decl_function_context (fndecl)))
     fndecl = x;
-
-  /* mips_set_mips16_mode (SYMBOL_REF_MIPS16_P (XEXP (DECL_RTL (fndecl), 0))); */
 
 #ifdef TARGET_MCHP_PIC32MX
   /* If we're in MIPS16[e] mode for an interrupt function, that's an error */
@@ -2121,6 +2329,20 @@ tree mchp_keep_attribute(tree *node, tree identifier ATTRIBUTE_UNUSED,
   return NULL_TREE;
 }
 
+tree mchp_crypto_attribute(tree *node, tree identifier ATTRIBUTE_UNUSED,
+                                tree args, int flags ATTRIBUTE_UNUSED,
+                                bool *no_add_attrs)
+{
+
+    if (TREE_CODE (*node) != VAR_DECL || !TREE_READONLY(*node))
+      error ("Attribute 'crypto' applies to const variables only");
+    DECL_UNIQUE_SECTION (*node) = 1;
+    DECL_COMMON (*node) = 0;
+
+  return NULL_TREE;
+
+}
+
 /* Don't emit a function prologue. */
 bool
 mchp_suppress_prologue (void)
@@ -2147,34 +2369,45 @@ mchp_suppress_epilogue(void)
   return false;
 }
 
-void
-mchp_expand_epilogue_return(rtx ret_insn)
+bool
+mchp_function_profiling_epilogue (bool sibcall_p)
 {
-  if (current_function_type == NON_INTERRUPT)
-    {
-      emit_jump_insn (ret_insn);
-    }
-  /* interrupt functions need to emit a placeholder instruction
-     so that this pattern will return a non-empty expansion.
-     we don't want anything below this (there shouldn't be any
-     RTL following this, anyway) moved above it, so we'll use a
-     blockage. */
-  else
-    {
-      emit_insn (gen_blockage ());
-    }
+  if (mchp_profile_option) {
+      rtx insn, funct_sym;
+      funct_sym = init_one_libfunc ("__function_level_profiling_long_zero");
+        {
+          rtx v0, v1, a0;
+          a0 = gen_rtx_REG (Pmode, GP_ARG_FIRST);
+          v1 = gen_rtx_REG (Pmode, V1_REGNUM);
+          v0 = gen_rtx_REG (Pmode, V0_REGNUM);
+          emit_insn (gen_blockage());
+          
+          insn = mips_expand_call (MIPS_CALL_EPILOGUE, NULL_RTX, funct_sym,
+                                   const0_rtx, NULL_RTX, false);
+          use_reg (&CALL_INSN_FUNCTION_USAGE (insn), a0);
+          use_reg (&CALL_INSN_FUNCTION_USAGE (insn), v1);
+          emit_insn (gen_blockage());
+        }
+  }
 }
 
 /* Expand the prologue into a bunch of separate insns at the end of the prologue.  */
 void
 mchp_expand_prologue_end (const struct mips_frame_info *frame)
 {
-  if ((current_function_type == AUTO_CONTEXT_SAVE) ||
-      ((current_function_type != NON_INTERRUPT) && frame->has_hilo_context))
-    {
-      /* Don't allow instructions from the function to be moved into the
-         software context saving code. */
-      emit_insn (gen_blockage ());
+  if (mchp_profile_option) {
+      rtx insn, funct_sym;
+      rtx v0, v1, a0;
+      a0 = gen_rtx_REG (Pmode, GP_ARG_FIRST);
+      v1 = gen_rtx_REG (Pmode, V1_REGNUM);
+      v0 = gen_rtx_REG (Pmode, V0_REGNUM);
+      funct_sym = init_one_libfunc ("__function_level_profiling_long");
+      insn = mips_expand_call (MIPS_CALL_EPILOGUE, NULL_RTX, funct_sym,
+                               const0_rtx, NULL_RTX, false);
+      use_reg (&CALL_INSN_FUNCTION_USAGE (insn), a0);
+      use_reg (&CALL_INSN_FUNCTION_USAGE (insn), v1);
+      use_reg (&CALL_INSN_FUNCTION_USAGE (insn), v0);
+      emit_insn (gen_blockage());
     }
 }
 
@@ -2187,6 +2420,7 @@ mchp_expand_epilogue_restoreregs (HOST_WIDE_INT step1 ATTRIBUTE_UNUSED,
   unsigned int regno;
 
   HOST_WIDE_INT mchp_save_srsctl;
+  
   mchp_save_srsctl = (((cfun->machine->interrupt_priority < 7)
                        && (0 == mchp_isr_backcompat))
                       || (current_function_type == AUTO_CONTEXT_SAVE)
@@ -2710,17 +2944,33 @@ mchp_compute_frame_info (void)
               if ((NULL != strstr(IDENTIFIER_POINTER (TREE_VALUE (ipl_tree)),"SRS")) ||
                   (NULL != strstr(IDENTIFIER_POINTER (TREE_VALUE (ipl_tree)),"srs")))
                 {
-                  cfun->machine->current_function_type = current_function_type = SRS_CONTEXT_SAVE;
-                  cfun->machine->use_shadow_register_set_p = true;
-                  if (ipl_len > 7)
+                  /* Must have a general register set + at least 1 shadow register set */
+                  if (pic32_num_register_sets >= (1+1))
+                    {
+		      cfun->machine->current_function_type = current_function_type = SRS_CONTEXT_SAVE;
+		      cfun->machine->use_shadow_register_set_p = true;
+		      if (ipl_len > 7)
+		        {
+		          if (0 == mchp_invalid_ipl_warning)
+		            {
+		              warning(0, "Invalid ISR context-saving mode, assuming IPL%dSRS",
+		                      cfun->machine->interrupt_priority);
+		              mchp_invalid_ipl_warning++;
+		            }
+		        }
+                    }
+                  else /* No shadow register sets */
                     {
                       if (0 == mchp_invalid_ipl_warning)
-                        {
-                          warning(0, "Invalid ISR context-saving mode, assuming IPL"
-                                  HOST_WIDE_INT_PRINT_DEC "SRS ",
-                                  cfun->machine->interrupt_priority);
-                          mchp_invalid_ipl_warning++;
-                        }
+		        {
+                          warning (0, "No Shadow Register Set available on selected %qs device, "
+                                   "assuming IPL%d"  "SOFT",
+                                   mchp_processor_string,
+                                   cfun->machine->interrupt_priority);
+		          mchp_invalid_ipl_warning++;
+		        }
+		      cfun->machine->use_shadow_register_set_p = false;
+                      cfun->machine->current_function_type = current_function_type = SOFTWARE_CONTEXT_SAVE;
                     }
                 }
               else if ((NULL != strstr(IDENTIFIER_POINTER
@@ -2734,8 +2984,7 @@ mchp_compute_frame_info (void)
                     {
                       if (0 == mchp_invalid_ipl_warning)
                         {
-                          warning(0, "Invalid ISR context-saving mode, assuming IPL"
-                                  HOST_WIDE_INT_PRINT_DEC "SOFT ",
+                          warning(0, "Invalid ISR context-saving mode, assuming IPL%dSOFT",
                                   cfun->machine->interrupt_priority);
                           mchp_invalid_ipl_warning++;
                         }
@@ -2752,8 +3001,8 @@ mchp_compute_frame_info (void)
                     {
                       if (0 == mchp_invalid_ipl_warning)
                         {
-                          warning(0, "Invalid ISR context-saving mode, assuming IPL"
-                                  HOST_WIDE_INT_PRINT_DEC "SOFT ", cfun->machine->interrupt_priority);
+                          warning(0, "Invalid ISR context-saving mode, assuming IPL%dSOFT ",
+                           cfun->machine->interrupt_priority);
                           mchp_invalid_ipl_warning++;
                         }
                     }
@@ -2771,8 +3020,8 @@ mchp_compute_frame_info (void)
                 {
                   if (0 == mchp_invalid_ipl_warning)
                     {
-                      warning(0, "Invalid ISR context-saving mode, assuming IPL"
-                              HOST_WIDE_INT_PRINT_DEC "AUTO", cfun->machine->interrupt_priority);
+                      warning(0, "Invalid ISR context-saving mode, assuming IPL%dAUTO",
+                       cfun->machine->interrupt_priority);
                       mchp_invalid_ipl_warning++;
                     }
                   cfun->machine->current_function_type = current_function_type = AUTO_CONTEXT_SAVE;
@@ -2782,8 +3031,8 @@ mchp_compute_frame_info (void)
             {
               if (0 == mchp_invalid_ipl_warning)
                 {
-                  warning(0, "Invalid ISR context-saving mode, assuming IPL"
-                          HOST_WIDE_INT_PRINT_DEC "AUTO", cfun->machine->interrupt_priority);
+                  warning(0, "Invalid ISR context-saving mode, assuming IPL%dAUTO",
+                          cfun->machine->interrupt_priority);
                   mchp_invalid_ipl_warning++;
                 }
               cfun->machine->current_function_type = current_function_type = AUTO_CONTEXT_SAVE;
@@ -2833,10 +3082,14 @@ mchp_compute_frame_info (void)
                                         call_used_regs[V1_REGNUM] = 1;
             }
         }
-      /* If HI/LO is defined in this function, we need to save them too.
+      /* If HI/LO is defined in this function, we need to save them too. Also check the 
+         DSPr2 accumulator pairs.
          If the function is not a leaf function, we assume that the
          called function uses them. */
-      if (df_regs_ever_live_p (LO_REGNUM) || df_regs_ever_live_p (HI_REGNUM)
+      if (df_regs_ever_live_p (LO_REGNUM)       || df_regs_ever_live_p (HI_REGNUM)
+          || df_regs_ever_live_p (AC1LO_REGNUM) || df_regs_ever_live_p (AC1HI_REGNUM)
+          || df_regs_ever_live_p (AC2LO_REGNUM) || df_regs_ever_live_p (AC2HI_REGNUM)
+          || df_regs_ever_live_p (AC3LO_REGNUM) || df_regs_ever_live_p (AC3HI_REGNUM)
           || !current_function_is_leaf)
         {
           has_hilo_context = 1;
@@ -2869,6 +3122,16 @@ mchp_compute_frame_info (void)
   return num_intreg;
 }
 
+bool
+mchp_subtarget_save_reg_p (unsigned int regno)
+{
+  /* When we are profiling, we need to preserve the RA register. */
+  if (mchp_profile_option && (regno == RETURN_ADDR_REGNUM))
+    return true;
+  
+  return false;
+}
+
 void
 mchp_output_function_prologue (FILE *file, HOST_WIDE_INT tsize ATTRIBUTE_UNUSED, HOST_WIDE_INT size ATTRIBUTE_UNUSED)
 {
@@ -2877,6 +3140,7 @@ mchp_output_function_prologue (FILE *file, HOST_WIDE_INT tsize ATTRIBUTE_UNUSED,
     {
       mips_push_asm_switch (&mips_noat);
     }
+    
 
   fprintf (file, "# End mchp_output_function_prologue\n");
 }
@@ -2916,6 +3180,14 @@ mchp_keep_p (tree decl)
 {
   tree a;
   a = lookup_attribute ("keep", DECL_ATTRIBUTES (decl));
+  return a != NULL_TREE;
+}
+
+static int
+mchp_crypto_p (tree decl)
+{
+  tree a;
+  a = lookup_attribute ("crypto", DECL_ATTRIBUTES (decl));
   return a != NULL_TREE;
 }
 
@@ -2963,8 +3235,16 @@ mchp_add_vector_dispatch_entry (const char *target_name, int vector_number, int 
 {
   struct vector_dispatch_spec *dispatch_entry;
 
+  for (dispatch_entry = vector_dispatch_list_head ;
+       dispatch_entry ;
+       dispatch_entry = dispatch_entry->next)
+    {
+          if (strcmp(dispatch_entry->target, target_name)==0)
+            break;
+    }
+
   /* add the vector to the list of dispatch functions to emit */
-  dispatch_entry = (struct vector_dispatch_spec *)ggc_alloc (sizeof (struct vector_dispatch_spec));
+  dispatch_entry = (struct vector_dispatch_spec *)xmalloc (sizeof (struct vector_dispatch_spec));
   dispatch_entry->next = vector_dispatch_list_head;
   dispatch_entry->target = target_name;
   dispatch_entry->vector_number = vector_number;
@@ -3511,8 +3791,11 @@ bool mchp_subtarget_mips16_enabled (const_tree decl)
   static const_tree first_disabled_decl = NULL;
   static const_tree last_disabled_decl = NULL;
   static bool suppress_further_warnings = false;
+  bool disable_mips16;
 
-  if (mchp_pic32_license_valid < 2)
+  disable_mips16 = (mchp_pic32_license_valid < 2) || !(pic32_device_mask & HAS_MIPS16);
+
+  if (disable_mips16)
     {
       if ((decl == first_disabled_decl) ||
           (decl == last_disabled_decl))
@@ -3522,9 +3805,60 @@ bool mchp_subtarget_mips16_enabled (const_tree decl)
 
       if (false == suppress_further_warnings)
         {
-          warning (0, "The current compiler license does not support the %<mips16%>"
-                       " attribute on %qs, attribute ignored",
-                       IDENTIFIER_POINTER (DECL_NAME (decl)));
+          if (mchp_pic32_license_valid < 2)
+            warning (0, "The current compiler license does not support the %<mips16%>"
+                         " attribute on %qs, attribute ignored",
+                         IDENTIFIER_POINTER (DECL_NAME (decl)));
+          else if (!(pic32_device_mask & HAS_MIPS16))
+            warning (0, "The %qs target processor does not support the %<mips16%>"
+                         " attribute on %qs, attribute ignored",
+                         mchp_processor_string,
+                         IDENTIFIER_POINTER (DECL_NAME (decl)));
+
+          if (NULL == first_disabled_decl)
+            {
+              first_disabled_decl = decl;
+            }
+          last_disabled_decl = decl;
+        }
+
+      return false;
+    }
+  else
+    {
+      return true;
+    }
+}
+
+bool mchp_subtarget_micromips_enabled (const_tree decl)
+{
+  static const_tree first_disabled_decl = NULL;
+  static const_tree last_disabled_decl = NULL;
+  static bool suppress_further_warnings = false;
+  bool disable_micromips;
+
+  disable_micromips = (mchp_pic32_license_valid < 2) || !(pic32_device_mask & HAS_MICROMIPS);
+
+  if (disable_micromips)
+    {
+      if ((decl == first_disabled_decl) ||
+          (decl == last_disabled_decl))
+        {
+          suppress_further_warnings = true;
+        }
+
+      if (false == suppress_further_warnings)
+        {
+          if (mchp_pic32_license_valid < 2)
+            warning (0, "The current compiler license does not support the %<micromips%>"
+                         " attribute on %qs, attribute ignored",
+                         IDENTIFIER_POINTER (DECL_NAME (decl)));
+          else if (!(pic32_device_mask & HAS_MICROMIPS))
+            warning (0, "The %qs target processor does not support the %<micromips%>"
+                         " attribute on %qs, attribute ignored",
+                         mchp_processor_string,
+                         IDENTIFIER_POINTER (DECL_NAME (decl)));
+
           if (NULL == first_disabled_decl)
             {
               first_disabled_decl = decl;
@@ -4420,6 +4754,21 @@ static int mchp_build_prefix(tree decl, int fnear, char *prefix)
               }
         }
     }
+#if defined(PIC32_SUPPORT_CRYPTO_ATTRIBUTE)
+  if (mchp_crypto_p(decl))
+    {
+      DECL_COMMON (decl) = 0;
+      if (!(DECL_INITIAL(decl)))
+        {
+            if (DECL_NAME(decl) != NULL_TREE)
+              {
+                ident = IDENTIFIER_POINTER(DECL_NAME(decl));
+                warning(0, "Attribute 'crypto' applied to uninitialized '%s'",
+                        ident);
+              }
+        }
+    }
+#endif
   if (1)
     {
       fnear |= (flags & SECTION_NEAR);
@@ -4562,6 +4911,9 @@ mchp_select_section (tree decl, int reloc,
           lookup_attribute("space", DECL_ATTRIBUTES(decl)) ||
           lookup_attribute("persistent", DECL_ATTRIBUTES(decl)) ||
           mchp_ramfunc_type_p(decl)
+#if defined(PIC32_SUPPORT_CRYPTO_ATTRIBUTE)
+           || mchp_crypto_p(decl)
+#endif
          )
         {
           rtl = DECL_RTL(decl);
@@ -4683,7 +5035,19 @@ static const char *default_section_name(tree decl, SECTION_FLAGS_INT flags)
         {
           pszSectionName = TREE_STRING_POINTER(DECL_SECTION_NAME(decl));
         }
-
+#if defined(PIC32_SUPPORT_CRYPTO_ATTRIBUTE)
+      if (mchp_crypto_p(decl))
+        {
+           if (a)
+                f += sprintf(result, ".$XC32$_crypto.%s,%s(0x%lx)",
+                             IDENTIFIER_POINTER(DECL_NAME(decl)),
+                             SECTION_ATTR_ADDRESS,
+                             (long unsigned int)TREE_INT_CST_LOW(TREE_VALUE(TREE_VALUE(a))));
+            else
+                f += sprintf(result, ".$XC32$_crypto.%s",
+                             IDENTIFIER_POINTER(DECL_NAME(decl)));
+        } else
+#endif
       if (a)
         {
           if (!pszSectionName||(strcmp(pszSectionName,mchp_default_section) == 0))
@@ -4795,7 +5159,16 @@ static const char *default_section_name(tree decl, SECTION_FLAGS_INT flags)
               (DECL_INITIAL(decl) && TREE_CONSTANT(DECL_INITIAL(decl))))
             {
               const char *name;
+#if defined(PIC32_SUPPORT_CRYPTO_ATTRIBUTE)
+              if (mchp_crypto_p(decl)) /* crypto */
+              {
+                name = ".$XC32$_crypto";
+              }
+              else
+                name = SECTION_NAME_CONST;
+#else
               name = SECTION_NAME_CONST;
+#endif
               while (reserved_section_names[i].section_name)
                 {
                   if (((flags ^ reserved_section_names[i].mask) == 0) &&

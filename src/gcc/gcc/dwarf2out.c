@@ -20285,6 +20285,20 @@ maybe_emit_file (struct dwarf_file_data * fd)
 
       if (DWARF2_ASM_LINE_DEBUG_INFO)
 	{ 
+#if defined (_WIN32) && defined (TARGET_MCHP_PIC32MX) && defined (CHIPKIT_PIC32)
+	  char *str;
+	  char *real_path;
+	  fprintf (asm_out_file, "\t.file %u ", fd->emitted_number);
+	  str = xstrdup (remap_debug_filename (fd->filename));
+	  /* Call lrealpath on str for chipKIT compiler */
+	  real_path = lrealpath (str);
+	  /* MPLAB IDE currently expects only forward slashes in .file filename */
+	  unbackslashify (real_path);
+	  output_quoted_string (asm_out_file,
+				real_path );
+	  fputc ('\n', asm_out_file);
+	  free (real_path);
+#else
 	  char *str;
 	  fprintf (asm_out_file, "\t.file %u ", fd->emitted_number);
 	  str = xstrdup (remap_debug_filename (fd->filename));
@@ -20294,8 +20308,9 @@ maybe_emit_file (struct dwarf_file_data * fd)
 	  unbackslashify (str);
 #endif
 	  output_quoted_string (asm_out_file,
-				str);
+				str );
 	  fputc ('\n', asm_out_file);
+#endif
 	}
     }
 

@@ -2661,11 +2661,11 @@ extern int pic30_license_valid;
 #define NO1_GCC_DRIVER_HOST_INITIALIZATION { \
   int size;                              \
                                          \
-  size = strlen(argv[0])+1;                                           \
-  if (size < p-argv[0] + sizeof("c30_device.info")+1)                 \
-    size = p-argv[0] + sizeof("c30_device.info")+1;                   \
+  size = strlen(argv[0])+1;                                             \
+  if (size < p-argv[0] + sizeof("c30_device.info")+1)                   \
+    size = p-argv[0] + sizeof("c30_device.info")+1;                     \
   (char *) pic30_resource_file_f = xmalloc(size);                       \
-                                                                      \
+                                                                        \
   sprintf(pic30_resource_file_f, "%s",argv[0]);                         \
   pic30_resource_file_f[p-argv[0]] = 0;                                 \
   strcat(pic30_resource_file_f,"c30_device.info");                      \

@@ -359,7 +359,7 @@
 ;; the split instructions; in some cases, it is more appropriate for the
 ;; scheduling type to be "multi" instead.
 (define_attr "move_type"
-  "unknown,load,fpload,store,fpstore,mtc,mfc,mthilo,mfhilo,move,fmove,
+  "unknown,load,fpload,store,fpstore,mtc,mfc,mtlo,mflo,mthilo,mfhilo,move,fmove,
    const,constN,signext,ext_ins,logical,arith,sll0,andi,loadpool,
    shift_shift,lui_movf"
   (const_string "unknown"))
@@ -382,6 +382,9 @@
 	 (const_string "yes")]
 	(const_string "no")))
 
+;; Accumulator operand for madd patterns.
+(define_attr "accum_in" "none,0,1,2,3,4,5" (const_string "none"))
+
 ;; Classification of each insn.
 ;; branch	conditional branch
 ;; jump		unconditional jump
@@ -399,6 +402,10 @@
 ;; mfc		transfer from coprocessor
 ;; mthilo	transfer to hi/lo registers
 ;; mfhilo	transfer from hi/lo registers
+;; mthi		transfer to a hi register
+;; mtlo		transfer to a lo register
+;; mfhi		transfer from a hi register
+;; mflo		transfer from a lo register
 ;; const	load constant
 ;; arith	integer arithmetic instructions
 ;; logical      integer logical instructions
@@ -442,11 +449,11 @@
 ;; ghost	an instruction that produces no real code
 (define_attr "type"
   "unknown,branch,jump,call,load,fpload,fpidxload,store,fpstore,fpidxstore,
-   prefetch,prefetchx,condmove,mtc,mfc,mthilo,mfhilo,const,arith,logical,
+   prefetch,prefetchx,condmove,mtc,mfc,mthi,mtlo,mfhi,mflo,mthilo,mfhilo,const,arith,logical,
    shift,slt,signext,clz,pop,trap,imul,imul3,imul3nc,imadd,idiv,idiv3,move,
    fmove,fadd,fmul,fmadd,fdiv,frdiv,frdiv1,frdiv2,fabs,fneg,fcmp,fcvt,fsqrt,
-   frsqrt,frsqrt1,frsqrt2,,dspmac,dspmacsat,accext,accmod,dspalu,dspalusat,
-   multi,nop,ghost,multimem"
+   frsqrt,frsqrt1,frsqrt2,dspmac,dspmacsat,accext,accmod,dspalu,dspalusat,
+   multi,atomic,syncloop,nop,ghost,multimem"
   (cond [(eq_attr "jal" "!unset") (const_string "call")
 	 (eq_attr "got" "load") (const_string "load")
 
@@ -465,6 +472,8 @@
 	 (eq_attr "move_type" "mfc") (const_string "mfc")
 	 (eq_attr "move_type" "mthilo") (const_string "mthilo")
 	 (eq_attr "move_type" "mfhilo") (const_string "mfhilo")
+	 (eq_attr "move_type" "mtlo") (const_string "mtlo")
+	 (eq_attr "move_type" "mflo") (const_string "mflo")
 
 	 ;; These types of move are always single insns.
 	 (eq_attr "move_type" "fmove") (const_string "fmove")
@@ -653,7 +662,7 @@
 
 	  ;; Check for doubleword moves that are decomposed into two
 	  ;; instructions.
-	  (and (eq_attr "move_type" "mtc,mfc,mthilo,mfhilo,move")
+	  (and (eq_attr "move_type" "mtc,mfc,mtlo,mflo,mthilo,mfhilo,move")
 	       (eq_attr "dword_mode" "yes"))
 	  (const_int 8)
 
@@ -2496,72 +2505,113 @@
 
 ;; VR4120 errata MD(A1): signed division instructions do not work correctly
 ;; with negative operands.  We use special libgcc functions instead.
-(define_insn_and_split "divmod<mode>4"
-  [(set (match_operand:GPR 0 "register_operand" "=l")
+(define_expand "divmod<mode>4"
+  [(set (match_operand:GPR 0 "register_operand")
+	(div:GPR (match_operand:GPR 1 "register_operand")
+		 (match_operand:GPR 2 "register_operand")))
+   (set (match_operand:GPR 3 "register_operand")
+	(mod:GPR (match_dup 1)
+		 (match_dup 2)))]
+  "!TARGET_FIX_VR4120"
+{
+  if (TARGET_MIPS16)
+    {
+      emit_insn (gen_divmod<mode>4_split (operands[3], operands[1],
+					  operands[2]));
+      emit_move_insn (operands[0], gen_rtx_REG (<MODE>mode, LO_REGNUM));
+    }
+  else
+    emit_insn (gen_divmod<mode>4_internal (operands[0], operands[1],
+					   operands[2], operands[3]));
+  DONE;
+})
+
+(define_insn_and_split "divmod<mode>4_internal"
+  [(set (match_operand:GPR 0 "muldiv_target_operand" "=l")
 	(div:GPR (match_operand:GPR 1 "register_operand" "d")
 		 (match_operand:GPR 2 "register_operand" "d")))
    (set (match_operand:GPR 3 "register_operand" "=d")
 	(mod:GPR (match_dup 1)
 		 (match_dup 2)))]
-  "!TARGET_FIX_VR4120"
+  "!TARGET_FIX_VR4120 && !TARGET_MIPS16"
   "#"
   "&& reload_completed"
   [(const_int 0)]
 {
-  rtx hilo;
-
-  if (TARGET_64BIT)
-    {
-      hilo = gen_rtx_REG (TImode, MD_REG_FIRST);
-      emit_insn (gen_divmod<mode>4_hilo_ti (hilo, operands[1], operands[2]));
-      emit_insn (gen_mfhi<mode>_ti (operands[3], hilo));
-    }
-  else
-    {
-      hilo = gen_rtx_REG (DImode, MD_REG_FIRST);
-      emit_insn (gen_divmod<mode>4_hilo_di (hilo, operands[1], operands[2]));
-      emit_insn (gen_mfhi<mode>_di (operands[3], hilo));
-    }
+  emit_insn (gen_divmod<mode>4_split (operands[3], operands[1], operands[2]));
   DONE;
 }
  [(set_attr "type" "idiv")
   (set_attr "mode" "<MODE>")
   (set_attr "length" "8")])
 
-(define_insn_and_split "udivmod<mode>4"
-  [(set (match_operand:GPR 0 "register_operand" "=l")
+(define_expand "udivmod<mode>4"
+  [(set (match_operand:GPR 0 "register_operand")
+	(udiv:GPR (match_operand:GPR 1 "register_operand")
+		  (match_operand:GPR 2 "register_operand")))
+   (set (match_operand:GPR 3 "register_operand")
+	(umod:GPR (match_dup 1)
+		  (match_dup 2)))]
+  ""
+{
+  if (TARGET_MIPS16)
+    {
+      emit_insn (gen_udivmod<mode>4_split (operands[3], operands[1],
+					   operands[2]));
+      emit_move_insn (operands[0], gen_rtx_REG (<MODE>mode, LO_REGNUM));
+    }
+  else
+    emit_insn (gen_udivmod<mode>4_internal (operands[0], operands[1],
+					    operands[2], operands[3]));
+  DONE;
+})
+
+(define_insn_and_split "udivmod<mode>4_internal"
+  [(set (match_operand:GPR 0 "muldiv_target_operand" "=l")
 	(udiv:GPR (match_operand:GPR 1 "register_operand" "d")
 		  (match_operand:GPR 2 "register_operand" "d")))
    (set (match_operand:GPR 3 "register_operand" "=d")
 	(umod:GPR (match_dup 1)
 		  (match_dup 2)))]
-  ""
+  "!TARGET_MIPS16"
   "#"
   "reload_completed"
   [(const_int 0)]
 {
-  rtx hilo;
-
-  if (TARGET_64BIT)
-    {
-      hilo = gen_rtx_REG (TImode, MD_REG_FIRST);
-      emit_insn (gen_udivmod<mode>4_hilo_ti (hilo, operands[1], operands[2]));
-      emit_insn (gen_mfhi<mode>_ti (operands[3], hilo));
-    }
-  else
-    {
-      hilo = gen_rtx_REG (DImode, MD_REG_FIRST);
-      emit_insn (gen_udivmod<mode>4_hilo_di (hilo, operands[1], operands[2]));
-      emit_insn (gen_mfhi<mode>_di (operands[3], hilo));
-    }
+  emit_insn (gen_udivmod<mode>4_split (operands[3], operands[1], operands[2]));
   DONE;
 }
  [(set_attr "type" "idiv")
   (set_attr "mode" "<MODE>")
   (set_attr "length" "8")])
 
+(define_expand "<u>divmod<mode>4_split"
+  [(set (match_operand:GPR 0 "register_operand")
+	(any_mod:GPR (match_operand:GPR 1 "register_operand")
+		     (match_operand:GPR 2 "register_operand")))]
+  ""
+{
+  rtx hilo;
+
+  if (TARGET_64BIT)
+    {
+      hilo = gen_rtx_REG (TImode, MD_REG_FIRST);
+      emit_insn (gen_<u>divmod<mode>4_hilo_ti (hilo, operands[1],
+					       operands[2]));
+      emit_insn (gen_mfhi<mode>_ti (operands[0], hilo));
+    }
+  else
+    {
+      hilo = gen_rtx_REG (DImode, MD_REG_FIRST);
+      emit_insn (gen_<u>divmod<mode>4_hilo_di (hilo, operands[1],
+					       operands[2]));
+      emit_insn (gen_mfhi<mode>_di (operands[0], hilo));
+    }
+  DONE;
+})
+
 (define_insn "<u>divmod<GPR:mode>4_hilo_<HILO:mode>"
-  [(set (match_operand:HILO 0 "register_operand" "=x")
+  [(set (match_operand:HILO 0 "muldiv_target_operand" "=x")
 	(unspec:HILO
 	  [(any_div:GPR (match_operand:GPR 1 "register_operand" "d")
 			(match_operand:GPR 2 "register_operand" "d"))]

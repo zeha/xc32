@@ -62,6 +62,7 @@ char * pic32_section_size_string
 char * pic32_section_attr_string
   PARAMS ((asection *));
 
+
 #define is_mips_elf(bfd)				\
   (bfd_get_flavour (bfd) == bfd_target_elf_flavour	\
    && elf_tdata (bfd) != NULL				\
@@ -70,6 +71,9 @@ char * pic32_section_attr_string
 /* Fake input file for stubs.  */
 static lang_input_statement_type *stub_file;
 static bfd *stub_bfd;
+
+static bfd_boolean insn32;
+static int eh_reloc_type = R_MIPS_EH;
 
 struct traverse_hash_info
 {
@@ -260,7 +264,11 @@ void pic32_create_fill_templates
 static void pic32_create_unused_program_sections
   PARAMS ((struct pic32_fill_option *));
 
+void pic32_report_crypto_sections
+  PARAMS((void));
+
 int fill_section_count = 0;
+int dinit_size = 0;
 #endif
 
 static void gldelf32pic32mx_after_allocation (void);
@@ -409,7 +417,8 @@ static const struct magic_section_description_tag magic_dmdescriptions[] =
    {".bss", "Uninitialized data"},
    {".heap", "Dynamic Memory heap"},
    {".stack", "Min reserved for stack"},
-   {".ramfunc", "RAM functions"}};
+   {".ramfunc", "RAM functions"},
+   {".dbg_data", "Memory reserved for debugger exec"}};
 
 struct magic_sections_tag magic_dm =
 {
@@ -604,6 +613,7 @@ struct hook_stub_info
   asection *input_section;
 };
 
+
 /* Traverse the linker tree to find the spot where the stub goes.  */
 
 static bfd_boolean
@@ -688,6 +698,11 @@ mips_add_stub_section (const char *stub_sec_name, asection *input_section,
   lang_output_section_statement_type *os;
   struct hook_stub_info info;
 
+  /* PR 12845: If the input section has been garbage collected it will
+     not have its output section set to *ABS*.  */
+  if (bfd_is_abs_section (output_section))
+    return NULL;
+
   /* Create the stub file, if we haven't already.  */
   if (stub_file == NULL)
     {
@@ -725,7 +740,7 @@ mips_add_stub_section (const char *stub_sec_name, asection *input_section,
 
   /* Initialize a statement list that contains only the new statement.  */
   lang_list_init (&info.add);
-  lang_add_section (&info.add, stub_sec, os);
+  lang_add_section (&info.add, stub_sec, NULL, os);
   if (info.add.head == NULL)
     goto err_ret;
 
@@ -744,6 +759,12 @@ mips_add_stub_section (const char *stub_sec_name, asection *input_section,
 static void
 mips_create_output_section_statements (void)
 {
+  struct elf_link_hash_table *htab;
+
+  htab = elf_hash_table (&link_info);
+  if (is_elf_hash_table (htab) && is_mips_elf (link_info.output_bfd))
+    _bfd_mips_elf_linker_flags (&link_info, insn32, eh_reloc_type);
+
   if (is_mips_elf (link_info.output_bfd))
     _bfd_mips_elf_init_stubs (&link_info, mips_add_stub_section);
 }
@@ -820,7 +841,10 @@ bfd_pic32_report_memory_usage (fp)
   struct region_report_tag dmregions_to_report[] =
     {{"kseg1_data_mem",
       "kseg1 Data-Memory Usage",
-      "         Total kseg1_data_mem used"}};
+      "         Total kseg1_data_mem used"},
+    {"kseg0_data_mem",
+      "kseg0 Data-Memory Usage",
+      "         Total kseg0_data_mem used"}};
 
   /* clear the counters */
   actual_prog_memory_used = 0;
@@ -828,8 +852,10 @@ bfd_pic32_report_memory_usage (fp)
   region_prog_memory_used = 0;
   region_data_memory_used = 0;
   total_data_memory = total_prog_memory = 0;
+  
+  fflush (fp);
 
-  fprintf( fp, "\nMicrochip PIC32 Memory-Usage Report");
+  fprintf (fp, "\nMicrochip PIC32 Memory-Usage Report");
 
   /* build an ordered list of output sections */
   pic32_init_section_list(&pic32_section_list);
@@ -839,7 +865,9 @@ bfd_pic32_report_memory_usage (fp)
   magic_pm.count = sizeof(magic_pmdescriptions)/sizeof(magic_pmdescriptions[0]);
   magic_pm.start = magic_pm.index = 0;
   for (region_index = 0; region_index < region_count; region_index++)
-  {
+  {  
+     if (!lang_memory_region_exist(pmregions_to_report[region_index].name))
+       continue;
      region = region_lookup(pmregions_to_report[region_index].name);
 
      /* print code header */
@@ -878,12 +906,15 @@ bfd_pic32_report_memory_usage (fp)
   magic_dm.start = magic_dm.index = 0;
   for (region_index = 0; region_index < region_count; region_index++)
   {
+     if (!lang_memory_region_exist(dmregions_to_report[region_index].name))
+       continue;
+         
      region = region_lookup(dmregions_to_report[region_index].name);
-     /* print code header */
+     /* print data header */
      fprintf( fp, "\n\n%s\n", dmregions_to_report[region_index].title);
      fprintf( fp, "section                    address  length [bytes]      (dec)  Description\n");
      fprintf( fp, "-------                 ----------  -------------------------  -----------\n");
-     /* report code sections */
+     /* report data sections */
      for (s = pic32_section_list; s != NULL; s = s->next)
        if (s->sec)
        {
@@ -923,9 +954,36 @@ bfd_pic32_report_memory_usage (fp)
              (unsigned long)stack_base, (unsigned long)(stack_limit-stack_base),
              (unsigned long)(stack_limit-stack_base), "Reserved for stack");
   fprintf( fp, "\n        --------------------------------------------------------------------------\n");
+  
+  fflush (fp);
 #undef NAME_MAX_LEN
 #undef NAME_FIELD_LEN
 } /* static void bfd_pic32_report_memory_usage (...)*/
+
+
+void pic32_report_crypto_sections()
+{
+   FILE *crypto;
+   struct pic32_section *s;
+   char *c;
+   crypto = fopen(crypto_file, "w");
+   if (!crypto){
+     fprintf(stderr,"Error: crypto output file cannot be opened.\n");
+     xexit(1);
+   }
+     for (s = pic32_section_list; s != NULL; s = s->next)
+       if (s->sec && (strstr(s->sec->name,"XC32$_crypto") ||
+                      (strncmp(s->sec->name, ".dinit%", 7) == 0)))
+       {
+          c = strchr(s->sec->name, '%');
+          if (c) *c = (char) '\0';
+          fprintf( crypto, "%s \t%#X \t%#X  \n", s->sec->name,
+                 s->sec->vma, s->sec->size);
+
+       }
+    fclose(crypto);
+    free(crypto_file);
+}
 
 static void
 report_percent_used (used, max, fp)
@@ -1226,6 +1284,12 @@ region_lookup( name )
     else if (NAME_IS(kseg1_data_mem)) {
       use_default = 1;
       region->origin = 0xA0000000;     /* works with 32MX320F512L */
+      region->length = 0x8000;
+      upper_limit    = (region->origin + region->length)-1;
+    }
+    else if (NAME_IS(kseg0_data_mem)) {
+      use_default = 1;
+      region->origin = 0x80000000;     /* works with 32MX320F512L */
       region->length = 0x8000;
       upper_limit    = (region->origin + region->length)-1;
     }
@@ -1721,12 +1785,13 @@ bfd_pic32_create_data_init_bfd (parent)
 
   /* create a symbol table (room for 1 entry) */
   symptr = 0;
-  symtab = (asymbol **) bfd_alloc (link_info.output_bfd, sizeof (asymbol *));
+  symtab = (asymbol **) bfd_alloc (link_info.output_bfd, 2 * sizeof (asymbol *));
 
   /*
   ** create a bare-bones section for .dinit
   */
-  flags = SEC_CODE | SEC_HAS_CONTENTS | SEC_IN_MEMORY | SEC_KEEP;
+  flags = SEC_CODE | SEC_HAS_CONTENTS | SEC_IN_MEMORY | SEC_KEEP |
+          SEC_LINKER_CREATED | SEC_ALLOC;
   align = 2; /* 2^2 */
   sec = bfd_pic32_create_section (abfd, ".dinit", flags, align);
   size = 0; /* will update later */
@@ -1767,6 +1832,11 @@ void pic32_create_data_init_template(void)
           bfd_pic32_scan_data_section(s->sec, &total_data);
 
       total_data += 4; /* zero terminated */
+
+      if (total_data % 16)
+        total_data += 16 - (total_data % 16);
+
+      dinit_size = total_data;
 
       /* allocate memory for the template */
       init_data = (unsigned char *) bfd_alloc (link_info.output_bfd, total_data);
@@ -1821,7 +1891,7 @@ bfd_pic32_create_stack_bfd (bfd *parent) {
   int flags, align;
 
   /* create a bare-bones bfd */
-  oname = (char *) bfd_alloc (link_info.output_bfd, 20);
+  oname = (char *) xmalloc (20);
   sprintf (oname, "stack");
   abfd = bfd_create (oname, parent);
   bfd_find_target ("${OUTPUT_FORMAT}", abfd);
@@ -1832,10 +1902,10 @@ bfd_pic32_create_stack_bfd (bfd *parent) {
 
   /* create a symbol table (room for 1 entry) */
   symptr = 0;
-  symtab = (asymbol **) bfd_alloc (link_info.output_bfd, sizeof (asymbol *));
+  symtab = (asymbol **) xmalloc (2 * sizeof (asymbol *));
 
   /* create a bare-bones section */
-  flags = SEC_LINKER_CREATED | SEC_KEEP ;
+  flags = SEC_LINKER_CREATED | SEC_KEEP;
   align = 1;
   sec = bfd_pic32_create_section (abfd, ".stack", flags, align);
   bfd_set_section_flags (abfd, sec, flags);
@@ -1850,10 +1920,11 @@ bfd_pic32_create_stack_bfd (bfd *parent) {
       fprintf( stderr, "Link Error: can't make stack readable\n");
       abort();
     }
-
-  /* must set this attribute last, because the call to
-     bfd_make_readable() loses extended attributes */
-
+  /* set section flags & attributes again, because the call to
+     bfd_make_readable() loses them */
+     sec = abfd->sections;
+     flags = SEC_LINKER_CREATED | SEC_KEEP;
+     bfd_set_section_flags (abfd, sec, flags);
   return abfd;
 } /* static bfd * bfd_pic32_create_stack_bfd (...)*/
 
@@ -1961,6 +2032,10 @@ pic32_finish(void)
   }
   if (pic32_report_mem)
     bfd_pic32_report_memory_usage (stdout);
+
+  if (pic32_has_crypto_option)
+    pic32_report_crypto_sections();
+
 
   finish_default();
 } /* static void pic32_finish ()*/
@@ -2483,8 +2558,11 @@ bfd_pic32_create_section (abfd, name, flags, align)
 
   /* do NOT call bfd_make_section_old_way(), its buggy! */
   sec = bfd_make_section_anyway (abfd, name);
-  bfd_set_section_flags (abfd, sec, flags | SEC_ALLOC | SEC_LOAD | SEC_KEEP);
+  bfd_set_section_flags (abfd, sec, flags | SEC_ALLOC | SEC_KEEP | SEC_LINKER_CREATED);
   bfd_set_section_alignment (abfd, sec, align);
+  /* Set the gc mark to prevent the section from being removed by garbage
+     collection, despite the fact that no relocs refer to this section.  */
+  sec->gc_mark = 1;
   sec->output_section = sec;
 
   /* add a symbol for the section name */
@@ -2631,17 +2709,22 @@ bfd_pic32_finish(void)
           etree_type *addr_tree;
           os = lang_output_section_statement_lookup (".stack", 0, TRUE);
           stack_sec->size = pic32_stack_size;
-          bfd_set_section_size (stack_bfd, stack_sec, pic32_stack_size);
-          bfd_set_section_vma (stack_bfd, stack_sec, stack_base);
-          os->bfd_section->vma = stack_sec->vma;
-          os->bfd_section->lma = stack_sec->lma;
-          os->bfd_section->size = stack_sec->size;
-          stack_sec->flags |= SEC_LINKER_CREATED;
-          os->bfd_section->flags = stack_sec->flags;
-          addr_tree = xmalloc(sizeof(etree_type));
-          addr_tree->value.type.node_class = etree_value;
-          addr_tree->value.value = stack_sec->vma;
-          os->addr_tree = addr_tree;
+          if (os->bfd_section != NULL)
+          {
+            bfd_set_section_size (stack_bfd, stack_sec, pic32_stack_size);
+            bfd_set_section_vma (stack_bfd, stack_sec, stack_base);
+            os->bfd_section->vma = stack_sec->vma;
+            os->bfd_section->lma = stack_sec->lma;
+            os->bfd_section->size = stack_sec->size;
+            stack_sec->flags |= SEC_LINKER_CREATED;
+            os->bfd_section->flags = stack_sec->flags;
+            addr_tree = xmalloc(sizeof(etree_type));
+            addr_tree->value.type.node_class = etree_value;
+            addr_tree->value.value = stack_sec->vma;
+            os->addr_tree = addr_tree;
+          }
+          else
+            fprintf( stderr, "Link Error: Unable to allocate stack\n");
         }
 
       if (pic32_debug)
@@ -2684,7 +2767,16 @@ bfd_pic32_finish(void)
                                     pic32_heap_size, "_min_heap_size", 1, 0, 0);
 
   end_data_mem = stack_limit;
+
+#if !defined(MCHP_SKIP_RESOURCE_FILE)
+  if (pic32_is_l1cache_machine(global_PROCESSOR))
+    region = region_lookup("kseg0_data_mem");
+  else
+    region = region_lookup("kseg1_data_mem");
+#else 
   region = region_lookup("kseg1_data_mem");
+#endif
+
   if (region) {
     end_data_mem = region->origin + region->length;
   }
@@ -2740,6 +2832,12 @@ bfd_pic32_finish(void)
                                             "_dinit_addr", BSF_GLOBAL,
                                             bfd_abs_section_ptr, dinit_address,
                                             "_dinit_addr", 1, 0, 0);
+          if (pic32_debug)
+            printf("Creating _dinit_size= %x\n", dinit_size);
+          _bfd_generic_link_add_one_symbol (&link_info, link_info.output_bfd,
+                                            "_dinit_size", BSF_GLOBAL,
+                                            bfd_abs_section_ptr, dinit_size,
+                                            "_dinit_size", 1, 0, 0);
         }
     }
 }
@@ -2761,8 +2859,6 @@ elf_link_check_archive_element (name, abfd, sec_info)
 
   return TRUE;
 }
-
-/*FS*/
 
 static void
 gldelf32pic32mx_after_allocation (void)
@@ -2844,14 +2940,15 @@ bfd_pic32_create_fill_bfd (parent)
 
   /* create a symbol table (room for 1 entry) */
   symptr = 0;
-  symtab = (asymbol **) bfd_alloc (link_info.output_bfd, sizeof (asymbol *));
+  symtab = (asymbol **) bfd_alloc (link_info.output_bfd, 2 * sizeof (asymbol *));
 
   /*
   ** create a bare-bones section for
   */
   /* get unique section name */
   sname = bfd_get_unique_section_name (abfd, "fill$", &fill_section_count);
-  flags = SEC_CODE | SEC_HAS_CONTENTS | SEC_IN_MEMORY;
+  flags = SEC_CODE | SEC_HAS_CONTENTS | SEC_IN_MEMORY | SEC_KEEP |
+          SEC_LINKER_CREATED;
   sec_align = 0; 
   sec = bfd_pic32_create_section (abfd, sname, flags, sec_align);
   size = 0; /* will update later */
@@ -3031,6 +3128,44 @@ void pic32_create_specific_fill_sections(void)
 
 EOF
 
+
+# Define some shell vars to insert bits of code into the standard elf
+# parse_args and list_options functions.
+#
+PARSE_AND_LIST_PROLOGUE='
+#define OPTION_INSN32			301
+#define OPTION_NO_INSN32		(OPTION_INSN32 + 1)
+#define OPTION_PCREL_EH_RELOC		303
+'
+
+PARSE_AND_LIST_LONGOPTS='
+  { "insn32", no_argument, NULL, OPTION_INSN32 },
+  { "no-insn32", no_argument, NULL, OPTION_NO_INSN32 },
+  { "pcrel-eh-reloc", no_argument, NULL, OPTION_PCREL_EH_RELOC },
+'
+
+PARSE_AND_LIST_OPTIONS='
+  fprintf (file, _("\
+  --insn32                    Only generate 32-bit microMIPS instructions\n"
+		   ));
+  fprintf (file, _("\
+  --no-insn32                 Generate all microMIPS instructions\n"
+		   ));
+'
+
+PARSE_AND_LIST_ARGS_CASES='
+    case OPTION_INSN32:
+      insn32 = TRUE;
+      break;
+
+    case OPTION_NO_INSN32:
+      insn32 = FALSE;
+      break;
+
+    case OPTION_PCREL_EH_RELOC:
+      eh_reloc_type = R_MIPS_PC32;
+      break;
+'
 
 LDEMUL_AFTER_OPEN=pic32_after_open
 LDEMUL_FINISH=pic32_finish

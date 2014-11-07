@@ -1,4 +1,5 @@
-This is mpfr.info, produced by makeinfo version 4.13 from mpfr.texi.
+This is ../../../src45x/gcc/mpfr/mpfr.info, produced by makeinfo
+version 4.13 from ../../../src45x/gcc/mpfr/mpfr.texi.
 
 This manual documents how to install and use the Multiple Precision
 Floating-Point Reliable Library, version 3.0.1.
@@ -4016,40 +4017,40 @@ Function and Type Index
 
 
 Tag Table:
-Node: Top880
-Node: Copying2210
-Node: Introduction to MPFR3970
-Node: Installing MPFR6059
-Node: Reporting Bugs10798
-Node: MPFR Basics12593
-Node: MPFR Interface28132
-Node: Initialization Functions30228
-Node: Assignment Functions36901
-Node: Combined Initialization and Assignment Functions45248
-Node: Conversion Functions46541
-Node: Basic Arithmetic Functions54013
-Node: Comparison Functions62930
-Node: Special Functions66412
-Node: Input and Output Functions80001
-Node: Formatted Output Functions81924
-Node: Integer Related Functions91023
-Node: Rounding Related Functions96785
-Node: Miscellaneous Functions100391
-Node: Exception Related Functions106952
-Node: Compatibility with MPF113486
-Node: Custom Interface116174
-Node: Internals120419
-Node: API Compatibility121903
-Node: Type and Macro Changes123833
-Node: Added Functions126554
-Node: Changed Functions129075
-Node: Removed Functions132799
-Node: Other Changes133211
-Node: Contributors134385
-Node: References136705
-Node: GNU Free Documentation License138446
-Node: Concept Index160889
-Node: Function Index165827
+Node: Top930
+Node: Copying2260
+Node: Introduction to MPFR4020
+Node: Installing MPFR6109
+Node: Reporting Bugs10848
+Node: MPFR Basics12643
+Node: MPFR Interface28182
+Node: Initialization Functions30278
+Node: Assignment Functions36951
+Node: Combined Initialization and Assignment Functions45298
+Node: Conversion Functions46591
+Node: Basic Arithmetic Functions54063
+Node: Comparison Functions62980
+Node: Special Functions66462
+Node: Input and Output Functions80051
+Node: Formatted Output Functions81974
+Node: Integer Related Functions91073
+Node: Rounding Related Functions96835
+Node: Miscellaneous Functions100441
+Node: Exception Related Functions107002
+Node: Compatibility with MPF113536
+Node: Custom Interface116224
+Node: Internals120469
+Node: API Compatibility121953
+Node: Type and Macro Changes123883
+Node: Added Functions126604
+Node: Changed Functions129125
+Node: Removed Functions132849
+Node: Other Changes133261
+Node: Contributors134435
+Node: References136755
+Node: GNU Free Documentation License138496
+Node: Concept Index160939
+Node: Function Index165877
 
 End Tag Table
 

@@ -27,6 +27,8 @@ along with GCC; see the file COPYING3.  If not see
 #ifndef MCHP_H
 #define MCHP_H
 
+#define MCHP_SKIP_RESOURCE_FILE 1
+
 #include <safe-ctype.h>
 #include "config/mips/mips-machine-function.h"
 #include "config/mchp-cci/cci-backend.h"
@@ -38,8 +40,8 @@ along with GCC; see the file COPYING3.  If not see
 #undef _BUILD_C32_
 #define _BUILD_C32_ 1
 
-#ifndef MCHP_DEBUG
-#define MCHP_DEBUG 0
+#if 0
+#define MCHP_DEBUG
 #endif
 
 #define XCLM_FULL_CHECKOUT 1
@@ -47,15 +49,16 @@ along with GCC; see the file COPYING3.  If not see
 extern       int mchp_io_size_val;
 extern       HOST_WIDE_INT mchp_pic32_license_valid;
 extern const char *pic32_text_scn;
+extern int         mchp_profile_option;
 extern const char *mchp_it_transport;
+extern const char *mchp_resource_file;
 
 #undef DEFAULT_SIGNED_CHAR
 #define DEFAULT_SIGNED_CHAR 1
 
 /* Default to short double rather than long double */
 #undef TARGET_SHORT_DOUBLE
-#define TARGET_SHORT_DOUBLE  1
-
+#define TARGET_SHORT_DOUBLE 1 
 #define MCHP_CONFIGURATION_DATA_FILENAME "configuration.data"
 #define MCHP_CONFIGURATION_HEADER_MARKER \
   "Daytona Configuration Word Definitions: "
@@ -96,7 +99,6 @@ do {                     \
 
 #define XC32CPPLIB_OPTION "-mxc32cpp-lib"
 
-/* Don't set.  This defaults to crt0.o if not specified. */
 #undef  STARTFILE_SPEC
 #define STARTFILE_SPEC " crt0%O%s "
 
@@ -112,8 +114,11 @@ do {                     \
 
 #undef LINK_COMMAND_SPEC
 /* Add the PIC32 default linker script with the -T option */
+/* When compiling with -mprocessor=32MX* or without the -mprocessor option, 
+   use the ./ldscripts/elf32pic32mx.x file. When compiling for a newer device,
+   Use ./proc/<procname>/p<procname>.ld. */
 #define LINK_COMMAND_SPEC "\
-%{!fsyntax-only:%{!c:%{!M:%{!MM:%{!E:%{!S:\
+    %{!fsyntax-only:%{!c:%{!M:%{!MM:%{!E:%{!S:\
     %(linker) \
     %{fuse-linker-plugin: \
     -plugin %(linker_plugin_file) \
@@ -135,11 +140,19 @@ do {                     \
     %{static:} %{L*} %(mfwrap) %(link_libgcc) %o\
     %{fopenmp|ftree-parallelize-loops=*:%:include(libgomp.spec)%(link_gomp)} %(mflib)\
     %{fprofile-arcs|fprofile-generate*|coverage:-lgcov}\
-    %{!A:%{!nostdlib:%{!mno-default-isr-vectors:-l:default_isr_vectors.o} }}\
-    %{T:%{T*}; !T: -T %s./ldscripts/elf32pic32mx.x} \
+    %{!A:%{!nostdlib:%{!mno-default-isr-vectors: -l:default_isr_vectors.o} }}\
+    %{T:%{T*}; !T: -T %s%{mprocessor=32MX*:./ldscripts/elf32pic32mx.x; \
+     :%{mprocessor=32mx*:./ldscripts/elf32pic32mx.x; \
+     :%{!mprocessor=*:./ldscripts/elf32pic32mx.x; \
+     :%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/p%*} %J%{mprocessor=*:.ld} }}}} \
     %{!nostdlib:%{!nodefaultlibs:%(link_ssp) %(link_gcc_c_sequence)}}\
     %{!A:%{!nostdlib:%{!nostartfiles:%E} }} \
     }}}}}}"
+
+#if !defined (MCHP_SKIP_RESOURCE_FILE)
+   %{mprocessor=*:-p%*}
+#endif
+
 #undef LINK_COMMAND_SPEC_SUPPRESS_DEFAULT_SCRIPT
 #define LINK_COMMAND_SPEC_SUPPRESS_DEFAULT_SCRIPT "\
 %{!fsyntax-only:%{!c:%{!M:%{!MM:%{!E:%{!S:\
@@ -164,7 +177,7 @@ do {                     \
     %{static:} %{L*} %(mfwrap) %(link_libgcc) %o\
     %{fopenmp|ftree-parallelize-loops=*:%:include(libgomp.spec)%(link_gomp)} %(mflib)\
     %{fprofile-arcs|fprofile-generate*|coverage:-lgcov}\
-    %{!A:%{!nostdlib:%{!mno-default-isr-vectors:-l:default_isr_vectors.o} }}\
+    %{!A:%{!nostdlib:%{mdefault-isr-vectors:-l:default_isr_vectors.o} }}\
     %{T*} \
     %{!nostdlib:%{!nodefaultlibs:%(link_ssp) %(link_gcc_c_sequence)}}\
     %{!A:%{!nostdlib:%{!nostartfiles:%E} }} \
@@ -175,7 +188,8 @@ do {                     \
  * processor-specific library search path, and define _DEBUGGER if the
  * -mdebugger command-line option was specified.
  */
-#define LINK_LIBGCC_SPEC "%D -L %s%{mprocessor=*:./proc/%*; :./proc/32MXGENERIC} %{mdebugger:--defsym _DEBUGGER=1}"
+#define LINK_LIBGCC_SPEC " \
+ %D -L %s%{mprocessor=*:./proc/%*; :./proc/32MXGENERIC} %{mdebugger:--defsym _DEBUGGER=1}"
 
 /* define PATH to be used if C_INCLUDE_PATH is not declared
    (and CPLUS_INCLUDE_PATH for C++, &c).  The directories are all relative
@@ -265,9 +279,15 @@ extern void pic32_system_include_paths(const char *root, const char *system,
 %{G*} \
 %{mips16:%{!mno-mips16:-mips16}} %{mno-mips16:-no-mips16} \
 %{mips16e} \
+%{mmicromips} %{mno-micromips} \
+%{mmcu} %{mno-mcu} \
+%{mdsp} %{mno-dsp} \
+%{mdspr2} %{mno-dspr2} \
 %(subtarget_asm_optimizing_spec) \
 %(subtarget_asm_debugging_spec) \
 %{mxgot:-xgot} \
+%{mtune=*} %{v} \
+%{!mpdr:-mno-pdr} \
 %(target_asm_spec) \
 %(subtarget_asm_spec)"
 
@@ -289,6 +309,10 @@ extern void pic32_system_include_paths(const char *root, const char *system,
 #define CC1_SPEC " \
  %{gline:%{!g:%{!g0:%{!g1:%{!g2: -g1}}}}} \
  %{G*} \
+ %{mprocessor=32MX* : %{msmall-isa:-mips16} %{!msmall-isa: %{mips16: -msmall-isa}} -mpic32mxlibs } \
+ %{mprocessor=32mx* : %{msmall-isa:-mips16} %{!msmall-isa: %{mips16: -msmall-isa}} -mpic32mxlibs} \
+ %{mprocessor=32MZ* : %{msmall-isa:-mmicromips} %{!msmall-isa: %{mmicromips: -msmall-isa}} -mpic32mzlibs} \
+ %{mprocessor=32mz* : %{msmall-isa:-mmicromips} %{!msmall-isa: %{mmicromips: -msmall-isa}} -mpic32mzlibs} \
  -mconfig-data-dir= %J%s%{ mprocessor=* :./proc/%*; :./proc/32MXGENERIC} \
  %{mno-float:-fno-builtin-fabs -fno-builtin-fabsf} \
  %{mlong-calls:-msmart-io=0} \
@@ -305,18 +329,15 @@ extern void pic32_system_include_paths(const char *root, const char *system,
  %{mxc32cpp-lib:%{!mno-xc32cpp-lib: -msmart-io=0 }} \
  %{mips16: %{fexceptions: %{!mmips16-exceptions: %e-fexceptions with -mips16 not yet supported}}} \
  %{mips16: %{!mmips16-exceptions: -fno-exceptions}} \
- %{mprocessor=32SK* : -mdspr2 -mmcu %{mips16*:%e-mips16 option not available on a PIC32SK MCU}} \
- %{mprocessor=32sk* : -mdspr2 -mmcu %{mips16*:%e-mips16 option not available on a PIC32SK MCU}} \
- %{mprocessor=32MX* : %{mmicromips:%e-mmicromips option not available on a PIC32MX MCU}} \
- %{mprocessor=32mx* : %{mmicromips:%e-mmicromips option not available on a PIC32MX MCU}} \
- %{mprocessor=32MX* : %{mdspr2:%e-mdspr2 option not available on a PIC32MX MCU}} \
- %{mprocessor=32mx* : %{mdspr2:%e-mdspr2 option not available on a PIC32MX MCU}} \
- %{mprocessor=32MX* : %{mmcu:%e-mmcu option not available on a PIC32MX MCU}} \
- %{mprocessor=32mx* : %{mmcu:%e-mmcu option not available on a PIC32MX MCU}} \
- %{O3:%{!mtune:-mtune=4kec}} \
+ %{O2|Os|O3:%{!mtune:-mtune=4kec}} \
  %(mchp_cci_cc1_spec) \
  %(subtarget_cc1_spec) \
 "
+
+#if 0
+ %{mit=profile:%{mips16:%e-mit=profile not supported with -mips16}} \
+ %{mit=profile:%{mlong-calls:%e-mit=profile not supported with -mlong-calls}}
+#endif
 
 #define CC1PLUS_SPEC " \
  %{!fenforce-eh-specs:-fno-enforce-eh-specs} \
@@ -535,6 +556,7 @@ extern const char *mchp_config_data_dir;
 
 /* We want to change the default pre-defined macros. Many of these
    are the same as presented in sde.h, but not all */
+/* TODO: ADD all PIC32MZ macros */
 #undef TARGET_OS_CPP_BUILTINS
 #define TARGET_OS_CPP_BUILTINS()                            \
   do {                                                      \
@@ -578,7 +600,7 @@ extern const char *mchp_config_data_dir;
         builtin_define ("__SINGLE_FLOAT");                  \
       }                                                     \
                                                             \
-    builtin_define_std ("PIC32MX");                         \
+    builtin_define_std ("PIC32");                           \
     builtin_define     ("__C32__");                         \
     builtin_define     ("__XC32");                          \
     builtin_define     ("__XC32__");                        \
@@ -586,11 +608,13 @@ extern const char *mchp_config_data_dir;
     builtin_define     ("__XC__");                          \
     if ((mchp_processor_string != NULL) && *mchp_processor_string) \
       {                                                     \
+        if (strstr (mchp_processor_string, "32MX") != NULL)  { \
         char *proc, *p;                                     \
         int setnum, memsize;                                \
         char *pinset;                                       \
         gcc_assert(strlen(mchp_processor_string) < 20);     \
-        pinset = (char*)alloca(2);                                 \
+        builtin_define_std ("PIC32MX");                     \
+        pinset = (char*)alloca(2);                          \
         pinset[1] = 0;                                      \
         proc = (char*)alloca (strlen (mchp_processor_string) + 5); \
         sprintf (proc, "__%s__", mchp_processor_string);    \
@@ -620,6 +644,18 @@ extern const char *mchp_config_data_dir;
              ("__PIC32_PIN_SET",                            \
               &pinset[0], 1);                               \
         }                                                   \
+        }                                                   \
+        else if (strstr (mchp_processor_string, "32MZ") != NULL)  { \
+        char *proc, *p;                                     \
+        gcc_assert(strlen(mchp_processor_string) < 20);     \
+        builtin_define_std ("PIC32MZ");                     \
+        proc = (char*)alloca (strlen (mchp_processor_string) + 5); \
+        sprintf (proc, "__%s__", mchp_processor_string);    \
+        for (p = proc ; *p ; p++)                           \
+          *p = TOUPPER (*p);                                \
+        builtin_define (proc);                              \
+                                                            \
+        }                                                   \
       }                                                     \
     else                                                    \
       {                                                     \
@@ -640,13 +676,19 @@ extern const char *mchp_config_data_dir;
             char *mchp_it_option = NULL;                        \
             char *mchp_it_option_arg = NULL;                    \
             mchp_it_option = alloca(strlen(mchp_it_transport)); \
-             if (strchr(mchp_it_transport, '(') < strchr(mchp_it_transport, ')'))  \
+            if (strcasecmp(mchp_it_transport,"profile") == 0) { \
+               mchp_profile_option = 1;                         \
+               mchp_it_option = NULL;                           \
+               builtin_define ("__HAS_FUNCTIONLEVELPROF");      \
+             }                                                  \
+            else {                                              \
+            if (strchr(mchp_it_transport, '(') < strchr(mchp_it_transport, ')'))  \
              {                                                        \
               mchp_it_option_arg = alloca(strlen(mchp_it_transport)); \
               sscanf (mchp_it_transport, "%10[^(](%90[^)])",          \
                 mchp_it_option, mchp_it_option_arg);                  \
               }                                                       \
-              else                                                    \
+            else                                                    \
                {                                                      \
                  mchp_it_option = mchp_it_transport;                  \
                }                                                      \
@@ -675,7 +717,7 @@ extern const char *mchp_config_data_dir;
                 builtin_define(mchp_it_option_define);                \
                } while (*c);                                          \
               }                                                       \
-          }                                                           \
+          }}                                                          \
       }                                                               \
       }                                                               \
     if ((version_string != NULL) && *version_string)        \
@@ -736,6 +778,11 @@ extern const char *mchp_config_data_dir;
   c_register_pragma(0, "vector", mchp_handle_vector_pragma); \
   c_register_pragma(0, "interrupt", mchp_handle_interrupt_pragma); \
   c_register_pragma(0, "config", mchp_handle_config_pragma); \
+  c_register_pragma(0, "config_alt", mchp_handle_config_alt_pragma); \
+  c_register_pragma(0, "config_bf1", mchp_handle_config_bf1_pragma); \
+  c_register_pragma(0, "config_abf1", mchp_handle_config_abf1_pragma); \
+  c_register_pragma(0, "config_bf2", mchp_handle_config_bf2_pragma); \
+  c_register_pragma(0, "config_abf2", mchp_handle_config_abf2_pragma); \
   c_register_pragma(0, "align", mchp_handle_align_pragma); \
   c_register_pragma(0, "section", mchp_handle_section_pragma); \
   c_register_pragma(0, "printf_args", mchp_handle_printf_args_pragma); \
@@ -744,7 +791,6 @@ extern const char *mchp_config_data_dir;
   c_register_pragma(0, "optimize", mchp_handle_optimize_pragma); \
   mchp_init_cci_pragmas(); \
   }
-
 
 /* There are no additional prefixes to try after STANDARD_EXEC_PREFIX. */
 #undef MD_EXEC_PREFIX
@@ -914,6 +960,9 @@ static const int TARGET_MDMX = 0;
 #undef MIPS_SUBTARGET_SUPPRESS_PROLOGUE
 #define MIPS_SUBTARGET_SUPPRESS_PROLOGUE() mchp_suppress_prologue()
 
+#undef MIPS_SUBTARGET_FUNCTION_PROFILING_EPILOGUE
+#define MIPS_SUBTARGET_FUNCTION_PROFILING_EPILOGUE(sibcall_p)  mchp_function_profiling_epilogue(sibcall_p)
+
 #undef MIPS_SUBTARGET_SUPPRESS_EPILOGUE
 #define MIPS_SUBTARGET_SUPPRESS_EPILOGUE() mchp_suppress_epilogue()
 
@@ -943,23 +992,26 @@ static const int TARGET_MDMX = 0;
     /* { name, min_len, max_len, decl_req, type_req, fn_type_req, handler } */  \
     /* Microchip: allow functions to be specified as interrupt handlers */      \
     { "interrupt",        0, 1,  false, true,  true, mchp_interrupt_attribute }, \
-    { "vector",           1, 64, true,  false, false, mchp_vector_attribute },   \
+    { "vector",           1, 256, true,  false, false, mchp_vector_attribute },   \
     { "at_vector",        1, 1,  true,  false, false, mchp_at_vector_attribute }, \
     /* also allow functions to be created without prologue/epilogue code */     \
-    { "naked",            0, 0,  true,  false, false, mchp_naked_attribute },                   \
+    { "naked",            0, 0,  true,  false, false, mchp_naked_attribute },   \
     { "address",          1, 1,  false, false, false, mchp_address_attribute }, \
     { "space",            1, 1,  false, false, false, mchp_space_attribute },   \
     { "persistent",       0, 0,  false, false, false, NULL }, \
     { "ramfunc",          0, 0,  false, true,  true,  mchp_ramfunc_attribute }, \
     { "unsupported",      0, 1,  false, false, false, mchp_unsupported_attribute }, \
     { "target_error",     1, 1,  false, false, false, mchp_target_error_attribute }, \
-    { "keep",             0, 0,  false, false, false, mchp_keep_attribute },
+    { "keep",             0, 0,  false, false, false, mchp_keep_attribute }, \
+   { "crypto",           0, 0,  false, false, false, mchp_crypto_attribute },
 #undef MIPS_DISABLE_INTERRUPT_ATTRIBUTE
 #define MIPS_DISABLE_INTERRUPT_ATTRIBUTE
 
 extern enum mips_function_type_tag current_function_type;
 
 #undef MIPS_SUBTARGET_SAVE_REG_P
+#define MIPS_SUBTARGET_SAVE_REG_P(regno) \
+  mchp_subtarget_save_reg_p(regno)
 
 #undef MIPS_SUBTARGET_OUTPUT_FUNCTION_PROLOGUE
 #define MIPS_SUBTARGET_OUTPUT_FUNCTION_PROLOGUE(file,tsize,size) \
@@ -974,6 +1026,10 @@ extern enum mips_function_type_tag current_function_type;
   mchp_target_insert_attributes (decl,attr_ptr)
 
 #undef MIPS_SUBTARGET_FUNCTION_OK_FOR_SIBCALL
+
+#undef MIPS_SUBTARGET_OVERRIDE_OPTIONS
+#define MIPS_SUBTARGET_OVERRIDE_OPTIONS() \
+  mchp_subtarget_override_options()
 
 #undef MIPS_SUBTARGET_OVERRIDE_OPTIONS1
 #define MIPS_SUBTARGET_OVERRIDE_OPTIONS1() \
@@ -990,6 +1046,10 @@ extern enum mips_function_type_tag current_function_type;
 #undef MIPS_SUBTARGET_MIPS16_ENABLED
 #define MIPS_SUBTARGET_MIPS16_ENABLED(decl) \
   mchp_subtarget_mips16_enabled(decl)
+  
+#undef MIPS_SUBTARGET_MICROMIPS_ENABLED
+#define MIPS_SUBTARGET_MICROMIPS_ENABLED(decl) \
+  mchp_subtarget_micromips_enabled(decl)
 
 #undef MIPS_SUBTARGET_ENCODE_SECTION_INFO
 #define MIPS_SUBTARGET_ENCODE_SECTION_INFO(decl,rtl,first) \
@@ -1025,6 +1085,8 @@ extern enum mips_function_type_tag current_function_type;
 /* Initialize the GCC target structure.  */
 #undef TARGET_OVERRIDE_OPTIONS_AFTER_CHANGE
 #define TARGET_OVERRIDE_OPTIONS_AFTER_CHANGE mchp_override_options_after_change
+
+#define PIC32_SUPPORT_CRYPTO_ATTRIBUTE 1
 
 #endif /* MCHP_H */
 

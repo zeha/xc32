@@ -298,6 +298,7 @@ allocate_memory() {
             lang_add_section (&os->output_section_statement.children,
                               next->output_section_statement.children.head
                               ->input_section.section,
+                              NULL,
                               &os->output_section_statement);
 
             /* remove the merged section from output_bfd */
@@ -414,7 +415,15 @@ allocate_data_memory() {
            "  attribute mask = %x\n", mask);
 
   build_alloc_section_list(mask);
+
+#if !defined(MCHP_SKIP_RESOURCE_FILE)  
+  if (pic32_is_l1cache_machine(global_PROCESSOR))
+    region = region_lookup ("kseg0_data_mem");
+  else
+    region = region_lookup ("kseg1_data_mem");
+#else
   region = region_lookup ("kseg1_data_mem");
+#endif
 
   build_free_block_list(region, mask);
 
@@ -461,7 +470,7 @@ allocate_data_memory() {
       s->sec->vma = 0;
       os = lang_output_section_statement_lookup (".stack", 0, TRUE);
       /* lang_add_section() will call init_os() if needed */
-      lang_add_section (&os->children, s->sec, os);
+      lang_add_section (&os->children, s->sec, NULL, os);
       finish_section_info(s, os);
       pic32_remove_from_section_list(alloc_section_list,s);
       os->bfd_section->flags = s->sec->flags;
@@ -1157,7 +1166,7 @@ update_section_info(bfd_vma alloc_addr,
     printf("    creating output section statement \"%s\"\n\n", os->name);
 
   /* lang_add_section() will call init_os() if needed */
-  lang_add_section (&os->children, s->sec, os);
+  lang_add_section (&os->children, s->sec, NULL, os);
 
   finish_section_info(s, os);
   region = region;
@@ -1206,7 +1215,7 @@ update_group_section_info(bfd_vma alloc_addr,
       addr += (s->sec->size);
 
       /* lang_add_section() will call init_os() if needed */
-      lang_add_section (&os->children, s->sec, os);
+      lang_add_section (&os->children, s->sec, NULL, os);
 
       if (pic32_debug)
         printf("    updating grouped section info:"

@@ -71,20 +71,22 @@ void mchp_print_builtin_function (const_tree t)
 
 static void cci_define(void *pfile_v, const char *keyword, const char *target) {
   struct cpp_reader *pfile = (struct cpp_reader *)pfile_v;
-  char *buffer;
+  char *buffer = NULL;
 
   if (target)
     {
-      buffer = xmalloc(strlen(keyword) + strlen(target) + 6);
+      buffer = xmalloc(strlen(keyword) + strlen(target) + 7);
       sprintf(buffer,"%s=%s", keyword, target);
     }
   else
     {
-      buffer = xmalloc(strlen(keyword) + strlen("=") + 6);
+      buffer = xmalloc(strlen(keyword) + strlen("=") + 7);
       sprintf(buffer,"%s=", keyword);
     }
-  cpp_define(pfile, buffer);
-  free(buffer);
+  if (buffer) {
+    cpp_define(pfile, buffer);
+    free(buffer);
+  }
   return;
 }
 
@@ -92,7 +94,7 @@ static void cci_attribute(void *pfile_v,const char *keyword, const char *target,
                    int varargs, int n) {
   struct cpp_reader *pfile = (struct cpp_reader *)pfile_v;
   int params_specified = 0;
-  char *buffer,*c;
+  char *buffer=NULL,*c=NULL;
   int size;
   int i;
 
@@ -104,14 +106,16 @@ static void cci_attribute(void *pfile_v,const char *keyword, const char *target,
       }
     }
   }
-  size = strlen(keyword)+sizeof("__attribute__(())")+strlen(target)+1;
+  size = strlen(keyword)+1+sizeof("=__attribute__(())")+strlen(target)+1;
   if (n) {
     if (params_specified == 0) {
       size += 8 * n;  /* up to 99 params: Pnn, */
+    } else {
+      size += strlen(target) + strlen("()\n");
     }
   }
-  if (varargs) size += strlen("=()(),...__VA_ARGS__");
-  buffer = xmalloc(size);
+  if (varargs) size += strlen("=()(),...__VA_ARGS__")+1;
+  buffer = xcalloc(size,sizeof(char));
   c = buffer;
   c += sprintf(c,"%s",keyword);
   if (n || varargs) {
@@ -143,8 +147,10 @@ static void cci_attribute(void *pfile_v,const char *keyword, const char *target,
   *c++ = ')';
   *c++ = 0;
 
-  cpp_define(pfile, buffer);
-  free(buffer);
+  if (buffer) {
+    cpp_define(pfile, buffer);
+    free(buffer);
+  }
 }
 
 static void set_value(unsigned int *loc, unsigned int value) {

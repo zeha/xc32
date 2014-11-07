@@ -7534,7 +7534,7 @@ expand_expr_real_2 (sepops ops, rtx target, enum machine_mode tmode,
                         TYPE_ADDR_SPACE(TREE_TYPE(TREE_TYPE(treeop0))));
         target_type = lang_hooks.types.type_for_mode(target_mode,1);
   
-        // treeop1 = convert (target_type, treeop1);
+        /* treeop1 = convert (target_type, treeop1); */
         treeop1 = convert (TREE_TYPE(treeop0), treeop1);
       } else
 #endif

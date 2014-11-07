@@ -23,7 +23,7 @@ Target Undocumented RejectNegative Joined
 -mabi=ABI	Generate code that conforms to the given ABI
 
 mabicalls
-Target Undocumented Report Mask(ABICALLS) Undocumented
+Target Undocumented Report Mask(ABICALLS) 
 ;Generate code that can be used in SVR4-style dynamic objects
 
 ;mad
@@ -79,8 +79,12 @@ Target Report Mask(DSP) Undocumented
 Use MIPS-DSP instructions
 
 mdspr2
-Target Report Mask(DSPR2)
+Target Report RejectNegative Mask(DSPR2)
 Use MIPS-DSP REV 2 instructions
+
+mno-dspr2
+Target Report RejectNegative Var(TARGET_NO_DSPR2) Undocumented
+Reject MIPS-DSP REV 2 instructions
 
 mdebugmips
 Target Undocumented Var(TARGET_DEBUG_MODE)
@@ -209,7 +213,7 @@ Generate MIPS16 code
 ;Use MIPS-3D instructions
 
 mllsc
-Target Report Mask(LLSC)
+Target Report Mask(LLSC) Undocumented
 Use ll, sc and sync instructions
 
 mlocal-sdata
@@ -249,8 +253,12 @@ Target Report Var(TARGET_MT) Undocumented
 Allow the use of MT instructions
 
 mmcu
-Target Report Mask(MCU) Undocumented
+Target Report RejectNegative Mask(MCU)
 Use MCU instructions
+
+mno-mcu
+Target Report RejectNegative Var(TARGET_NO_MCU) Undocumented
+Reject MCU instructions
 
 mno-flush-func
 Target RejectNegative
@@ -309,7 +317,7 @@ Target Report Mask(SYNCI) Undocumented
 Use synci instruction to invalidate i-cache
 
 mtune=
-Target RejectNegative Joined Var(mips_tune_string) UndocumentedGCC does not support -C or -CC without -E
+Target RejectNegative Joined Var(mips_tune_string) Undocumented
 -mtune=PROCESSOR	Optimize the output for PROCESSOR
 
 ;muclibc
@@ -384,7 +392,7 @@ Target Report RejectNegative Joined Var(mchp_it_transport)
 -mit=TRANSPORT	Enable instrumented trace for MPLAB REAL ICE
 
 mprocessor=
-Target Report RejectNegative Joined Var(mchp_processor_string)
+Target Report RejectNegative Joined Var(mchp_processor_string) Init(0)
 -mprocessor=PROCESSOR	Specify the target PIC32 PROCESSOR
 
 mlicense-warning
@@ -404,5 +412,22 @@ Target Var Var(TARGET_MIPS16_EXCEPTIONS) Undocumented
 -mmips16-exceptions	Allow unsupported mips16 exceptions
 
 mno-default-isr-vectors
-Target Var VAR(TARGET_NO_DEFAULT_ISR_VECTORS) Undocumented
--mno-default-isr-vectors	Suppress the default ISR vectors to the default handler
+Target Var VAR(TARGET_DEFAULT_ISR_VECTORS) Undocumented
+-mno-default-isr-vectors	Prevent linking the default ISR vectors to the default handler
+
+msmall-isa
+Target Var VAR(TARGET_SMALL_ISA)
+-msmall-isa	Use -mips16 or -mmicromips as appropriate for the target specified in the -mprocessor option
+
+mpic32mxlibs
+Target RejectNegative Var VAR(TARGET_PIC32MX_LIBS) Undocumented
+-mpic32mxlibs		Use the PIC32MX multilib variant 
+
+mpic32mzlibs
+Target RejectNegative Var VAR(TARGET_PIC32MZ_LIBS) Undocumented
+-mpic32mzlibs		Use the PIC32MZ multilib variant
+
+mresource=
+Target RejectNegtive Joined Var(mchp_resource_file) VarExists Undocumented 
+Identify compiler resource file
+

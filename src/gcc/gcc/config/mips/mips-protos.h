@@ -199,6 +199,9 @@ extern int mips_split_const_insns (rtx);
 extern int mips_load_store_insns (rtx, rtx);
 extern int mips_idiv_insns (void);
 extern rtx mips_emit_move (rtx, rtx);
+#ifdef RTX_CODE
+extern void mips_emit_binary (enum rtx_code, rtx, rtx, rtx);
+#endif
 extern rtx mips_pic_base_register (rtx);
 extern rtx mips_got_load (rtx, rtx, enum mips_symbol_type);
 extern bool mips_split_symbol (rtx, rtx, enum machine_mode, rtx *);
@@ -391,8 +394,12 @@ extern const char* pic32_output_switch_ISAbase (void);
 extern const char* pic32_output_switch_ISA16 (void);
 extern const char* pic32_output_mfc0_32 (rtx dest, int srcreg, int srcsel);
 extern const char* pic32_output_mtc0_32 (rtx value, int srcreg, int srcsel);
-
+extern bool mips_noreturn_function_p (tree decl);
+extern rtx mips_emit_call_insn (rtx, rtx, rtx, bool);
+extern bool mips_function_ok_for_sibcall (tree decl, tree exp ATTRIBUTE_UNUSED);
+extern bool mips_load_call_address (enum mips_call_type type, rtx dest, rtx addr);
 extern int mchp_check_for_conversion(rtx);
+
 
 extern bool mips_in_small_data_p (const_tree decl);
 

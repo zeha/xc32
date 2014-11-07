@@ -86,7 +86,7 @@
 #define PIC32_SET_RAMFUNC_ATTR(sec) \
   { (sec)->ramfunc = 1;          \
   (sec)->flags |= (SEC_HAS_CONTENTS | SEC_LOAD | SEC_ALLOC); \
-  (sec)->flags &= ~SEC_DATA; }
+  (sec)->flags &= ~(SEC_DATA | SEC_CODE); }
 
 #define PIC32_SET_ABSOLUTE_ATTR(sec) \
   (sec)->absolute = 1;
@@ -202,6 +202,7 @@ extern struct mchp_undefsym_table *mchp_undefsym_init
 /*****************************************************************************/
 
 extern bfd_boolean pic32_has_fill_option;
-
+extern bfd_boolean pic32_has_processor_option;
+extern const bfd_arch_info_type *global_PROCESSOR;
 #endif
 

@@ -61,6 +61,14 @@ extern void mchp_handle_scanf_args_pragma (struct cpp_reader *pfile);
 extern void mchp_handle_keep_pragma (struct cpp_reader *pfile);
 extern void mchp_handle_optimize_pragma (struct cpp_reader *pfile);
 extern void mchp_handle_align_pragma (struct cpp_reader *pfile);
+#if defined(_BUILD_C32_) || defined(TARGET_IS_PIC32MX)
+extern void mchp_handle_configset_pragma(struct cpp_reader *pfile, const char *set);
+extern void mchp_handle_config_alt_pragma(struct cpp_reader *pfile);
+extern void mchp_handle_config_bf1_pragma(struct cpp_reader *pfile);
+extern void mchp_handle_config_abf1_pragma(struct cpp_reader *pfile);
+extern void mchp_handle_config_bf2_pragma(struct cpp_reader *pfile);
+extern void mchp_handle_config_abf2_pragma(struct cpp_reader *pfile);
+#endif /* _BUILD_C32_ */
 /*
  * #pragma config support
  */
@@ -162,11 +170,11 @@ CCI(CCI_MCHP,   CCI_define,       "__bank(X)",    EMPTY,           0)
 CCI(CCI_C30,    CCI_define,       "__abi(...)",   EMPTY,           0)
 CCI(CCI_C32,    CCI_attribute_n,  "__abi",        "P1",            1)
 
-CCI(CCI_MCHP,   CCI_attribute_n,  "__align",      "aligned",       1)
-
 CCI(CCI_MCHP,   CCI_attribute,    "__deprecate",  "deprecated",    0)
 
 CCI(CCI_MCHP,   CCI_attribute,    "__pack",       "packed",        0)
+
+CCI(CCI_MCHP,   CCI_attribute_n,  "__align",      "aligned",       1)
 
 /* __pack_upper_byte is already defined for C30 */
 CCI(CCI_C32,    CCI_define,       "__pack_upper_byte",  EMPTY,     0)

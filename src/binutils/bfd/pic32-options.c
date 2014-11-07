@@ -30,6 +30,7 @@
 
 #include <errno.h>
 
+extern void pic32_processor_option(char *);
 /*
 ** list_options()
 **
@@ -42,6 +43,10 @@ gldelf32pic32mx_list_options (FILE * file)
   fprintf (file, _("  --report-mem         Report memory usage to console\n"));
   fprintf (file, _("  --smart-io           Merge I/O library functions (default)\n"));
   fprintf (file, _("  --no-smart-io        Don't merge I/O library functions\n"));
+#if !defined(MCHP_SKIP_RESOURCE_FILE)
+  fprintf (file, _("  -p,--processor PROC  Specify the target processor"
+                   " (e.g., 32MX795F512L)\n"));
+#endif
 } /* static void elf32pic32mx_list_options () */
 
 static void pic32_init_fill_option_list (struct pic32_fill_option **lst)
@@ -248,7 +253,6 @@ gldelf32pic32mx_parse_args (int argc, char ** argv)
   const char *smart_io_option_err  = "--smart-io and --no-smart-io";
   const char *option_err = " options can not be used together\n";
   const char *data_init_option_err = "--data-init and --no-data-init";
-
   if (lastoptind != optind)
     opterr = 0;
 
@@ -298,6 +302,17 @@ gldelf32pic32mx_parse_args (int argc, char ** argv)
       pic32_process_fill_argument (optarg);
       pic32_has_fill_option = TRUE;
       break;
+    case CRYPTO_OPTION:
+      pic32_has_crypto_option = TRUE;
+      crypto_file = (const char *) malloc(strlen(optarg)+1);
+      strcpy(crypto_file, optarg);
+      break;
+#if !defined(MCHP_SKIP_RESOURCE_FILE)
+    case 'p':
+      pic32_processor_option(optarg);
+      break;
+
+#endif
 #endif
     }
 

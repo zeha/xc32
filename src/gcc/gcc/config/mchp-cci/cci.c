@@ -16,6 +16,7 @@
 #endif
 #ifdef _BUILD_C32_
 #define TARGET_C32 1
+#define MCHP_ALLOW_INTEGER_CONFIGVALUE
 #else
 #define TARGET_C32 0
 #endif
@@ -26,7 +27,7 @@
 
 static void cci_define(void *pfile_v, const char *keyword, const char *target) {
   struct cpp_reader *pfile = (struct cpp_reader *)pfile_v;
-  char *buffer;
+  char *buffer=NULL;
 
   if (target)
     {
@@ -38,8 +39,11 @@ static void cci_define(void *pfile_v, const char *keyword, const char *target) {
       buffer = xmalloc(strlen(keyword) + strlen("=") + 6);
       sprintf(buffer,"%s=", keyword);
     }
-  cpp_define(pfile, buffer);
-  free(buffer);
+  if (buffer != NULL) 
+    {
+      cpp_define(pfile, buffer);
+      free(buffer);
+    }
   return;
 }
 
@@ -47,7 +51,7 @@ static void cci_attribute(void *pfile_v,const char *keyword, const char *target,
                    int varargs, int n) {
   struct cpp_reader *pfile = (struct cpp_reader *)pfile_v;
   int params_specified = 0;
-  char *buffer,*c;
+  char *buffer=NULL,*c=NULL;
   int size;
   int i;
 
@@ -59,14 +63,16 @@ static void cci_attribute(void *pfile_v,const char *keyword, const char *target,
       }
     }
   }
-  size = strlen(keyword)+sizeof("__attribute__(())")+strlen(target)+1;
+  size = strlen(keyword)+1+sizeof("= __attribute__(())")+strlen(target)+1;
   if (n) {
     if (params_specified == 0) {
       size += 8 * n;  /* up to 99 params: Pnn, */
+    } else {
+      size += strlen(target) + strlen("()\n");
     }
   }
   if (varargs) size += strlen("=()(),...__VA_ARGS__");
-  buffer = xmalloc(size);
+  buffer = xcalloc(size,sizeof(char));
   c = buffer;
   c += sprintf(c,"%s",keyword);
   if (n || varargs) {
@@ -97,9 +103,11 @@ static void cci_attribute(void *pfile_v,const char *keyword, const char *target,
   *c++ = ')';
   *c++ = ')';
   *c++ = 0;
-
-  cpp_define(pfile, buffer);
-  free(buffer);
+  if (buffer != NULL) 
+    {
+      cpp_define(pfile, buffer);
+      free(buffer);
+    }
 }
 
 static void set_value(unsigned int *loc, unsigned int value) {
@@ -463,52 +471,90 @@ static void
 mchp_handle_configuration_setting (const char *name,
                                    const unsigned char *value_name)
 {
-  struct mchp_config_specification *spec;
+    struct mchp_config_specification *spec;
 
-  /* Look up setting in the definitions for the configuration words */
-  for (spec = mchp_configuration_values ; spec ; spec = spec->next)
-    {
-      struct mchp_config_setting *setting;
-      for (setting = spec->word->settings ; setting ; setting = setting->next)
+    /* Look up setting in the definitions for the configuration words */
+    for (spec = mchp_configuration_values ; spec ; spec = spec->next)
         {
-          if (strcmp (setting->name, name) == 0)
-            {
-              struct mchp_config_value *value;
-
-              /* If we've already specified this setting, that's an
-                 error, even if the new value and the old value match */
-              if (spec->referenced_bits & setting->mask)
+            struct mchp_config_setting *setting;
+            for (setting = spec->word->settings ; setting ; setting = setting->next)
                 {
-                  error ("multiple definitions for configuration setting '%s'",
-                         name);
-                  return;
-                }
+                    if (strcmp (setting->name, name) == 0)
+                        {
+                            struct mchp_config_value *value;
 
-              /* look up the value */
-              for (value = setting->values ;
-                   value ;
-                   value = value->next)
-                {
-                  if (strcmp (value->name, (const char*)value_name) == 0)
-                    {
-                      /* mark this setting as having been specified */
-                      spec->referenced_bits |= setting->mask;
-                      /* update the value of the word with the value
-                         indicated */
-                      spec->value = (spec->value & ~setting->mask)
-                                    | value->value;
-                      return;
-                    }
+                            /* If we've already specified this setting, that's an
+                               error, even if the new value and the old value match */
+                            if (spec->referenced_bits & setting->mask)
+                                {
+                                    error ("multiple definitions for configuration setting '%s'",
+                                           name);
+                                    return;
+                                }
+
+                            /* look up the value */
+                            for (value = setting->values ;
+                                    value ;
+                                    value = value->next)
+                                {
+                                    if (strcmp (value->name, (const char*)value_name) == 0)
+                                        {
+                                            /* mark this setting as having been specified */
+                                            spec->referenced_bits |= setting->mask;
+                                            /* update the value of the word with the value
+                                               indicated */
+                                            spec->value = (spec->value & ~setting->mask)
+                                                          | value->value;
+                                            return;
+                                        }
+                                }
+#if defined(MCHP_ALLOW_INTEGER_CONFIGVALUE)
+                            char* current = NULL;
+                            _Bool all_digits = TRUE;
+                            all_digits = TRUE;
+                            current = value_name;
+                            do
+                                {
+                                    if (!ISDIGIT(*current))
+                                        all_digits = FALSE;
+                                    current++;
+                                }
+                            while(*current!=NULL);
+                            if (all_digits)
+                                {
+                                    int shift;
+                                    unsigned int mask;
+                                    unsigned int converted_value;
+                                    mask = setting->mask;
+                                    shift = 0;
+                                    while((0x1 & mask) != 1)
+                                        {
+                                            shift++;
+                                            mask >>= 1;
+                                        }
+                                    converted_value = strtol(value_name, NULL, 10);
+                                    if (((setting->mask)>>shift & converted_value) != converted_value)
+                                        warning (0, "Configuration value 0x%x masked to 0x%x for setting %qs",
+                                                 converted_value, (setting->mask)>>shift, name);
+                                    /* mark this setting as having been specified */
+                                    spec->referenced_bits |= setting->mask;
+                                    /* update the value of the word with the value
+                                       indicated */
+                                    spec->value = (spec->value & ~setting->mask)
+                                                  | (setting->mask) & (strtol(value_name, NULL, 10) << shift);
+                                    return;
+                                }
+#endif /* MCHP_ALLOW_INTEGER_CONFIGVALUE */
+                            /* If we got here, we didn't match the value name */
+                            error ("unknown value for configuration setting '%s': '%s'",
+                                   name, value_name);
+                            return;
+                        }
                 }
-              /* If we got here, we didn't match the value name */
-              error ("unknown value for configuration setting '%s': '%s'",
-                     name, value_name);
-              return;
-            }
         }
-    }
-  /* if we got here, we didn't find the setting, which is an error */
-  error ("unknown configuration setting: '%s'", name);
+
+    /* if we got here, we didn't find the setting, which is an error */
+    error ("unknown configuration setting: '%s'", name);
 }
 
 /* handler function for the config pragma */
@@ -630,6 +676,158 @@ mchp_handle_config_pragma (struct cpp_reader *pfile)
   if (tok != CPP_EOF)
     CLEAR_REST_OF_INPUT_LINE();
 }
+
+#if defined(_BUILD_C32_)
+void
+mchp_handle_configset_pragma (struct cpp_reader *pfile, const char* set)
+{
+  enum cpp_ttype tok;
+  tree tok_value;
+  static int shown_no_config_warning = 0;
+  
+  gcc_assert(strlen(set) < 5);
+
+  /* If we're compiling for the default device, we don't process
+     configuration words */
+  if (!mchp_processor_string)
+    {
+      error ("#pragma config directive not available for the "
+             "default generic device, %s", mchp_processor_string);
+      CLEAR_REST_OF_INPUT_LINE();
+      return;
+    }
+
+  if (!mchp_config_data_dir)
+    {
+      error ("Configuration-word data directory not specified "
+             "but required for #pragma config directive; has a valid device "
+             "been selected?");
+      CLEAR_REST_OF_INPUT_LINE();
+      return;
+    }
+
+  /* the first time we see a config pragma, we need to load the
+     configuration word data from the definition file. */
+  if (!mchp_configuration_values)
+    {
+      /* alloc space for the filename: directory + '/' + "configuration.data"
+       */
+      char *fname = (char*)alloca (strlen (mchp_config_data_dir) + 1 +
+                            strlen (MCHP_CONFIGURATION_DATA_FILENAME));
+      strcpy (fname, mchp_config_data_dir);
+      if (fname [strlen (fname) - 1] != '/'
+          && fname [strlen (fname) - 1] != '\\')
+        strcat (fname, "/");
+      strcat (fname, MCHP_CONFIGURATION_DATA_FILENAME);
+
+      if (mchp_load_configuration_definition (fname))
+        {
+          if (!shown_no_config_warning)
+            {
+              shown_no_config_warning = 1;
+              warning (0, "Configuration word information not available for "
+                       "this processor. #pragma config is ignored.");
+            }
+          CLEAR_REST_OF_INPUT_LINE();
+          return;
+        }
+    }
+
+  /* The payload for the config pragma is a comma delimited list of
+     "setting = value" pairs. Both the setting and the value must
+     be valid C identifiers. */
+  tok = pragma_lex (&tok_value);
+  while (1)
+    {
+      const cpp_token *raw_token;
+      const char *base_setting_name;
+      char *setting_name;
+      int length;
+      unsigned char *value_name;
+
+      /* the current token should be the setting name */
+      if (tok != CPP_NAME)
+        {
+          error ("configuration setting name expected in configuration pragma");
+          break;
+        }
+
+      /* Prepend the set name and an underscore to the base setting name.
+         The set name should be all caps. Example: ABF1_FWDTEN  */
+      base_setting_name = IDENTIFIER_POINTER (tok_value);
+      length = 4 + 1 + strlen(base_setting_name) + 1; /* <set>_<setting>NULL */
+      setting_name = (char*)xmalloc(length);
+      snprintf (setting_name, length, "%s_%s", set, base_setting_name);
+      
+      /* the next token should be the '=' */
+      tok = pragma_lex (&tok_value);
+      if (tok != CPP_EQ)
+        {
+          error ("'=' expected in configuration pragma");
+          break;
+        }
+      /* now we have the value name. We don't use pragma_lex() to get this one
+         since we don't want the additional interpretation going on there.
+         i.e., converting integers from the string. */
+      tok = pragma_lex (&tok_value);
+      if (tok == CPP_NAME)
+        value_name = IDENTIFIER_POINTER (tok_value);
+      else if (tok == CPP_NUMBER)
+        {
+          if (host_integerp (tok_value, 1 /* positive only */ ))
+          {
+            #define MAX_VALUE_NAME_LENGTH 22
+            HOST_WIDE_INT i;
+            i = tree_low_cst (tok_value, 1 /* positive only */ );
+            value_name = (unsigned char*)xcalloc(MAX_VALUE_NAME_LENGTH,1);
+            snprintf(value_name, MAX_VALUE_NAME_LENGTH, "%d", i);
+            #undef MAX_VALUE_NAME_LENGTH
+          }
+        }
+      mchp_handle_configuration_setting (setting_name, value_name);
+
+      /* if the next token is ',' then we have another setting. */
+      tok = pragma_lex (&tok_value);
+      if (tok == CPP_COMMA)
+        tok = pragma_lex (&tok_value);
+      /* if it's EOF, we're done */
+      else if (tok == CPP_EOF)
+        break;
+      /* otherwise, we have spurious input */
+      else
+        {
+          error ("',' or end of line expected in configuration pragma");
+          break;
+        }
+    }
+  /* if we ended for any reason other than end of line, we have an error.
+     Any needed diagnostic should have already been issued, so just
+     clear the rest of the data on the line. */
+  if (tok != CPP_EOF)
+    CLEAR_REST_OF_INPUT_LINE();
+}
+void mchp_handle_config_alt_pragma(struct cpp_reader *pfile)
+{
+  mchp_handle_configset_pragma(pfile, "ALT");
+}
+void mchp_handle_config_bf1_pragma(struct cpp_reader *pfile)
+{
+  mchp_handle_config_pragma(pfile);
+}
+void mchp_handle_config_abf1_pragma(struct cpp_reader *pfile)
+{
+  mchp_handle_configset_pragma(pfile, "ABF1");
+}
+void mchp_handle_config_bf2_pragma(struct cpp_reader *pfile)
+{
+  mchp_handle_configset_pragma(pfile, "BF2");
+}
+void mchp_handle_config_abf2_pragma(struct cpp_reader *pfile)
+{
+  mchp_handle_configset_pragma(pfile, "ABF2");
+}
+
+#endif /* _BUILD_C32_ */
 
 #endif
 

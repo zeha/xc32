@@ -31,6 +31,13 @@ along with GCC; see the file COPYING3.  If not see
 typedef void (*mchp_save_restore_fn) (rtx, rtx);
 
 extern void mchp_handle_config_pragma(struct cpp_reader *);
+extern void mchp_handle_configset_pragma(struct cpp_reader *pfile, const char *set);
+extern void mchp_handle_config_alt_pragma(struct cpp_reader *pfile);
+extern void mchp_handle_config_bf1_pragma(struct cpp_reader *pfile);
+extern void mchp_handle_config_abf1_pragma(struct cpp_reader *pfile);
+extern void mchp_handle_config_bf2_pragma(struct cpp_reader *pfile);
+extern void mchp_handle_config_abf2_pragma(struct cpp_reader *pfile);
+
 extern void mchp_handle_vector_pragma(struct cpp_reader *);
 extern void mchp_handle_interrupt_pragma (struct cpp_reader *pfile ATTRIBUTE_UNUSED);
 extern void mchp_file_end (void);
@@ -61,16 +68,22 @@ extern tree mchp_target_error_attribute(tree *decl, tree identifier,
 extern tree mchp_keep_attribute(tree *decl, tree identifier,
                             tree args, int flags ATTRIBUTE_UNUSED,
                             bool *no_add_attrs);
+extern tree mchp_crypto_attribute(tree *decl, tree identifier,
+                            tree args, int flags ATTRIBUTE_UNUSED,
+                            bool *no_add_attrs);
 extern void mchp_set_current_function (tree fndecl);
 extern bool mchp_suppress_prologue (void);
-extern bool mchp_suppress_epilogue (void);
+extern bool mchp_function_profiling_epilogue (bool usereturn);
 extern void mchp_expand_prologue_after_save (void);
 extern void mchp_expand_prologue_end (const struct mips_frame_info *frame);
+
 extern HOST_WIDE_INT mchp_expand_prologue_saveregs (HOST_WIDE_INT size, HOST_WIDE_INT step1);
 extern void mchp_expand_epilogue_restoreregs (HOST_WIDE_INT step1,
                                               HOST_WIDE_INT step2);
 extern HOST_WIDE_INT mchp_compute_frame_info (void);
 extern int mchp_register_interrupt_context_p (unsigned regno);
+
+extern bool mchp_subtarget_save_reg_p (unsigned int regno);
 extern void
   mchp_output_function_prologue (FILE *file, HOST_WIDE_INT tsize, HOST_WIDE_INT size ATTRIBUTE_UNUSED);
 extern void mchp_output_function_end_prologue (FILE *file);
@@ -93,6 +106,7 @@ extern void pic32_optimization_options (int level, int size ATTRIBUTE_UNUSED);
 extern void mchp_override_options_after_change(void);
 extern void mchp_prepare_function_start (tree fndecl);
 extern bool mchp_subtarget_mips16_enabled (const_tree decl);
+extern bool mchp_subtarget_micromips_enabled (const_tree decl);
 extern void mchp_subtarget_encode_section_info (tree decl, rtx rtl, int first_seen ATTRIBUTE_UNUSED);
 
 extern void mchp_apply_pragmas(tree decl);

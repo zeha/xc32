@@ -88,12 +88,14 @@ compilation is specified by a string called a "spec".  */
 #include "resource_info.h"
 const char *pic30_resource_file;
 char *pic30_resource_file_f;  /* stoopid options.c always makes this const */
+#elif defined(_BUILD_C32_)
+#include "../../c30_resource/src/xc32/resource_info.h"
+extern const char *mchp_resource_file;
+extern char *mchp_resource_file_f;  /* stoopid options.c always makes this const */
 #endif
 #ifdef CSL_LICENSE_FEATURE
 #  include <csl/license.h>
 #else
-   /* TARGET_FLEXLM requires the CodeSourcery license library be
-      present.  */
 #  undef TARGET_FLEXLM
 #endif
 
@@ -7259,6 +7261,7 @@ get_line (char *buf, size_t n, FILE *fptr)
     buf [strlen (buf) - 1] = '\0';
   return buf;
 }
+char **save_argv;
 #endif
 
 extern int main (int, char **);
@@ -7283,6 +7286,7 @@ main (int argc, char **argv)
 
 #if defined(TARGET_MCHP_PIC32MX)
   char *partsupportversion = NULL;
+  save_argv = argv;
 #endif
 
   /* Initialize here, not in definition.  The IRIX 6 O32 cc sometimes chokes

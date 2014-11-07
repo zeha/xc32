@@ -2068,19 +2068,21 @@ pic32*-mchp-elf*)
 	tm_file="elfos.h newlib-stdint.h ${tm_file} mips/elf.h mips/sde.h"
 	tm_file="${tm_file} mips/sdemtk.h"
 	tm_file="${tm_file} pic32/mchp.h"
-	tmake_file="${tmake_file} pic32/t-mchp pic32/t-libgcc-mips16"
+	tmake_file="pic32/t-mchp pic32/t-libgcc-mips16 ${tmake_file}"
 	extra_options="pic32/mchp.opt"
 	tm_p_file="${tm_p_file} pic32/mchp-protos.h"
 	extra_objs="${extra_objs} mchp.o cci-backend.o"
+	extra_gcc_objs="driver-pic32-elf.o"
 	use_gcc_stdint=none
+	default_use_cxa_atexit=no
 	case "${with_newlib}" in
 	  yes)
 	    # newlib
 	    # FIXME: threading?
-	    tmake_file="${tmake_file} pic32/t-mchplib"
+	    tmake_file="pic32/t-mchplib ${tmake_file} "
 	    ;;
 	  *)
-	    tmake_file="${tmake_file} pic32/t-mchplib"
+	    tmake_file="pic32/t-mchplib ${tmake_file} "
 	    case ${enable_threads} in
 	      "" | yes | mipssde)
 		thread_file='mipssde'
@@ -2091,7 +2093,7 @@ pic32*-mchp-elf*)
 #	case "${host}" in
 #	*mingw*)
 #	   use_collect2=no
-#	   tmake_file="${tmake_file} pic32/t-mchpmingw"
+#	   tmake_file="pic32/t-mchpmingw ${tmake_file} "
 #	   ;;
 #	esac
 	tm_defines="${tm_defines} MIPS_ISA_DEFAULT=33 MIPS_ABI_DEFAULT=ABI_32 _BUILD_MCHP_=1 _BUILD_C32_=1"

@@ -45,6 +45,7 @@ struct pic32_section
 #define SHF_PERSIST  (1 << 23)  /* Persistent */
 #define SHF_ABSOLUTE (1 << 24)  /* Absolute address */
 #define SHF_REVERSE  (1 << 25)  /* Reverse aligned */
+#define SHF_RAMFUNC  (1 << 26)  /* RAMFUNC */
 /************************************************************************/
 
 #define PIC32_SECTION_IN_DATA_MEMORY(sec) \
@@ -82,7 +83,6 @@ struct pic32_fill_option
   int fill_width;
   int range_size;
 };
-
 
 #endif /* _ELF_PIC32_H */
 

@@ -3765,8 +3765,9 @@ pointer_int_sum (location_t loc, enum tree_code resultcode,
 {
   tree size_exp, ret;
 #ifdef _BUILD_C30_
-  // use result_sizetype for the conversion
-  // this has been added
+  /*  use result_sizetype for the conversion
+   *  this has been added
+   */
 #endif
   tree result_sizetype = sizetype;
 

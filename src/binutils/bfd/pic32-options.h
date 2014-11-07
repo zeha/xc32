@@ -52,6 +52,9 @@ extern unsigned int pic32_stackguard_size;
 extern bfd_boolean pic32_has_heap_option;
 extern bfd_boolean pic32_heap_required;
 extern unsigned int pic32_heap_size;
+extern bfd_boolean pic32_has_crypto_option;
+extern const char * crypto_file;
+extern bfd_boolean pic32_has_processor_option;
 
 static void gldelf32pic32mx_list_options
    PARAMS ((FILE *));
@@ -70,7 +73,8 @@ enum elfpic32mx_options {
   NO_SMART_IO_OPTION,
   DATA_INIT_OPTION,
   NO_DATA_INIT_OPTION,
-  FILL_OPTION
+  FILL_OPTION,
+  CRYPTO_OPTION
 };
 
 static struct option longopts[] =
@@ -82,6 +86,7 @@ static struct option longopts[] =
   { "data-init", no_argument, NULL, DATA_INIT_OPTION },
   { "no-data-init", no_argument, NULL, NO_DATA_INIT_OPTION },
   { "fill", required_argument, NULL, FILL_OPTION },
+  { "crypto", required_argument, NULL, CRYPTO_OPTION },
   { NULL,        no_argument,       NULL, 0                }
 };
 #endif

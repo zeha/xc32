@@ -1,4 +1,4 @@
-This is mpc.info, produced by makeinfo version 4.13 from mpc.texi.
+This is ../../../../src45x/gcc/mpc/doc/mpc.info, produced by makeinfo version 4.13 from ../../../../src45x/gcc/mpc/doc/mpc.texi.
 
 START-INFO-DIR-ENTRY
 * mpc: (mpc.info).               Multiple Precision Complex Library.
@@ -1293,30 +1293,30 @@ Function and Type Index
 
 
 Tag Table:
-Node: Top946
-Node: Copying1607
-Node: Introduction to MPC2265
-Node: Installing MPC2973
-Node: Reporting Bugs7632
-Node: MPC Basics8961
-Ref: return-value12611
-Node: Complex Functions14053
-Node: Initializing Complex Numbers15202
-Node: Assigning Complex Numbers17616
-Node: Converting Complex Numbers22024
-Node: String and Stream Input and Output22658
-Ref: string-io22805
-Node: Complex Comparison29237
-Node: Projection & Decomposing30316
-Node: Basic Arithmetic31691
-Node: Power Functions and Logarithm36331
-Node: Trigonometric Functions37986
-Node: Miscellaneous Complex Functions40211
-Node: Advanced Functions42356
-Node: Internals43429
-Node: Contributors43876
-Node: References44222
-Node: Concept Index45136
-Node: Function Index47450
+Node: Top1008
+Node: Copying1669
+Node: Introduction to MPC2327
+Node: Installing MPC3035
+Node: Reporting Bugs7694
+Node: MPC Basics9023
+Ref: return-value12673
+Node: Complex Functions14115
+Node: Initializing Complex Numbers15264
+Node: Assigning Complex Numbers17678
+Node: Converting Complex Numbers22086
+Node: String and Stream Input and Output22720
+Ref: string-io22867
+Node: Complex Comparison29299
+Node: Projection & Decomposing30378
+Node: Basic Arithmetic31753
+Node: Power Functions and Logarithm36393
+Node: Trigonometric Functions38048
+Node: Miscellaneous Complex Functions40273
+Node: Advanced Functions42418
+Node: Internals43491
+Node: Contributors43938
+Node: References44284
+Node: Concept Index45198
+Node: Function Index47512
 
 End Tag Table

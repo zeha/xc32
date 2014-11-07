@@ -1606,7 +1606,7 @@ enum mips_code_readable_setting {
    - 6 DSP control registers  */
 
 /* PIC32MX */
-#define FIRST_PSEUDO_REGISTER 213
+#define FIRST_PSEUDO_REGISTER 220
 /* END PIC32MX */
 
 /* By default, fix the kernel registers ($26 and $27), the global
@@ -1638,10 +1638,10 @@ enum mips_code_readable_setting {
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,			\
   /* COP0 SELECT registers */					\
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,			\
-  1, 1, 1, 1, 1, 1, 1, 1, 1,					\
+  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,			\
   /* 6 DSP accumulator registers & 6 control registers */		\
   0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1,					\
-}
+} 
 
 /* Set up this array for o32 by default.
 
@@ -1671,11 +1671,11 @@ enum mips_code_readable_setting {
   /* COP3 registers */							\
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,			\
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,			\
-  /* 6 DSP accumulator registers & 6 control registers */		\
-  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,					\
   /* COP0 SELECT registers */					\
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,			\
-  1, 1, 1, 1, 1, 1, 1, 1, 1,					\
+  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,			\
+  /* 6 DSP accumulator registers & 6 control registers */		\
+  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,					\
 }
 /* END PIC32MX */
 
@@ -1685,25 +1685,25 @@ enum mips_code_readable_setting {
 { /* General registers.  */                                             \
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,                       \
   0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 0, 0,                       \
-  /* Floating-point registers.  */                                      \
+  /* Floating-point registers. (32) */                                  \
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,			\
   1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			\
-  /* Others.  */                                                        \
+  /* Others. (64)  */                                                   \
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0,			\
-  /* COP0 registers */							\
+  /* COP0 registers (80) */						\
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			\
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			\
-  /* COP2 registers */							\
+  /* COP2 registers (112) */						\
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			\
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			\
-  /* COP3 registers */							\
+  /* COP3 registers (144) */						\
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			\
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			\
-  /* 6 DSP accumulator registers & 6 control registers */		\
+  /* COP0 SELECT registers (176) */					\
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			\
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			\
+  /* 6 DSP accumulator registers & 6 control registers (208) */		\
   1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,					\
-  /* COP0 SELECT registers */					\
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			\
-  0, 0, 0, 0, 0, 0, 0, 0, 0,					\
 }
 /* END PIC32MX */
 
@@ -1756,23 +1756,27 @@ enum mips_code_readable_setting {
 #define COP3_REG_LAST 175
 #define COP3_REG_NUM (COP3_REG_LAST - COP3_REG_FIRST + 1)
 
-/* ALL_COP_REG_NUM assumes that COP0,2,and 3 are numbered consecutively.  */
-#define ALL_COP_REG_NUM (COP3_REG_LAST - COP0_REG_FIRST + 1)
+/* PIC32MX */
+#define COP0_REG_SELECT_FIRST 176
+#define COP0_REG_SELECT_LAST 207
+#define COP0_REG_SELECT_NUM (COP0_REG_SELECT_LAST - COP0_REG_SELECT_FIRST + 1)
 
-#define DSP_ACC_REG_FIRST 176
-#define DSP_ACC_REG_LAST 181
+/* ALL_COP_REG_NUM assumes that COP0,2,and 3 are numbered consecutively.  */
+#define ALL_COP_REG_NUM (COP0_REG_LAST - COP0_REG_FIRST + 1)
+
+#define DSP_ACC_REG_FIRST 208
+#define DSP_ACC_REG_LAST 213
 #define DSP_ACC_REG_NUM (DSP_ACC_REG_LAST - DSP_ACC_REG_FIRST + 1)
 
-/* PIC32MX */
-#define COP0_REG_SELECT_FIRST 182
-#define COP0_REG_SELECT_LAST 206
-#define COP0_REG_SELECT_NUM (COP0_REG_SELECT_LAST - COP0_REG_SELECT_FIRST + 1)
-/* END PIC32MX */
+#define DSP_CONTROL_REG_FIRST 214
+#define DSP_CONTROL_REG_LAST 219
+#define DSP_CONTROL_REG_NUM (DSP_CONTROL_REG_LAST - DSP_CONTROL_REG_FIRST + 1)
 
 #define COP0_INTCTL_REG_NUM (COP0_REG_SELECT_FIRST + 13)
 #define COP0_SRSCTL_REG_NUM (COP0_REG_SELECT_FIRST + 14)
 #define COP0_SRSMAP_REG_NUM (COP0_REG_SELECT_FIRST + 15)
 #define COP0_EBASE_REG_NUM (COP0_REG_SELECT_FIRST + 16)
+/* END PIC32MX */
 
 #define AT_REGNUM	(GP_REG_FIRST + 1)
 #define HI_REGNUM	(TARGET_BIG_ENDIAN ? MD_REG_FIRST : MD_REG_FIRST + 1)
@@ -1831,8 +1835,10 @@ enum mips_code_readable_setting {
   ((unsigned int) ((int) (REGNO) - COP2_REG_FIRST) < COP2_REG_NUM)
 #define COP3_REG_P(REGNO) \
   ((unsigned int) ((int) (REGNO) - COP3_REG_FIRST) < COP3_REG_NUM)
+
 #define ALL_COP_REG_P(REGNO) \
   ((unsigned int) ((int) (REGNO) - COP0_REG_FIRST) < ALL_COP_REG_NUM)
+
 /* Test if REGNO is one of the 6 new DSP accumulators.  */
 #define DSP_ACC_REG_P(REGNO) \
   ((unsigned int) ((int) (REGNO) - DSP_ACC_REG_FIRST) < DSP_ACC_REG_NUM)
@@ -2048,18 +2054,18 @@ enum reg_class
   { 0x00000000, 0x00000000, 0x00000001, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },	/* MD0_REG */		\
   { 0x00000000, 0x00000000, 0x00000002, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },	/* MD1_REG */		\
   { 0x00000000, 0x00000000, 0x00000003, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },	/* MD_REGS */		\
-  { 0x00000000, 0x00000000, 0xffff0000, 0x0000ffff, 0x00000000, 0x00000000, 0x00000010 /* 0x00000000 */ },   /* COP0_REGS */		\
-  { 0x00000000, 0x00000000, 0x00000000, 0xffff0000, 0x0000ffff, 0x00000000, 0x00000000 },   /* COP2_REGS */		\
-  { 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0xffff0000, 0x0000ffff, 0x00000000 },   /* COP3_REGS */		\
+  { 0x00000000, 0x00000000, 0xffff0000, 0x0000ffff, 0x00000000, 0xFFFF0000, 0x0000FFFF },       /* COP0_REGS */		\
+  { 0x00000000, 0x00000000, 0x00000000, 0xffff0000, 0x0000ffff, 0x00000000, 0x00000000 },       /* COP2_REGS */		\
+  { 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0xffff0000, 0x0000ffff, 0x00000000 },       /* COP3_REGS */		\
   { 0x00000000, 0x00000000, 0x000007f8, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },	/* ST_REGS */		\
-  { 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x003f0000, 0x00000000 },	/* DSP_ACC_REGS */	\
-  { 0x00000000, 0x00000000, 0x00000003, 0x00000000, 0x00000000, 0x003f0000, 0x00000000 },	/* ACC_REGS */		\
+  { 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x003F0000 },	/* DSP_ACC_REGS */	\
+  { 0x00000000, 0x00000000, 0x00000003, 0x00000000, 0x00000000, 0x00000000, 0x003F0000 },	/* ACC_REGS */		\
   { 0x00000000, 0x00000000, 0x00006000, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },	/* FRAME_REGS */	\
   { 0xffffffff, 0x00000000, 0x00000001, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },	/* GR_AND_MD0_REGS */	\
   { 0xffffffff, 0x00000000, 0x00000002, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },	/* GR_AND_MD1_REGS */	\
   { 0xffffffff, 0x00000000, 0x00000003, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },	/* GR_AND_MD_REGS */	\
-  { 0xffffffff, 0x00000000, 0x00000003, 0x00000000, 0x00000000, 0x003f0000, 0x00000000 },	/* GR_AND_ACC_REGS */	\
-  { 0xffffffff, 0xffffffff, 0xffff67ff, 0xffffffff, 0xffffffff, 0xffffffff, 0x00000010 /* 0x0fffffff */ }	/* ALL_REGS */		\
+  { 0xffffffff, 0x00000000, 0x00000003, 0x00000000, 0x00000000, 0x00000000, 0x003F0000 },	/* GR_AND_ACC_REGS */	\
+  { 0xffffffff, 0xffffffff, 0xffff67ff, 0xffffffff, 0xffffffff, 0xffffffff, 0x003FFFFF }	/* ALL_REGS */		\
 }
 /* END PIC32MX */
 
@@ -2742,7 +2748,7 @@ typedef struct mips_args {
 #ifndef ASM_APP_OFF
 #define ASM_APP_OFF " #NO_APP\n"
 #endif
-
+ 
 #define REGISTER_NAMES							   \
 { "$0",   "$1",   "$2",   "$3",   "$4",   "$5",   "$6",   "$7",		   \
   "$8",   "$9",   "$10",  "$11",  "$12",  "$13",  "$14",  "$15",	   \
@@ -2766,12 +2772,13 @@ typedef struct mips_args {
   "$c3r8", "$c3r9", "$c3r10","$c3r11","$c3r12","$c3r13","$c3r14","$c3r15", \
   "$c3r16","$c3r17","$c3r18","$c3r19","$c3r20","$c3r21","$c3r22","$c3r23", \
   "$c3r24","$c3r25","$c3r26","$c3r27","$c3r28","$c3r29","$c3r30","$c3r31", \
-  "$ac1hi","$ac1lo","$ac2hi","$ac2lo","$ac3hi","$ac3lo","$dsp_po","$dsp_sc", \
-  "$dsp_ca","$dsp_ou","$dsp_cc","$dsp_ef" , \
   "a", "b", "c", "d", "e", "f", "g", "h", \
   "i", "j", "k", "l", "$intctl", "$srsctl", "$srsmap", "$ebase", \
   "m", "n", "o", "p", "q", "r", "s", "t", \
-  "u" }
+  "u", "v", "w", "x", "y", "z", "aa", "ab", \
+  "$ac1hi","$ac1lo","$ac2hi","$ac2lo","$ac3hi","$ac3lo","$dsp_po","$dsp_sc", \
+  "$dsp_ca","$dsp_ou","$dsp_cc","$dsp_ef" , \
+   }
 
 /* List the "software" names for each register.  Also list the numerical
    names for $fp and $sp.  */
