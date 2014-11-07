@@ -3740,6 +3740,11 @@ pointer_int_sum (location_t loc, enum tree_code resultcode,
 		 tree ptrop, tree intop)
 {
   tree size_exp, ret;
+#ifdef _BUILD_C30_
+  // use result_sizetype for the conversion
+  // this has been added
+#endif
+  tree result_sizetype = sizetype;
 
   /* The result is a pointer of the same type that is being added.  */
   tree result_type = TREE_TYPE (ptrop);
@@ -3805,7 +3810,7 @@ pointer_int_sum (location_t loc, enum tree_code resultcode,
   /* Convert the integer argument to a type the same size as sizetype
      so the multiply won't overflow spuriously.  */
 
-#ifdef _BUILD_C30_
+#if defined(_BUILD_C30_)
   /* C30 has different sized pointers but size_t is usually unsigned int
      to keep the code efficient for the normal case -
 
@@ -3814,9 +3819,10 @@ pointer_int_sum (location_t loc, enum tree_code resultcode,
 
     if (TYPE_PRECISION (TREE_TYPE (intop)) != TYPE_PRECISION (result_type)
         || TYPE_UNSIGNED (TREE_TYPE (intop)) != TYPE_UNSIGNED (result_type))
-      intop = convert(c_common_type_for_size(TYPE_PRECISION(result_type),
-                                             TYPE_UNSIGNED(result_type)),intop);
-  } 
+      result_sizetype = c_common_type_for_size(TYPE_PRECISION(result_type),
+                                               TYPE_UNSIGNED(TREE_TYPE(intop)));
+      intop = convert(result_sizetype,intop);
+  } else
 #endif
   if (TYPE_PRECISION (TREE_TYPE (intop)) != TYPE_PRECISION (sizetype)
       || TYPE_UNSIGNED (TREE_TYPE (intop)) != TYPE_UNSIGNED (sizetype))
@@ -3826,14 +3832,14 @@ pointer_int_sum (location_t loc, enum tree_code resultcode,
   /* Replace the integer argument with a suitable product by the object size.
      Do this multiplication as signed, then convert to the appropriate
      type for the pointer operation.  */
-  intop = convert (sizetype,
+  intop = convert (result_sizetype,
 		   build_binary_op (loc,
 				    MULT_EXPR, intop,
 				    convert (TREE_TYPE (intop), size_exp), 1));
 
   /* Create the sum or difference.  */
   if (resultcode == MINUS_EXPR)
-    intop = fold_build1_loc (loc, NEGATE_EXPR, sizetype, intop);
+    intop = fold_build1_loc (loc, NEGATE_EXPR, result_sizetype, intop);
 
   ret = fold_build2_loc (loc, POINTER_PLUS_EXPR, result_type, ptrop, intop);
 
@@ -6658,7 +6664,7 @@ handle_section_attribute (tree *node, tree ARG_UNUSED (name), tree args,
           if ((TREE_CODE (decl) == FUNCTION_DECL
                || TREE_CODE (decl) == VAR_DECL))
             {
-              error ("%Dsection attribute expects string literal argument for %qD", *node, *node);
+              error ("section attribute expects string literal argument for %qD", *node);
             }
             else
 #endif
@@ -7899,11 +7905,6 @@ static tree
 handle_optimize_attribute (tree * ARG_UNUSED (node), tree name, tree ARG_UNUSED (args),
 			   int ARG_UNUSED (flags), bool *no_add_attrs)
 {
-#if defined(TARGET_MCHP_PIC32MX)
-      warning (OPT_Wattributes, "%qE attribute ignored", name);
-      *no_add_attrs = true;
-      return NULL_TREE;
-#else
   /* Ensure we have a function type.  */
   if (TREE_CODE (*node) != FUNCTION_DECL)
     {
@@ -7914,7 +7915,7 @@ handle_optimize_attribute (tree * ARG_UNUSED (node), tree name, tree ARG_UNUSED 
     {
       struct cl_optimization cur_opts;
       tree old_opts = DECL_FUNCTION_SPECIFIC_OPTIMIZATION (*node);
-      
+
       /* Save current options.  */
       cl_optimization_save (&cur_opts);
 
@@ -7933,7 +7934,6 @@ handle_optimize_attribute (tree * ARG_UNUSED (node), tree name, tree ARG_UNUSED 
     }
 
   return NULL_TREE;
-#endif
 }
 
 /* Check for valid arguments being passed to a function.

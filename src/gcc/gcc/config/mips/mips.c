@@ -263,7 +263,15 @@ enum mips_builtin_type
 #if defined(TARGET_MCHP_PIC32MX)
   /* PIC32 Instrumented-trace support functions */
   , PIC32_BUILTIN_UNIQUEID,
-  PIC32_BUILTIN_ITTYPE
+  PIC32_BUILTIN_ITTYPE,
+  /* MCHP section begin, end, size */
+  PIC32_BUILTIN_SECTION_BEGIN,
+  PIC32_BUILTIN_SECTION_END,
+  PIC32_BUILTIN_SECTION_SIZE,
+  PIC32_BUILTIN_GET_ISR_STATE,
+  PIC32_BUILTIN_SET_ISR_STATE,
+  PIC32_BUILTIN_DISABLE_INTERRUPTS,
+  PIC32_BUILTIN_ENABLE_INTERRUPTS
 #endif /* TARGET_MCHP_PIC32MX */
 
 };
@@ -2687,7 +2695,7 @@ mips_emit_call_insn (rtx pattern, rtx orig_addr, rtx addr, bool lazy_p)
   rtx insn, reg;
 
   insn = emit_call_insn (pattern);
-  
+
   if (TARGET_MIPS16 && mips_use_pic_fn_addr_reg_p (orig_addr))
     {
       /* MIPS16 JALRs only take MIPS16 registers.  If the target
@@ -2710,7 +2718,7 @@ mips_emit_call_insn (rtx pattern, rtx orig_addr, rtx addr, bool lazy_p)
                gen_rtx_REG (Pmode, GOT_VERSION_REGNUM));
       emit_insn (gen_update_got_version ());
     }
-    
+
   return insn;
 }
 
@@ -9832,18 +9840,18 @@ mips_save_reg_p (unsigned int regno)
 	+-------------------------------+
 	|                               |
 	|  caller-allocated save area   |
-      A |  for register arguments       |
+  A |  for register arguments       |
 	|                               |
 	+-------------------------------+ <-- incoming stack pointer
 	|                               |
 	|  callee-allocated save area   |
-      B |  for arguments that are       |
+  B |  for arguments that are       |
 	|  split between registers and  |
 	|  the stack                    |
 	|                               |
 	+-------------------------------+ <-- arg_pointer_rtx
 	|                               |
-      C |  callee-allocated save area   |
+  C |  callee-allocated save area   |
 	|  for register varargs         |
 	|                               |
 	+-------------------------------+ <-- frame_pointer_rtx
@@ -9870,7 +9878,7 @@ mips_save_reg_p (unsigned int regno)
 	|                               | \
 	|  $gp save area                |  | cprestore_size
 	|                               | /
-      P +-------------------------------+ <-- hard_frame_pointer_rtx for
+  P +-------------------------------+ <-- hard_frame_pointer_rtx for
 	|                               | \     MIPS16 code
 	|  outgoing stack arguments     |  |
 	|                               |  |
@@ -14025,6 +14033,14 @@ static const struct mips_builtin_description mips_builtins[] =
 #if 0 /* TODO: Need to fix this so that targetm.builtin_decl gets initialized */
   PIC32_EXPAND_BUILTIN (ittype, PIC32_BUILTIN_ITTYPE, MIPS_USI_FTYPE_TYPE),
 #endif
+  PIC32_EXPAND_BUILTIN (section_begin, PIC32_BUILTIN_SECTION_BEGIN, MIPS_USI_FTYPE_CONSTSTRING),
+  PIC32_EXPAND_BUILTIN (section_end, PIC32_BUILTIN_SECTION_END, MIPS_USI_FTYPE_CONSTSTRING),
+  PIC32_EXPAND_BUILTIN (section_size, PIC32_BUILTIN_SECTION_SIZE, MIPS_USI_FTYPE_CONSTSTRING),
+
+  PIC32_EXPAND_BUILTIN (get_isr_state, PIC32_BUILTIN_GET_ISR_STATE, MIPS_USI_FTYPE_VOID),
+  PIC32_EXPAND_BUILTIN (set_isr_state, PIC32_BUILTIN_SET_ISR_STATE, MIPS_VOID_FTYPE_USI),
+  PIC32_EXPAND_BUILTIN (disable_interrupts, PIC32_BUILTIN_DISABLE_INTERRUPTS, MIPS_USI_FTYPE_VOID),
+  PIC32_EXPAND_BUILTIN (enable_interrupts, PIC32_BUILTIN_ENABLE_INTERRUPTS, MIPS_USI_FTYPE_VOID)
 };
 
 enum mips_builtinnums
@@ -14589,6 +14605,13 @@ enum mips_builtinnums
 #if 0 /* TODO */
   MIPS_BUILTIN_NUMS_ittype,
 #endif
+  MIPS_BUILTIN_NUMS_section_begin,
+  MIPS_BUILTIN_NUMS_section_end,
+  MIPS_BUILTIN_NUMS_section_size,
+  MIPS_BUILTIN_NUMS_get_isr_state,
+  MIPS_BUILTIN_NUMS_set_isr_state,
+  MIPS_BUILTIN_NUMS_disable_interrupts,
+  MIPS_BUILTIN_NUMS_enable_interrupts,
   MIPS_BUILTIN_NUMS_MAX
 };
 
@@ -14736,6 +14759,10 @@ mips_init_builtins (void)
   tree t;
 
   gcc_assert (ARRAY_SIZE (mips_builtins)  == ARRAY_SIZE (mips_builtin_fndecls));
+
+#ifdef _BUILD_MCHP_
+  mchp_init_cci_builtins();
+#endif
 
   /* Iterate through all of the bdesc arrays, initializing all of the
      builtin functions.  */
@@ -15769,6 +15796,279 @@ pic32_expand_unique_id (rtx target,
 
   return target;
 }
+
+static rtx
+pic32_expand_section_builtins (enum insn_code icode, rtx target, enum mips_builtin_type builtintype,
+                   tree exp)
+{
+  rtx pat = 0;
+  tree arg0;
+  char *section_name = 0;
+  tree sub_arg0 = 0;
+
+  gcc_assert (1 + call_expr_nargs (exp) <= insn_data[icode].n_operands);
+
+  arg0 = CALL_EXPR_ARG (exp, 0);
+
+  if (TREE_CODE(arg0) == NOP_EXPR)
+    {
+      sub_arg0 = TREE_OPERAND(arg0,0);
+    }
+  else sub_arg0 = arg0;
+
+  if (TREE_CODE(sub_arg0) == NOP_EXPR)
+    {
+      sub_arg0 = TREE_OPERAND(sub_arg0,0);
+    }
+  else sub_arg0 = sub_arg0;
+
+  if (TREE_CODE(sub_arg0) == ADDR_EXPR)
+    {
+      sub_arg0 = TREE_OPERAND(sub_arg0,0);
+
+      if (TREE_CODE(sub_arg0) == ARRAY_REF)
+        {
+          sub_arg0 = TREE_OPERAND(sub_arg0,0);
+        }
+
+      if (TREE_CODE(sub_arg0) == STRING_CST)
+        {
+          section_name = TREE_STRING_POINTER(sub_arg0);
+        }
+    }
+  if (section_name == 0)
+    {
+      error("__builtin_section_* requires string literal for the section name");
+      return GEN_INT(0);
+    }
+
+  target = mips_prepare_builtin_target (icode, 0, target);
+
+  switch (builtintype)
+  {
+    case PIC32_BUILTIN_SECTION_BEGIN:
+      if (TARGET_MIPS16)
+        pat = gen_pic32_section_begin_16el (target, GEN_INT((ptrdiff_t)section_name));
+      else
+        pat = gen_pic32_section_begin_32el (target, GEN_INT((ptrdiff_t)section_name));
+      break;
+    case PIC32_BUILTIN_SECTION_END:
+      if (TARGET_MIPS16)
+        pat = gen_pic32_section_end_16el (target, GEN_INT((ptrdiff_t)section_name));
+      else
+        pat = gen_pic32_section_end_32el (target, GEN_INT((ptrdiff_t)section_name));
+      break;
+    case PIC32_BUILTIN_SECTION_SIZE:
+      if (TARGET_MIPS16)
+        pat = gen_pic32_section_size_16el (target, GEN_INT((ptrdiff_t)section_name));
+      else
+        pat = gen_pic32_section_size_32el (target, GEN_INT((ptrdiff_t)section_name));
+      break;
+    default:
+      break;
+  }
+  if (! pat)
+    return 0;
+  emit_insn (pat);
+
+  return target;
+}
+
+static rtx
+pic32_expand_get_isr_state_builtin (enum insn_code icode, rtx target, enum mips_builtin_type builtintype,
+                   tree exp)
+{
+  rtx pat;
+  rtx temp = gen_reg_rtx (SImode);
+
+  target = mips_prepare_builtin_target (CODE_FOR_pic32_mfc0, 0, target);
+
+  emit_insn (gen_blockage ());
+
+  if (TARGET_MIPS16)
+    {
+      emit_insn (gen_pic32_switch_isabase());
+    }
+
+  /* Status register */
+  pat = gen_pic32_mfc0 (temp, GEN_INT(12), GEN_INT(0));
+  if (! pat)
+    return 0;
+  emit_insn (pat);
+
+  if (TARGET_MIPS16)
+  {
+    pat = gen_pic32_get_interrupt_state_mips16 (target,temp);
+    if (! pat)
+      return 0;
+    emit_insn (pat);
+  }
+  else
+  {
+      /* Shift the IPL field down to bits 0-2 */
+      pat = gen_lshrsi3 (target, temp, GEN_INT(SR_IPL));
+      if (! pat)
+        return 0;
+      emit_insn (pat);
+
+      /* Insert IE bit as bit 3*/
+      pat = gen_insvsi (target, GEN_INT(1), GEN_INT(3), temp);
+      if (! pat)
+        return 0;
+      emit_insn (pat);
+
+      /* Mask off unused bits */
+      pat = gen_andsi3 (target, target, GEN_INT(0xF));
+      if (! pat)
+        return 0;
+      emit_insn (pat);
+  }
+
+  emit_insn (gen_blockage ());
+  if (TARGET_MIPS16)
+    {
+      emit_insn (gen_pic32_switch_isabase());
+    }
+  emit_insn (gen_blockage ());
+
+  return target;
+}
+
+static rtx
+pic32_expand_set_isr_state_builtin (enum mips_builtin_type builtintype,
+                   tree exp)
+{
+  rtx pat;
+  rtx opval;
+  rtx temp = gen_reg_rtx (SImode);
+  rtx save_sr = gen_reg_rtx (SImode);
+
+  /* Do not call mips_prepare_builtin_arg yet because we can do more
+   * specific error checking on the arguments first. */
+
+  opval =  mips_prepare_builtin_arg (CODE_FOR_pic32_mtc0, 0, exp, 0);
+  emit_insn (gen_blockage ());
+  if (TARGET_MIPS16)
+    {
+      emit_insn (gen_pic32_switch_isabase());
+    }
+
+    emit_insn (gen_mips_di ());
+    emit_insn (gen_mips_ehb ());
+    emit_insn (gen_blockage ());
+
+    pat = gen_pic32_mfc0 (save_sr, GEN_INT(12), GEN_INT(0));
+    if (! pat)
+      return 0;
+    emit_insn (pat);
+
+  if (!TARGET_MIPS16)
+  {
+    /* Insert IPL field */
+    pat = gen_insvsi (save_sr, GEN_INT(3), GEN_INT(SR_IPL), opval);
+    if (! pat)
+      return 0;
+    emit_insn (pat);
+
+    /* Shift IE bit from bit 3 back to bit 0 */
+    pat = gen_lshrsi3 (temp, opval, GEN_INT(3));
+    if (! pat)
+      return 0;
+    emit_insn (pat);
+
+    /* Insert the 1-bit IE bit into bit 0 */
+    pat = gen_insvsi (save_sr, GEN_INT(1), GEN_INT(0), temp);
+    if (! pat)
+      return 0;
+    emit_insn (pat);
+  }
+  else
+  {
+    pat = gen_pic32_set_interrupt_state_mips16 (save_sr, opval);
+    if (! pat)
+      return 0;
+    emit_insn (pat);
+  }
+
+  /* CP0_STATUS_REG and CP0_STATUS_SELECT */
+  pat = gen_pic32_mtc0 (save_sr, GEN_INT(12), GEN_INT(0));
+  if (! pat)
+    return 0;
+  emit_insn (pat);
+
+  if (TARGET_MIPS16)
+    {
+      emit_insn (gen_pic32_switch_isabase());
+    }
+  emit_insn (gen_blockage ());
+
+  return NULL_RTX;
+}
+
+
+static rtx
+pic32_expand_disable_interrupts_builtin (enum insn_code icode, rtx target, enum mips_builtin_type builtintype,
+                   tree exp)
+{
+  rtx pat =0;
+
+  target = mips_prepare_builtin_target (CODE_FOR_pic32_mfc0, 0, target);
+
+  emit_insn (gen_blockage ());
+
+  if (TARGET_MIPS16)
+    {
+      emit_insn (gen_pic32_switch_isabase());
+    }
+
+  /* Disable interrupts */
+  pat = gen_pic32_di (target);
+  if (! pat)
+    return 0;
+  emit_insn (pat);
+
+  emit_insn (gen_mips_ehb());
+
+  if (TARGET_MIPS16)
+    {
+      emit_insn (gen_pic32_switch_isabase());
+    }
+  emit_insn (gen_blockage ());
+
+  return target;
+}
+
+static rtx
+pic32_expand_enable_interrupts_builtin (enum insn_code icode, rtx target, enum mips_builtin_type builtintype,
+                   tree exp)
+{
+  rtx pat;
+  rtx temp = gen_reg_rtx (SImode);
+
+  target = mips_prepare_builtin_target (CODE_FOR_pic32_di, 0, target);
+
+  emit_insn (gen_blockage ());
+
+  if (TARGET_MIPS16)
+    {
+      emit_insn (gen_pic32_switch_isabase());
+    }
+
+  /* Enable interrupts */
+  pat = gen_pic32_ei (target);
+  if (! pat)
+    return 0;
+  emit_insn (pat);
+
+  if (TARGET_MIPS16)
+    {
+      emit_insn (gen_pic32_switch_isabase());
+    }
+  emit_insn (gen_blockage ());
+
+  return target;
+}
+
 /* Expand ittype */
 /* pic32_expand_ittype for unsigned int __builtin_ittype(<t> value) */
 /* Not currently working for float type because a float is getting
@@ -15783,13 +16083,13 @@ pic32_expand_ittype (tree exp)
   gimple statement;
 
   if (call_expr_nargs(exp) == 0)
-    { 
+    {
       warning (0,"Too few arguments to function \'__builtin_ittype(var)\'");
       return GEN_INT(0);
     }
-    
+
   if (call_expr_nargs(exp) > 1)
-    { 
+    {
       warning (0,"Too many arguments to function \'__builtin_ittype(var)\'");
       return GEN_INT(0);
     }
@@ -15925,6 +16225,23 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
       /* unique_id */
     case PIC32_BUILTIN_UNIQUEID:
       return pic32_expand_unique_id (target, exp);
+
+    case PIC32_BUILTIN_SECTION_BEGIN:
+    case PIC32_BUILTIN_SECTION_END:
+    case PIC32_BUILTIN_SECTION_SIZE:
+      return pic32_expand_section_builtins (d->icode, target, d->builtin_type, exp);
+
+    case PIC32_BUILTIN_GET_ISR_STATE:
+      return pic32_expand_get_isr_state_builtin (d->icode, target, d->builtin_type, exp);
+
+    case PIC32_BUILTIN_SET_ISR_STATE:
+      return pic32_expand_set_isr_state_builtin (d->builtin_type, exp);
+
+    case PIC32_BUILTIN_DISABLE_INTERRUPTS:
+      return pic32_expand_disable_interrupts_builtin (d->icode, target, d->builtin_type, exp);
+
+    case PIC32_BUILTIN_ENABLE_INTERRUPTS:
+      return pic32_expand_enable_interrupts_builtin (d->icode, target, d->builtin_type, exp);
 #endif
 
     default:

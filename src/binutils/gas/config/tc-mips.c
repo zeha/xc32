@@ -36,6 +36,7 @@
 
 /*FS*/
 #include "pic32-utils.h"
+#include "struc-symbol.h"
 
 #ifdef DEBUG
 #define DBG(x) printf x
@@ -15568,6 +15569,17 @@ mips_fix_adjustable (fixS *fixp)
 
   if (fixp->fx_addsy == NULL)
     return 1;
+
+  /* fix for xc32-271 */
+  /* adjusting relocation to be against section symbol in case the section is an
+     absolute section would mess up addresses */
+#ifdef TARGET_IS_PIC32MX
+  if (fixp->fx_addsy->bsym)
+    {
+      if (PIC32_IS_ABSOLUTE_ATTR(fixp->fx_addsy->bsym->section))
+        return 0;
+    }
+#endif
 
   /* If symbol SYM is in a mergeable section, relocations of the form
      SYM + 0 can usually be made section-relative.  The mergeable data

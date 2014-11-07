@@ -298,6 +298,7 @@ extern void pic32_system_include_paths(const char *root, const char *system,
  %{O2:%{!fno-remove-local-statics: -fremove-local-statics}} \
  %{O*:%{O|O0|O1|O2|Os:;:%{!fno-remove-local-statics: -fremove-local-statics}}} \
  %{mips16e:-mips16} \
+ %{mxc32cpp-lib:%{!mno-xc32cpp-lib: -msmart-io=0 }} \
  %{mips16: %{fexceptions: %{!mmips16-exceptions: %e-fexceptions with -mips16 not yet supported}}} \
  %{mips16: %{!mmips16-exceptions: -fno-exceptions}} \
  %{mprocessor=32SK* : -mdspr2 -mmcu %{mips16*:%e-mips16 option not available on a PIC32SK MCU}} \
@@ -715,7 +716,7 @@ extern const char *mchp_config_data_dir;
         builtin_define_with_int_value ("__XC_VERSION", pic32_compiler_version);     \
       }                                                     \
                                                             \
-      if (TARGET_CCI) mchp_init_cci(pfile);    \
+      mchp_init_cci(pfile);    \
   } while (0);
 
 /*
@@ -731,7 +732,16 @@ extern const char *mchp_config_data_dir;
 #define REGISTER_TARGET_PRAGMAS() { \
   c_register_pragma(0, "vector", mchp_handle_vector_pragma); \
   c_register_pragma(0, "interrupt", mchp_handle_interrupt_pragma); \
-  c_register_pragma(0, "config", mchp_handle_config_pragma); }
+  c_register_pragma(0, "config", mchp_handle_config_pragma); \
+  c_register_pragma(0, "align", mchp_handle_align_pragma); \
+  c_register_pragma(0, "section", mchp_handle_section_pragma); \
+  c_register_pragma(0, "printf_args", mchp_handle_printf_args_pragma); \
+  c_register_pragma(0, "scanf_args", mchp_handle_scanf_args_pragma); \
+  c_register_pragma(0, "keep", mchp_handle_keep_pragma); \
+  c_register_pragma(0, "optimize", mchp_handle_optimize_pragma); \
+  mchp_init_cci_pragmas(); \
+  }
+
 
 /* There are no additional prefixes to try after STANDARD_EXEC_PREFIX. */
 #undef MD_EXEC_PREFIX
@@ -806,7 +816,8 @@ static const int TARGET_MDMX = 0;
 
 /* */
 
-#define SECTION_FLAGS_INT uint32_t
+#undef SECTION_FLAGS_INT
+#define SECTION_FLAGS_INT uint64_t
 
 /* the flags may be any length if surrounded by | */
 #define MCHP_EXTENDED_FLAG  "|"
@@ -827,6 +838,7 @@ static const int TARGET_MDMX = 0;
 #define MCHP_FCNS_FLAG       MCHP_EXTENDED_FLAG "Sf"      MCHP_EXTENDED_FLAG
 #define MCHP_SFR_FLAG        MCHP_EXTENDED_FLAG "sfr"     MCHP_EXTENDED_FLAG
 #define MCHP_NEAR_FLAG       MCHP_EXTENDED_FLAG "near"    MCHP_EXTENDED_FLAG
+#define MCHP_KEEP_FLAG       MCHP_EXTENDED_FLAG "keep"    MCHP_EXTENDED_FLAG
 
 #define MCHP_IS_NAME_P(NAME,IS) (strncmp(NAME, IS, sizeof(IS)-1) == 0)
 #define MCHP_HAS_NAME_P(NAME,HAS) (strstr(NAME, HAS))
@@ -936,7 +948,9 @@ static const int TARGET_MDMX = 0;
     { "space",            1, 1,  false, false, false, mchp_space_attribute },   \
     { "persistent",       0, 0,  false, false, false, NULL }, \
     { "ramfunc",          0, 0,  false, true,  true,  NULL }, \
-    { "unsupported",      0, 1,  false, false, false, mchp_unsupported_attribute },
+    { "unsupported",      0, 1,  false, false, false, mchp_unsupported_attribute }, \
+    { "target_error",     1, 1,  false, false, false, mchp_target_error_attribute }, \
+    { "keep",             0, 0,  false, false, false, mchp_keep_attribute },
 #undef MIPS_DISABLE_INTERRUPT_ATTRIBUTE
 #define MIPS_DISABLE_INTERRUPT_ATTRIBUTE
 
@@ -1001,6 +1015,13 @@ extern enum mips_function_type_tag current_function_type;
 #undef TARGET_USE_JCR_SECTION
 #define TARGET_USE_JCR_SECTION 0
 #undef JCR_SECTION_NAME
+
+#undef TARGET_APPLY_PRAGMA
+#define TARGET_APPLY_PRAGMA mchp_apply_pragmas
+
+/* Initialize the GCC target structure.  */
+#undef TARGET_OVERRIDE_OPTIONS_AFTER_CHANGE
+#define TARGET_OVERRIDE_OPTIONS_AFTER_CHANGE mchp_override_options_after_change
 
 #endif /* MCHP_H */
 

@@ -26,7 +26,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "tree.h"
 #include "flags.h"
 #include "c-common.h"
-#ifdef _BUILD_C30_
+#ifdef _BUILD_MCHP_
 #include "target.h"
 #endif
 #include "output.h"

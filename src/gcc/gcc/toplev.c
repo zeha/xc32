@@ -934,6 +934,7 @@ warn_deprecated_use (tree node, tree attr)
   int unsafe = 0;
   tree deprecated = NULL_TREE;
   tree unsupported = NULL_TREE;
+  tree as_error = NULL_TREE;
 #endif
 
   if (node == 0 || !warn_deprecated_decl)
@@ -945,13 +946,16 @@ warn_deprecated_use (tree node, tree attr)
 	    {
 	      attr = DECL_ATTRIBUTES (node);
 #ifdef _BUILD_MCHP_
-	      unsupported = lookup_attribute("unsupported", attr);
-	          if (!unsupported)
-	              unsupported = lookup_attribute ("__unsupported__", attr);
-	      deprecated = lookup_attribute ("deprecated", attr);
+              unsupported = lookup_attribute("unsupported", attr);
+              if (!unsupported)
+                unsupported = lookup_attribute ("__unsupported__", attr);
+              deprecated = lookup_attribute ("deprecated", attr);
+              as_error = lookup_attribute("target_error", attr);
+              if (!as_error) 
+                as_error = lookup_attribute("__target_error__", attr);
 #ifdef _BUILD_C30_
-	      unsafe = (lookup_attribute(
-	                IDENTIFIER_POINTER(pic30_identUnsupported[0]), attr) != 0);
+              unsafe = (lookup_attribute(
+	                IDENTIFIER_POINTER(pic30_identUnsafe[0]), attr) != 0);
 #endif
 #endif
 	    }
@@ -969,9 +973,12 @@ warn_deprecated_use (tree node, tree attr)
 	              unsupported = lookup_attribute ("__unsupported__",
 	                 TYPE_ATTRIBUTES (TREE_TYPE (decl)));
 	          deprecated = lookup_attribute ("deprecated", attr);
+                  as_error = lookup_attribute("target_error", attr);
+                  if (!as_error) 
+                    as_error = lookup_attribute("__target_error__", attr);
 #ifdef _BUILD_C30_
 	          unsafe = (lookup_attribute(
-	                IDENTIFIER_POINTER(pic30_identUnsupported[0]), attr) != 0);
+	                IDENTIFIER_POINTER(pic30_identUnsafe[0]), attr) != 0);
 #endif
 #endif
             }
@@ -983,6 +990,8 @@ warn_deprecated_use (tree node, tree attr)
     msg = TREE_STRING_POINTER (TREE_VALUE (TREE_VALUE (deprecated)));
   else if (unsupported)
     msg = TREE_STRING_POINTER (TREE_VALUE (TREE_VALUE (unsupported)));
+  else if (as_error)
+    msg = TREE_STRING_POINTER (TREE_VALUE (TREE_VALUE (as_error)));
 #endif
   else
     msg = NULL;
@@ -997,6 +1006,10 @@ warn_deprecated_use (tree node, tree attr)
         return;
       } else if (unsupported) {
         warning (0, "%qs is unsupported: %s",
+          IDENTIFIER_POINTER (DECL_NAME (node)), msg);
+        return;
+      } else if (as_error) {
+        error ("%qs : %s",
           IDENTIFIER_POINTER (DECL_NAME (node)), msg);
         return;
       }
@@ -1038,6 +1051,10 @@ warn_deprecated_use (tree node, tree attr)
                IDENTIFIER_POINTER (DECL_NAME (node)),
                msg);
              return;
+          } else if (as_error) {
+            error ("%qs : %s",
+              IDENTIFIER_POINTER (DECL_NAME (node)), msg);
+            return;
           }
 #endif
 	  if (what)
@@ -1075,6 +1092,10 @@ warn_deprecated_use (tree node, tree attr)
               warning (0, "%qs is unsupported: %s",
                 IDENTIFIER_POINTER (DECL_NAME (node)),
                 msg);
+              return;
+            } else if (as_error) {
+              error ("%qs : %s",
+                IDENTIFIER_POINTER (DECL_NAME (node)), msg);
               return;
             }
 #endif

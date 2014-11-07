@@ -5657,11 +5657,11 @@ lang_do_assignments (void)
   lang_do_assignments_1 (statement_list.head, abs_output_section, NULL, 0);
 }
 
-/* Fix any .startof. or .sizeof. symbols.  When the assemblers see the
+/* Fix any .startof., .sizeof., or .endof. symbols.  When the assemblers see the
    operator .startof. (section_name), it produces an undefined symbol
    .startof.section_name.  Similarly, when it sees
-   .sizeof. (section_name), it produces an undefined symbol
-   .sizeof.section_name.  For all the output sections, we look for
+   .sizeof. (section_name) or .endof. (section_name) it produces 
+   an undefined symbol .sizeof.section_name or .endof.section_name respectively.   For all the output sections, we look for
    such symbols, and set them to the correct value.  */
 
 static void
@@ -5682,6 +5682,14 @@ lang_set_startof (void)
       buf = (char *) xmalloc (10 + strlen (secname));
 
       sprintf (buf, ".startof.%s", secname);
+#ifdef TARGET_IS_PIC32MX
+      /*
+      ** The pic30 linker appends chars to the end of
+      ** unmapped section names. Avoid this part when
+      ** searching for .startof. and .sizeof. symbols.
+      */
+      (void) strtok(buf,"%"); /* insert null at the first occurrence of % */
+#endif
       h = bfd_link_hash_lookup (link_info.hash, buf, FALSE, FALSE, TRUE);
       if (h != NULL && h->type == bfd_link_hash_undefined)
 	{
@@ -5691,6 +5699,9 @@ lang_set_startof (void)
 	}
 
       sprintf (buf, ".sizeof.%s", secname);
+#if TARGET_IS_PIC32MX
+      (void) strtok(buf,"%"); /* insert null at the first occurrence of % */
+#endif
       h = bfd_link_hash_lookup (link_info.hash, buf, FALSE, FALSE, TRUE);
       if (h != NULL && h->type == bfd_link_hash_undefined)
 	{
@@ -5698,6 +5709,19 @@ lang_set_startof (void)
 	  h->u.def.value = TO_ADDR (s->size);
 	  h->u.def.section = bfd_abs_section_ptr;
 	}
+      
+      sprintf (buf, ".endof.%s", secname);
+#if TARGET_IS_PIC32MX
+      (void) strtok(buf,"%"); /* insert null at the first occurrence of % */
+#endif
+      h = bfd_link_hash_lookup (link_info.hash, buf, FALSE, FALSE, TRUE);
+      if (h != NULL && h->type == bfd_link_hash_undefined)
+        {
+          h->type = bfd_link_hash_defined;
+          h->u.def.value = bfd_get_section_vma (link_info.output_bfd, s) +
+                           TO_ADDR (s->size) - 1;
+          h->u.def.section = bfd_abs_section_ptr;
+        }
 
       free (buf);
     }

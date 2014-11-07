@@ -4015,6 +4015,12 @@ start_decl (struct c_declarator *declarator, struct c_declspecs *declspecs,
   /* Set attributes here so if duplicate decl, will have proper attributes.  */
   decl_attributes (&decl, attributes, 0);
 
+#ifdef TARGET_APPLY_PRAGMA
+  /* If there are target pragmas that are context dependendant, apply
+     them here */
+  TARGET_APPLY_PRAGMA(decl);
+#endif
+
   /* Handle gnu_inline attribute.  */
   if (declspecs->inline_p
       && !flag_gnu89_inline
@@ -7397,6 +7403,12 @@ start_function (struct c_declspecs *declspecs, struct c_declarator *declarator,
   loc = DECL_SOURCE_LOCATION (decl1);
 
   decl_attributes (&decl1, attributes, 0);
+
+#ifdef TARGET_APPLY_PRAGMA
+  /* If there are target pragmas that are context dependendant, apply
+     them here */
+  TARGET_APPLY_PRAGMA(decl1);
+#endif
 
   if (DECL_DECLARED_INLINE_P (decl1)
       && DECL_UNINLINABLE (decl1)

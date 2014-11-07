@@ -31,6 +31,9 @@
  * 
  *-------------------------------------------------------------------------*/
 
+/* General XCLM return values */
+#define MCHP_XCLM_NORMAL_EXIT            0x0
+
 /* Original options used for C translation units */
 #define MCHP_XCLM_FREE_LICENSE           0x0
 #define MCHP_XCLM_VALID_STANDARD_LICENSE 0x1

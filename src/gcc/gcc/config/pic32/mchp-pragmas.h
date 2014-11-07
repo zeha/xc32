@@ -43,6 +43,7 @@ struct vector_dispatch_spec
   {
     const char *target; /* target function name */
     int vector_number;  /* exception vector table number */
+    int emit_dispatch;  /* nonzero to emit a dispatch function */
     struct vector_dispatch_spec *next;
   };
 extern struct vector_dispatch_spec *vector_dispatch_list_head;

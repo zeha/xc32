@@ -432,7 +432,9 @@
 
 #define TARGET_DEFAULT_TARGET_FLAGS 0
 
+#ifndef TARGET_OVERRIDE_OPTIONS_AFTER_CHANGE
 #define TARGET_OVERRIDE_OPTIONS_AFTER_CHANGE hook_void_void
+#endif
 
 #define TARGET_HANDLE_OPTION hook_bool_size_t_constcharptr_int_true
 #define TARGET_HELP NULL

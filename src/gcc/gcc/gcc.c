@@ -3584,7 +3584,9 @@ display_help (void)
   fputs (_("\
   -fast-math               Use alternative floating point support routines\n"), stdout);
   fputs (_("\
-  -legacy-libc             Use legacy (pre v3.25) lib C routines\n"), stdout);
+  -relaxed-math            Use alternative floating point support routines\n"), stdout);
+  fputs (_("\
+  -legacy-libc             Use legacy (pre C30 v3.25) lib C routines\n"),stdout);
 #elif defined(TARGET_MCHP_PIC32MX)
   fputs (_("\
   -legacy-libc             Use legacy (pre v1.12) lib C routines\n"), stdout);
@@ -3712,14 +3714,19 @@ process_command (int argc, const char **argv)
   enum pic30_lib_specs {
     pls_default,
     pls_fast_math = 1,
-    pls_legacy_libc = 2
+    pls_legacy_libc = 2,
+    pls_relaxed_math = 4
   } pic30_which_spec = pls_default;
 
   char *libspecs[] = {
-    LIB_SPEC,         // default
-    ALT_FM_LIB_SPEC,  // pls_fast_math
-    ALT_LC_LIB_SPEC,  // pls_legacy_libc
-    ALT_FMLC_LIB_SPEC // pls_fast_math | pls_legacy_libc
+    LIB_SPEC,         // 0 default
+    ALT_FM_LIB_SPEC,  // 1 pls_fast_math
+    ALT_LC_LIB_SPEC,  // 2 pls_legacy_libc
+    ALT_FMLC_LIB_SPEC // 3 pls_fast_math | pls_legacy_libc
+    ALT_RM_LIB_SPEC,  // 4 pls_relaxed_math
+    ALT_RM_LIB_SPEC,  // 5 pls_relaxed_math, relaxed overrides fast
+    ALT_RMLC_LIB_SPEC,// 6 pls_relaxed_math | pls_legacy_libc
+    ALT_RMLC_LIB_SPEC,// 7 pls_relaxed_math | pls_legacy_libc
   };
 #endif
 
@@ -3970,7 +3977,14 @@ process_command (int argc, const char **argv)
 #ifdef DEFAULT_LIB_PATH
       if ((temp == 0) && (pathNo == 0))
         {
-           temp = DEFAULT_LIB_PATH;
+          for (i = 1; i < argc; i++)
+            {
+              if (!strncmp(argv[i], "-merrata=", sizeof("-merrata=")-1))
+                {
+                   temp = DEFAULT_ERRATA_LIB_PATH;
+                }
+            }
+           if (temp == 0) temp = DEFAULT_LIB_PATH;
         }
 #endif
 #if defined(DEFAULT_LIB_PATH) || defined(NON_DEFAULT_LIBRARY_PATH)
@@ -4113,6 +4127,9 @@ process_command (int argc, const char **argv)
 #if defined(MCHP_VERSION) && defined(ALT_LIB_SPECS)
       else if (strcmp (argv[i], "-fast-math") == 0) {
         pic30_which_spec |= pls_fast_math;
+        lib_spec = libspecs[pic30_which_spec];
+      } else if (strcmp (argv[i], "-relaxed-math") == 0) {
+        pic30_which_spec |= pls_relaxed_math;
         lib_spec = libspecs[pic30_which_spec];
       } else if (strcmp (argv[i], "-mlegacy-libc") == 0) {
         n_switches++;
@@ -4747,6 +4764,8 @@ process_command (int argc, const char **argv)
 	;
 #ifdef _BUILD_C30_
       else if (! strcmp (argv[i], "-fast-math"))
+        ;
+      else if (! strcmp (argv[i], "-relaxed-math"))
         ;
 #endif
       else if (! strncmp (argv[i], "-Wp,", 4))
@@ -7815,7 +7834,7 @@ main (int argc, char **argv)
             free(new_version);
             printf (_("%s %s%s\n"), programname, pkgversion_string,
 	            version_string);
-            printf (_("__XC16_VERSION == %d\n"), vid);
+            printf (_("__XC16_VERSION__ == %d\n"), vid);
           }
 #else
       printf (_("%s %s%s\n"), programname, pkgversion_string,

@@ -49,6 +49,12 @@ extern tree mchp_space_attribute(tree *decl, tree identifier,
 extern tree mchp_unsupported_attribute(tree *decl, tree identifier,
                             tree args, int flags ATTRIBUTE_UNUSED,
                             bool *no_add_attrs);
+extern tree mchp_target_error_attribute(tree *decl, tree identifier,
+                            tree args, int flags ATTRIBUTE_UNUSED,
+                            bool *no_add_attrs);
+extern tree mchp_keep_attribute(tree *decl, tree identifier,
+                            tree args, int flags ATTRIBUTE_UNUSED,
+                            bool *no_add_attrs);
 extern void mchp_set_current_function (tree fndecl);
 extern bool mchp_suppress_prologue (void);
 extern bool mchp_suppress_epilogue (void);
@@ -78,46 +84,33 @@ extern bool mchp_function_ok_for_sibcall(void);
 extern void mchp_subtarget_override_options1 (void);
 extern void mchp_subtarget_override_options2 (void);
 extern void pic32_optimization_options (int level, int size ATTRIBUTE_UNUSED);
+extern void mchp_override_options_after_change(void);
 extern void mchp_prepare_function_start (tree fndecl);
 extern bool mchp_subtarget_mips16_enabled (const_tree decl);
 
-#if 0
-/* now static in cci.c */
-extern int mchp_load_configuration_definition (const char *fname);
-extern void mchp_handle_configuration_setting (const char *name, const unsigned char *value_name);
-#endif
-extern void
-mchp_add_vector_dispatch_entry (const char *target_name, int vector_number);
+extern void mchp_apply_pragmas(tree decl);
+extern void mchp_handle_align_pragma(struct cpp_reader *);
+extern void mchp_handle_section_pragma(struct cpp_reader *);
+extern void mchp_handle_printf_args_pragma(struct cpp_reader *);
+extern void mchp_handle_scanf_args_pragma(struct cpp_reader *);
+extern void mchp_handle_inline_pragma(struct cpp_reader *);
+extern void mchp_handle_keep_pragma(struct cpp_reader *);
+extern void mchp_handle_required_pragma(struct cpp_reader *);
+extern void mchp_handle_optimize_pragma(struct cpp_reader *pfile);
 
-extern int mchp_check_for_conversion(rtx);
-extern const char *mchp_strip_name_encoding (const char *symbol_name);
-extern void mchp_subtarget_encode_section_info (tree decl, rtx rtl,
-                                         int first_seen);
-extern void mchp_cache_conversion_state(rtx val, tree sym);
+extern unsigned int mchp_pragma_align;
+extern tree mchp_pragma_section;
+extern unsigned int mchp_pragma_inline;
+extern unsigned int mchp_pragma_keep;
+extern unsigned int mchp_pragma_printf_args;
+extern unsigned int mchp_pragma_scanf_args;
 
-extern const char *mchp_text_section_asm_op(void);
-extern const char *mchp_data_section_asm_op(void);
-extern const char *mchp_sdata_section_asm_op(void);
-extern const char *mchp_rdata_section_asm_op(void);
-extern const char *mchp_bss_section_asm_op(void);
-extern const char *mchp_sbss_section_asm_op(void);
-
-extern section *mchp_select_section (tree decl, int reloc, unsigned HOST_WIDE_INT align);
-extern void mchp_asm_named_section(const char *name,
-                                       SECTION_FLAGS_INT flags, tree decl);
+extern void mchp_asm_named_section(const char *pszSectionName,
+                            SECTION_FLAGS_INT flags,
+                            tree decl ATTRIBUTE_UNUSED);
+extern section *mchp_select_section (tree decl, int reloc,
+                     unsigned HOST_WIDE_INT align ATTRIBUTE_UNUSED);
 extern unsigned int mchp_section_type_flags(tree decl, const char *name,
-                                           int reloc);
-extern const char *mchp_pushed_constant_section(void);
-extern void mchp_push_constant_section(tree);
-extern void mchp_pop_constant_section(tree);
-extern void mchp_push_section_name(const char *pszSectionName,
-                                   SECTION_FLAGS_INT pszSectionFlag);
-extern void mchp_asm_output_aligned_decl_local(FILE *file, tree decl, char *name, 
-                                         int size, int alignment);
-extern void mchp_no_section(void);
-int set_section_stack(const char *pszSectionName,
-                             SECTION_FLAGS_INT pszSectionFlag);
-extern bool mchp_ramfunc_type_p (tree decl);
-extern void mchp_asm_output_local(FILE *file, char *name, int size ATTRIBUTE_UNUSED, int rounded);
+                        int reloc ATTRIBUTE_UNUSED);
+extern const char *mchp_strip_name_encoding (const char *symbol_name);
 #endif
-

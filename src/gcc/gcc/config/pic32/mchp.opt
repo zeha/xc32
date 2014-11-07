@@ -176,6 +176,10 @@ When generating -mabicalls code, allow executables to use PLTs and copy relocati
 ;Target Report RejectNegative InverseMask(SOFT_FLOAT_ABI, HARD_FLOAT_ABI) Undocumented
 ;Allow the use of hardware floating-point ABI and instructions
 
+mext=
+Target Joined Var(mchp_import)
+Enable support for importing external code from another vendor
+
 minterlink-mips16
 Target Report Var(TARGET_INTERLINK_MIPS16) Init(-1)
 Generate code that can be safely linked with MIPS16 code.

@@ -26,8 +26,14 @@
 
 struct cpp_reader;
 
+extern void pic30_apply_pragmas(tree decl);
+extern int pic30_device_has_gie(void);
+
 extern enum machine_mode machine_Pmode;
+
+extern tree pic30_identKeep[2];
 extern tree pic30_identSave[2];
+extern tree mchp_identError[2];
 extern tree pic30_identUnsupported[2];
 extern tree pic30_identUnsafe[2];
 extern tree pic30_identSecure[2];
@@ -35,12 +41,21 @@ extern tree pic30_identBoot[2];
 extern tree pic30_identExternal[2];
 extern tree pic30_identSpace[2];
 
+extern unsigned int mchp_pragma_align;
+extern tree mchp_pragma_section;
+extern unsigned int mchp_pragma_keep;
+extern unsigned int mchp_pragma_printf_args;
+extern unsigned int mchp_pragma_scanf_args;
+
 tree pic30_extended_pointer_integer_type(enum machine_mode);
 int pic30_md_mustsave(rtx reg);
-void pic30_notice_type_qualifier(tree t);
 tree pic30_read_externals(enum pic30_special_trees kind);
 tree pic30_write_externals(enum pic30_special_trees kind);
 
+tree pic30_build_variant_type_copy(tree type, int type_quals);
+
+void mchp_handle_required_pragma(struct cpp_reader *);
+void mchp_handle_optimize_pragma(struct cpp_reader *);
 void pic30_handle_code_pragma(struct cpp_reader *pfile);
 void pic30_handle_idata_pragma(struct cpp_reader *pfile);
 void pic30_handle_udata_pragma(struct cpp_reader *pfile);
@@ -57,7 +72,7 @@ extern enum machine_mode pic30_addr_space_address_mode(addr_space_t);
 extern bool pic30_addr_space_valid_pointer_mode(enum machine_mode,addr_space_t);
 extern bool pic30_addr_space_legitimate_address_p(enum machine_mode, rtx,
                                                   bool, addr_space_t);
-extern rtx pic30_addr_space_legitimize_address(rtx, rtx, enum machine_mode, 
+extern rtx pic30_addr_space_legitimize_address(rtx, rtx, enum machine_mode,
                                                addr_space_t);
 extern bool pic30_addr_space_subset_p(addr_space_t, addr_space_t);
 extern rtx pic30_addr_space_convert(rtx, tree, tree);
@@ -72,11 +87,11 @@ extern int pic30_validate_symbolic_address_operand(enum machine_mode, rtx);
 extern int pic30_data_space_operand_p(enum machine_mode mode,rtx op,int strict);
 extern void pic30_emit_fillupper(tree decl, int set);
 extern int pic30_managed_psv;
-extern tree pic30_gimplify_va_arg_expr(tree valist, tree type, 
+extern tree pic30_gimplify_va_arg_expr(tree valist, tree type,
                                        gimple_seq pre_p, gimple_seq post_p);
 extern int pic30_noreturn_function(tree decl);
 extern char *pic30_boot_secure_access(rtx call, int *slot, int *set_psv);
-extern rtx pic30_convert_mode(enum machine_mode newmode, 
+extern rtx pic30_convert_mode(enum machine_mode newmode,
                               enum machine_mode oldmode, rtx x, int unsignedp);
 extern int pic30_parse_target_rid(tree qual, int *x);
 extern int pic30_non_postinc_operand(rtx op, enum machine_mode mode);
@@ -113,7 +128,7 @@ extern int pic30_accumulator_operand(rtx op, enum machine_mode mode);
 extern int pic30_immediate_1bit_operand(rtx op, enum machine_mode mode);
 extern int pic30_invalid_address_operand(rtx op, enum machine_mode mode);
 extern const char *pic30_set_constant_section(const char *name,
-                                              SECTION_FLAGS_INT flags, 
+                                              SECTION_FLAGS_INT flags,
                                               tree decl);
 extern const char *pic30_get_constant_section(void);
 extern int pic30_asm_function_p(int);
@@ -124,6 +139,7 @@ extern int pic30_check_for_conversion(rtx);
 extern const char *pic30_strip_name_encoding(const char *);
 extern int pic30_pp_modify_valid(rtx);
 extern void pic30_override_options(void);
+extern void pic30_override_options_after_change(void);
 extern void pic30_sdb_end_prologue(unsigned int);
 extern void pic30_start_source_file(unsigned int, const char *);
 extern void pic30_initial_elimination_offset(int, int, HOST_WIDE_INT *);
@@ -136,6 +152,11 @@ extern void pic30_handle_code_pragma(struct cpp_reader *);
 extern void pic30_handle_idata_pragma(struct cpp_reader *);
 extern void pic30_handle_udata_pragma(struct cpp_reader *);
 extern void pic30_handle_large_arrays_pragma(struct cpp_reader *);
+extern void mchp_handle_align_pragma(struct cpp_reader *);
+extern void mchp_handle_section_pragma(struct cpp_reader *);
+extern void mchp_handle_printf_args_pragma(struct cpp_reader *);
+extern void mchp_handle_scanf_args_pragma(struct cpp_reader *);
+extern void mchp_handle_keep_pragma(struct cpp_reader *);
 extern int pic30_hard_regno_mode_ok(int, enum machine_mode);
 extern void pic30_expand_prologue(void);
 extern void pic30_expand_epilogue(void);

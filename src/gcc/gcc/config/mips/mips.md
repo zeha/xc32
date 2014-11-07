@@ -283,6 +283,14 @@
    (UNSPECV_GENLABEL32      809)
    (UNSPECV_GENLABEL16      810)
    (UNSPECV_ITTYPE          811)
+   (UNSPEC_SECTION_BEGIN    812)
+   (UNSPEC_SECTION_BEGIN_16   813)
+   (UNSPEC_SECTION_END        814)
+   (UNSPEC_SECTION_SIZE       815)
+   (UNSPECV_SET_INTERRUPT_STATE16  816)
+   (UNSPECV_GET_INTERRUPT_STATE16  817)
+   (UNSPECV_DISABLE_INTERRUPTS     818)
+   (UNSPECV_ENABLE_INTERRUPTS      819)
 
    ;; PIC long branch sequences are never longer than 100 bytes.
    (MAX_PIC_BRANCH_LENGTH	100)
@@ -4242,7 +4250,8 @@
   "TARGET_MIPS16
    && (register_operand (operands[0], <MODE>mode)
        || register_operand (operands[1], <MODE>mode))"
-  { return mips_output_move (operands[0], operands[1]); }
+  {
+   return mips_output_move (operands[0], operands[1]); }
   [(set_attr "move_type" "move,move,move,const,constN,const,loadpool,load,store,mfhilo")
    (set_attr "mode" "SI")])
 
@@ -4299,7 +4308,6 @@
    (set (match_dup 0) (plus:SI (match_dup 0) (match_dup 2)))]
 {
   int val = INTVAL (operands[1]);
-
   operands[1] = GEN_INT (0xff);
   operands[2] = GEN_INT (val - 0xff);
 })
@@ -6046,6 +6054,22 @@
   [(set_attr "type"	"trap")
    (set_attr "mode"	"none")])
 
+(define_insn "pic32_di"
+  [(set (match_operand:SI 0 "register_operand" "=d")
+    (unspec_volatile [(const_int 0)] UNSPECV_DISABLE_INTERRUPTS))]
+  ""
+  "di\t%0"
+  [(set_attr "type"	"trap")
+   (set_attr "mode"	"none")])
+
+(define_insn "pic32_ei"
+  [(set (match_operand:SI 0 "register_operand" "=d")
+    (unspec_volatile [(const_int 0)] UNSPECV_ENABLE_INTERRUPTS))]
+  ""
+  "ei\t%0"
+  [(set_attr "type"	"trap")
+   (set_attr "mode"	"none")])
+
 ;; Execution hazard barrier.
 (define_insn "mips_ehb"
   [(unspec_volatile [(const_int 0)] UNSPEC_EHB)]
@@ -6963,6 +6987,194 @@
    ; See tls_get_tp_<mode>
    (set_attr "can_delay" "no")
    (set_attr "mode" "<MODE>")])
+
+
+;; PIC32
+
+(define_insn "pic32_section_begin_32el"
+  [(set (match_operand:SI 0 "register_operand" "=d")
+        (unspec [
+          (match_operand 1 "immediate_operand" "i")
+        ] UNSPEC_SECTION_BEGIN))]
+  "!TARGET_MIPS16"
+  "*
+  { static char *buffer = 0;
+    static int buffer_size;
+    int len;
+
+    tree t = (tree)(INTVAL(operands[1]));
+
+    char *section_name = (char *)(INTVAL(operands[1]));
+
+    len = sizeof (\"lui\t%%0, %%%%h(.startof.%s)\;addiu\t%%0, %%0, %%%%lo(.startof.%s)\");
+    len += strlen(section_name)*2;
+    len++;
+    if (buffer_size < len) {
+      if (buffer) free(buffer);
+      buffer = xmalloc(len+50);
+      buffer_size = len+50;
+    }
+    snprintf(buffer, buffer_size, \"lui\t%%0, %%%%hi(.startof.%s)\;addiu\t%%0, %%0, %%%%lo(.startof.%s)\",
+            section_name, section_name);
+    return buffer;
+  }")
+
+(define_insn "pic32_section_begin_16el"
+  [(set (match_operand 0 "register_operand" "=d")
+        (unspec [
+          (match_operand 1 "" "")
+        ] UNSPEC_SECTION_BEGIN))]
+  "TARGET_MIPS16"
+  "*
+  { static char *buffer = 0;
+    static int buffer_size;
+    int len;
+
+    tree t = (tree)(INTVAL(operands[1]));
+    char *section_name = (char *)(INTVAL(operands[1]));
+    len = sizeof (\"li\t%%0, %%%%hi(.startof.%s)\;sll\t%%0, %%0, 16\;addiu\t%%0, %%%%lo(.startof.%s)\");
+    len += strlen(section_name)*2;
+    len++;
+    if (buffer_size < len) {
+      if (buffer) free(buffer);
+      buffer = xmalloc(len+50);
+      buffer_size = len+50;
+    }
+    snprintf(buffer, buffer_size, \"li\t%%0, %%%%hi(.startof.%s)\;sll\t%%0, %%0, 16\;addiu\t%%0, %%%%lo(.startof.%s)\",
+            section_name, section_name);
+    return buffer;
+  }")
+
+
+(define_insn "pic32_section_end_32el"
+  [(set (match_operand:SI 0 "register_operand" "=d")
+        (unspec [
+          (match_operand 1 "immediate_operand" "i")
+        ] UNSPEC_SECTION_END))]
+  "!TARGET_MIPS16"
+  "*
+  { static char *buffer = 0;
+    static int buffer_size;
+    int len;
+
+    tree t = (tree)(INTVAL(operands[1]));
+
+    char *section_name = (char *)(INTVAL(operands[1]));
+
+    len = sizeof (\"lui\t%%0, %%%%hi(.endof.%s)\;addiu\t%%0, %%0, %%%%lo(.endof.%s)\");
+    len += strlen(section_name)*2;
+    len++;
+    if (buffer_size < len) {
+      if (buffer) free(buffer);
+      buffer = xmalloc(len+50);
+      buffer_size = len+50;
+    }
+    snprintf(buffer, buffer_size, \"lui\t%%0, %%%%hi(.endof.%s)\;addiu\t%%0, %%0, %%%%lo(.endof.%s)\",
+            section_name, section_name);
+    return buffer;
+  }")
+
+(define_insn "pic32_section_end_16el"
+  [(set (match_operand 0 "register_operand" "=d")
+        (unspec [
+          (match_operand 1 "" "")
+        ] UNSPEC_SECTION_END))]
+  "TARGET_MIPS16"
+  "*
+  { static char *buffer = 0;
+    static int buffer_size;
+    int len;
+
+    tree t = (tree)(INTVAL(operands[1]));
+    char *section_name = (char *)(INTVAL(operands[1]));
+    len = sizeof (\"li\t%%0, %%%%hi(.endof.%s)\;sll\t%%0, %%0, 16\;addiu\t%%0, %%%%lo(.endof.%s)\");
+    len += strlen(section_name)*2;
+    len++;
+    if (buffer_size < len) {
+      if (buffer) free(buffer);
+      buffer = xmalloc(len+50);
+      buffer_size = len+50;
+    }
+    snprintf(buffer, buffer_size, \"li\t%%0, %%%%hi(.endof.%s)\;sll\t%%0, %%0, 16\;addiu\t%%0, %%%%lo(.endof.%s)\",
+            section_name, section_name);
+    return buffer;
+  }")
+
+
+(define_insn "pic32_section_size_32el"
+  [(set (match_operand:SI 0 "register_operand" "=d")
+        (unspec [
+          (match_operand 1 "immediate_operand" "i")
+        ] UNSPEC_SECTION_SIZE))]
+  "!TARGET_MIPS16"
+  "*
+  { static char *buffer = 0;
+    static int buffer_size;
+    int len;
+
+    tree t = (tree)(INTVAL(operands[1]));
+
+    char *section_name = (char *)(INTVAL(operands[1]));
+
+    len = sizeof (\"lui\t%%0, %%%%hi(.sizeof.%s)\;addiu\t%%0, %%0, %%%%lo(.sizeof.%s)\");
+    len += strlen(section_name)*2;
+    len++;
+    if (buffer_size < len) {
+      if (buffer) free(buffer);
+      buffer = xmalloc(len+50);
+      buffer_size = len+50;
+    }
+    snprintf(buffer, buffer_size, \"lui\t%%0, %%%%hi(.sizeof.%s)\;addiu\t%%0, %%0, %%%%lo(.sizeof.%s)\",
+            section_name, section_name);
+    return buffer;
+  }")
+
+(define_insn "pic32_section_size_16el"
+  [(set (match_operand 0 "register_operand" "=d")
+        (unspec [
+          (match_operand 1 "" "")
+        ] UNSPEC_SECTION_SIZE))]
+  "TARGET_MIPS16"
+  "*
+  { static char *buffer = 0;
+    static int buffer_size;
+    int len;
+
+    tree t = (tree)(INTVAL(operands[1]));
+    char *section_name = (char *)(INTVAL(operands[1]));
+    len = sizeof (\"li\t%%0, %%%%hi(.sizeof.%s)\;sll\t%%0, %%0, 16\;addiu\t%%0, %%%%lo(.sizeof.%s)\");
+    len += strlen(section_name)*2;
+    len++;
+    if (buffer_size < len) {
+      if (buffer) free(buffer);
+      buffer = xmalloc(len+50);
+      buffer_size = len+50;
+    }
+    snprintf(buffer, buffer_size, \"li\t%%0, %%%%hi(.sizeof.%s)\;sll\t%%0, %%0, 16\;addiu\t%%0, %%%%lo(.sizeof.%s)\",
+            section_name, section_name);
+    return buffer;
+  }")
+
+(define_insn "pic32_get_interrupt_state_mips16"
+  [
+   (unspec_volatile:SI [(match_operand:SI 0 "register_operand" "=d")
+                        (match_operand:SI 1 "register_operand" "d")]
+			    UNSPECV_GET_INTERRUPT_STATE16)]
+  ""
+{
+  return "srl\t%0,%1,10\;ins\t%0,%1,3,1\;andi\t%0,%0,0x7";
+})
+
+(define_insn "pic32_set_interrupt_state_mips16"
+  [
+   (unspec_volatile:SI [(match_operand:SI 0 "register_operand" "d")
+                     (match_operand:SI 1 "register_operand" "d")]
+			    UNSPECV_SET_INTERRUPT_STATE16)]
+  ""
+{
+  return "ins\t%0,%1,10,3\;srl\t%1,%1,3\;ins\t%0,%1,0,1";
+})
+
 
 ;; Synchronization instructions.
 

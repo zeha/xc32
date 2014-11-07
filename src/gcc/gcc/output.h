@@ -486,7 +486,7 @@ enum section_category
 /* Information that is provided by all instances of the section type.  */
 struct GTY((skip)) section_common {
   /* The set of SECTION_* flags that apply to this section.  */
-#ifdef _BUILD_C30_
+#ifdef _BUILD_MCHP_
   unsigned long long flags;
 #else
   unsigned int flags;
@@ -575,7 +575,7 @@ extern GTY(()) section *bss_noswitch_section;
 extern GTY(()) section *in_section;
 extern GTY(()) bool in_cold_section_p;
 
-#ifdef _BUILD_C30_
+#ifdef _BUILD_MCHP_
 extern section *get_unnamed_section (SECTION_FLAGS_INT, void (*) (const void *),
 				     const void *);
 extern section *get_section (const char *, SECTION_FLAGS_INT, tree);

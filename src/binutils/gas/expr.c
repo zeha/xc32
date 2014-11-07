@@ -1136,16 +1136,24 @@ operand (expressionS *expressionP, enum expr_mode mode)
       else if ((strncasecmp (input_line_pointer, "startof.", 8) == 0
 		&& ! is_part_of_name (input_line_pointer[8]))
 	       || (strncasecmp (input_line_pointer, "sizeof.", 7) == 0
-		   && ! is_part_of_name (input_line_pointer[7])))
+		   && ! is_part_of_name (input_line_pointer[7]))
+               || (strncasecmp (input_line_pointer, "endof.", 6) == 0
+                   && ! is_part_of_name (input_line_pointer[6])))
 	{
-	  int start;
+	  int start = 0, end = 0;
 
-	  start = (input_line_pointer[1] == 't'
-		   || input_line_pointer[1] == 'T');
-	  input_line_pointer += start ? 8 : 7;
+          if (input_line_pointer[0] == 's')
+	    start = (input_line_pointer[1] == 't'
+	     	     || input_line_pointer[1] == 'T');
+          if (input_line_pointer[0] == 's')
+	    input_line_pointer += start ? 8 : 7;
+          else {
+             end = 1;
+             input_line_pointer += 6;
+          }
 	  SKIP_WHITESPACE ();
 	  if (*input_line_pointer != '(')
-	    as_bad (_("syntax error in .startof. or .sizeof."));
+	    as_bad (_("syntax error in .startof., .sizeof., or .endof."));
 	  else
 	    {
 	      char *buf;
@@ -1156,7 +1164,9 @@ operand (expressionS *expressionP, enum expr_mode mode)
 	      c = get_symbol_end ();
 
 	      buf = (char *) xmalloc (strlen (name) + 10);
-	      if (start)
+              if (end)
+                sprintf (buf, ".endof.%s", name);
+              else if (start)
 		sprintf (buf, ".startof.%s", name);
 	      else
 		sprintf (buf, ".sizeof.%s", name);
@@ -1170,7 +1180,7 @@ operand (expressionS *expressionP, enum expr_mode mode)
 	      *input_line_pointer = c;
 	      SKIP_WHITESPACE ();
 	      if (*input_line_pointer != ')')
-		as_bad (_("syntax error in .startof. or .sizeof."));
+		as_bad (_("syntax error in .startof., .sizeof., or .endof."));
 	      else
 		++input_line_pointer;
 	    }

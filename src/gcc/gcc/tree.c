@@ -206,7 +206,10 @@ static GTY ((if_marked ("tree_priority_map_marked_p"),
 	     param_is (struct tree_priority_map)))
   htab_t init_priority_for_decl;
 
-static void set_type_quals (tree, int);
+#ifndef _BUILD_C30_
+static 
+#endif
+void set_type_quals (tree, int);
 static int type_hash_eq (const void *, const void *);
 static hashval_t type_hash_hash (const void *);
 static hashval_t int_cst_hash_hash (const void *);
@@ -3676,9 +3679,14 @@ build2_stat (enum tree_code code, tree tt, tree arg0, tree arg1 MEM_STAT_DECL)
 		&& TREE_CODE (arg1) == INTEGER_CST);
 
   if (code == POINTER_PLUS_EXPR && arg0 && arg1 && tt)
+#if _BUILD_C30_
+    gcc_assert (POINTER_TYPE_P (tt) && POINTER_TYPE_P (TREE_TYPE (arg0))
+		&& INTEGRAL_TYPE_P (TREE_TYPE (arg1)));
+#else
     gcc_assert (POINTER_TYPE_P (tt) && POINTER_TYPE_P (TREE_TYPE (arg0))
 		&& INTEGRAL_TYPE_P (TREE_TYPE (arg1))
 		&& useless_type_conversion_p (sizetype, TREE_TYPE (arg1)));
+#endif
 
   t = make_node_stat (code PASS_MEM_STAT);
   TREE_TYPE (t) = tt;
@@ -5431,7 +5439,10 @@ handle_dll_attribute (tree * pnode, tree name, tree args, int flags,
 /* Set the type qualifiers for TYPE to TYPE_QUALS, which is a bitmask
    of the various TYPE_QUAL values.  */
 
-static void
+#ifndef _BUILD_C30_
+static
+#endif
+void
 set_type_quals (tree type, int type_quals)
 {
   TYPE_READONLY (type) = (type_quals & TYPE_QUAL_CONST) != 0;
@@ -5489,11 +5500,12 @@ build_qualified_type (tree type, int type_quals)
   /* If not, build it.  */
   if (!t)
     {
-      t = build_variant_type_copy (type);
-      set_type_quals (t, type_quals);
 #ifdef _BUILD_C30_
       /* new targetm ? */
-      pic30_notice_type_qualifier(t);
+      t = TARGET_BUILD_VARIANT_TYPE_COPY(type, type_quals);
+#else
+      t = build_variant_type_copy (type);
+      set_type_quals (t, type_quals);
 #endif
 
       if (TYPE_STRUCTURAL_EQUALITY_P (type))

@@ -105,6 +105,8 @@
   { (sec)->flags |= SEC_DEBUGGING; \
     (sec)->flags |= SEC_READONLY; \
     (sec)->flags &= ~SEC_ALLOC; }
+#define PIC32_SET_KEEP_ATTR(sec) \
+  (sec)->flags |= SEC_KEEP; 
 
 /* UNORDERED is used internally by the assembler
    and is not encoded in the object file */
@@ -153,6 +155,8 @@
   (((sec)->flags & SEC_MERGE) == SEC_MERGE)
 #define PIC32_IS_INFO_ATTR(sec) \
   (((sec)->flags & SEC_DEBUGGING) == SEC_DEBUGGING)
+#define PIC32_IS_KEEP_ATTR(sec) \
+  (((sec)->flags & SEC_KEEP) == SEC_KEEP)
 
 /* UNORDERED is used internally by the assembler
    and is not encoded in the object file */

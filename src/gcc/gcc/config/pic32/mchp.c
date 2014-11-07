@@ -104,6 +104,12 @@ extern cpp_options *cpp_opts;
  #warning MCHP_XCLM_FREE_LICENSE not defined by API
 #endif
 
+unsigned int mchp_pragma_align = 0;
+unsigned int mchp_pragma_inline = 0;
+unsigned int mchp_pragma_keep = 0;
+unsigned int mchp_pragma_printf_args = 0;
+unsigned int mchp_pragma_scanf_args = 0;
+tree mchp_pragma_section = NULL_TREE;
 
 /* Local Variables */
 
@@ -147,6 +153,7 @@ extern cpp_options *cpp_opts;
 #define SECTION_INFO            (MCHP_ULL(SECTION_MACH_DEP) << 5)
 #define SECTION_ADDRESS         (MCHP_ULL(SECTION_MACH_DEP) << 6)
 #define SECTION_ALIGN           (MCHP_ULL(SECTION_MACH_DEP) << 7)
+#define SECTION_KEEP            (MCHP_ULL(SECTION_MACH_DEP) << 8)
 
 
 /* the attribute names from the assemblers point of view */
@@ -162,6 +169,7 @@ extern cpp_options *cpp_opts;
 #define SECTION_ATTR_PERSIST "persist"
 #define SECTION_ATTR_RAMFUNC "ramfunc"
 #define SECTION_ATTR_DEFAULT "unused"
+#define SECTION_ATTR_KEEP    "keep"
 
 struct valid_section_flags_
 {
@@ -391,7 +399,11 @@ static HOST_WIDE_INT mchp_offset_epc = 0;
 static HOST_WIDE_INT mchp_offset_srsctl = 0;
 
 static HOST_WIDE_INT mchp_invalid_ipl_warning = 0;
+#ifdef SKIP_LICENSE_MANAGER
 HOST_WIDE_INT mchp_pic32_license_valid = MCHP_XCLM_VALID_CPP_FULL;
+#else
+HOST_WIDE_INT mchp_pic32_license_valid = -1;
+#endif
 
 static void push_cheap_rtx(cheap_rtx_list **l, rtx x, tree t, int flag);
 static rtx pop_cheap_rtx(cheap_rtx_list **l, tree *t, int *flag);
@@ -399,6 +411,7 @@ static rtx pop_cheap_rtx(cheap_rtx_list **l, tree *t, int *flag);
 static tree mchp_function_interrupt_p (tree decl);
 static int mchp_function_naked_p (tree func);
 static int mchp_function_persistent_p (tree func);
+static int mchp_keep_p (tree decl);
 
 static int mchp_vector_attribute_compound_expr (tree *node, tree expr,
     bool *no_add_attrs);
@@ -433,9 +446,15 @@ extern void mips_set_mips16_micromips_mode (int mips16_p, int micromips_p);
 extern void mips_for_each_saved_gpr_and_fpr (HOST_WIDE_INT sp_offset, mchp_save_restore_fn fn);
 extern void mips_restore_reg (rtx reg, rtx mem);
 
+unsigned int mchp_section_type_flags(tree decl, const char *name, int reloc ATTRIBUTE_UNUSED);
+void mchp_add_vector_dispatch_entry (const char *target_name, int vector_number, int emit);
+
 struct vector_dispatch_spec *vector_dispatch_list_head;
 
 struct mchp_config_specification *mchp_configuration_values;
+
+
+
 
 /* Validate the Microchip-specific command-line options.  */
 void
@@ -569,7 +588,7 @@ get_license_manager_path (void)
                                           str(BUILDING_GCC_MINOR) "."
                                           str(BUILDING_GCC_PATCHLEVEL),
                                           "/bin");
-      xclmpath_length = strlen(bindir) + strlen(MCHP_XCLM_FILENAME);
+      xclmpath_length = strlen(bindir) + 1 + strlen(MCHP_XCLM_FILENAME) + 1;
       xclmpath = (char*)xcalloc(xclmpath_length+1,sizeof(char));
       strncpy (xclmpath, bindir, xclmpath_length);
       /* Append the xclm executable name to the directory. */
@@ -578,30 +597,34 @@ get_license_manager_path (void)
         strcat (xclmpath, "/");
       strcat (xclmpath, MCHP_XCLM_FILENAME);
 
+#if MCHP_DEBUG
+    fprintf (stderr, "%d xclmpath: %s\n", __LINE__, xclmpath);
+#endif
+
       if (-1 == stat (xclmpath, &filestat))
         {
           free (xclmpath);
           /*  Try the old common directory
            */
-          xclmpath_length = strlen("/opt/Microchip/xclm/bin") + strlen(MCHP_XCLM_FILENAME);
+          xclmpath_length = strlen("/opt/Microchip/xclm/bin/") + strlen(MCHP_XCLM_FILENAME) + 1;
           xclmpath = (char*)xcalloc(xclmpath_length+1,sizeof(char));
-          strncpy (xclmpath, "/opt/Microchip/xclm/bin", xclmpath_length);
+          strncpy (xclmpath, "/opt/Microchip/xclm/bin/", xclmpath_length);
           /* Append the xclm executable name to the directory. */
-          if (xclmpath [strlen (xclmpath) - 1] != '/'
-              && xclmpath [strlen (xclmpath) - 1] != '\\')
-            strcat (xclmpath, "/");
           strcat (xclmpath, MCHP_XCLM_FILENAME);
+#if MCHP_DEBUG
+          fprintf (stderr, "%d xclmpath: %s\n", __LINE__, xclmpath);
+#endif
         }
       if (-1 == stat (xclmpath, &filestat))
         {
           /*  Try the build directory
            */
-          strncpy (xclmpath, "/build/xc32/xclm/bin", xclmpath_length);
+          strncpy (xclmpath, "/build/xc32/xclm/bin/", xclmpath_length);
           /* Append the xclm executable name to the directory. */
-          if (xclmpath [strlen (xclmpath) - 1] != '/'
-              && xclmpath [strlen (xclmpath) - 1] != '\\')
-            strcat (xclmpath, "/");
           strcat (xclmpath, MCHP_XCLM_FILENAME);
+#if MCHP_DEBUG
+          fprintf (stderr, "%d xclmpath: %s\n", __LINE__, xclmpath);
+#endif
         }
     }
 
@@ -620,6 +643,9 @@ get_license_manager_path (void)
   if (-1 == stat (xclmpath, &filestat))
     return NULL;
 
+#if MCHP_DEBUG
+  fprintf (stderr, "%d Final xclmpath: %s\n", __LINE__, xclmpath);
+#endif
   return xclmpath;
 }
 #ifdef MCHP_USE_LICENSE_CONF
@@ -628,20 +654,6 @@ get_license_manager_path (void)
 #undef MCHP_LICENSEPATH_MARKER
 #endif /* MCHP_USE_LICENSE_CONF */
 #undef MCHP_XCLM_FILENAME
-#endif
-
-#ifdef TARGET_MCHP_PIC32MX
-static const char *disabled_option_message = NULL;
-static int message_displayed = 0;
-static const char *invalid_license = "due to an invalid license";
-#define NULLIFY(X,S) \
-    if (X) { \
-      if ((S != NULL) && (disabled_option_message == NULL)) { \
-          disabled_option_message = S; \
-          message_displayed++;         \
-        } \
-    } \
-    X
 #endif
 
 static int
@@ -690,8 +702,7 @@ pic32_get_license (int require_cpp)
     int major_ver =0, minor_ver=0;
     extern char **save_argv;
     struct stat filestat;
-
-    mchp_pic32_license_valid = 0;
+    int found_xclm = 0;
 
     /* Get the version number string from the entire version string */
     if ((version_string != NULL) && *version_string)
@@ -738,9 +749,16 @@ pic32_get_license (int require_cpp)
     fprintf (stderr, "exec: %s\n", exec);
 #endif
 
-    if ((exec == NULL) || (-1 == stat (exec, &filestat)))
+    if (exec == NULL)
       {
         /* Set free edition if the license manager isn't available. */
+        mchp_pic32_license_valid=PIC32_FREE_LICENSE;
+        warning (0, "Could not retrieve compiler license");
+        inform (input_location, "Please reinstall the compiler");
+      }
+    else if (-1 == stat (exec, &filestat))
+      {
+        /* Set free edition if the license manager execution fails. */
         mchp_pic32_license_valid=PIC32_FREE_LICENSE;
         warning (0, "Could not retrieve compiler license");
         inform (input_location, "Please reinstall the compiler");
@@ -748,11 +766,11 @@ pic32_get_license (int require_cpp)
     else
       {
         /* Found xclm */
-        mchp_pic32_license_valid=-1;
+          found_xclm = 1;
       }
 
     /* Call xclm to determine the license */
-    if (-1 == mchp_pic32_license_valid)
+    if (found_xclm && mchp_pic32_license_valid==-1)
       {
         args[0] = exec;
         failure = pex_one(0, exec, args, "MPLAB XC32 Compiler", 0, 0, &status, &err);
@@ -778,39 +796,29 @@ pic32_get_license (int require_cpp)
   return mchp_pic32_license_valid;
 }
 
-/* Implement OPTIMIZATION_OPTIONS */
-/* Set default optimization options.  */
-void
-pic32_optimization_options (int level ATTRIBUTE_UNUSED, int size ATTRIBUTE_UNUSED)
-{
-    extern char **save_argv;
+static const char *disabled_option_message = NULL;
+static int message_displayed = 0;
+static int message_purchase_display = 0;
+static const char *invalid_license = "due to an invalid license";
+#define NULLIFY(X,S) \
+    if (X) { \
+      if ((S != NULL) && (disabled_option_message == NULL)) { \
+          disabled_option_message = S; \
+          message_displayed++;         \
+        } \
+    } \
+    X
 
-  if (size)
-    {
-      flag_inline_functions = 0;
-    }
+static int require_cpp = 0;
+static int nullify_O2 = 0;
+static int nullify_Os = 0;
+static int nullify_O3 = 0;
+static int nullify_mips16 = 0;
+static int nullify_lto = 0;
+static char *invalid = (char*) "invalid";
 
-  {
-    int require_cpp    = 0;
-    int disable_O2     = 1;
-    int disable_O3     = 1;
-    int disable_Os     = 1;
-    int disable_mips16 = 1;
-    int disable_lto    = 1;
-
-    require_cpp = (TARGET_XC32_LIBCPP || (strstr (save_argv[0], "cc1plus")!=NULL));
-    mchp_pic32_license_valid = pic32_get_license (require_cpp);
-
-    if ((mchp_pic32_license_valid == PIC32_VALID_PRO_LICENSE) ||
-        (mchp_pic32_license_valid == PIC32_VALID_CPP_FULL))
-      {
-        disable_lto = disable_mips16 = disable_O2 =  disable_O3 = disable_Os = 0;
-      }
-    else if (mchp_pic32_license_valid == PIC32_VALID_STANDARD_LICENSE)
-      {
-        disable_O2 = 0;
-      }
-    if (disable_Os)
+void mchp_override_options_after_change(void) {
+    if (nullify_Os)
       {
         /* Disable -Os optimization(s) */
         /* flag_web and flag_inline_functions already disabled */
@@ -820,7 +828,7 @@ pic32_optimization_options (int level ATTRIBUTE_UNUSED, int size ATTRIBUTE_UNUSE
           }
         NULLIFY(optimize_size, "Optimize for size") = 0;
       }
-    if (disable_O2)
+    if (nullify_O2)
       {
         int opt1_max;
         /* Disable -O2 optimizations */
@@ -861,7 +869,7 @@ pic32_optimization_options (int level ATTRIBUTE_UNUSED, int size ATTRIBUTE_UNUSE
         align_labels = opt1_max;
         align_functions = opt1_max;
       }
-    if (disable_O3)
+    if (nullify_O3)
       {
         if (optimize >= 3)
           {
@@ -876,7 +884,7 @@ pic32_optimization_options (int level ATTRIBUTE_UNUSED, int size ATTRIBUTE_UNUSE
         NULLIFY(flag_ipa_cp_clone, "ipa cp clone") = 0;
         flag_ipa_cp = 0;
        }
-    if (disable_mips16)
+    if (nullify_mips16)
       {
         /* Disable -mips16 and -mips16e */
         if (mips_base_mips16 != 0)
@@ -890,65 +898,17 @@ pic32_optimization_options (int level ATTRIBUTE_UNUSED, int size ATTRIBUTE_UNUSE
             NULLIFY(mips_base_micromips, "micromips mode") = 0;
           }
       }
-    if (disable_lto)
+    if (nullify_lto)
       {
         NULLIFY(flag_lto, "Link-time optimization") = 0;
         NULLIFY(flag_whopr, "Partitioned link-time optimization") = 0;
         NULLIFY(flag_whole_program, "Whole-program optimizations") = 0;
         NULLIFY(flag_generate_lto, "Link-time optimization") = 0;
       }
-  }
-#endif
 }
 
-void
-mchp_subtarget_override_options2 (void)
+static void mchp_print_license_warning (void)
 {
-  extern char **save_argv;
-  int require_cpp    = 0;
-  int disable_O2     = 1;
-  int disable_O3     = 1;
-  int disable_Os     = 1;
-  int disable_mips16 = 1;
-  int disable_lto    = 1;
-
-  if (mips_base_mips16 || mips_base_micromips)
-    {
-      flag_inline_small_functions = 0;
-      flag_inline_functions = 0;
-      flag_no_inline = 1;
-    }
-
-  require_cpp = (TARGET_XC32_LIBCPP || (strstr (save_argv[0], "cc1plus")!=NULL));
-
-#if MCHP_DEBUG
-  fprintf (stderr, "save_argv[0] == %s\n", save_argv[0]);
-#endif
-
-    if (require_cpp && !((mchp_pic32_license_valid == PIC32_VALID_CPP_FREE) ||
-                         (mchp_pic32_license_valid == PIC32_VALID_CPP_FULL)))
-      {
-        error  ("MPLAB XC32 C++ license not activated");
-        inform (input_location, "Visit http://www.microchip.com/MPLABXCcompilers to acquire a "
-               "free C++ license");
-       }
-    if ((mchp_pic32_license_valid == PIC32_VALID_PRO_LICENSE) ||
-        (mchp_pic32_license_valid == PIC32_VALID_CPP_FULL))
-      {
-        disable_lto = disable_mips16 = disable_O2 =  disable_O3 = disable_Os = 0;
-      }
-    else if (mchp_pic32_license_valid == PIC32_VALID_STANDARD_LICENSE)
-      {
-        disable_O2 = 0;
-      }
-
-  /*
-   *  On systems where we have a licence manager, call it
-   */
-#ifdef TARGET_MCHP_PIC32MX
-  {
-    static int message_purchase_display = 0;
-
     switch (mchp_pic32_license_valid)
       {
       case PIC32_EXPIRED_LICENSE:
@@ -975,11 +935,114 @@ mchp_subtarget_override_options2 (void)
           warning (0,"Compiler option (%s) ignored %s",
                    disabled_option_message, invalid_license);
         disabled_option_message = NULL;
-        message_displayed = 0;
         message_purchase_display++;
       }
+}
 
-    if (disable_lto)
+/* Implement OPTIMIZATION_OPTIONS */
+/* Set default optimization options.  */
+void
+pic32_optimization_options (int level ATTRIBUTE_UNUSED, int size ATTRIBUTE_UNUSED)
+{
+    extern char **save_argv;
+
+  if (size)
+    {
+      flag_inline_functions = 0;
+    }
+
+  {
+    int require_cpp    = 0;
+    nullify_O2     = 1;
+    nullify_O3     = 1;
+    nullify_Os     = 1;
+    nullify_mips16 = 1;
+    nullify_lto    = 1;
+
+    require_cpp = (strstr (save_argv[0], "cc1plus")!=NULL);
+    mchp_pic32_license_valid = pic32_get_license (require_cpp);
+
+    if ((mchp_pic32_license_valid == PIC32_VALID_PRO_LICENSE) ||
+        (mchp_pic32_license_valid == PIC32_VALID_CPP_FULL))
+      {
+        nullify_lto = nullify_mips16 = nullify_O2 =  nullify_O3 = nullify_Os = 0;
+      }
+    else if (mchp_pic32_license_valid == PIC32_VALID_STANDARD_LICENSE)
+      {
+        nullify_O2 = 0;
+      }
+    if (nullify_Os)
+      {
+        /* Disable -Os optimization(s) */
+        /* flag_web and flag_inline_functions already disabled */
+        if (optimize_size)
+          {
+            optimize = 2;
+          }
+        NULLIFY(optimize_size, "Optimize for size") = 0;
+      }
+
+    mchp_override_options_after_change();
+    mchp_print_license_warning();
+  }
+#endif
+}
+
+void
+mchp_subtarget_override_options2 (void)
+{
+  extern char **save_argv;
+  require_cpp    = 0;
+  nullify_O2     = 1;
+  nullify_O3     = 1;
+  nullify_Os     = 1;
+  nullify_mips16 = 1;
+  nullify_lto    = 1;
+
+  if (mips_base_mips16 || mips_base_micromips)
+    {
+      flag_inline_small_functions = 0;
+      flag_inline_functions = 0;
+      flag_no_inline = 1;
+    }
+
+  require_cpp = (strstr (save_argv[0], "cc1plus")!=NULL);
+  /* If C++ is required and we don not yet have a C++ license, try getting one. */
+  if (require_cpp && !((mchp_pic32_license_valid == PIC32_VALID_CPP_FREE) ||
+                       (mchp_pic32_license_valid == PIC32_VALID_CPP_FULL)))
+    {
+       mchp_pic32_license_valid = pic32_get_license (require_cpp);
+    }
+
+#if MCHP_DEBUG
+  fprintf (stderr, "save_argv[0] == %s\n", save_argv[0]);
+#endif
+
+    if (require_cpp && !((mchp_pic32_license_valid == PIC32_VALID_CPP_FREE) ||
+                         (mchp_pic32_license_valid == PIC32_VALID_CPP_FULL)))
+      {
+        error  ("MPLAB XC32 C++ license not activated");
+        inform (input_location, "Visit http://www.microchip.com/MPLABXCcompilers to acquire a "
+               "free C++ license");
+       }
+    if ((mchp_pic32_license_valid == PIC32_VALID_PRO_LICENSE) ||
+        (mchp_pic32_license_valid == PIC32_VALID_CPP_FULL))
+      {
+        nullify_lto = nullify_mips16 = nullify_O2 =  nullify_O3 = nullify_Os = 0;
+      }
+    else if (mchp_pic32_license_valid == PIC32_VALID_STANDARD_LICENSE)
+      {
+        nullify_O2 = 0;
+      }
+
+  /*
+   *  On systems where we have a licence manager, call it
+   */
+#ifdef TARGET_MCHP_PIC32MX
+  {
+    mchp_print_license_warning();
+
+    if (nullify_lto)
       {
         if (optimize_size)
           {
@@ -1024,11 +1087,13 @@ mchp_subtarget_override_options2 (void)
           warning (0,"Pro Compiler option (%s) ignored %s", disabled_option_message,
                    invalid_license);
         message_purchase_display++;
+        message_displayed=0;
       }
     if ((message_purchase_display > 0) && (TARGET_LICENSE_WARNING))
       {
         inform (0, "Disable the option or visit http://www.microchip.com/MPLABXCcompilers "
                 "to purchase a new MPLAB XC compiler license.");
+        message_purchase_display = 0;
       }
 
     if (TARGET_LEGACY_LIBC)
@@ -1367,19 +1432,20 @@ mchp_vector_attribute (tree *node, tree name ATTRIBUTE_UNUSED, tree args,
     {
       if (TREE_CODE (TREE_VALUE (args)) == INTEGER_CST)
         {
-          /* The argument must be an integer constant between 0 and 63 */
+          /* The argument must be an integer constant between 0 and 255 */
           if ((int)TREE_INT_CST_LOW (TREE_VALUE (args)) < 0 ||
-              (int)TREE_INT_CST_LOW (TREE_VALUE (args)) > 63)
+              (int)TREE_INT_CST_LOW (TREE_VALUE (args)) > 255)
             {
               *no_add_attrs = 1;
 
-              error ("Vector number must be an integer between 0 and 63");
+              error ("Vector number must be an integer between 0 and 255");
               return NULL_TREE;
             }
           /* add the vector to the list of dispatch functions to emit */
           mchp_add_vector_dispatch_entry (
             IDENTIFIER_POINTER (DECL_NAME (*node)),
-            (int)TREE_INT_CST_LOW (TREE_VALUE (args)));
+            (int)TREE_INT_CST_LOW (TREE_VALUE (args)),
+            1);
         }
       else
         {
@@ -1391,7 +1457,7 @@ mchp_vector_attribute (tree *node, tree name ATTRIBUTE_UNUSED, tree args,
           else
             {
               *no_add_attrs = 1;
-              error ("Vector number must be an integer between 0 and 63");
+              error ("Vector number must be an integer between 0 and 255");
               return NULL_TREE;
             }
         }
@@ -1418,19 +1484,20 @@ mchp_vector_attribute_compound_expr (tree *node, tree expr,
     }
   if (TREE_CODE (expr) == INTEGER_CST)
     {
-      /* The argument must be an integer constant between 0 and 63 */
+      /* The argument must be an integer constant between 0 and 255 */
       if ((int)TREE_INT_CST_LOW (expr) < 0 ||
-          (int)TREE_INT_CST_LOW (expr) > 63)
+          (int)TREE_INT_CST_LOW (expr) > 255)
         {
           *no_add_attrs = 1;
 
-          error ("Vector number must be an integer between 0 and 63");
+          error ("Vector number must be an integer between 0 and 255");
           return 0;
         }
       /* add the vector to the list of dispatch functions to emit */
       mchp_add_vector_dispatch_entry (
         IDENTIFIER_POINTER (DECL_NAME (*node)),
-        (int)TREE_INT_CST_LOW (expr));
+        (int)TREE_INT_CST_LOW (expr),
+        1);
     }
   ++len;
   return len;
@@ -1454,7 +1521,7 @@ mchp_at_vector_attribute (tree *node, tree name ATTRIBUTE_UNUSED, tree args,
                           int flags ATTRIBUTE_UNUSED, bool *no_add_attrs)
 {
   tree decl = *node;
-  char scn_name[11];
+  char scn_name[12];
 
   /* If this attribute isn't on the actual function declaration, we
      ignore it */
@@ -1467,19 +1534,24 @@ mchp_at_vector_attribute (tree *node, tree name ATTRIBUTE_UNUSED, tree args,
       *no_add_attrs = true;
       return NULL_TREE;
     }
-  /* The argument must be an integer constant between 0 and 63 */
+  /* The argument must be an integer constant between 0 and 255 */
   if (TREE_CODE (TREE_VALUE (args)) != INTEGER_CST ||
       (int)TREE_INT_CST_LOW (TREE_VALUE (args)) < 0 ||
-      (int)TREE_INT_CST_LOW (TREE_VALUE (args)) > 63)
+      (int)TREE_INT_CST_LOW (TREE_VALUE (args)) > 255)
     {
       *no_add_attrs = 1;
 
-      error ("Interrupt vector number must be an integer between 0 and 63");
+      error ("Interrupt vector number must be an integer between 0 and 255");
       return NULL_TREE;
     }
   /* now mark the decl as going into the section for the indicated vector */
   sprintf (scn_name, ".vector_%d", (int)TREE_INT_CST_LOW (TREE_VALUE (args)));
   DECL_SECTION_NAME (decl) = build_string (strlen (scn_name), scn_name);
+  /* add the vector to the list of dispatch functions to emit */
+  mchp_add_vector_dispatch_entry (
+    IDENTIFIER_POINTER (DECL_NAME (*node)),
+    (int)TREE_INT_CST_LOW (TREE_VALUE(args)),
+    0);
 
   return NULL_TREE;
 }
@@ -1498,21 +1570,31 @@ mchp_output_vector_dispatch_table (void)
        dispatch_entry ;
        dispatch_entry = dispatch_entry->next)
     {
-      fprintf (asm_out_file, "\t.section\t.vector_%d,code\n",
+      fprintf (asm_out_file, "\t.globl\t__vector_dispatch_%d\n",
                dispatch_entry->vector_number);
-      fprintf (asm_out_file, "\t.align\t2\n");
-      fprintf (asm_out_file, "\t.set\tnomips16\n");
-      fprintf (asm_out_file, "\t.ent\t__vector_dispatch_%d\n",
-               dispatch_entry->vector_number);
-      fprintf (asm_out_file, "__vector_dispatch_%d:\n",
-               dispatch_entry->vector_number);
-      fprintf (asm_out_file, "\tj\t%s\n", dispatch_entry->target);
-      fprintf (asm_out_file, "\t.end\t__vector_dispatch_%d\n",
-               dispatch_entry->vector_number);
-      fprintf (asm_out_file, "\t.size\t__vector_dispatch_%d, .-"
-               "__vector_dispatch_%d\n",
-               dispatch_entry->vector_number,
-               dispatch_entry->vector_number);
+      if (dispatch_entry->emit_dispatch != 0)
+      {
+        fprintf (asm_out_file, "\t.section\t.vector_%d,code\n",
+                 dispatch_entry->vector_number);
+        fprintf (asm_out_file, "\t.align\t2\n");
+        fprintf (asm_out_file, "\t.set\tnomips16\n");
+        fprintf (asm_out_file, "\t.ent\t__vector_dispatch_%d\n",
+                 dispatch_entry->vector_number);
+        fprintf (asm_out_file, "__vector_dispatch_%d:\n",
+                 dispatch_entry->vector_number);
+        fprintf (asm_out_file, "\tj\t%s\n", dispatch_entry->target);
+        fprintf (asm_out_file, "\t.end\t__vector_dispatch_%d\n",
+                 dispatch_entry->vector_number);
+        fprintf (asm_out_file, "\t.size\t__vector_dispatch_%d, .-"
+                 "__vector_dispatch_%d\n",
+                 dispatch_entry->vector_number,
+                 dispatch_entry->vector_number);
+      }
+#if 1
+      else
+        fprintf (asm_out_file, "\t__vector_dispatch_%d = 0\n",
+                 dispatch_entry->vector_number);
+#endif
     }
   fputs ("# End MCHP vector dispatch table\n", asm_out_file);
 }
@@ -1561,8 +1643,8 @@ mchp_target_insert_attributes (tree decl, tree *attr_ptr)
              dedicated vector section */
           if (p->vect_number)
             {
-              char scn_name[11];
-              gcc_assert (p->vect_number < 64);
+              char scn_name[12];
+              gcc_assert (p->vect_number < 256);
               sprintf (scn_name, ".vector_%d", p->vect_number);
               *attr_ptr = tree_cons (get_identifier ("section"),
                                      build_tree_list (NULL_TREE,
@@ -1763,7 +1845,6 @@ tree mchp_address_attribute(tree *decl, tree identifier ATTRIBUTE_UNUSED,
   return NULL_TREE;
 }
 
-
 /*
 ** Return nonzero if IDENTIFIER is a valid attribute.
 */
@@ -1921,6 +2002,34 @@ tree mchp_space_attribute(tree *decl, tree identifier ATTRIBUTE_UNUSED,
     }
   warning (0, "invalid space argument for '%s', ignoring attribute", attached_to);
   *no_add_attrs = 1;
+  return NULL_TREE;
+}
+
+/*
+** Return nonzero if IDENTIFIER is a valid attribute.
+*/
+tree mchp_target_error_attribute(tree *node, tree identifier ATTRIBUTE_UNUSED,
+                                tree args, int flags ATTRIBUTE_UNUSED,
+                                bool *no_add_attrs)
+{
+  const char *attached_to = IDENTIFIER_POINTER(DECL_NAME(*node));
+  if (TREE_CODE(TREE_VALUE(args)) != STRING_CST) {
+    error("invalid argument to 'target_error' attribute applied to '%s',"
+          " literal string expected", attached_to);
+    return NULL_TREE;
+  }
+  else
+  {
+    TREE_DEPRECATED(*node) = 1;
+    return NULL_TREE;
+  }
+}
+
+tree mchp_keep_attribute(tree *node, tree identifier ATTRIBUTE_UNUSED,
+                                tree args, int flags ATTRIBUTE_UNUSED,
+                                bool *no_add_attrs)
+{
+  DECL_UNIQUE_SECTION (*node) = 1;
   return NULL_TREE;
 }
 
@@ -2705,6 +2814,23 @@ mchp_function_persistent_p (tree decl)
   return a != NULL_TREE;
 }
 
+static int
+mchp_target_error_p (tree decl)
+{
+  tree a;
+  a = lookup_attribute ("target_error", DECL_ATTRIBUTES (decl));
+  return a != NULL_TREE;
+}
+
+
+static int
+mchp_keep_p (tree decl)
+{
+  tree a;
+  a = lookup_attribute ("keep", DECL_ATTRIBUTES (decl));
+  return a != NULL_TREE;
+}
+
 static tree
 get_mchp_absolute_address (tree decl)
 {
@@ -2735,7 +2861,7 @@ mchp_ramfunc_type_p (tree decl)
 
 /* Utility function to add an entry to the vector dispatch list */
 void
-mchp_add_vector_dispatch_entry (const char *target_name, int vector_number)
+mchp_add_vector_dispatch_entry (const char *target_name, int vector_number, int emit)
 {
   struct vector_dispatch_spec *dispatch_entry;
 
@@ -2744,6 +2870,7 @@ mchp_add_vector_dispatch_entry (const char *target_name, int vector_number)
   dispatch_entry->next = vector_dispatch_list_head;
   dispatch_entry->target = target_name;
   dispatch_entry->vector_number = vector_number;
+  dispatch_entry->emit_dispatch = emit;
   vector_dispatch_list_head = dispatch_entry;
 }
 
@@ -4104,6 +4231,7 @@ static int mchp_build_prefix(tree decl, int fnear, char *prefix)
   const char *ident;
   int section_type_set = 0;
   tree paramtype;
+  int keep_attr = 0;
 
   if (fnear == -1)
     {
@@ -4246,7 +4374,9 @@ static int mchp_build_prefix(tree decl, int fnear, char *prefix)
           f += sprintf(f, MCHP_NEAR_FLAG);
         }
     }
-
+  if (mchp_keep_p(decl)) {
+    f += sprintf(f, MCHP_KEEP_FLAG);
+  }
   return fnear;
 }
 
@@ -4333,7 +4463,7 @@ mchp_select_section (tree decl, int reloc,
           lookup_attribute("address", DECL_ATTRIBUTES(decl)) ||
           lookup_attribute("space", DECL_ATTRIBUTES(decl)) ||
           lookup_attribute("persistent", DECL_ATTRIBUTES(decl)) ||
-          lookup_attribute("ramfunc", DECL_ATTRIBUTES(decl))
+          mchp_ramfunc_type_p(decl)
          )
         {
           rtl = DECL_RTL(decl);
@@ -4494,11 +4624,11 @@ static const char *default_section_name(tree decl, SECTION_FLAGS_INT flags)
                     {
                       if (flags & SECTION_BSS)
                         {
-                          pszSectionName = SECTION_NAME_SBSS;
+                              pszSectionName = SECTION_NAME_SBSS;
                         }
                       else if (flags & SECTION_WRITE)
                         {
-                          pszSectionName = SECTION_NAME_SDATA;
+                              pszSectionName = SECTION_NAME_SDATA;
                         }
                     }
                   else
@@ -4690,6 +4820,10 @@ static char * mchp_get_named_section_flags (const char *pszSectionName,
   if (flags & SECTION_DEBUG)
     {
       f += sprintf(f, "," SECTION_ATTR_INFO);
+    }
+  if (flags & SECTION_KEEP)
+    {
+      f += sprintf(f, "," SECTION_ATTR_KEEP);
     }
   return xstrdup(pszSectionFlag);
 }
@@ -5300,6 +5434,11 @@ static SECTION_FLAGS_INT validate_identifier_flags(const char *id)
           flags |= SECTION_BSS;
           f += sizeof(MCHP_BSS_FLAG)-1;
         }
+      else if (strncmp(f, MCHP_KEEP_FLAG, sizeof(MCHP_KEEP_FLAG)-1) == 0)
+        {
+          flags |= SECTION_KEEP;
+          f += sizeof(MCHP_KEEP_FLAG)-1;
+        }
       else
         {
           error("Could not determine flags for: '%s'", id);
@@ -5319,6 +5458,107 @@ static SECTION_FLAGS_INT validate_identifier_flags(const char *id)
     }
   return flags;
 }
+
+void mchp_apply_pragmas(tree decl) {
+
+  int relayout=0;
+
+  if (TREE_CODE(decl) == VAR_DECL) {
+    if (mchp_pragma_align > 0) {
+      DECL_ALIGN(decl) = (mchp_pragma_align) * BITS_PER_UNIT;
+      DECL_USER_ALIGN (decl) = 1;
+      relayout=1;
+      mchp_pragma_align = 0;
+    }
+  } else if (TREE_CODE(decl) == FUNCTION_DECL) {
+
+    if (mchp_pragma_scanf_args) {
+      /* add format_arg attribute */
+      tree attrib;
+      tree args;
+
+      args = build_tree_list(NULL_TREE, get_identifier("scanf"));
+      args = chainon(args,
+                     build_tree_list(NULL_TREE,build_int_cst(NULL_TREE,1)));
+      args = chainon(args,
+                     build_tree_list(NULL_TREE,build_int_cst(NULL_TREE,2)));
+      attrib = build_tree_list(get_identifier("__format__"), args);
+      attrib = chainon(DECL_ATTRIBUTES(decl), attrib);
+#if 0
+      attrib = chainon(DECL_ATTRIBUTES(decl), attrib);
+      DECL_ATTRIBUTES(decl) = attrib;
+#else
+      decl_attributes(&decl, attrib, 0);
+#endif
+      mchp_pragma_scanf_args = 0;
+    }
+    if (mchp_pragma_printf_args) {
+      /* add format_arg attribute */
+      tree attrib;
+      tree args;
+
+      args = build_tree_list(NULL_TREE, get_identifier("printf"));
+      args = chainon(args,
+                     build_tree_list(NULL_TREE,build_int_cst(NULL_TREE,1)));
+      args = chainon(args,
+                     build_tree_list(NULL_TREE,build_int_cst(NULL_TREE,2)));
+      attrib = build_tree_list(get_identifier("__format__"), args);
+      attrib = chainon(DECL_ATTRIBUTES(decl), attrib);
+#if 0
+      attrib = chainon(DECL_ATTRIBUTES(decl), attrib);
+      DECL_ATTRIBUTES(decl) = attrib;
+#else
+      decl_attributes(&decl, attrib, 0);
+#endif
+      mchp_pragma_printf_args = 0;
+    }
+  }
+
+  if (mchp_pragma_section) {
+    DECL_SECTION_NAME(decl) = mchp_pragma_section;
+    mchp_pragma_section = NULL_TREE;
+  }
+
+  if (mchp_pragma_inline) {
+#if 0
+      DECL_DISREGARD_INLINE_LIMITS(decl) = 1;
+#endif
+      DECL_DECLARED_INLINE_P(decl) = 1;
+      mchp_pragma_inline = 0;
+  }
+
+  if (mchp_pragma_keep) {
+    tree attrib;
+
+    /* make a fake KEEP attribute and add it to the decl */
+    attrib = build_tree_list(get_identifier ("keep"), NULL_TREE);
+    attrib = chainon(DECL_ATTRIBUTES(decl), attrib);
+#if 0
+    attrib = chainon(DECL_ATTRIBUTES(decl), attrib);
+    DECL_ATTRIBUTES(decl) = attrib;
+#else
+    decl_attributes(&decl, attrib, 0);
+#endif
+    DECL_UNIQUE_SECTION(decl) = 1;
+    mchp_pragma_keep = 0;
+  }
+
+  if (relayout) relayout_decl(decl);
+
+  if (mchp_pragma_align) {
+    warning(OPT_Wpragmas, "ignoring #pragma align");
+    mchp_pragma_align = 0;
+  }
+  if (mchp_pragma_scanf_args) {
+    warning(OPT_Wpragmas, "ignoring #pragma scanf_args");
+    mchp_pragma_scanf_args = 0;
+  }
+  if (mchp_pragma_printf_args) {
+    warning(OPT_Wpragmas, "ignoring #pragma printf_args");
+    mchp_pragma_printf_args = 0;
+  }
+}
+
 
 /************************************************************************/
 /*

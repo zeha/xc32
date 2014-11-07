@@ -176,7 +176,7 @@ struct gcc_target
     /* Tell assembler to change to section NAME with attributes FLAGS.
        If DECL is non-NULL, it is the VAR_DECL or FUNCTION_DECL with
        which this section is associated.  */
-#ifdef _BUILD_C30_
+#ifdef _BUILD_MCHP_
     void (* named_section) (const char *name, SECTION_FLAGS_INT flags, tree decl);
 #else
     void (* named_section) (const char *name, unsigned int flags, tree decl);
@@ -630,7 +630,7 @@ struct gcc_target
   /* Given a decl, a section name, and whether the decl initializer
      has relocs, choose attributes for the section.  */
   /* ??? Should be merged with SELECT_SECTION and UNIQUE_SECTION.  */
-#ifdef _BUILD_C30_
+#ifdef _BUILD_MCHP_
   SECTION_FLAGS_INT (* section_type_flags) (tree, const char *, int);
 #else
   unsigned int (* section_type_flags) (tree, const char *, int);

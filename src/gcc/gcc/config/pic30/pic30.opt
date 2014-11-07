@@ -20,7 +20,7 @@
 
 ; calum.wilkie@microchip.com
 ;
-; The beauty of this file is now options processing is spread among 
+; The beauty of this file is now options processing is spread among
 ; even *MORE* files.  Not all of which are C.  Pure genius.
 ;
 
@@ -159,53 +159,6 @@ mno-override-inline
 Target RejectNegative Mask(NO_OVERRIDE_INLINE) MaskExists
 Set compiler's override of 'inline' keyword and options for -O1 and -Os; by default the compiler will not inline at these levels
 
- 
-;
-; **************************** CAUTION
-; **************************** Ensure that the '=' sign is not followed by
-; **************************** a space or anything
-; **************************** CAUTION
-;
-mcpu=
-Target RejectNegative Joined Var(pic30_target_cpu) VarExists
-Select target CPU 
-
-merrata=
-Target RejectNegative Joined Var(pic30_errata) VarExists
-Enable compiler generated work-arounds for specific errata
-
-mfillupper=
-Target RejectNegative Joined Var(pic30_fillupper) VarExists
-Select global fillupper value for data stored in FLASH
-
-mit=
-Target RejectNegative Joined Var(pic30_it_option) VarExists
-Enable instrumented trace
-
-mpa=
-Target RejectNegative Joined Var(pic30_pa_level) VarExists
-Procedural abstraction nesting limit
-
-mresource=
-Target RejectNegtive Joined Var(pic30_resource_file) VarExists
-Identify compiler resource file
-
-msmart-io
-Target RejectNegative JoinedOrMissing Var(pic30_io_size) VarExists
-Set smart IO library call forwarding level
-
-mtext=
-Target RejectNegative Joined Var(pic30_text_scn) VarExists
-Name the text section (default .text)
-
-msmart-io-format=
-Target RejectNegative Joined Var(pic30_io_fmt) VarExists
-Smart IO format string
-
-msfr-warn=
-Target Joined Var(pic30_io_fmt) VarExists
-Enable [on] or disable (off) sfr warnings
-
 mno-file
 Target Mask(SKIP_DOT_FILE) MaskExists
 Disable placing file directive in assembly output
@@ -245,3 +198,53 @@ use legacy lib/include directory
 mprint-builtins
 Target RejectNegative Var(TARGET_PRINT_BUILTINS)
 -mprint-builtins        Print a list of enabled builtin functions
+
+;
+; **************************** CAUTION
+; **************************** Ensure that the '=' sign is not followed by
+; **************************** a space or anything
+; **************************** CAUTION
+;
+mcpu=
+Target RejectNegative Joined Var(pic30_target_cpu) VarExists
+Select target CPU
+
+merrata=
+Target RejectNegative Joined Var(pic30_errata) VarExists
+Enable compiler generated work-arounds for specific errata
+
+mfillupper=
+Target RejectNegative Joined Var(pic30_fillupper) VarExists
+Select global fillupper value for data stored in FLASH
+
+mit=
+Target RejectNegative Joined Var(pic30_it_option) VarExists
+Enable instrumented trace
+
+mpa=
+Target RejectNegative Joined Var(pic30_pa_level) VarExists
+Procedural abstraction nesting limit
+
+mresource=
+Target RejectNegtive Joined Var(pic30_resource_file) VarExists
+Identify compiler resource file
+
+msmart-io
+Target RejectNegative JoinedOrMissing Var(pic30_io_size) VarExists
+Set smart IO library call forwarding level
+
+mtext=
+Target RejectNegative Joined Var(pic30_text_scn) VarExists
+Name the text section (default .text)
+
+msmart-io-format=
+Target RejectNegative Joined Var(pic30_io_fmt) VarExists
+Smart IO format string
+
+msfr-warn=
+Target Joined Var(pic30_io_fmt) VarExists
+Enable [on] or disable (off) sfr warnings
+
+mext=
+Target Joined Var(mchp_import)
+Enable support for importing external code from another vendor

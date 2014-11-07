@@ -521,7 +521,7 @@ object_block_entry_hash (const void *p)
 
 /* Return a new unnamed section with the given fields.  */
 
-#ifdef _BUILD_C30_
+#ifdef _BUILD_MCHP_
 section *
 get_unnamed_section (SECTION_FLAGS_INT flags, void (*callback) (const void *),
 		     const void *data)
@@ -545,7 +545,7 @@ get_unnamed_section (unsigned int flags, void (*callback) (const void *),
 
 /* Return a SECTION_NOSWITCH section with the given fields.  */
 
-#ifdef _BUILD_C30_
+#ifdef _BUILD_MCHP_
 static section *
 get_noswitch_section (SECTION_FLAGS_INT flags, noswitch_section_callback callback)
 #else
@@ -565,7 +565,7 @@ get_noswitch_section (unsigned int flags, noswitch_section_callback callback)
 /* Return the named section structure associated with NAME.  Create
    a new section with the given fields if no such structure exists.  */
 
-#ifdef _BUILD_C30_
+#ifdef _BUILD_MCHP_
 section *
 get_section (const char *name, SECTION_FLAGS_INT flags, tree decl)
 #else
@@ -748,7 +748,7 @@ unlikely_text_section_p (section *sect)
 section *
 get_named_section (tree decl, const char *name, int reloc)
 {
-#ifdef _BUILD_C30_
+#ifdef _BUILD_MCHP_
   SECTION_FLAGS_INT flags;
 #else
   unsigned int flags;

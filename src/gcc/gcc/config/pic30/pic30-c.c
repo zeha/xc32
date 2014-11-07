@@ -81,6 +81,8 @@ void pic30_cpu_cpp_builtins(void *pfile_v) {
 
   sprintf(buffer,"__OPTIMIZATION_LEVEL__=%d", optimize);
   cpp_define(pfile,buffer);
+  sprintf(buffer,"__LARGE_ARRAYS__=%d", TARGET_BIG != 0);
+  cpp_define(pfile,buffer);
   if (pic30_target_family) cpp_define(pfile, pic30_target_family);
   if (pic30_target_cpu) cpp_define(pfile, pic30_target_cpu);
   sprintf(buffer,"__BUILTIN_ITTYPE");
@@ -106,6 +108,8 @@ void pic30_cpu_cpp_builtins(void *pfile_v) {
     sprintf(buffer,"__C30_VERSION__=%d", pic30_compiler_version);
     cpp_define(pfile,buffer);
     sprintf(buffer,"__XC16_VERSION=%d", pic30_compiler_version);
+    cpp_define(pfile,buffer);
+    sprintf(buffer,"__XC16_VERSION__=%d", pic30_compiler_version);
     cpp_define(pfile,buffer);
   }
 
@@ -167,7 +171,7 @@ void pic30_cpu_cpp_builtins(void *pfile_v) {
       cpp_define(pfile,"__HAS_5VOLTS__");
   }
 
-  if (target_flags & MASK_CCI) mchp_init_cci(pfile_v);
+  mchp_init_cci(pfile_v);
 }
 
 /*
@@ -462,3 +466,193 @@ void pic30_handle_interrupt_pragma(struct cpp_reader *pfile ATTRIBUTE_UNUSED) {
 
 void pic30_handle_large_arrays_pragma(struct cpp_reader *pfile) {
 }
+
+/*
+ * #pragma align <alignment>
+ * #pragam align = <alignment>
+ *
+ * Not quite the same as #pragma pack, this aligns the start of the variable
+ *   as #pragma pack only affeects structures
+ *
+ */
+
+void mchp_handle_align_pragma(struct cpp_reader *pfile) {
+  int c;
+  tree x;
+  
+  c = pragma_lex(&x);
+  if (c == CPP_EOF) {
+    /* reset to default */
+    mchp_pragma_align = 0;   
+    return;
+  }
+  if (c == CPP_EQ) c = pragma_lex(&x);
+  if (c == CPP_NUMBER) {
+    if (TREE_CODE(x) != INTEGER_CST) {
+      warning(OPT_Wpragmas, "requested alignment is not a constant");
+      mchp_pragma_align = 0;
+      return;
+    }
+    mchp_pragma_align = TREE_INT_CST_LOW(x);
+    if (mchp_pragma_align != 0) {
+      if ((mchp_pragma_align & (mchp_pragma_align - 1)) != 0) {
+        warning(OPT_Wpragmas, "requested alignment is not a power of 2");
+        mchp_pragma_align = 0;
+        return;
+      }
+    }
+  }
+}
+
+void mchp_handle_section_pragma(struct cpp_reader *pfile) {
+  int c;
+  tree x;
+  char *name;
+ 
+  c = pragma_lex(&x);
+  if (c == CPP_EOF) {
+    /* reset to default */
+    mchp_pragma_section = NULL_TREE;
+    return;
+  }
+  if (c == CPP_EQ) c = pragma_lex(&x);
+  if (c != CPP_STRING) {
+    warning(OPT_Wpragmas, "malformed section pragma; string literal expected");
+    mchp_pragma_section = NULL_TREE;
+    return;
+  }
+  name = TREE_STRING_POINTER(x);
+  mchp_pragma_section = build_string(strlen(name), name);
+  c = pragma_lex(&x);
+  if (c == CPP_NUMBER) {
+    // section alignment/
+  }
+}
+
+void mchp_handle_printf_args_pragma(struct cpp_reader *pfile) {
+  mchp_pragma_printf_args = 1;
+}
+
+void mchp_handle_scanf_args_pragma(struct cpp_reader *pfile) {
+  mchp_pragma_scanf_args = 1;
+}
+
+void mchp_handle_keep_pragma(struct cpp_reader *pfile) {
+  mchp_pragma_keep = 1;
+}
+
+void mchp_handle_required_pragma(struct cpp_reader *pfile) {
+  int c;
+  tree x;
+
+  c = pragma_lex(&x);
+  if (c == CPP_EOF) {
+    /* behave just like #pragma keep */
+    mchp_pragma_keep = 1;
+    return;
+  } else if (c == CPP_EQ) {
+    c = pragma_lex(&x);
+  }
+
+  if (c == CPP_NAME) {
+    char *identifier;
+    tree sym;
+
+    identifier = IDENTIFIER_POINTER(x);
+    sym = maybe_get_identifier(identifier); 
+    if (sym) {
+      sym = lookup_name(sym);
+      if (sym) {
+        switch (TREE_CODE(sym)) {
+          default:  warning(OPT_Wpragmas,"malformed required pragma; "
+                                         "unknown identifier '%s'", identifier);
+                    return;
+          case VAR_DECL:
+          case FUNCTION_DECL: {
+            tree attrib;
+            attrib = build_tree_list(pic30_identKeep[0], NULL_TREE);
+            decl_attributes(&sym, attrib, 0);
+            return;
+          }
+        }
+      } else {
+        warning(OPT_Wpragmas, "malformed required pragma; "
+                              "identifier '%s' must be declared", identifier);
+        return;
+      }
+    }
+  }
+  warning(OPT_Wpragmas, "malformed required pragma; '= symbol' expected ");
+}
+  
+
+void mchp_handle_optimize_pragma(struct cpp_reader *pfile) {
+  /* almost the same as the GCC optimize pragma, just more 'friendly' */
+  int c;
+  tree x;
+  tree args = NULL_TREE;
+  tree optimization_previous_node = optimization_current_node;
+
+  c = pragma_lex(&x);
+  if (c == CPP_EQ) c = pragma_lex(&x);  // options =
+
+  do {
+    switch (c) {
+      case CPP_STRING:
+        if (TREE_STRING_LENGTH(x) > 0)
+          args = tree_cons(NULL_TREE,x,args);
+        break;
+
+      case CPP_NUMBER:
+        args = tree_cons(NULL_TREE,x,args);
+        break;
+
+      case CPP_NAME: {
+        char *keyword;
+        char *equivalent=0;
+
+        keyword = IDENTIFIER_POINTER(x);
+        if (!strcmp(keyword,"balanced")) {
+          equivalent = "-O2";
+        } else if (!strcmp(keyword,"size")) {
+          equivalent = "-Os"; 
+        } else if (!strcmp(keyword,"speed")) {
+          equivalent = "-O3"; 
+        } else if (!strcmp(keyword,"none")) {
+          equivalent = "-O0"; 
+        } else if (!strcmp(keyword,"low")) {
+          equivalent = "-O1"; 
+        } else if (!strcmp(keyword,"medium")) {
+          equivalent = "-O2"; 
+        } else if (!strcmp(keyword,"high")) {
+          equivalent = "-O3"; 
+        } else {
+          warning(OPT_Wpragmas, "ignoring optimize setting: %s", keyword);
+        }
+
+        args = tree_cons(NULL_TREE, 
+                         build_string(strlen(equivalent), equivalent), args);
+        break;
+      }
+
+      default:  warning(OPT_Wpragmas, "malformed optimize pragma");
+                return;
+    }
+    c = pragma_lex(&x);
+  } while (c != CPP_EOF);
+
+  /* put arguments in the order the user typed them.  */
+  args = nreverse (args);
+
+  parse_optimize_options (args, false);
+  current_optimize_pragma = chainon (current_optimize_pragma, args);
+  optimization_current_node = build_optimization_node ();
+  c_cpp_builtins_optimize_pragma (parse_in,
+                                      optimization_previous_node,
+                                      optimization_current_node);
+}
+
+
+  
+
+

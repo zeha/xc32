@@ -118,7 +118,14 @@ enum pic30_builtins
    PIC30_BUILTIN_EDSOFFSET,
    PIC30_BUILTIN_WRITEPWMSFR,
    PIC30_BUILTIN_WRITEDISICNT,
-   PIC30_BUILTIN_WRITECRYOTP
+   PIC30_BUILTIN_WRITECRYOTP,
+   MCHP_BUILTIN_SECTION_BEGIN,
+   MCHP_BUILTIN_SECTION_SIZE,
+   MCHP_BUILTIN_SECTION_END,
+   MCHP_BUILTIN_GET_ISR_STATE,
+   MCHP_BUILTIN_SET_ISR_STATE,
+   MCHP_BUILTIN_DISABLE_ISR,
+   MCHP_BUILTIN_ENABLE_ISR
 };
 
 #define       TARGET_USE_PA   1
@@ -185,13 +192,17 @@ enum pic30_builtins
 #if (PIC30_DWARF2)
 #define   LIB_SPEC   "-start-group -lpic30-elf -lm-elf -lc-elf -end-group"
 #define   ALT_FM_LIB_SPEC   "-start-group -lpic30-elf -lfastm-elf -lc-elf -end-group"
+#define   ALT_RM_LIB_SPEC   "-start-group -lpic30-elf -lrcfastm-elf -lc-elf -end-group"
 #define   ALT_LC_LIB_SPEC   "-start-group -llega-pic30-elf -lm-elf -llega-c-elf -end-group"
 #define   ALT_FMLC_LIB_SPEC "-start-group -llega-pic30-elf -lfastm-elf -llega-c-elf -end-group"
+#define   ALT_RMLC_LIB_SPEC "-start-group -llega-pic30-elf -lrcfastm-elf -llega-c-elf -end-group"
 #else
 #define   LIB_SPEC   "-start-group -lpic30-coff -lm-coff -lc-coff -end-group"
 #define   ALT_FM_LIB_SPEC   "-start-group -lpic30-coff -lfastm-coff -lc-coff -end-group"
+#define   ALT_RM_LIB_SPEC   "-start-group -lpic30-coff -lrcfastm-coff -lc-coff -end-group"
 #define   ALT_LC_LIB_SPEC   "-start-group -llega-pic30-coff -lm-coff -llega-c-coff -end-group"
 #define   ALT_FMLC_LIB_SPEC "-start-group -llega-pic30-coff -lfastm-coff -llega-c-coff -end-group"
+#define   ALT_RMLC_LIB_SPEC "-start-group -llega-pic30-coff -lrcfastm-coff -llega-c-coff -end-group"
 #endif
 
 /*
@@ -296,6 +307,15 @@ extern void pic30_system_include_paths(const char *root, const char *system,
 
 #define DEFAULT_LIB_PATH  \
          MPLABC30_COMMON_LIB_PATH PATH_SEPARATOR_STR \
+         MPLABC30_PIC24E_LIB_PATH PATH_SEPARATOR_STR \
+         MPLABC30_PIC24F_LIB_PATH PATH_SEPARATOR_STR \
+         MPLABC30_PIC24H_LIB_PATH PATH_SEPARATOR_STR \
+         MPLABC30_PIC30F_LIB_PATH PATH_SEPARATOR_STR \
+         MPLABC30_PIC33E_LIB_PATH PATH_SEPARATOR_STR \
+         MPLABC30_PIC33F_LIB_PATH
+        
+#define DEFAULT_ERRATA_LIB_PATH  \
+         MPLABC30_ERRATA_COMMON_LIB_PATH PATH_SEPARATOR_STR \
          MPLABC30_PIC24E_LIB_PATH PATH_SEPARATOR_STR \
          MPLABC30_PIC24F_LIB_PATH PATH_SEPARATOR_STR \
          MPLABC30_PIC24H_LIB_PATH PATH_SEPARATOR_STR \
@@ -895,7 +915,7 @@ enum reg_class
         { 0x0000fffc, 0x00000000 }, \
         { 0x0000fffd, 0x00000000 }, \
         { 0x0000fffe, 0x00000000 }, \
-        { 0xfe00ffff, 0x00000001 }, \
+        { 0xff08ffff, 0x00000001 }, \
 /*ER*/  { 0x00001555, 0x00000000 }, \
         { 0xfe000000, 0x00000001 }, \
         { 0x0000ffff, 0x00000000 }  \
@@ -1712,6 +1732,7 @@ typedef struct pic30_args
 #define PIC30_AUXFLASH_FLAG   PIC30_EXTENDED_FLAG "aux"     PIC30_EXTENDED_FLAG
 #define PIC30_AUXPSV_FLAG     PIC30_EXTENDED_FLAG "xpsv"    PIC30_EXTENDED_FLAG
 #define PIC30_DF_FLAG         PIC30_EXTENDED_FLAG "df"      PIC30_EXTENDED_FLAG
+#define PIC30_KEEP_FLAG       PIC30_EXTENDED_FLAG "keep"    PIC30_EXTENDED_FLAG
 
 #define PIC30_SFR_NAME_P(NAME) (strstr(NAME, PIC30_SFR_FLAG))
 #define PIC30_PGM_NAME_P(NAME) (strstr(NAME, PIC30_PROG_FLAG))
@@ -1842,6 +1863,12 @@ typedef struct pic30_args
   c_register_pragma(0, "udata", pic30_handle_udata_pragma); \
   c_register_pragma(0, "config", mchp_handle_config_pragma); \
   c_register_pragma(0, "large_ararys", pic30_handle_large_arrays_pragma); \
+  c_register_pragma(0, "align", mchp_handle_align_pragma); \
+  c_register_pragma(0, "section", mchp_handle_section_pragma); \
+  c_register_pragma(0, "printf_args", mchp_handle_printf_args_pragma); \
+  c_register_pragma(0, "scanf_args", mchp_handle_scanf_args_pragma); \
+  c_register_pragma(0, "keep", mchp_handle_keep_pragma); \
+  c_register_pragma(0, "optimize", mchp_handle_optimize_pragma); \
   }
 
 extern void pic30_cpu_cpp_builtins(void *);
@@ -2647,7 +2674,7 @@ extern int pic30_license_valid;
 
 /*END********************************************************************/
 
-#define TARGET_LAYOUT_DECL(DECL)  pic30_layout_decl(DECL)
+#define TARGET_APPLY_PRAGMA pic30_apply_pragmas
 #define TARGET_LAYOUT_TYPE(TYPE)  pic30_layout_type(TYPE)
 #define TARGET_POINTER_MODE(TYPE,DECL) (pic30_pointer_mode(TYPE,DECL))
 #define TARGET_POINTER_SIZE(TYPE) (GET_MODE_SIZE(pic30_pointer_mode(TYPE)))
@@ -2678,7 +2705,7 @@ enum pic30_address_space {
   ADDR_SPACE_KEYWORD("__pmp__", pic30_space_pmp),            \
   ADDR_SPACE_KEYWORD("__external__", pic30_space_external),  \
   ADDR_SPACE_KEYWORD("__eds__", pic30_space_eds),            \
-  ADDR_SPACE_KEYWORD("__packed", pic30_space_packed)
+  ADDR_SPACE_KEYWORD("__pack_upper_byte", pic30_space_packed)
 
 enum pic30_set_psv_results {
   pic30_set_nothing,
@@ -2797,6 +2824,11 @@ extern const char *mchp_config_data_dir;
 #define TARGET_LINEAR_MODE(mode) \
   (!((mode == P32PEDSmode) || (mode == P32EDSmode)))
 
+
+/* handle this pragma */
+#define HANDLE_PRAGMA_PACK_PUSH_POP
+
+#define TARGET_BUILD_VARIANT_TYPE_COPY pic30_build_variant_type_copy
 
 #endif
 

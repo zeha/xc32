@@ -21,14 +21,17 @@
 #endif
 #define TARGET_MCHP 1
 
+/* Temporarily move this stuff to cci-backend.c for XC32 */
+#ifndef _BUILD_C32_
+
 static void cci_define(void *pfile_v, const char *keyword, const char *target) {
   struct cpp_reader *pfile = (struct cpp_reader *)pfile_v;
   char *buffer;
 
-  if (target) 
+  if (target)
     {
       buffer = xmalloc(strlen(keyword) + strlen(target) + 6);
-      sprintf(buffer,"%s=\"%s\"", keyword, target);
+      sprintf(buffer,"%s=%s", keyword, target);
     }
   else
     {
@@ -36,6 +39,7 @@ static void cci_define(void *pfile_v, const char *keyword, const char *target) {
       sprintf(buffer,"%s=", keyword);
     }
   cpp_define(pfile, buffer);
+  free(buffer);
   return;
 }
 
@@ -95,10 +99,11 @@ static void cci_attribute(void *pfile_v,const char *keyword, const char *target,
   *c++ = 0;
 
   cpp_define(pfile, buffer);
-  /* can we free buffer? */
-#if 0
   free(buffer);
-#endif
+}
+
+static void set_value(unsigned int *loc, unsigned int value) {
+ *loc = value;
 }
 
 /*
@@ -138,8 +143,67 @@ void mchp_init_cci(void *pfile_v) {
 
 #define CCI(TARGET, CCI_KIND, CCI_KEYWORD, TGT_KEYWORD, N) \
   if (TARGET && CCI_KIND == CCI_set_value) \
-    TGT_KEYWORD = N;
+    set_value(TGT_KEYWORD,N);
+#include CCI_H
+
 }
+
+void mchp_init_cci_builtins(void) {
+
+#define CCI(TARGET, CCI_KIND, CCI_KEYWORD, TGT_FN, N) \
+  if (TARGET && CCI_KIND == CCI_pragma) \
+    c_register_pragma(0, CCI_KEYWORD, TGT_FN);
+#include CCI_H
+
+/*
+ * Special case mapping
+ *
+ */
+ if (IMPORT_MCHP("iar")) {
+   // define builtins for the functions that we don't define
+   //   and mark them as unsupported
+
+   tree attrib, args;
+   tree fn_type;
+
+#  define MESSAGE "Intrinsic function is unsupported for this target"
+   args = build_tree_list(NULL_TREE, build_string(strlen(MESSAGE), MESSAGE));
+   attrib = build_tree_list(get_identifier("target_error"), args);
+#  undef MESSAGE
+
+   fn_type = build_function_type_list(void_type_node, void_type_node,NULL_TREE);
+   add_builtin_function("__disable_fiq", fn_type, 0, BUILT_IN_MD, NULL, attrib);
+   /*                                             ^ this should be okay
+    *  because we are going to generate an error for it...
+    */
+
+   add_builtin_function("__disable_irq", fn_type, 0, BUILT_IN_MD, NULL, attrib);
+   /*                                             ^ this should be okay
+    *  because we are going to generate an error for it...
+    */
+
+   add_builtin_function("__enable_fiq", fn_type, 0, BUILT_IN_MD, NULL, attrib);
+   /*                                            ^ this should be okay
+    *  because we are going to generate an error for it...
+    */
+
+   add_builtin_function("__enable_irq", fn_type, 0, BUILT_IN_MD, NULL, attrib);
+   /*                                            ^ this should be okay
+    *  because we are going to generate an error for it...
+    */
+ }
+}
+#else /* XC32 only for now */
+
+void mchp_init_cci_pragmas(void) {
+
+#define CCI(TARGET, CCI_KIND, CCI_KEYWORD, TGT_FN, N) \
+  if (TARGET && CCI_KIND == CCI_pragma) \
+    c_register_pragma(0, CCI_KEYWORD, TGT_FN);
+#include CCI_H
+}
+
+#endif
 
 /*
  * #pragma config stuff
@@ -202,7 +266,7 @@ verify_configuration_header_record(FILE *fptr)
       warning (0, "Malformed configuration word definition file.");
       return 1;
     }
-  
+
   /* verify that the version number is one we can deal with */
   if (strncmp (header_record + sizeof (MCHP_CONFIGURATION_HEADER_MARKER) - 1,
                MCHP_CONFIGURATION_HEADER_VERSION,
@@ -396,7 +460,7 @@ mchp_load_configuration_definition(const char *fname)
 }
 
 static void
-mchp_handle_configuration_setting (const char *name, 
+mchp_handle_configuration_setting (const char *name,
                                    const unsigned char *value_name)
 {
   struct mchp_config_specification *spec;
@@ -468,7 +532,8 @@ mchp_handle_config_pragma (struct cpp_reader *pfile)
   if (!mchp_config_data_dir)
     {
       error ("Configuration-word data directory not specified "
-             "but required for #pragma config directive");
+             "but required for #pragma config directive; has a valid device "
+             "been selected?");
       CLEAR_REST_OF_INPUT_LINE();
       return;
     }

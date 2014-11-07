@@ -90,6 +90,12 @@
       /* a de-reference of an extended pointer - not general */
       return 0;
     }
+#if 1
+  } else if (REG_P(op) && (REGNO(op) < FIRST_PSEUDO_REGISTER)) {
+    /* general regs doesn't check the regclass - which is really annoying
+       because 'g' does... */
+    return reg_fits_class_p(op, GENERAL_REGS, 0, GET_MODE(op));
+#endif
   }
   return 1;
 })
@@ -702,11 +708,10 @@
 ;;  { "pic30_move_operand", { SUBREG, REG, MEM }}, 
 
 (define_predicate "pic30_move_operand"
-  (and (match_test "((!pic30_ecore_target()) || (!pic30_sfr_operand(op,mode)))")
-       (ior (match_operand 0 "pic30_mode3_operand")
-            (match_operand 0 "pic30_modek_operand")
-            (match_operand 0 "pic30_near_operand")
-            (match_operand 0 "pic30_data_operand"))))
+  (ior (match_operand 0 "pic30_mode3_operand")
+       (match_operand 0 "pic30_modek_operand")
+       (match_operand 0 "pic30_near_operand")
+       (match_operand 0 "pic30_data_operand")))
 
 (define_predicate "pic30_moveb_operand"
   (ior (match_operand 0 "pic30_mode3_operand")
@@ -895,17 +900,17 @@
 
 ;;  { "pic30_reg_or_P_operand", { SUBREG, REG, CONST_INT }}, 
 
-(define_predicate "pic30_reg_or_P_operand"
+(define_special_predicate "pic30_reg_or_P_operand"
   (ior (match_operand 0 "register_operand")
        (match_operand 0 "pic30_N_operand")))
 
 ;;  { "pic30_rR_or_JN_operand", { MEM, SUBREG, REG, CONST_INT }}, 
 
-(define_predicate "pic30_rR_or_JN_operand"
+(define_special_predicate "pic30_rR_or_JN_operand"
   (ior (match_operand 0 "pic30_reg_or_R_operand")
        (match_operand 0 "pic30_JN_operand")))
 
-(define_predicate "pic30_rR_or_JN_APSV_operand"
+(define_special_predicate "pic30_rR_or_JN_APSV_operand"
   (ior (match_operand 0 "pic30_reg_or_R_APSV_operand")
        (match_operand 0 "pic30_JN_operand")))
 
@@ -1005,7 +1010,18 @@
   (UNSPECV_NOEDSWT     72)
   (UNSPECV_WRITEPWMCON 73) ; __builtin_write_PWMCON
   (UNSPECV_WRITECRTOTP 74) ; __builtin_write_CRYOTP
-  (UNSPECV_TEMP        99)
+  (UNSPEC_SECTION_BEGIN 75)
+  (UNSPEC_SECTION_END  76)
+  (UNSPEC_SECTION_SIZE 77)
+  (UNSPECV_SET_ISR_STATE 78)
+  (UNSPEC_GET_ISR_STATE 79)
+  (UNSPECV_ENABLE_ISR  80)
+  (UNSPECV_DISABLE_ISR 81)
+  (UNSPECV_ENABLE_ISR_GIE  82)
+  (UNSPECV_DISABLE_ISR_GIE 83)
+  (UNSPEC_EXTRACT_GIE  84)
+  (UNSPEC_INSERT_GIE   85)
+  (UNSPECV_TEMP        199)
  ]
 )
 
@@ -3647,7 +3663,7 @@
   "rlc %1,[w15]\;rlc %d1,%d0\;mov %1,%0\;bclr %0,#15"
 )
 
-(define_insn "sign_extendsip32eds2"
+(define_insn "extendsip32eds2"
   [(set (match_operand:P32EDS 0 "pic30_register_operand"   "=r,r")
         (sign_extend:P32EDS
           (match_operand:SI 1 "pic30_register_operand"   "r,0")))]
@@ -3657,7 +3673,7 @@
    rlc %1,[w15]\;rlc %d1,%d0\;bclr %0,#15"
 )
 
-(define_insn "sign_extendsip32peds2"
+(define_insn "extendsip32peds2"
   [(set (match_operand:P32PEDS 0 "pic30_register_operand"   "=r")
         (sign_extend:P32PEDS
           (match_operand:SI 1 "pic30_register_operand"   "r")))]
@@ -3766,7 +3782,7 @@
   "; nop %1,%0"
 )
 
-(define_insn "sign_extendp32extsi2"
+(define_insn "extendp32extsi2"
   [(set (match_operand:SI       0 "register_operand" "=r")
         (sign_extend:SI 
           (match_operand:P32EXT 1 "register_operand" " 0")))]
@@ -3902,6 +3918,30 @@
 (define_insn "extendhip32ext2"
   [(set (match_operand:P32EXT 0 "pic30_register_operand"                "=r")
         (sign_extend:P32EXT (match_operand:HI 1 "pic30_register_operand" "r")) )]
+  ""
+  "*
+{
+  int idSrc, idDst;
+
+  idDst = REGNO(operands[0]);
+  idSrc = REGNO(operands[1]);
+  if (idDst == idSrc) {
+    return \"lsr %0,#15,%d0\";
+  } else {
+    if (idDst & 1)
+      return \"mov %1,%0\;lsr %0,#15,%d0\";
+    else return \"mul.uu %1,#1,%0\";
+  }
+}"
+  [
+   (set_attr "cc" "clobber")
+   (set_attr "type" "def")
+  ]
+)
+
+(define_insn "zero_extendhip32ext2"
+  [(set (match_operand:P32EXT 0 "pic30_register_operand"                "=r")
+        (zero_extend:P32EXT (match_operand:HI 1 "pic30_register_operand" "r")) )]
   ""
   "*
 {
@@ -4085,7 +4125,7 @@
          break;
        }
        if ((reg < WR8_REGNO) && (!pic30_interrupt_function_p(cfun->decl))) {
-         /* other_reg is not used and its a clobbered regsiter, so its free! */
+         /* other_reg is not used and its a clobbered register, so its free! */
          break;
        }
        /* otherwise inelligble */
@@ -4289,7 +4329,7 @@
          break;
        }
        if ((reg < WR8_REGNO) && (!pic30_interrupt_function_p(cfun->decl))) {
-         /* other_reg is not used and its a clobbered regsiter, so its free! */
+         /* other_reg is not used and its a clobbered register, so its free! */
          break;
        }
        /* otherwise inelligble */
@@ -4707,10 +4747,6 @@
 ;;   DONE;
 ;; }")
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; 16-bit moves
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 ;; Invalid move
 
 (define_insn "*movhi_invalid_1"
@@ -4768,6 +4804,21 @@
      return (\"this is not an instruction\");
    }
 ")
+
+(define_insn "*movhi_invalid_6"
+  [(set (mem (match_operand:P32DF 0 "pic30_df_operand" ""))
+        (match_operand 1 "general_operand" ""))]
+  ""
+  "*
+   {
+     error(\"invalid address space for destination\");
+     return (\"this is not an instruction\");
+   }
+")
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; 16-bit moves
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;;;;;;;;;;;;;;;;
 ;; immediate zero
@@ -13268,6 +13319,26 @@
   [(set_attr "type" "def")]
 )
 
+(define_insn "movP32DF_lit"
+  [(set (match_operand:P32DF 0 "pic30_register_operand"           "=r")
+        (match_operand:P32DF 1 "immediate_operand"                "i"))]
+  ""
+  "*
+{ static char buffer[80];
+  long i = INTVAL(operands[1]);
+
+  if (pic30_symbolic_address_operand(operands[1],P32DFmode)) {
+    sprintf(buffer,\"mov #packed_lo(%%1),%%0\;mov #packed_hi(%%1),%%d0\");
+  } else {
+    sprintf(buffer,\"mov #%d,%%0\;mov #%d,%%d0\",(i & 0xFFFF),
+                   (i & 0xFFFF0000) >> 15);
+  }
+  return buffer;
+}"
+  [(set_attr "type" "def")]
+)
+
+
 (define_insn "movP32EDS_lit"
   [(set (match_operand:P32EDS 0 "pic30_register_operand"          "=r")
         (match_operand:P32EDS 1 "immediate_operand"               "i"))]
@@ -15674,6 +15745,261 @@
 }"
   [(set_attr "cc" "math")])
 
+;;;;;;;;;;;;;;;;;
+;; P32DF integer
+;;;;;;;;;;;;;;;;;
+
+(define_insn "*addp32dfhi3"
+  [(set (match_operand:P32DF 0 "pic30_register_operand"         "=r")
+        (plus:P32DF 
+           (match_operand:P32DF 1 "pic30_register_operand" "r")
+           (zero_extend:P32DF (match_operand:HI 2 "pic30_register_operand" "r"))))]
+  ""
+  "add %1,%2,%0\;addc %d1,#0,%d0"
+  [
+   (set_attr "cc" "math")
+   (set_attr "type" "def")
+  ]
+)
+
+(define_insn "*addhip32df3"
+  [(set (match_operand:P32DF 0 "pic30_register_operand"                       "=r")
+        (plus:P32DF 
+           (zero_extend:P32DF (match_operand:HI 1 "pic30_register_operand" "r"))
+           (match_operand:P32DF 2 "pic30_register_operand" "r")))]
+  ""
+  "add %2,%1,%0\;addc %d2,#0,%d0"
+  [
+   (set_attr "cc" "math")
+   (set_attr "type" "def")
+  ]
+)
+
+(define_insn "*addp32df3_imm"
+  [(set (match_operand:P32DF 0 "pic30_register_operand"          "=r,r,r,r")
+        (plus:P32DF (match_operand:SI 1 "pic30_register_operand" "%r,r,0,0")
+                 (match_operand:P32DF 2 "pic30_JM_operand"       " P,N,J,M")))]
+  ""
+  "@
+   add %1,#%2,%0\;addc %d1,#0,%d0
+   sub %1,#%J2,%0\;subb %d1,#0,%d0
+   add #%2,%0\;addc #0,%d0
+   sub %0,#%J2\;subb %d0,#0"
+  [
+   (set_attr "cc" "math")
+   (set_attr "type" "def")
+  ]
+)
+
+(define_insn "*addp32df3_immmsw"
+  [(set (match_operand:P32DF          0 "pic30_register_operand" "=r,r")
+        (plus:P32DF (match_operand:SI 1 "pic30_register_operand" "%0,r")
+                 (match_operand:P32DF 2 "immediate_operand"      " i,i")))]
+  "((INTVAL(operands[2]) & 0x0000FFFF) == 0) && 
+   (-31 < (INTVAL(operands[2]) >> 16)) && ((INTVAL(operands[2]) >> 16) < 31)"
+  "*
+{
+  int i = INTVAL(operands[2]) >> 16;
+  static char szInsn[48];
+  switch (which_alternative)
+  {
+    case 0:
+      if (i < 0) sprintf(szInsn, \"sub %%d1,#%d,%%d0\", -i);
+      else sprintf(szInsn, \"add %%d1,#%d,%%d0\", i);
+      break;
+    case 1:
+      if (i < 0) sprintf(szInsn, \"sub %%1,#0,%%0\;subb %%d1,#%d,%%d0\",-i);
+      else sprintf(szInsn, \"add %%1,#0,%%0\;addc %%d1,#%d,%%d0\", i);
+      break;
+  }
+  return(szInsn);
+}"
+  [
+   (set_attr "cc" "clobber")
+   (set_attr "type" "def")
+  ]
+)
+
+(define_insn "addp32df3_errata_APSV"
+ [(set (match_operand:P32DF 0 "pic30_rR_or_near_operand" "=r,r,r,&r,r,r,r,R,R,R")
+       (plus:P32DF 
+         (match_operand:P32DF 1 "pic30_rR_or_near_APSV_operand" "%r,0,r, R,r,r,0,r,r,r")
+         (match_operand:P32DF 2 "pic30_rR_or_JN_APSV_operand"    "r,r,0, r,P,N,J,r,0,R")
+  ))
+  (clobber (match_scratch:HI 3                         "=X,X,X,&r,X,X,X,X,X,&r")
+  )
+ ]
+  "(pic30_errata_mask & psv_errata)"
+  "*
+{
+  static char *patterns[] = {
+    \"add %2,%1,%0\;addc %d2,%d1,%d0\",
+    \"add %2,%1,%0\;addc %d2,%d1,%d0\",
+    \"add %2,%1,%0\;addc %d2,%d1,%d0\",
+    \"add %2,%I1,%0\;mov %D1,%3\;addc %d2,%3,%d0\",
+    \"add %1,#%2,%0\;addc %d1,#0,%d0\",
+    \"sub %1,#%J2,%0\;subb %d1,#0,%d0\",
+    \"add #%2,%0\;addc #%y2,%d0\",
+    \"add %1,%2,%I0\;addc %d1,%d2,%D0\",
+    \"add %1,%2,%0\;addc %d1,%P2,%D0\",
+    \"add %1,%I2,%I0\;mov %D2,%3\;addc %d1,%3,%D0\",
+    0};
+
+  return patterns[which_alternative];
+}"
+  [(set_attr "cc" "math,math,math,math,math,math,math,math,math,math")]
+)
+
+(define_insn "addp32df3_DATA"
+ [(set (match_operand:P32DF   0 "pic30_rR_or_near_operand" "=r,r,r,&r,r,r,r,R,R,R")
+       (plus:P32DF  
+         (match_operand:P32DF 1 "pic30_rR_or_near_operand" "%r,0,r, R,r,r,0,r,r,r")
+         (match_operand:P32DF 2 "pic30_rR_or_JN_operand"    "r,r,0, r,P,N,J,r,0,R")  ))
+ ]
+  ""
+  "*
+{
+  static char *patterns[] = {
+    \"add %2,%1,%0\;addc %d2,%d1,%d0\",
+    \"add %2,%1,%0\;addc %d2,%d1,%d0\",
+    \"add %2,%1,%0\;addc %d2,%d1,%d0\",
+    \"add %2,%I1,%0\;addc %d2,%D1,%d0\",
+    \"add %1,#%2,%0\;addc %d1,#0,%d0\",
+    \"sub %1,#%J2,%0\;subb %d1,#0,%d0\",
+    \"add #%2,%0\;addc #%y2,%d0\",
+    \"add %1,%2,%I0\;addc %d1,%d2,%D0\",
+    \"add %1,%2,%0\;addc %d1,%P2,%D0\",
+    \"add %1,%I2,%I0\;addc %d1,%D2,%D0\",
+    0};
+
+  return patterns[which_alternative];
+}"
+  [(set_attr "cc" "math,math,math,math,math,math,math,math,math,math")]
+)
+
+(define_insn "addp32df3_noerrata_APSV"
+ [(set (match_operand:P32DF   0 "pic30_rR_or_near_operand" "=r,r,r,&r,r,r,r,R,R,R")
+       (plus:P32DF  
+         (match_operand:P32DF 1 "pic30_rR_or_near_APSV_operand" "%r,0,r, R,r,r,0,r,r,r")
+         (match_operand:P32DF 2 "pic30_rR_or_JN_APSV_operand"    "r,r,0, r,P,N,J,r,0,R")  ))
+ ]
+  "(!(pic30_errata_mask & psv_errata))"
+  "*
+{
+  static char *patterns[] = {
+    \"add %2,%1,%0\;addc %d2,%d1,%d0\",
+    \"add %2,%1,%0\;addc %d2,%d1,%d0\",
+    \"add %2,%1,%0\;addc %d2,%d1,%d0\",
+    \"add %2,%I1,%0\;addc %d2,%D1,%d0\",
+    \"add %1,#%2,%0\;addc %d1,#0,%d0\",
+    \"sub %1,#%J2,%0\;subb %d1,#0,%d0\",
+    \"add #%2,%0\;addc #%y2,%d0\",
+    \"add %1,%2,%I0\;addc %d1,%d2,%D0\",
+    \"add %1,%2,%0\;addc %d1,%P2,%D0\",
+    \"add %1,%I2,%I0\;addc %d1,%D2,%D0\",
+    0};
+
+  return patterns[which_alternative];
+}"
+  [(set_attr "cc" "math,math,math,math,math,math,math,math,math,math")]
+)
+
+(define_expand "addp32df3"
+  [(set (match_operand:P32DF 0 "pic30_rR_or_near_operand" "")
+        (plus:P32DF
+          (match_operand:P32DF 1 "pic30_rR_or_near_APSV_operand" "")
+          (match_operand:P32DF 2 "pic30_rR_or_JN_APSV_operand" "")))]
+  ""
+  "
+{ 
+  if (pic30_rR_or_near_operand(operands[1],GET_MODE(operands[1])) &&
+      pic30_rR_or_JN_APSV_operand(operands[2],GET_MODE(operands[2]))) {
+    emit_insn(gen_addp32df3_DATA(operands[0], operands[1], operands[2]));
+  } else if (pic30_errata_mask & psv_errata) {
+    emit_insn(gen_addp32df3_errata_APSV(operands[0], operands[1], operands[2]));
+  } else {
+    emit_insn(gen_addp32df3_noerrata_APSV(operands[0], operands[1], operands[2]));
+  }
+  DONE;
+}")
+
+(define_insn "addp32df3x_DATA"
+  [(set (match_operand:P32DF   0 "pic30_mode2mres_operand" "=r,&r,&r,R,R,R,>,>,>")
+        (plus:P32DF 
+          (match_operand:P32DF 1 "pic30_register_operand"  "%r, r, r,r,r,r,r,r,r")
+          (match_operand:P32DF 2 "pic30_mode2mres_operand" "r,  R, >,r,R,>,r,R,>")))
+  ]
+  ""
+  "*
+{
+   static char *patterns[] = {
+      \"add %1,%2,%0\;addc %d1,%d2,%d0\",
+      \"add %1,%I2,%0\;addc %d1,%D2,%d0\",
+      \"add %1,%2,%0\;addc %d1,%d2,%d0\",
+      \"add %1,%2,%I0\;addc %d1,%d2,%D0\",
+      \"add %1,%I2,%I0\;addc %d1,%D2,%D0\",
+      \"add %1,%2,%I0\;addc %d1,%d2,%D0\",
+      \"add %1,%2,%0\;addc %d1,%d2,%d0\",
+      \"add %1,%I2,%0\;addc %d1,%D2,%d0\",
+      \"add %1,%2,%0\;addc %d1,%d2,%d0\",
+      0};
+
+  return patterns[which_alternative];
+}"
+  [(set_attr "cc" "math")])
+
+(define_insn "addp32df3x_noerrata_APSV"
+  [(set (match_operand:P32DF   0 "pic30_mode2mres_operand" "=r,&r,&r,R,R,R,>,>,>")
+        (plus:P32DF 
+          (match_operand:P32DF 1 "pic30_register_operand"  "%r, r, r,r,r,r,r,r,r")
+          (match_operand:P32DF 2 "pic30_mode2mres_APSV_operand" "r,  R, >,r,R,>,r,R,>")))
+  ]
+  "(!(pic30_errata_mask & psv_errata))"
+  "*
+{
+   static char *patterns[] = {
+      \"add %1,%2,%0\;addc %d1,%d2,%d0\",
+      \"add %1,%I2,%0\;addc %d1,%D2,%d0\",
+      \"add %1,%2,%0\;addc %d1,%d2,%d0\",
+      \"add %1,%2,%I0\;addc %d1,%d2,%D0\",
+      \"add %1,%I2,%I0\;addc %d1,%D2,%D0\",
+      \"add %1,%2,%I0\;addc %d1,%d2,%D0\",
+      \"add %1,%2,%0\;addc %d1,%d2,%d0\",
+      \"add %1,%I2,%0\;addc %d1,%D2,%d0\",
+      \"add %1,%2,%0\;addc %d1,%d2,%d0\",
+      0};
+
+  return patterns[which_alternative];
+}"
+  [(set_attr "cc" "math")])
+
+(define_insn "addp32df3x_errata_APSV"
+  [(set (match_operand:P32DF   0 "pic30_mode2mres_operand" "=r,&r,&r,R,R,R,>,>,>")
+        (plus:P32DF 
+          (match_operand:P32DF 1 "pic30_register_operand"  "%r, r, r,r,r,r,r,r,r")
+          (match_operand:P32DF 2 "pic30_mode2mres_APSV_operand" " r, R, >,r,R,>,r,R,>")
+   ))
+   (clobber (match_scratch:HI 3                     "=X,&r,&r,X,&r,&r,X,&r,&r"))
+  ]
+  "(pic30_errata_mask & psv_errata)"
+  "*
+{
+   static char *patterns[] = {
+      \"add %1,%2,%0\;addc %d1,%d2,%d0\",
+      \"add %1,%I2,%0\;mov %D2,%3\;addc %d1,%3,%d0\",
+      \"add %1,%2,%0\;mov %d2,%3\;addc %d1,%3,%d0\",
+      \"add %1,%2,%I0\;addc %d1,%d2,%D0\",
+      \"add %1,%I2,%I0\;mov %D2,%3\;addc %d1,%3,%D0\",
+      \"add %1,%2,%I0\;mov %d2,%3\;addc %d1,%3,%D0\",
+      \"add %1,%2,%0\;addc %d1,%d2,%d0\",
+      \"add %1,%I2,%0\;mov %D2,%3\;addc %d1,%3,%d0\",
+      \"add %1,%2,%0\;mov %d2,%3\;addc %d1,%3,%d0\",
+      0};
+
+  return patterns[which_alternative];
+}"
+  [(set_attr "cc" "math")])
+
 ;; P32EXT
 
 (define_insn "addp32ext3_imm"
@@ -17094,7 +17420,7 @@
 }")
 
 ; ECORE
-; /* *_extend of an immediate_operand is illegal, apparantly
+; /* *_extend of an immediate_operand is illegal, apparently
 ;    so need two separate sequences */
 
 (define_insn "umulhi3imm"
@@ -24307,6 +24633,280 @@
   ""
   "nop"
   [(set_attr "cc" "unchanged")])
+
+;
+;; misc
+;
+
+(define_insn "section_begin"
+  [(set (match_operand:SI 0 "pic30_register_operand" "=r")
+        (unspec:SI [ 
+          (match_operand 1 "immediate_operand" "i")
+        ] UNSPEC_SECTION_BEGIN))]
+  ""
+  "*
+  { static char *buffer = 0;
+    static buffer_size;
+    int len;
+
+    tree t = (tree)(INTVAL(operands[1]));
+    char *section_name = TREE_STRING_POINTER(t);
+    len = sizeof (\"mov #.startof.(),%0\;mov #.startof_hi.(),%d0\");
+    len += strlen(section_name)*2;
+    len++;
+    if (buffer_size < len) {
+      if (buffer) free(buffer);
+      buffer = xmalloc(len+50);
+      buffer_size = len+50;
+    }
+    sprintf(buffer, \"mov #.startof.(%s),%%0\;mov #.startof_hi.(%s),%%d0\",
+            section_name, section_name);
+    return buffer;
+  }"
+)
+
+(define_insn "section_end"
+  [(set (match_operand:SI 0 "pic30_register_operand" "=r")
+        (unspec:SI [ 
+          (match_operand 1 "immediate_operand" "i")
+        ] UNSPEC_SECTION_END))]
+  ""
+  "*
+  { static char *buffer = 0;
+    static buffer_size;
+    int len;
+
+    tree t = (tree)(INTVAL(operands[1]));
+    char *section_name = TREE_STRING_POINTER(t);
+    len = sizeof (\"mov #.endof.(),%0\;mov #.endof_hi.(),%d0\");
+    len += strlen(section_name)*2;
+    len++;
+    if (buffer_size < len) {
+      if (buffer) free(buffer);
+      buffer = xmalloc(len+50);
+      buffer_size = len+50;
+    }
+    sprintf(buffer, \"mov #.endof.(%s),%%0\;mov #.endof_hi.(%s),%%d0\",
+            section_name, section_name);
+    return buffer;
+  }"
+
+)
+
+(define_insn "section_size"
+  [(set (match_operand:SI 0 "pic30_register_operand" "=r")
+        (unspec:SI [ 
+          (match_operand 1 "immediate_operand" "i")
+        ] UNSPEC_SECTION_SIZE))]
+  ""
+  "*
+  { static char *buffer = 0;
+    static buffer_size;
+    int len;
+
+    tree t = (tree)(INTVAL(operands[1]));
+    char *section_name = TREE_STRING_POINTER(t);
+    len = sizeof (\"mov #.sizeof.(),%0\;mov #.sizeof_hi.(),%d0\");
+    len += strlen(section_name)*2;
+    len++;
+    if (buffer_size < len) {
+      if (buffer) free(buffer);
+      buffer = xmalloc(len+50);
+      buffer_size = len+50;
+    }
+    sprintf(buffer, \"mov #.sizeof.(%s),%%0\;mov #.sizeof_hi.(%s),%%d0\",
+            section_name, section_name);
+    return buffer;
+  }"
+)
+
+; define [sg]et_isr_state as an expand, in so that we can generate less
+;   code if we don't actually 'use' the value (apart from to re-set it)
+;   if unless we say if (__builtin_get_isr_state() == n) there is no need
+;   to shift the value
+
+(define_insn "get_isr_state_helper"
+  [(set (match_operand:HI 0 "pic30_register_operand" "=r")
+        (unspec:HI [ (const_int 0) ] UNSPEC_GET_ISR_STATE))]
+  ""
+  "mov _SR,%0"
+)
+
+(define_insn "extract_gie"
+  [(set (match_operand:HI 0 "pic30_register_operand" "=r")
+        (unspec:HI [ (match_dup 0) ] UNSPEC_EXTRACT_GIE))]
+  ""
+  "btsc _INTCON2,#15\;bset %0,#3"
+)
+
+(define_expand "get_isr_state"
+ [(set (match_operand:HI 0 "pic30_register_operand" "=r")
+       (unspec:HI [(const_int 0)] UNSPEC_GET_ISR_STATE))]
+ ""
+ "{ rtx reg = operands[0];
+
+    if (!pic30_register_operand(operands[0], HImode)) {
+      reg = force_reg (GET_MODE(operands[0]), operands[0]);
+    }
+    emit_insn(
+      gen_get_isr_state_helper(reg)
+    );
+    emit_insn(
+      gen_ashrhi3(reg, reg, GEN_INT(5))
+    );
+    emit_insn(
+      gen_andhi3(reg, reg, GEN_INT(7))
+    );
+    if (pic30_device_has_gie()) {
+      emit_insn(
+        gen_extract_gie(reg)
+      );
+    }
+    if (reg != operands[0]) {
+      emit_move_insn(operands[0], reg);
+    }
+    DONE;
+  }")
+
+(define_insn "set_isr_state_helper"
+  [(unspec_volatile [
+      (match_operand:HI 0 "pic30_register_operand" "r")
+    ] UNSPECV_SET_ISR_STATE)
+   (clobber (match_scratch:HI 1                    "=r"))
+   (clobber (match_scratch:HI 2                    "=r"))]
+  ""
+  "mov _SR,%1\;and.b #0x1F,%1\;ior %1,%0,%1\;mov %1,_SR"
+  [(set_attr "cc" "clobber")]
+)
+
+(define_insn "insert_gie"
+  [(unspec_volatile [ 
+      (match_operand:HI 0 "pic30_register_operand" "r")] UNSPEC_INSERT_GIE)
+   (clobber (match_scratch:HI 1                    "=r"))]
+  ""
+  "mov _INTCON2,%1\;bclr %1,#15\;btsc %0,#3\;bset %1,#15\;mov %1,_INTCON2"
+)
+
+
+(define_expand "set_isr_state"
+ [(unspec_volatile [ 
+     (match_operand:HI 0 "pic30_register_operand" "=r")] UNSPECV_SET_ISR_STATE)]
+ ""
+ "{ rtx reg = operands[0];
+    rtx reg2 = gen_reg_rtx(HImode);
+
+    if (!pic30_register_operand(operands[0], HImode)) {
+      reg = force_reg (GET_MODE(operands[0]), operands[0]);
+    }
+    emit_insn(
+      gen_andhi3(reg2, reg, GEN_INT(7))
+    );
+    emit_insn(
+      gen_ashlhi3(reg2, reg2, GEN_INT(5))
+    );
+    emit_insn(
+      gen_set_isr_state_helper(reg2)
+    );
+    if (pic30_device_has_gie()) {
+      emit_insn(
+        gen_insert_gie(reg)
+      );
+    }
+    DONE;
+  }")
+
+(define_insn "disable_isr_gie"
+  [(unspec_volatile [(const_int 0)] UNSPECV_DISABLE_ISR_GIE)]
+  ""
+  "*
+{
+  if (pic30_device_has_gie()) {
+    // clear the GIE
+    return \"bclr _INTCON2,#15\";
+  } else {
+    error(\"This device has no GIE\");
+    return \"; This device has no GIE\";
+  }
+}")
+
+(define_insn "enable_isr_gie"
+  [(unspec_volatile [(const_int 0)] UNSPECV_ENABLE_ISR_GIE)]
+  ""
+  "*
+{
+  if (pic30_device_has_gie()) {
+    // set the GIE
+    return \"bset _INTCON2,#15\";
+  } else {
+    error(\"This device has no GIE\");
+    return \"; This device has no GIE\";
+  }
+}")
+
+(define_insn "disable_isr_ipl"
+  [(unspec_volatile [(const_int 0)] UNSPECV_DISABLE_ISR)
+   (clobber
+      (match_scratch:HI 0  "=a,r"))
+   (clobber
+      (match_scratch:HI 1  "=r,r"))]
+  ""
+  "*
+{
+  if (which_alternative == 0) {
+    return \"mov _DISICNT,%1\;disi #0x3FFF\;mov #0xE0,%0\;ior _SR\;mov %1,_DISICNT\;mov w0,_WREG0\";
+  } else {
+    return \"mov _DISICNT,%1\;disi #0x3FFF\;mov _SR,%1\;ior #0xE0,%1\;mov %1,_SR\;mov %1,_DISICNT\;mov w0,_WREG0\";
+  }
+}")
+
+(define_insn "enable_isr_ipl"
+  [(unspec_volatile [(const_int 0)] UNSPECV_ENABLE_ISR)
+   (clobber
+      (match_scratch:HI 0  "=r"))
+   (clobber
+      (match_scratch:HI 1  "=r"))]
+  ""
+  "*
+{
+  // if (which_alternative == 0) {
+  //  return \"mov #0x1F,%1\;and.b _SR,WREG\;bset.b w0,#7\;mov.b w0,_SR\";
+  // } else {
+    return \"mov _DISICNT,%1\;disi #0x3FFF\;mov _SR,%0\;and.b #0x1F,%0\;bset.b %0,#7\;mov %0,_SR\;mov %1,_DISICNT\;mov w0,_WREG0\";
+  // }
+}")
+
+(define_expand "disable_isr"
+  [(const_int 0)]
+  ""
+  "{
+     if (pic30_device_has_gie()) {
+       emit_insn(
+         gen_disable_isr_gie()
+       );
+     } else {
+       emit_insn(
+         gen_disable_isr_ipl()
+       );
+     }
+     DONE;
+   }")
+
+(define_expand "enable_isr"
+  [(const_int 0)]
+  ""
+  "{
+     if (pic30_device_has_gie()) {
+       emit_insn(
+         gen_enable_isr_gie()
+       );
+     } else {
+       emit_insn(
+         gen_enable_isr_ipl()
+       );
+     }
+     DONE;
+   }")
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;	Peephole

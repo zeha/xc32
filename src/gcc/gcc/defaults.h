@@ -1174,6 +1174,10 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #ifndef SECTION_FLAGS_INT
 #define SECTION_FLAGS_INT unsigned int
 #endif
+#elif _BUILD_C32_
+#ifndef SECTION_FLAGS_INT
+#define SECTION_FLAGS_INT unsigned long long
+#endif
 #endif
 
 #endif  /* ! GCC_DEFAULTS_H */
