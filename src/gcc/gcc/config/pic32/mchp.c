@@ -733,8 +733,10 @@ mchp_subtarget_override_options1 (void)
     }
 
   /* Don't emit DWARF3/4 unless specifically selected. */
+#if 1
   if (dwarf_strict < 0)
     dwarf_strict = 1;
+#endif
 }
 
 #ifdef MCHP_USE_LICENSE_CONF

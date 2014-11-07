@@ -2,7 +2,7 @@
 <lti:LanguageToolSuite
   lti:uuid="{ec0473c6-f276-4a29-9b4a-41f899a460a2}"
   lti:name="MPLAB XC for PIC32MX/PIC32MZ"
-  lti:version="1.32"
+  lti:version="1.33"
   xmlns:lti="http://www.microchip.com/lti"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://www.microchip.com/lti lti/LanguageToolSuite.xsd">
@@ -19,14 +19,21 @@
     <lti:Device lti:device="32MX120F032B"/>
     <lti:Device lti:device="32MX120F032C"/>
     <lti:Device lti:device="32MX120F032D"/>
+    <lti:Device lti:device="32MX120F064H"/>
     <lti:Device lti:device="32MX130F064B"/>
     <lti:Device lti:device="32MX130F064C"/>
     <lti:Device lti:device="32MX130F064D"/>
+    <lti:Device lti:device="32MX130F128H"/>
+    <lti:Device lti:device="32MX130F128L"/>
     <lti:Device lti:device="32MX150F128B"/>
     <lti:Device lti:device="32MX150F128C"/>
     <lti:Device lti:device="32MX150F128D"/>
+    <lti:Device lti:device="32MX150F256H"/>
+    <lti:Device lti:device="32MX150F256L"/>
     <lti:Device lti:device="32MX170F256B"/>
     <lti:Device lti:device="32MX170F256D"/>
+    <lti:Device lti:device="32MX170F512H"/>
+    <lti:Device lti:device="32MX170F512L"/>
     <lti:Device lti:device="32MX210F016B"/>
     <lti:Device lti:device="32MX210F016C"/>
     <lti:Device lti:device="32MX210F016D"/>
@@ -36,11 +43,17 @@
     <lti:Device lti:device="32MX230F064B"/>
     <lti:Device lti:device="32MX230F064C"/>
     <lti:Device lti:device="32MX230F064D"/>
+    <lti:Device lti:device="32MX230F128H"/>
+    <lti:Device lti:device="32MX230F128L"/>
     <lti:Device lti:device="32MX250F128B"/>
     <lti:Device lti:device="32MX250F128C"/>
     <lti:Device lti:device="32MX250F128D"/>
+    <lti:Device lti:device="32MX250F256H"/>
+    <lti:Device lti:device="32MX250F256L"/>
     <lti:Device lti:device="32MX270F256B"/>
     <lti:Device lti:device="32MX270F256D"/>
+    <lti:Device lti:device="32MX270F512H"/>
+    <lti:Device lti:device="32MX270F512L"/>
     <lti:Device lti:device="32MX320F032H"/>
     <lti:Device lti:device="32MX320F064H"/>
     <lti:Device lti:device="32MX320F128H"/>
@@ -74,12 +87,18 @@
     <lti:Device lti:device="32MX460F512L"/>
     <lti:Device lti:device="32MX470F512H"/>
     <lti:Device lti:device="32MX470F512L"/>
+    <lti:Device lti:device="32MX530F128H"/>
+    <lti:Device lti:device="32MX530F128L"/>
     <lti:Device lti:device="32MX534F064H"/>
     <lti:Device lti:device="32MX534F064L"/>
+    <lti:Device lti:device="32MX550F256H"/>
+    <lti:Device lti:device="32MX550F256L"/>
     <lti:Device lti:device="32MX564F064H"/>
     <lti:Device lti:device="32MX564F064L"/>
     <lti:Device lti:device="32MX564F128H"/>
     <lti:Device lti:device="32MX564F128L"/>
+    <lti:Device lti:device="32MX570F512H"/>
+    <lti:Device lti:device="32MX570F512L"/>
     <lti:Device lti:device="32MX575F256H"/>
     <lti:Device lti:device="32MX575F256L"/>
     <lti:Device lti:device="32MX575F512H"/>
@@ -132,6 +151,8 @@
     <lti:Device lti:device="32MZ2048ECM100"/>
     <lti:Device lti:device="32MZ2048ECM124"/>
     <lti:Device lti:device="32MZ2048ECM144"/>
+    <lti:Device lti:device="MEC1404"/>
+    <lti:Device lti:device="MEC1418"/>
   </lti:DeviceFamily>
 
 </lti:LanguageToolSuite>

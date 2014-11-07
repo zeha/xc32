@@ -2178,6 +2178,1151 @@
  *
  *------------------------------------------------------------------------*/
 
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | WRITE_PROTECT | ON,
+  p24FJ1024GA606, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p24FJ1024GA606, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | HIGH | NONE, 
+  p24FJ1024GA606, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | STANDARD | NONE, 
+  p24FJ1024GA606, 0x6, 0x4, 0x0}
+{"FSEC:BSS:OFF",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | NONE, 
+  p24FJ1024GA606, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p24FJ1024GA606, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p24FJ1024GA606, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | HIGH | ON, 
+  p24FJ1024GA606, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p24FJ1024GA606, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:OFF",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | OFF, 
+  p24FJ1024GA606, 0xC0, 0xC0, 0x0}
+{"FSEC:CWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | WRITE_PROTECT | ON,
+  p24FJ1024GA606, 0x100, 0x0, 0x0}
+{"FSEC:CWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | WRITE_PROTECT | OFF,
+  p24FJ1024GA606, 0x100, 0x100, 0x0}
+{"FSEC:CSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | HIGH | NONE, 
+  p24FJ1024GA606, 0xE00, 0x0, 0x0}
+{"FSEC:CSS:ENH",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | ENHANCED | NONE, 
+  p24FJ1024GA606, 0xE00, 0x800, 0x0}
+{"FSEC:CSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | STANDARD | NONE, 
+  p24FJ1024GA606, 0xE00, 0xC00, 0x0}
+{"FSEC:CSS:DIS",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | NONE, 
+  p24FJ1024GA606, 0xE00, 0xE00, 0x0}
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
+  p24FJ1024GA606, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p24FJ1024GA606, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HI",
+  IS_CODEGUARD_ID | FLASH | BOOT | HIGH | NONE, 
+  p24FJ1024GA606, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STD",
+  IS_CODEGUARD_ID | FLASH | BOOT | STANDARD | NONE, 
+  p24FJ1024GA606, 0x6, 0x4, 0x0}
+{"FSEC:BSS:OFF",
+  IS_CODEGUARD_ID | FLASH | BOOT | NONE, 
+  p24FJ1024GA606, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p24FJ1024GA606, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p24FJ1024GA606, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HI",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | HIGH | ON, 
+  p24FJ1024GA606, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STD",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p24FJ1024GA606, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:OFF",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
+  p24FJ1024GA606, 0xC0, 0xC0, 0x0}
+{"FSEC:CWRP:ON",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | ON,
+  p24FJ1024GA606, 0x100, 0x0, 0x0}
+{"FSEC:CWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | OFF,
+  p24FJ1024GA606, 0x100, 0x100, 0x0}
+{"FSEC:CSS:HI",
+  IS_CODEGUARD_ID | FLASH | CONFIG | HIGH | NONE, 
+  p24FJ1024GA606, 0xE00, 0x0, 0x0}
+{"FSEC:CSS:ENH",
+  IS_CODEGUARD_ID | FLASH | CONFIG | ENHANCED | NONE, 
+  p24FJ1024GA606, 0xE00, 0x800, 0x0}
+{"FSEC:CSS:STD",
+  IS_CODEGUARD_ID | FLASH | CONFIG | STANDARD | NONE, 
+  p24FJ1024GA606, 0xE00, 0xC00, 0x0}
+{"FSEC:CSS:DIS",
+  IS_CODEGUARD_ID | FLASH | CONFIG | NONE, 
+  p24FJ1024GA606, 0xE00, 0xE00, 0x0}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | WRITE_PROTECT | ON,
+  p24FJ1024GA610, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p24FJ1024GA610, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | HIGH | NONE, 
+  p24FJ1024GA610, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | STANDARD | NONE, 
+  p24FJ1024GA610, 0x6, 0x4, 0x0}
+{"FSEC:BSS:OFF",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | NONE, 
+  p24FJ1024GA610, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p24FJ1024GA610, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p24FJ1024GA610, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | HIGH | ON, 
+  p24FJ1024GA610, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p24FJ1024GA610, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:OFF",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | OFF, 
+  p24FJ1024GA610, 0xC0, 0xC0, 0x0}
+{"FSEC:CWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | WRITE_PROTECT | ON,
+  p24FJ1024GA610, 0x100, 0x0, 0x0}
+{"FSEC:CWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | WRITE_PROTECT | OFF,
+  p24FJ1024GA610, 0x100, 0x100, 0x0}
+{"FSEC:CSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | HIGH | NONE, 
+  p24FJ1024GA610, 0xE00, 0x0, 0x0}
+{"FSEC:CSS:ENH",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | ENHANCED | NONE, 
+  p24FJ1024GA610, 0xE00, 0x800, 0x0}
+{"FSEC:CSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | STANDARD | NONE, 
+  p24FJ1024GA610, 0xE00, 0xC00, 0x0}
+{"FSEC:CSS:DIS",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | NONE, 
+  p24FJ1024GA610, 0xE00, 0xE00, 0x0}
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
+  p24FJ1024GA610, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p24FJ1024GA610, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HI",
+  IS_CODEGUARD_ID | FLASH | BOOT | HIGH | NONE, 
+  p24FJ1024GA610, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STD",
+  IS_CODEGUARD_ID | FLASH | BOOT | STANDARD | NONE, 
+  p24FJ1024GA610, 0x6, 0x4, 0x0}
+{"FSEC:BSS:OFF",
+  IS_CODEGUARD_ID | FLASH | BOOT | NONE, 
+  p24FJ1024GA610, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p24FJ1024GA610, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p24FJ1024GA610, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HI",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | HIGH | ON, 
+  p24FJ1024GA610, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STD",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p24FJ1024GA610, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:OFF",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
+  p24FJ1024GA610, 0xC0, 0xC0, 0x0}
+{"FSEC:CWRP:ON",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | ON,
+  p24FJ1024GA610, 0x100, 0x0, 0x0}
+{"FSEC:CWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | OFF,
+  p24FJ1024GA610, 0x100, 0x100, 0x0}
+{"FSEC:CSS:HI",
+  IS_CODEGUARD_ID | FLASH | CONFIG | HIGH | NONE, 
+  p24FJ1024GA610, 0xE00, 0x0, 0x0}
+{"FSEC:CSS:ENH",
+  IS_CODEGUARD_ID | FLASH | CONFIG | ENHANCED | NONE, 
+  p24FJ1024GA610, 0xE00, 0x800, 0x0}
+{"FSEC:CSS:STD",
+  IS_CODEGUARD_ID | FLASH | CONFIG | STANDARD | NONE, 
+  p24FJ1024GA610, 0xE00, 0xC00, 0x0}
+{"FSEC:CSS:DIS",
+  IS_CODEGUARD_ID | FLASH | CONFIG | NONE, 
+  p24FJ1024GA610, 0xE00, 0xE00, 0x0}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | WRITE_PROTECT | ON,
+  p24FJ1024GB606, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p24FJ1024GB606, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | HIGH | NONE, 
+  p24FJ1024GB606, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | STANDARD | NONE, 
+  p24FJ1024GB606, 0x6, 0x4, 0x0}
+{"FSEC:BSS:OFF",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | NONE, 
+  p24FJ1024GB606, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p24FJ1024GB606, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p24FJ1024GB606, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | HIGH | ON, 
+  p24FJ1024GB606, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p24FJ1024GB606, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:OFF",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | OFF, 
+  p24FJ1024GB606, 0xC0, 0xC0, 0x0}
+{"FSEC:CWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | WRITE_PROTECT | ON,
+  p24FJ1024GB606, 0x100, 0x0, 0x0}
+{"FSEC:CWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | WRITE_PROTECT | OFF,
+  p24FJ1024GB606, 0x100, 0x100, 0x0}
+{"FSEC:CSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | HIGH | NONE, 
+  p24FJ1024GB606, 0xE00, 0x0, 0x0}
+{"FSEC:CSS:ENH",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | ENHANCED | NONE, 
+  p24FJ1024GB606, 0xE00, 0x800, 0x0}
+{"FSEC:CSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | STANDARD | NONE, 
+  p24FJ1024GB606, 0xE00, 0xC00, 0x0}
+{"FSEC:CSS:DIS",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | NONE, 
+  p24FJ1024GB606, 0xE00, 0xE00, 0x0}
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
+  p24FJ1024GB606, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p24FJ1024GB606, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HI",
+  IS_CODEGUARD_ID | FLASH | BOOT | HIGH | NONE, 
+  p24FJ1024GB606, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STD",
+  IS_CODEGUARD_ID | FLASH | BOOT | STANDARD | NONE, 
+  p24FJ1024GB606, 0x6, 0x4, 0x0}
+{"FSEC:BSS:OFF",
+  IS_CODEGUARD_ID | FLASH | BOOT | NONE, 
+  p24FJ1024GB606, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p24FJ1024GB606, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p24FJ1024GB606, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HI",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | HIGH | ON, 
+  p24FJ1024GB606, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STD",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p24FJ1024GB606, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:OFF",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
+  p24FJ1024GB606, 0xC0, 0xC0, 0x0}
+{"FSEC:CWRP:ON",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | ON,
+  p24FJ1024GB606, 0x100, 0x0, 0x0}
+{"FSEC:CWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | OFF,
+  p24FJ1024GB606, 0x100, 0x100, 0x0}
+{"FSEC:CSS:HI",
+  IS_CODEGUARD_ID | FLASH | CONFIG | HIGH | NONE, 
+  p24FJ1024GB606, 0xE00, 0x0, 0x0}
+{"FSEC:CSS:ENH",
+  IS_CODEGUARD_ID | FLASH | CONFIG | ENHANCED | NONE, 
+  p24FJ1024GB606, 0xE00, 0x800, 0x0}
+{"FSEC:CSS:STD",
+  IS_CODEGUARD_ID | FLASH | CONFIG | STANDARD | NONE, 
+  p24FJ1024GB606, 0xE00, 0xC00, 0x0}
+{"FSEC:CSS:DIS",
+  IS_CODEGUARD_ID | FLASH | CONFIG | NONE, 
+  p24FJ1024GB606, 0xE00, 0xE00, 0x0}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | WRITE_PROTECT | ON,
+  p24FJ1024GB610, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p24FJ1024GB610, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | HIGH | NONE, 
+  p24FJ1024GB610, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | STANDARD | NONE, 
+  p24FJ1024GB610, 0x6, 0x4, 0x0}
+{"FSEC:BSS:OFF",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | NONE, 
+  p24FJ1024GB610, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p24FJ1024GB610, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p24FJ1024GB610, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | HIGH | ON, 
+  p24FJ1024GB610, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p24FJ1024GB610, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:OFF",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | OFF, 
+  p24FJ1024GB610, 0xC0, 0xC0, 0x0}
+{"FSEC:CWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | WRITE_PROTECT | ON,
+  p24FJ1024GB610, 0x100, 0x0, 0x0}
+{"FSEC:CWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | WRITE_PROTECT | OFF,
+  p24FJ1024GB610, 0x100, 0x100, 0x0}
+{"FSEC:CSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | HIGH | NONE, 
+  p24FJ1024GB610, 0xE00, 0x0, 0x0}
+{"FSEC:CSS:ENH",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | ENHANCED | NONE, 
+  p24FJ1024GB610, 0xE00, 0x800, 0x0}
+{"FSEC:CSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | STANDARD | NONE, 
+  p24FJ1024GB610, 0xE00, 0xC00, 0x0}
+{"FSEC:CSS:DIS",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | NONE, 
+  p24FJ1024GB610, 0xE00, 0xE00, 0x0}
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
+  p24FJ1024GB610, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p24FJ1024GB610, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HI",
+  IS_CODEGUARD_ID | FLASH | BOOT | HIGH | NONE, 
+  p24FJ1024GB610, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STD",
+  IS_CODEGUARD_ID | FLASH | BOOT | STANDARD | NONE, 
+  p24FJ1024GB610, 0x6, 0x4, 0x0}
+{"FSEC:BSS:OFF",
+  IS_CODEGUARD_ID | FLASH | BOOT | NONE, 
+  p24FJ1024GB610, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p24FJ1024GB610, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p24FJ1024GB610, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HI",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | HIGH | ON, 
+  p24FJ1024GB610, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STD",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p24FJ1024GB610, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:OFF",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
+  p24FJ1024GB610, 0xC0, 0xC0, 0x0}
+{"FSEC:CWRP:ON",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | ON,
+  p24FJ1024GB610, 0x100, 0x0, 0x0}
+{"FSEC:CWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | OFF,
+  p24FJ1024GB610, 0x100, 0x100, 0x0}
+{"FSEC:CSS:HI",
+  IS_CODEGUARD_ID | FLASH | CONFIG | HIGH | NONE, 
+  p24FJ1024GB610, 0xE00, 0x0, 0x0}
+{"FSEC:CSS:ENH",
+  IS_CODEGUARD_ID | FLASH | CONFIG | ENHANCED | NONE, 
+  p24FJ1024GB610, 0xE00, 0x800, 0x0}
+{"FSEC:CSS:STD",
+  IS_CODEGUARD_ID | FLASH | CONFIG | STANDARD | NONE, 
+  p24FJ1024GB610, 0xE00, 0xC00, 0x0}
+{"FSEC:CSS:DIS",
+  IS_CODEGUARD_ID | FLASH | CONFIG | NONE, 
+  p24FJ1024GB610, 0xE00, 0xE00, 0x0}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | WRITE_PROTECT | ON,
+  p24FJ128GA606, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p24FJ128GA606, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | HIGH | NONE, 
+  p24FJ128GA606, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | STANDARD | NONE, 
+  p24FJ128GA606, 0x6, 0x4, 0x0}
+{"FSEC:BSS:OFF",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | NONE, 
+  p24FJ128GA606, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p24FJ128GA606, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p24FJ128GA606, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | HIGH | ON, 
+  p24FJ128GA606, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p24FJ128GA606, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:OFF",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | OFF, 
+  p24FJ128GA606, 0xC0, 0xC0, 0x0}
+{"FSEC:CWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | WRITE_PROTECT | ON,
+  p24FJ128GA606, 0x100, 0x0, 0x0}
+{"FSEC:CWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | WRITE_PROTECT | OFF,
+  p24FJ128GA606, 0x100, 0x100, 0x0}
+{"FSEC:CSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | HIGH | NONE, 
+  p24FJ128GA606, 0xE00, 0x0, 0x0}
+{"FSEC:CSS:ENH",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | ENHANCED | NONE, 
+  p24FJ128GA606, 0xE00, 0x800, 0x0}
+{"FSEC:CSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | STANDARD | NONE, 
+  p24FJ128GA606, 0xE00, 0xC00, 0x0}
+{"FSEC:CSS:DIS",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | NONE, 
+  p24FJ128GA606, 0xE00, 0xE00, 0x0}
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
+  p24FJ128GA606, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p24FJ128GA606, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HI",
+  IS_CODEGUARD_ID | FLASH | BOOT | HIGH | NONE, 
+  p24FJ128GA606, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STD",
+  IS_CODEGUARD_ID | FLASH | BOOT | STANDARD | NONE, 
+  p24FJ128GA606, 0x6, 0x4, 0x0}
+{"FSEC:BSS:OFF",
+  IS_CODEGUARD_ID | FLASH | BOOT | NONE, 
+  p24FJ128GA606, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p24FJ128GA606, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p24FJ128GA606, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HI",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | HIGH | ON, 
+  p24FJ128GA606, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STD",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p24FJ128GA606, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:OFF",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
+  p24FJ128GA606, 0xC0, 0xC0, 0x0}
+{"FSEC:CWRP:ON",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | ON,
+  p24FJ128GA606, 0x100, 0x0, 0x0}
+{"FSEC:CWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | OFF,
+  p24FJ128GA606, 0x100, 0x100, 0x0}
+{"FSEC:CSS:HI",
+  IS_CODEGUARD_ID | FLASH | CONFIG | HIGH | NONE, 
+  p24FJ128GA606, 0xE00, 0x0, 0x0}
+{"FSEC:CSS:ENH",
+  IS_CODEGUARD_ID | FLASH | CONFIG | ENHANCED | NONE, 
+  p24FJ128GA606, 0xE00, 0x800, 0x0}
+{"FSEC:CSS:STD",
+  IS_CODEGUARD_ID | FLASH | CONFIG | STANDARD | NONE, 
+  p24FJ128GA606, 0xE00, 0xC00, 0x0}
+{"FSEC:CSS:DIS",
+  IS_CODEGUARD_ID | FLASH | CONFIG | NONE, 
+  p24FJ128GA606, 0xE00, 0xE00, 0x0}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | WRITE_PROTECT | ON,
+  p24FJ128GA610, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p24FJ128GA610, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | HIGH | NONE, 
+  p24FJ128GA610, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | STANDARD | NONE, 
+  p24FJ128GA610, 0x6, 0x4, 0x0}
+{"FSEC:BSS:OFF",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | NONE, 
+  p24FJ128GA610, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p24FJ128GA610, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p24FJ128GA610, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | HIGH | ON, 
+  p24FJ128GA610, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p24FJ128GA610, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:OFF",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | OFF, 
+  p24FJ128GA610, 0xC0, 0xC0, 0x0}
+{"FSEC:CWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | WRITE_PROTECT | ON,
+  p24FJ128GA610, 0x100, 0x0, 0x0}
+{"FSEC:CWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | WRITE_PROTECT | OFF,
+  p24FJ128GA610, 0x100, 0x100, 0x0}
+{"FSEC:CSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | HIGH | NONE, 
+  p24FJ128GA610, 0xE00, 0x0, 0x0}
+{"FSEC:CSS:ENH",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | ENHANCED | NONE, 
+  p24FJ128GA610, 0xE00, 0x800, 0x0}
+{"FSEC:CSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | STANDARD | NONE, 
+  p24FJ128GA610, 0xE00, 0xC00, 0x0}
+{"FSEC:CSS:DIS",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | NONE, 
+  p24FJ128GA610, 0xE00, 0xE00, 0x0}
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
+  p24FJ128GA610, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p24FJ128GA610, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HI",
+  IS_CODEGUARD_ID | FLASH | BOOT | HIGH | NONE, 
+  p24FJ128GA610, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STD",
+  IS_CODEGUARD_ID | FLASH | BOOT | STANDARD | NONE, 
+  p24FJ128GA610, 0x6, 0x4, 0x0}
+{"FSEC:BSS:OFF",
+  IS_CODEGUARD_ID | FLASH | BOOT | NONE, 
+  p24FJ128GA610, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p24FJ128GA610, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p24FJ128GA610, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HI",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | HIGH | ON, 
+  p24FJ128GA610, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STD",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p24FJ128GA610, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:OFF",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
+  p24FJ128GA610, 0xC0, 0xC0, 0x0}
+{"FSEC:CWRP:ON",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | ON,
+  p24FJ128GA610, 0x100, 0x0, 0x0}
+{"FSEC:CWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | OFF,
+  p24FJ128GA610, 0x100, 0x100, 0x0}
+{"FSEC:CSS:HI",
+  IS_CODEGUARD_ID | FLASH | CONFIG | HIGH | NONE, 
+  p24FJ128GA610, 0xE00, 0x0, 0x0}
+{"FSEC:CSS:ENH",
+  IS_CODEGUARD_ID | FLASH | CONFIG | ENHANCED | NONE, 
+  p24FJ128GA610, 0xE00, 0x800, 0x0}
+{"FSEC:CSS:STD",
+  IS_CODEGUARD_ID | FLASH | CONFIG | STANDARD | NONE, 
+  p24FJ128GA610, 0xE00, 0xC00, 0x0}
+{"FSEC:CSS:DIS",
+  IS_CODEGUARD_ID | FLASH | CONFIG | NONE, 
+  p24FJ128GA610, 0xE00, 0xE00, 0x0}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | WRITE_PROTECT | ON,
+  p24FJ128GB606, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p24FJ128GB606, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | HIGH | NONE, 
+  p24FJ128GB606, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | STANDARD | NONE, 
+  p24FJ128GB606, 0x6, 0x4, 0x0}
+{"FSEC:BSS:OFF",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | NONE, 
+  p24FJ128GB606, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p24FJ128GB606, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p24FJ128GB606, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | HIGH | ON, 
+  p24FJ128GB606, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p24FJ128GB606, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:OFF",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | OFF, 
+  p24FJ128GB606, 0xC0, 0xC0, 0x0}
+{"FSEC:CWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | WRITE_PROTECT | ON,
+  p24FJ128GB606, 0x100, 0x0, 0x0}
+{"FSEC:CWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | WRITE_PROTECT | OFF,
+  p24FJ128GB606, 0x100, 0x100, 0x0}
+{"FSEC:CSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | HIGH | NONE, 
+  p24FJ128GB606, 0xE00, 0x0, 0x0}
+{"FSEC:CSS:ENH",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | ENHANCED | NONE, 
+  p24FJ128GB606, 0xE00, 0x800, 0x0}
+{"FSEC:CSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | STANDARD | NONE, 
+  p24FJ128GB606, 0xE00, 0xC00, 0x0}
+{"FSEC:CSS:DIS",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | NONE, 
+  p24FJ128GB606, 0xE00, 0xE00, 0x0}
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
+  p24FJ128GB606, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p24FJ128GB606, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HI",
+  IS_CODEGUARD_ID | FLASH | BOOT | HIGH | NONE, 
+  p24FJ128GB606, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STD",
+  IS_CODEGUARD_ID | FLASH | BOOT | STANDARD | NONE, 
+  p24FJ128GB606, 0x6, 0x4, 0x0}
+{"FSEC:BSS:OFF",
+  IS_CODEGUARD_ID | FLASH | BOOT | NONE, 
+  p24FJ128GB606, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p24FJ128GB606, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p24FJ128GB606, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HI",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | HIGH | ON, 
+  p24FJ128GB606, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STD",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p24FJ128GB606, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:OFF",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
+  p24FJ128GB606, 0xC0, 0xC0, 0x0}
+{"FSEC:CWRP:ON",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | ON,
+  p24FJ128GB606, 0x100, 0x0, 0x0}
+{"FSEC:CWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | OFF,
+  p24FJ128GB606, 0x100, 0x100, 0x0}
+{"FSEC:CSS:HI",
+  IS_CODEGUARD_ID | FLASH | CONFIG | HIGH | NONE, 
+  p24FJ128GB606, 0xE00, 0x0, 0x0}
+{"FSEC:CSS:ENH",
+  IS_CODEGUARD_ID | FLASH | CONFIG | ENHANCED | NONE, 
+  p24FJ128GB606, 0xE00, 0x800, 0x0}
+{"FSEC:CSS:STD",
+  IS_CODEGUARD_ID | FLASH | CONFIG | STANDARD | NONE, 
+  p24FJ128GB606, 0xE00, 0xC00, 0x0}
+{"FSEC:CSS:DIS",
+  IS_CODEGUARD_ID | FLASH | CONFIG | NONE, 
+  p24FJ128GB606, 0xE00, 0xE00, 0x0}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | WRITE_PROTECT | ON,
+  p24FJ128GB610, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p24FJ128GB610, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | HIGH | NONE, 
+  p24FJ128GB610, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | STANDARD | NONE, 
+  p24FJ128GB610, 0x6, 0x4, 0x0}
+{"FSEC:BSS:OFF",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | NONE, 
+  p24FJ128GB610, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p24FJ128GB610, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p24FJ128GB610, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | HIGH | ON, 
+  p24FJ128GB610, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p24FJ128GB610, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:OFF",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | OFF, 
+  p24FJ128GB610, 0xC0, 0xC0, 0x0}
+{"FSEC:CWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | WRITE_PROTECT | ON,
+  p24FJ128GB610, 0x100, 0x0, 0x0}
+{"FSEC:CWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | WRITE_PROTECT | OFF,
+  p24FJ128GB610, 0x100, 0x100, 0x0}
+{"FSEC:CSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | HIGH | NONE, 
+  p24FJ128GB610, 0xE00, 0x0, 0x0}
+{"FSEC:CSS:ENH",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | ENHANCED | NONE, 
+  p24FJ128GB610, 0xE00, 0x800, 0x0}
+{"FSEC:CSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | STANDARD | NONE, 
+  p24FJ128GB610, 0xE00, 0xC00, 0x0}
+{"FSEC:CSS:DIS",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | NONE, 
+  p24FJ128GB610, 0xE00, 0xE00, 0x0}
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
+  p24FJ128GB610, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p24FJ128GB610, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HI",
+  IS_CODEGUARD_ID | FLASH | BOOT | HIGH | NONE, 
+  p24FJ128GB610, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STD",
+  IS_CODEGUARD_ID | FLASH | BOOT | STANDARD | NONE, 
+  p24FJ128GB610, 0x6, 0x4, 0x0}
+{"FSEC:BSS:OFF",
+  IS_CODEGUARD_ID | FLASH | BOOT | NONE, 
+  p24FJ128GB610, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p24FJ128GB610, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p24FJ128GB610, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HI",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | HIGH | ON, 
+  p24FJ128GB610, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STD",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p24FJ128GB610, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:OFF",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
+  p24FJ128GB610, 0xC0, 0xC0, 0x0}
+{"FSEC:CWRP:ON",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | ON,
+  p24FJ128GB610, 0x100, 0x0, 0x0}
+{"FSEC:CWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | OFF,
+  p24FJ128GB610, 0x100, 0x100, 0x0}
+{"FSEC:CSS:HI",
+  IS_CODEGUARD_ID | FLASH | CONFIG | HIGH | NONE, 
+  p24FJ128GB610, 0xE00, 0x0, 0x0}
+{"FSEC:CSS:ENH",
+  IS_CODEGUARD_ID | FLASH | CONFIG | ENHANCED | NONE, 
+  p24FJ128GB610, 0xE00, 0x800, 0x0}
+{"FSEC:CSS:STD",
+  IS_CODEGUARD_ID | FLASH | CONFIG | STANDARD | NONE, 
+  p24FJ128GB610, 0xE00, 0xC00, 0x0}
+{"FSEC:CSS:DIS",
+  IS_CODEGUARD_ID | FLASH | CONFIG | NONE, 
+  p24FJ128GB610, 0xE00, 0xE00, 0x0}
 /*-------------------------------------------------------------------------
  * MPLAB-Cxx resource file
  *
@@ -2438,6 +3583,494 @@
  *
  *------------------------------------------------------------------------*/
 
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | WRITE_PROTECT | ON,
+  p24FJ256GA606, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p24FJ256GA606, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | HIGH | NONE, 
+  p24FJ256GA606, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | STANDARD | NONE, 
+  p24FJ256GA606, 0x6, 0x4, 0x0}
+{"FSEC:BSS:OFF",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | NONE, 
+  p24FJ256GA606, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p24FJ256GA606, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p24FJ256GA606, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | HIGH | ON, 
+  p24FJ256GA606, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p24FJ256GA606, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:OFF",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | OFF, 
+  p24FJ256GA606, 0xC0, 0xC0, 0x0}
+{"FSEC:CWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | WRITE_PROTECT | ON,
+  p24FJ256GA606, 0x100, 0x0, 0x0}
+{"FSEC:CWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | WRITE_PROTECT | OFF,
+  p24FJ256GA606, 0x100, 0x100, 0x0}
+{"FSEC:CSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | HIGH | NONE, 
+  p24FJ256GA606, 0xE00, 0x0, 0x0}
+{"FSEC:CSS:ENH",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | ENHANCED | NONE, 
+  p24FJ256GA606, 0xE00, 0x800, 0x0}
+{"FSEC:CSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | STANDARD | NONE, 
+  p24FJ256GA606, 0xE00, 0xC00, 0x0}
+{"FSEC:CSS:DIS",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | NONE, 
+  p24FJ256GA606, 0xE00, 0xE00, 0x0}
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
+  p24FJ256GA606, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p24FJ256GA606, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HI",
+  IS_CODEGUARD_ID | FLASH | BOOT | HIGH | NONE, 
+  p24FJ256GA606, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STD",
+  IS_CODEGUARD_ID | FLASH | BOOT | STANDARD | NONE, 
+  p24FJ256GA606, 0x6, 0x4, 0x0}
+{"FSEC:BSS:OFF",
+  IS_CODEGUARD_ID | FLASH | BOOT | NONE, 
+  p24FJ256GA606, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p24FJ256GA606, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p24FJ256GA606, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HI",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | HIGH | ON, 
+  p24FJ256GA606, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STD",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p24FJ256GA606, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:OFF",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
+  p24FJ256GA606, 0xC0, 0xC0, 0x0}
+{"FSEC:CWRP:ON",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | ON,
+  p24FJ256GA606, 0x100, 0x0, 0x0}
+{"FSEC:CWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | OFF,
+  p24FJ256GA606, 0x100, 0x100, 0x0}
+{"FSEC:CSS:HI",
+  IS_CODEGUARD_ID | FLASH | CONFIG | HIGH | NONE, 
+  p24FJ256GA606, 0xE00, 0x0, 0x0}
+{"FSEC:CSS:ENH",
+  IS_CODEGUARD_ID | FLASH | CONFIG | ENHANCED | NONE, 
+  p24FJ256GA606, 0xE00, 0x800, 0x0}
+{"FSEC:CSS:STD",
+  IS_CODEGUARD_ID | FLASH | CONFIG | STANDARD | NONE, 
+  p24FJ256GA606, 0xE00, 0xC00, 0x0}
+{"FSEC:CSS:DIS",
+  IS_CODEGUARD_ID | FLASH | CONFIG | NONE, 
+  p24FJ256GA606, 0xE00, 0xE00, 0x0}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | WRITE_PROTECT | ON,
+  p24FJ256GA610, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p24FJ256GA610, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | HIGH | NONE, 
+  p24FJ256GA610, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | STANDARD | NONE, 
+  p24FJ256GA610, 0x6, 0x4, 0x0}
+{"FSEC:BSS:OFF",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | NONE, 
+  p24FJ256GA610, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p24FJ256GA610, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p24FJ256GA610, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | HIGH | ON, 
+  p24FJ256GA610, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p24FJ256GA610, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:OFF",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | OFF, 
+  p24FJ256GA610, 0xC0, 0xC0, 0x0}
+{"FSEC:CWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | WRITE_PROTECT | ON,
+  p24FJ256GA610, 0x100, 0x0, 0x0}
+{"FSEC:CWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | WRITE_PROTECT | OFF,
+  p24FJ256GA610, 0x100, 0x100, 0x0}
+{"FSEC:CSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | HIGH | NONE, 
+  p24FJ256GA610, 0xE00, 0x0, 0x0}
+{"FSEC:CSS:ENH",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | ENHANCED | NONE, 
+  p24FJ256GA610, 0xE00, 0x800, 0x0}
+{"FSEC:CSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | STANDARD | NONE, 
+  p24FJ256GA610, 0xE00, 0xC00, 0x0}
+{"FSEC:CSS:DIS",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | NONE, 
+  p24FJ256GA610, 0xE00, 0xE00, 0x0}
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
+  p24FJ256GA610, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p24FJ256GA610, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HI",
+  IS_CODEGUARD_ID | FLASH | BOOT | HIGH | NONE, 
+  p24FJ256GA610, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STD",
+  IS_CODEGUARD_ID | FLASH | BOOT | STANDARD | NONE, 
+  p24FJ256GA610, 0x6, 0x4, 0x0}
+{"FSEC:BSS:OFF",
+  IS_CODEGUARD_ID | FLASH | BOOT | NONE, 
+  p24FJ256GA610, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p24FJ256GA610, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p24FJ256GA610, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HI",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | HIGH | ON, 
+  p24FJ256GA610, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STD",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p24FJ256GA610, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:OFF",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
+  p24FJ256GA610, 0xC0, 0xC0, 0x0}
+{"FSEC:CWRP:ON",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | ON,
+  p24FJ256GA610, 0x100, 0x0, 0x0}
+{"FSEC:CWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | OFF,
+  p24FJ256GA610, 0x100, 0x100, 0x0}
+{"FSEC:CSS:HI",
+  IS_CODEGUARD_ID | FLASH | CONFIG | HIGH | NONE, 
+  p24FJ256GA610, 0xE00, 0x0, 0x0}
+{"FSEC:CSS:ENH",
+  IS_CODEGUARD_ID | FLASH | CONFIG | ENHANCED | NONE, 
+  p24FJ256GA610, 0xE00, 0x800, 0x0}
+{"FSEC:CSS:STD",
+  IS_CODEGUARD_ID | FLASH | CONFIG | STANDARD | NONE, 
+  p24FJ256GA610, 0xE00, 0xC00, 0x0}
+{"FSEC:CSS:DIS",
+  IS_CODEGUARD_ID | FLASH | CONFIG | NONE, 
+  p24FJ256GA610, 0xE00, 0xE00, 0x0}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | WRITE_PROTECT | ON,
+  p24FJ256GB606, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p24FJ256GB606, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | HIGH | NONE, 
+  p24FJ256GB606, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | STANDARD | NONE, 
+  p24FJ256GB606, 0x6, 0x4, 0x0}
+{"FSEC:BSS:OFF",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | NONE, 
+  p24FJ256GB606, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p24FJ256GB606, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p24FJ256GB606, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | HIGH | ON, 
+  p24FJ256GB606, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p24FJ256GB606, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:OFF",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | OFF, 
+  p24FJ256GB606, 0xC0, 0xC0, 0x0}
+{"FSEC:CWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | WRITE_PROTECT | ON,
+  p24FJ256GB606, 0x100, 0x0, 0x0}
+{"FSEC:CWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | WRITE_PROTECT | OFF,
+  p24FJ256GB606, 0x100, 0x100, 0x0}
+{"FSEC:CSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | HIGH | NONE, 
+  p24FJ256GB606, 0xE00, 0x0, 0x0}
+{"FSEC:CSS:ENH",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | ENHANCED | NONE, 
+  p24FJ256GB606, 0xE00, 0x800, 0x0}
+{"FSEC:CSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | STANDARD | NONE, 
+  p24FJ256GB606, 0xE00, 0xC00, 0x0}
+{"FSEC:CSS:DIS",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | NONE, 
+  p24FJ256GB606, 0xE00, 0xE00, 0x0}
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
+  p24FJ256GB606, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p24FJ256GB606, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HI",
+  IS_CODEGUARD_ID | FLASH | BOOT | HIGH | NONE, 
+  p24FJ256GB606, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STD",
+  IS_CODEGUARD_ID | FLASH | BOOT | STANDARD | NONE, 
+  p24FJ256GB606, 0x6, 0x4, 0x0}
+{"FSEC:BSS:OFF",
+  IS_CODEGUARD_ID | FLASH | BOOT | NONE, 
+  p24FJ256GB606, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p24FJ256GB606, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p24FJ256GB606, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HI",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | HIGH | ON, 
+  p24FJ256GB606, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STD",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p24FJ256GB606, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:OFF",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
+  p24FJ256GB606, 0xC0, 0xC0, 0x0}
+{"FSEC:CWRP:ON",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | ON,
+  p24FJ256GB606, 0x100, 0x0, 0x0}
+{"FSEC:CWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | OFF,
+  p24FJ256GB606, 0x100, 0x100, 0x0}
+{"FSEC:CSS:HI",
+  IS_CODEGUARD_ID | FLASH | CONFIG | HIGH | NONE, 
+  p24FJ256GB606, 0xE00, 0x0, 0x0}
+{"FSEC:CSS:ENH",
+  IS_CODEGUARD_ID | FLASH | CONFIG | ENHANCED | NONE, 
+  p24FJ256GB606, 0xE00, 0x800, 0x0}
+{"FSEC:CSS:STD",
+  IS_CODEGUARD_ID | FLASH | CONFIG | STANDARD | NONE, 
+  p24FJ256GB606, 0xE00, 0xC00, 0x0}
+{"FSEC:CSS:DIS",
+  IS_CODEGUARD_ID | FLASH | CONFIG | NONE, 
+  p24FJ256GB606, 0xE00, 0xE00, 0x0}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | WRITE_PROTECT | ON,
+  p24FJ256GB610, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p24FJ256GB610, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | HIGH | NONE, 
+  p24FJ256GB610, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | STANDARD | NONE, 
+  p24FJ256GB610, 0x6, 0x4, 0x0}
+{"FSEC:BSS:OFF",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | NONE, 
+  p24FJ256GB610, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p24FJ256GB610, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p24FJ256GB610, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | HIGH | ON, 
+  p24FJ256GB610, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p24FJ256GB610, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:OFF",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | OFF, 
+  p24FJ256GB610, 0xC0, 0xC0, 0x0}
+{"FSEC:CWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | WRITE_PROTECT | ON,
+  p24FJ256GB610, 0x100, 0x0, 0x0}
+{"FSEC:CWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | WRITE_PROTECT | OFF,
+  p24FJ256GB610, 0x100, 0x100, 0x0}
+{"FSEC:CSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | HIGH | NONE, 
+  p24FJ256GB610, 0xE00, 0x0, 0x0}
+{"FSEC:CSS:ENH",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | ENHANCED | NONE, 
+  p24FJ256GB610, 0xE00, 0x800, 0x0}
+{"FSEC:CSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | STANDARD | NONE, 
+  p24FJ256GB610, 0xE00, 0xC00, 0x0}
+{"FSEC:CSS:DIS",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | NONE, 
+  p24FJ256GB610, 0xE00, 0xE00, 0x0}
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
+  p24FJ256GB610, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p24FJ256GB610, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HI",
+  IS_CODEGUARD_ID | FLASH | BOOT | HIGH | NONE, 
+  p24FJ256GB610, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STD",
+  IS_CODEGUARD_ID | FLASH | BOOT | STANDARD | NONE, 
+  p24FJ256GB610, 0x6, 0x4, 0x0}
+{"FSEC:BSS:OFF",
+  IS_CODEGUARD_ID | FLASH | BOOT | NONE, 
+  p24FJ256GB610, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p24FJ256GB610, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p24FJ256GB610, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HI",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | HIGH | ON, 
+  p24FJ256GB610, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STD",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p24FJ256GB610, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:OFF",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
+  p24FJ256GB610, 0xC0, 0xC0, 0x0}
+{"FSEC:CWRP:ON",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | ON,
+  p24FJ256GB610, 0x100, 0x0, 0x0}
+{"FSEC:CWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | OFF,
+  p24FJ256GB610, 0x100, 0x100, 0x0}
+{"FSEC:CSS:HI",
+  IS_CODEGUARD_ID | FLASH | CONFIG | HIGH | NONE, 
+  p24FJ256GB610, 0xE00, 0x0, 0x0}
+{"FSEC:CSS:ENH",
+  IS_CODEGUARD_ID | FLASH | CONFIG | ENHANCED | NONE, 
+  p24FJ256GB610, 0xE00, 0x800, 0x0}
+{"FSEC:CSS:STD",
+  IS_CODEGUARD_ID | FLASH | CONFIG | STANDARD | NONE, 
+  p24FJ256GB610, 0xE00, 0xC00, 0x0}
+{"FSEC:CSS:DIS",
+  IS_CODEGUARD_ID | FLASH | CONFIG | NONE, 
+  p24FJ256GB610, 0xE00, 0xE00, 0x0}
 /*-------------------------------------------------------------------------
  * MPLAB-Cxx resource file
  *
@@ -2594,6 +4227,102 @@
  *
  *------------------------------------------------------------------------*/
 
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | WRITE_PROTECT | ON,
+  p24FJ512GA606, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p24FJ512GA606, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | HIGH | NONE, 
+  p24FJ512GA606, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | STANDARD | NONE, 
+  p24FJ512GA606, 0x6, 0x4, 0x0}
+{"FSEC:BSS:OFF",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | NONE, 
+  p24FJ512GA606, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p24FJ512GA606, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p24FJ512GA606, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | HIGH | ON, 
+  p24FJ512GA606, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p24FJ512GA606, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:OFF",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | OFF, 
+  p24FJ512GA606, 0xC0, 0xC0, 0x0}
+{"FSEC:CWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | WRITE_PROTECT | ON,
+  p24FJ512GA606, 0x100, 0x0, 0x0}
+{"FSEC:CWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | WRITE_PROTECT | OFF,
+  p24FJ512GA606, 0x100, 0x100, 0x0}
+{"FSEC:CSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | HIGH | NONE, 
+  p24FJ512GA606, 0xE00, 0x0, 0x0}
+{"FSEC:CSS:ENH",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | ENHANCED | NONE, 
+  p24FJ512GA606, 0xE00, 0x800, 0x0}
+{"FSEC:CSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | STANDARD | NONE, 
+  p24FJ512GA606, 0xE00, 0xC00, 0x0}
+{"FSEC:CSS:DIS",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | NONE, 
+  p24FJ512GA606, 0xE00, 0xE00, 0x0}
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
+  p24FJ512GA606, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p24FJ512GA606, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HI",
+  IS_CODEGUARD_ID | FLASH | BOOT | HIGH | NONE, 
+  p24FJ512GA606, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STD",
+  IS_CODEGUARD_ID | FLASH | BOOT | STANDARD | NONE, 
+  p24FJ512GA606, 0x6, 0x4, 0x0}
+{"FSEC:BSS:OFF",
+  IS_CODEGUARD_ID | FLASH | BOOT | NONE, 
+  p24FJ512GA606, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p24FJ512GA606, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p24FJ512GA606, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HI",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | HIGH | ON, 
+  p24FJ512GA606, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STD",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p24FJ512GA606, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:OFF",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
+  p24FJ512GA606, 0xC0, 0xC0, 0x0}
+{"FSEC:CWRP:ON",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | ON,
+  p24FJ512GA606, 0x100, 0x0, 0x0}
+{"FSEC:CWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | OFF,
+  p24FJ512GA606, 0x100, 0x100, 0x0}
+{"FSEC:CSS:HI",
+  IS_CODEGUARD_ID | FLASH | CONFIG | HIGH | NONE, 
+  p24FJ512GA606, 0xE00, 0x0, 0x0}
+{"FSEC:CSS:ENH",
+  IS_CODEGUARD_ID | FLASH | CONFIG | ENHANCED | NONE, 
+  p24FJ512GA606, 0xE00, 0x800, 0x0}
+{"FSEC:CSS:STD",
+  IS_CODEGUARD_ID | FLASH | CONFIG | STANDARD | NONE, 
+  p24FJ512GA606, 0xE00, 0xC00, 0x0}
+{"FSEC:CSS:DIS",
+  IS_CODEGUARD_ID | FLASH | CONFIG | NONE, 
+  p24FJ512GA606, 0xE00, 0xE00, 0x0}
 /*-------------------------------------------------------------------------
  * MPLAB-Cxx resource file
  *
@@ -2607,6 +4336,102 @@
  *
  *------------------------------------------------------------------------*/
 
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | WRITE_PROTECT | ON,
+  p24FJ512GA610, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p24FJ512GA610, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | HIGH | NONE, 
+  p24FJ512GA610, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | STANDARD | NONE, 
+  p24FJ512GA610, 0x6, 0x4, 0x0}
+{"FSEC:BSS:OFF",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | NONE, 
+  p24FJ512GA610, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p24FJ512GA610, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p24FJ512GA610, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | HIGH | ON, 
+  p24FJ512GA610, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p24FJ512GA610, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:OFF",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | OFF, 
+  p24FJ512GA610, 0xC0, 0xC0, 0x0}
+{"FSEC:CWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | WRITE_PROTECT | ON,
+  p24FJ512GA610, 0x100, 0x0, 0x0}
+{"FSEC:CWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | WRITE_PROTECT | OFF,
+  p24FJ512GA610, 0x100, 0x100, 0x0}
+{"FSEC:CSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | HIGH | NONE, 
+  p24FJ512GA610, 0xE00, 0x0, 0x0}
+{"FSEC:CSS:ENH",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | ENHANCED | NONE, 
+  p24FJ512GA610, 0xE00, 0x800, 0x0}
+{"FSEC:CSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | STANDARD | NONE, 
+  p24FJ512GA610, 0xE00, 0xC00, 0x0}
+{"FSEC:CSS:DIS",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | NONE, 
+  p24FJ512GA610, 0xE00, 0xE00, 0x0}
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
+  p24FJ512GA610, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p24FJ512GA610, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HI",
+  IS_CODEGUARD_ID | FLASH | BOOT | HIGH | NONE, 
+  p24FJ512GA610, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STD",
+  IS_CODEGUARD_ID | FLASH | BOOT | STANDARD | NONE, 
+  p24FJ512GA610, 0x6, 0x4, 0x0}
+{"FSEC:BSS:OFF",
+  IS_CODEGUARD_ID | FLASH | BOOT | NONE, 
+  p24FJ512GA610, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p24FJ512GA610, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p24FJ512GA610, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HI",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | HIGH | ON, 
+  p24FJ512GA610, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STD",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p24FJ512GA610, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:OFF",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
+  p24FJ512GA610, 0xC0, 0xC0, 0x0}
+{"FSEC:CWRP:ON",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | ON,
+  p24FJ512GA610, 0x100, 0x0, 0x0}
+{"FSEC:CWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | OFF,
+  p24FJ512GA610, 0x100, 0x100, 0x0}
+{"FSEC:CSS:HI",
+  IS_CODEGUARD_ID | FLASH | CONFIG | HIGH | NONE, 
+  p24FJ512GA610, 0xE00, 0x0, 0x0}
+{"FSEC:CSS:ENH",
+  IS_CODEGUARD_ID | FLASH | CONFIG | ENHANCED | NONE, 
+  p24FJ512GA610, 0xE00, 0x800, 0x0}
+{"FSEC:CSS:STD",
+  IS_CODEGUARD_ID | FLASH | CONFIG | STANDARD | NONE, 
+  p24FJ512GA610, 0xE00, 0xC00, 0x0}
+{"FSEC:CSS:DIS",
+  IS_CODEGUARD_ID | FLASH | CONFIG | NONE, 
+  p24FJ512GA610, 0xE00, 0xE00, 0x0}
 /*-------------------------------------------------------------------------
  * MPLAB-Cxx resource file
  *
@@ -2620,6 +4445,102 @@
  *
  *------------------------------------------------------------------------*/
 
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | WRITE_PROTECT | ON,
+  p24FJ512GB606, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p24FJ512GB606, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | HIGH | NONE, 
+  p24FJ512GB606, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | STANDARD | NONE, 
+  p24FJ512GB606, 0x6, 0x4, 0x0}
+{"FSEC:BSS:OFF",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | NONE, 
+  p24FJ512GB606, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p24FJ512GB606, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p24FJ512GB606, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | HIGH | ON, 
+  p24FJ512GB606, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p24FJ512GB606, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:OFF",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | OFF, 
+  p24FJ512GB606, 0xC0, 0xC0, 0x0}
+{"FSEC:CWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | WRITE_PROTECT | ON,
+  p24FJ512GB606, 0x100, 0x0, 0x0}
+{"FSEC:CWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | WRITE_PROTECT | OFF,
+  p24FJ512GB606, 0x100, 0x100, 0x0}
+{"FSEC:CSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | HIGH | NONE, 
+  p24FJ512GB606, 0xE00, 0x0, 0x0}
+{"FSEC:CSS:ENH",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | ENHANCED | NONE, 
+  p24FJ512GB606, 0xE00, 0x800, 0x0}
+{"FSEC:CSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | STANDARD | NONE, 
+  p24FJ512GB606, 0xE00, 0xC00, 0x0}
+{"FSEC:CSS:DIS",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | NONE, 
+  p24FJ512GB606, 0xE00, 0xE00, 0x0}
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
+  p24FJ512GB606, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p24FJ512GB606, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HI",
+  IS_CODEGUARD_ID | FLASH | BOOT | HIGH | NONE, 
+  p24FJ512GB606, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STD",
+  IS_CODEGUARD_ID | FLASH | BOOT | STANDARD | NONE, 
+  p24FJ512GB606, 0x6, 0x4, 0x0}
+{"FSEC:BSS:OFF",
+  IS_CODEGUARD_ID | FLASH | BOOT | NONE, 
+  p24FJ512GB606, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p24FJ512GB606, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p24FJ512GB606, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HI",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | HIGH | ON, 
+  p24FJ512GB606, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STD",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p24FJ512GB606, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:OFF",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
+  p24FJ512GB606, 0xC0, 0xC0, 0x0}
+{"FSEC:CWRP:ON",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | ON,
+  p24FJ512GB606, 0x100, 0x0, 0x0}
+{"FSEC:CWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | OFF,
+  p24FJ512GB606, 0x100, 0x100, 0x0}
+{"FSEC:CSS:HI",
+  IS_CODEGUARD_ID | FLASH | CONFIG | HIGH | NONE, 
+  p24FJ512GB606, 0xE00, 0x0, 0x0}
+{"FSEC:CSS:ENH",
+  IS_CODEGUARD_ID | FLASH | CONFIG | ENHANCED | NONE, 
+  p24FJ512GB606, 0xE00, 0x800, 0x0}
+{"FSEC:CSS:STD",
+  IS_CODEGUARD_ID | FLASH | CONFIG | STANDARD | NONE, 
+  p24FJ512GB606, 0xE00, 0xC00, 0x0}
+{"FSEC:CSS:DIS",
+  IS_CODEGUARD_ID | FLASH | CONFIG | NONE, 
+  p24FJ512GB606, 0xE00, 0xE00, 0x0}
 /*-------------------------------------------------------------------------
  * MPLAB-Cxx resource file
  *
@@ -2633,279 +4554,102 @@
  *
  *------------------------------------------------------------------------*/
 
-/*-------------------------------------------------------------------------
- * MPLAB-Cxx resource file
- *
- * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
- *-------------------------------------------------------------------------
- *
- * This file is composed of the following: 
- *   {"config word name:setting:value" 
- *     flags (or'd together) 
- *     processor, bit mask, bit value, boundary address} 
- *
- *------------------------------------------------------------------------*/
-
-/*-------------------------------------------------------------------------
- * MPLAB-Cxx resource file
- *
- * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
- *-------------------------------------------------------------------------
- *
- * This file is composed of the following: 
- *   {"config word name:setting:value" 
- *     flags (or'd together) 
- *     processor, bit mask, bit value, boundary address} 
- *
- *------------------------------------------------------------------------*/
-
-/*-------------------------------------------------------------------------
- * MPLAB-Cxx resource file
- *
- * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
- *-------------------------------------------------------------------------
- *
- * This file is composed of the following: 
- *   {"config word name:setting:value" 
- *     flags (or'd together) 
- *     processor, bit mask, bit value, boundary address} 
- *
- *------------------------------------------------------------------------*/
-
-/*-------------------------------------------------------------------------
- * MPLAB-Cxx resource file
- *
- * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
- *-------------------------------------------------------------------------
- *
- * This file is composed of the following: 
- *   {"config word name:setting:value" 
- *     flags (or'd together) 
- *     processor, bit mask, bit value, boundary address} 
- *
- *------------------------------------------------------------------------*/
-
-/*-------------------------------------------------------------------------
- * MPLAB-Cxx resource file
- *
- * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
- *-------------------------------------------------------------------------
- *
- * This file is composed of the following: 
- *   {"config word name:setting:value" 
- *     flags (or'd together) 
- *     processor, bit mask, bit value, boundary address} 
- *
- *------------------------------------------------------------------------*/
-
-/*-------------------------------------------------------------------------
- * MPLAB-Cxx resource file
- *
- * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
- *-------------------------------------------------------------------------
- *
- * This file is composed of the following: 
- *   {"config word name:setting:value" 
- *     flags (or'd together) 
- *     processor, bit mask, bit value, boundary address} 
- *
- *------------------------------------------------------------------------*/
-
-/*-------------------------------------------------------------------------
- * MPLAB-Cxx resource file
- *
- * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
- *-------------------------------------------------------------------------
- *
- * This file is composed of the following: 
- *   {"config word name:setting:value" 
- *     flags (or'd together) 
- *     processor, bit mask, bit value, boundary address} 
- *
- *------------------------------------------------------------------------*/
-
-/*-------------------------------------------------------------------------
- * MPLAB-Cxx resource file
- *
- * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
- *-------------------------------------------------------------------------
- *
- * This file is composed of the following: 
- *   {"config word name:setting:value" 
- *     flags (or'd together) 
- *     processor, bit mask, bit value, boundary address} 
- *
- *------------------------------------------------------------------------*/
-
-/*-------------------------------------------------------------------------
- * MPLAB-Cxx resource file
- *
- * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
- *-------------------------------------------------------------------------
- *
- * This file is composed of the following: 
- *   {"config word name:setting:value" 
- *     flags (or'd together) 
- *     processor, bit mask, bit value, boundary address} 
- *
- *------------------------------------------------------------------------*/
-
-/*-------------------------------------------------------------------------
- * MPLAB-Cxx resource file
- *
- * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
- *-------------------------------------------------------------------------
- *
- * This file is composed of the following: 
- *   {"config word name:setting:value" 
- *     flags (or'd together) 
- *     processor, bit mask, bit value, boundary address} 
- *
- *------------------------------------------------------------------------*/
-
-/*-------------------------------------------------------------------------
- * MPLAB-Cxx resource file
- *
- * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
- *-------------------------------------------------------------------------
- *
- * This file is composed of the following: 
- *   {"config word name:setting:value" 
- *     flags (or'd together) 
- *     processor, bit mask, bit value, boundary address} 
- *
- *------------------------------------------------------------------------*/
-
-/*-------------------------------------------------------------------------
- * MPLAB-Cxx resource file
- *
- * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
- *-------------------------------------------------------------------------
- *
- * This file is composed of the following: 
- *   {"config word name:setting:value" 
- *     flags (or'd together) 
- *     processor, bit mask, bit value, boundary address} 
- *
- *------------------------------------------------------------------------*/
-
-/*-------------------------------------------------------------------------
- * MPLAB-Cxx resource file
- *
- * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
- *-------------------------------------------------------------------------
- *
- * This file is composed of the following: 
- *   {"config word name:setting:value" 
- *     flags (or'd together) 
- *     processor, bit mask, bit value, boundary address} 
- *
- *------------------------------------------------------------------------*/
-
-/*-------------------------------------------------------------------------
- * MPLAB-Cxx resource file
- *
- * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
- *-------------------------------------------------------------------------
- *
- * This file is composed of the following: 
- *   {"config word name:setting:value" 
- *     flags (or'd together) 
- *     processor, bit mask, bit value, boundary address} 
- *
- *------------------------------------------------------------------------*/
-
-/*-------------------------------------------------------------------------
- * MPLAB-Cxx resource file
- *
- * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
- *-------------------------------------------------------------------------
- *
- * This file is composed of the following: 
- *   {"config word name:setting:value" 
- *     flags (or'd together) 
- *     processor, bit mask, bit value, boundary address} 
- *
- *------------------------------------------------------------------------*/
-
-/*-------------------------------------------------------------------------
- * MPLAB-Cxx resource file
- *
- * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
- *-------------------------------------------------------------------------
- *
- * This file is composed of the following: 
- *   {"config word name:setting:value" 
- *     flags (or'd together) 
- *     processor, bit mask, bit value, boundary address} 
- *
- *------------------------------------------------------------------------*/
-
-/*-------------------------------------------------------------------------
- * MPLAB-Cxx resource file
- *
- * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
- *-------------------------------------------------------------------------
- *
- * This file is composed of the following: 
- *   {"config word name:setting:value" 
- *     flags (or'd together) 
- *     processor, bit mask, bit value, boundary address} 
- *
- *------------------------------------------------------------------------*/
-
-/*-------------------------------------------------------------------------
- * MPLAB-Cxx resource file
- *
- * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
- *-------------------------------------------------------------------------
- *
- * This file is composed of the following: 
- *   {"config word name:setting:value" 
- *     flags (or'd together) 
- *     processor, bit mask, bit value, boundary address} 
- *
- *------------------------------------------------------------------------*/
-
-/*-------------------------------------------------------------------------
- * MPLAB-Cxx resource file
- *
- * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
- *-------------------------------------------------------------------------
- *
- * This file is composed of the following: 
- *   {"config word name:setting:value" 
- *     flags (or'd together) 
- *     processor, bit mask, bit value, boundary address} 
- *
- *------------------------------------------------------------------------*/
-
-/*-------------------------------------------------------------------------
- * MPLAB-Cxx resource file
- *
- * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
- *-------------------------------------------------------------------------
- *
- * This file is composed of the following: 
- *   {"config word name:setting:value" 
- *     flags (or'd together) 
- *     processor, bit mask, bit value, boundary address} 
- *
- *------------------------------------------------------------------------*/
-
-/*-------------------------------------------------------------------------
- * MPLAB-Cxx resource file
- *
- * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
- *-------------------------------------------------------------------------
- *
- * This file is composed of the following: 
- *   {"config word name:setting:value" 
- *     flags (or'd together) 
- *     processor, bit mask, bit value, boundary address} 
- *
- *------------------------------------------------------------------------*/
-
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | WRITE_PROTECT | ON,
+  p24FJ512GB610, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p24FJ512GB610, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | HIGH | NONE, 
+  p24FJ512GB610, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | STANDARD | NONE, 
+  p24FJ512GB610, 0x6, 0x4, 0x0}
+{"FSEC:BSS:OFF",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | NONE, 
+  p24FJ512GB610, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p24FJ512GB610, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p24FJ512GB610, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | HIGH | ON, 
+  p24FJ512GB610, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p24FJ512GB610, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:OFF",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | OFF, 
+  p24FJ512GB610, 0xC0, 0xC0, 0x0}
+{"FSEC:CWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | WRITE_PROTECT | ON,
+  p24FJ512GB610, 0x100, 0x0, 0x0}
+{"FSEC:CWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | WRITE_PROTECT | OFF,
+  p24FJ512GB610, 0x100, 0x100, 0x0}
+{"FSEC:CSS:HI",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | HIGH | NONE, 
+  p24FJ512GB610, 0xE00, 0x0, 0x0}
+{"FSEC:CSS:ENH",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | ENHANCED | NONE, 
+  p24FJ512GB610, 0xE00, 0x800, 0x0}
+{"FSEC:CSS:STD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | STANDARD | NONE, 
+  p24FJ512GB610, 0xE00, 0xC00, 0x0}
+{"FSEC:CSS:DIS",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | NONE, 
+  p24FJ512GB610, 0xE00, 0xE00, 0x0}
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
+  p24FJ512GB610, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p24FJ512GB610, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HI",
+  IS_CODEGUARD_ID | FLASH | BOOT | HIGH | NONE, 
+  p24FJ512GB610, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STD",
+  IS_CODEGUARD_ID | FLASH | BOOT | STANDARD | NONE, 
+  p24FJ512GB610, 0x6, 0x4, 0x0}
+{"FSEC:BSS:OFF",
+  IS_CODEGUARD_ID | FLASH | BOOT | NONE, 
+  p24FJ512GB610, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p24FJ512GB610, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p24FJ512GB610, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HI",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | HIGH | ON, 
+  p24FJ512GB610, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STD",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p24FJ512GB610, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:OFF",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
+  p24FJ512GB610, 0xC0, 0xC0, 0x0}
+{"FSEC:CWRP:ON",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | ON,
+  p24FJ512GB610, 0x100, 0x0, 0x0}
+{"FSEC:CWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | OFF,
+  p24FJ512GB610, 0x100, 0x100, 0x0}
+{"FSEC:CSS:HI",
+  IS_CODEGUARD_ID | FLASH | CONFIG | HIGH | NONE, 
+  p24FJ512GB610, 0xE00, 0x0, 0x0}
+{"FSEC:CSS:ENH",
+  IS_CODEGUARD_ID | FLASH | CONFIG | ENHANCED | NONE, 
+  p24FJ512GB610, 0xE00, 0x800, 0x0}
+{"FSEC:CSS:STD",
+  IS_CODEGUARD_ID | FLASH | CONFIG | STANDARD | NONE, 
+  p24FJ512GB610, 0xE00, 0xC00, 0x0}
+{"FSEC:CSS:DIS",
+  IS_CODEGUARD_ID | FLASH | CONFIG | NONE, 
+  p24FJ512GB610, 0xE00, 0xE00, 0x0}
 /*-------------------------------------------------------------------------
  * MPLAB-Cxx resource file
  *
@@ -12396,6 +14140,189 @@
  *
  *------------------------------------------------------------------------*/
 
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
+  p33EP16GS502, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p33EP16GS502, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | BOOT | HIGH | NONE, 
+  p33EP16GS502, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | BOOT | STANDARD | NONE, 
+  p33EP16GS502, 0x6, 0x4, 0x0}
+{"FSEC:BSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | BOOT | NONE, 
+  p33EP16GS502, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p33EP16GS502, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p33EP16GS502, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | HIGH | ON, 
+  p33EP16GS502, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p33EP16GS502, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
+  p33EP16GS502, 0xC0, 0xC0, 0x0}
+{"FSEC:CWRP:ON",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | ON,
+  p33EP16GS502, 0x100, 0x0, 0x0}
+{"FSEC:CWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | OFF,
+  p33EP16GS502, 0x100, 0x100, 0x0}
+{"FSEC:CSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | CONFIG | HIGH | NONE, 
+  p33EP16GS502, 0xE00, 0x0, 0x0}
+{"FSEC:CSS:ENHNCD",
+  IS_CODEGUARD_ID | FLASH | CONFIG | ENHANCED | NONE, 
+  p33EP16GS502, 0xE00, 0x800, 0x0}
+{"FSEC:CSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | CONFIG | STANDARD | NONE, 
+  p33EP16GS502, 0xE00, 0xC00, 0x0}
+{"FSEC:CSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | CONFIG | NONE, 
+  p33EP16GS502, 0xE00, 0xE00, 0x0}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
+  p33EP16GS504, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p33EP16GS504, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | BOOT | HIGH | NONE, 
+  p33EP16GS504, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | BOOT | STANDARD | NONE, 
+  p33EP16GS504, 0x6, 0x4, 0x0}
+{"FSEC:BSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | BOOT | NONE, 
+  p33EP16GS504, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p33EP16GS504, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p33EP16GS504, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | HIGH | ON, 
+  p33EP16GS504, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p33EP16GS504, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
+  p33EP16GS504, 0xC0, 0xC0, 0x0}
+{"FSEC:CWRP:ON",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | ON,
+  p33EP16GS504, 0x100, 0x0, 0x0}
+{"FSEC:CWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | OFF,
+  p33EP16GS504, 0x100, 0x100, 0x0}
+{"FSEC:CSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | CONFIG | HIGH | NONE, 
+  p33EP16GS504, 0xE00, 0x0, 0x0}
+{"FSEC:CSS:ENHNCD",
+  IS_CODEGUARD_ID | FLASH | CONFIG | ENHANCED | NONE, 
+  p33EP16GS504, 0xE00, 0x800, 0x0}
+{"FSEC:CSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | CONFIG | STANDARD | NONE, 
+  p33EP16GS504, 0xE00, 0xC00, 0x0}
+{"FSEC:CSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | CONFIG | NONE, 
+  p33EP16GS504, 0xE00, 0xE00, 0x0}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
+  p33EP16GS506, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p33EP16GS506, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | BOOT | HIGH | NONE, 
+  p33EP16GS506, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | BOOT | STANDARD | NONE, 
+  p33EP16GS506, 0x6, 0x4, 0x0}
+{"FSEC:BSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | BOOT | NONE, 
+  p33EP16GS506, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p33EP16GS506, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p33EP16GS506, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | HIGH | ON, 
+  p33EP16GS506, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p33EP16GS506, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
+  p33EP16GS506, 0xC0, 0xC0, 0x0}
+{"FSEC:CWRP:ON",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | ON,
+  p33EP16GS506, 0x100, 0x0, 0x0}
+{"FSEC:CWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | OFF,
+  p33EP16GS506, 0x100, 0x100, 0x0}
+{"FSEC:CSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | CONFIG | HIGH | NONE, 
+  p33EP16GS506, 0xE00, 0x0, 0x0}
+{"FSEC:CSS:ENHNCD",
+  IS_CODEGUARD_ID | FLASH | CONFIG | ENHANCED | NONE, 
+  p33EP16GS506, 0xE00, 0x800, 0x0}
+{"FSEC:CSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | CONFIG | STANDARD | NONE, 
+  p33EP16GS506, 0xE00, 0xC00, 0x0}
+{"FSEC:CSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | CONFIG | NONE, 
+  p33EP16GS506, 0xE00, 0xE00, 0x0}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP256GM304, 0x1, 0x0, 0x0}
@@ -13058,6 +14985,189 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP32GP504, 0x2, 0x2, 0x57EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
+  p33EP32GS502, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p33EP32GS502, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | BOOT | HIGH | NONE, 
+  p33EP32GS502, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | BOOT | STANDARD | NONE, 
+  p33EP32GS502, 0x6, 0x4, 0x0}
+{"FSEC:BSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | BOOT | NONE, 
+  p33EP32GS502, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p33EP32GS502, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p33EP32GS502, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | HIGH | ON, 
+  p33EP32GS502, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p33EP32GS502, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
+  p33EP32GS502, 0xC0, 0xC0, 0x0}
+{"FSEC:CWRP:ON",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | ON,
+  p33EP32GS502, 0x100, 0x0, 0x0}
+{"FSEC:CWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | OFF,
+  p33EP32GS502, 0x100, 0x100, 0x0}
+{"FSEC:CSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | CONFIG | HIGH | NONE, 
+  p33EP32GS502, 0xE00, 0x0, 0x0}
+{"FSEC:CSS:ENHNCD",
+  IS_CODEGUARD_ID | FLASH | CONFIG | ENHANCED | NONE, 
+  p33EP32GS502, 0xE00, 0x800, 0x0}
+{"FSEC:CSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | CONFIG | STANDARD | NONE, 
+  p33EP32GS502, 0xE00, 0xC00, 0x0}
+{"FSEC:CSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | CONFIG | NONE, 
+  p33EP32GS502, 0xE00, 0xE00, 0x0}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
+  p33EP32GS504, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p33EP32GS504, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | BOOT | HIGH | NONE, 
+  p33EP32GS504, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | BOOT | STANDARD | NONE, 
+  p33EP32GS504, 0x6, 0x4, 0x0}
+{"FSEC:BSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | BOOT | NONE, 
+  p33EP32GS504, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p33EP32GS504, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p33EP32GS504, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | HIGH | ON, 
+  p33EP32GS504, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p33EP32GS504, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
+  p33EP32GS504, 0xC0, 0xC0, 0x0}
+{"FSEC:CWRP:ON",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | ON,
+  p33EP32GS504, 0x100, 0x0, 0x0}
+{"FSEC:CWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | OFF,
+  p33EP32GS504, 0x100, 0x100, 0x0}
+{"FSEC:CSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | CONFIG | HIGH | NONE, 
+  p33EP32GS504, 0xE00, 0x0, 0x0}
+{"FSEC:CSS:ENHNCD",
+  IS_CODEGUARD_ID | FLASH | CONFIG | ENHANCED | NONE, 
+  p33EP32GS504, 0xE00, 0x800, 0x0}
+{"FSEC:CSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | CONFIG | STANDARD | NONE, 
+  p33EP32GS504, 0xE00, 0xC00, 0x0}
+{"FSEC:CSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | CONFIG | NONE, 
+  p33EP32GS504, 0xE00, 0xE00, 0x0}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
+  p33EP32GS506, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p33EP32GS506, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | BOOT | HIGH | NONE, 
+  p33EP32GS506, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | BOOT | STANDARD | NONE, 
+  p33EP32GS506, 0x6, 0x4, 0x0}
+{"FSEC:BSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | BOOT | NONE, 
+  p33EP32GS506, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p33EP32GS506, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p33EP32GS506, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | HIGH | ON, 
+  p33EP32GS506, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p33EP32GS506, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
+  p33EP32GS506, 0xC0, 0xC0, 0x0}
+{"FSEC:CWRP:ON",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | ON,
+  p33EP32GS506, 0x100, 0x0, 0x0}
+{"FSEC:CWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | CONFIG | WRITE_PROTECT | OFF,
+  p33EP32GS506, 0x100, 0x100, 0x0}
+{"FSEC:CSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | CONFIG | HIGH | NONE, 
+  p33EP32GS506, 0xE00, 0x0, 0x0}
+{"FSEC:CSS:ENHNCD",
+  IS_CODEGUARD_ID | FLASH | CONFIG | ENHANCED | NONE, 
+  p33EP32GS506, 0xE00, 0x800, 0x0}
+{"FSEC:CSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | CONFIG | STANDARD | NONE, 
+  p33EP32GS506, 0xE00, 0xC00, 0x0}
+{"FSEC:CSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | CONFIG | NONE, 
+  p33EP32GS506, 0xE00, 0xE00, 0x0}
 /*-------------------------------------------------------------------------
  * MPLAB-Cxx resource file
  *
@@ -13797,6 +15907,54 @@
  *------------------------------------------------------------------------*/
 
 {"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | WRITE_PROTECT | ON,
+  p33EP64GS502, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p33EP64GS502, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HIGH",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | HIGH | NONE, 
+  p33EP64GS502, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STNDRD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | STANDARD | NONE, 
+  p33EP64GS502, 0x6, 0x4, 0x0}
+{"FSEC:BSS:DISABLED",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | NONE, 
+  p33EP64GS502, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p33EP64GS502, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p33EP64GS502, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HIGH",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | HIGH | ON, 
+  p33EP64GS502, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STNDRD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p33EP64GS502, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:DISABLED",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | OFF, 
+  p33EP64GS502, 0xC0, 0xC0, 0x0}
+{"FSEC:CWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | WRITE_PROTECT | ON,
+  p33EP64GS502, 0x100, 0x0, 0x0}
+{"FSEC:CWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | WRITE_PROTECT | OFF,
+  p33EP64GS502, 0x100, 0x100, 0x0}
+{"FSEC:CSS:HIGH",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | HIGH | NONE, 
+  p33EP64GS502, 0xE00, 0x0, 0x0}
+{"FSEC:CSS:ENHNCD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | ENHANCED | NONE, 
+  p33EP64GS502, 0xE00, 0x800, 0x0}
+{"FSEC:CSS:STNDRD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | STANDARD | NONE, 
+  p33EP64GS502, 0xE00, 0xC00, 0x0}
+{"FSEC:CSS:DISABLED",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | NONE, 
+  p33EP64GS502, 0xE00, 0xE00, 0x0}
+{"FSEC:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33EP64GS502, 0x1, 0x0, 0x0}
 {"FSEC:BWRP:OFF",
@@ -13858,6 +16016,54 @@
  *------------------------------------------------------------------------*/
 
 {"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | WRITE_PROTECT | ON,
+  p33EP64GS504, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p33EP64GS504, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HIGH",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | HIGH | NONE, 
+  p33EP64GS504, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STNDRD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | STANDARD | NONE, 
+  p33EP64GS504, 0x6, 0x4, 0x0}
+{"FSEC:BSS:DISABLED",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | NONE, 
+  p33EP64GS504, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p33EP64GS504, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p33EP64GS504, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HIGH",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | HIGH | ON, 
+  p33EP64GS504, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STNDRD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p33EP64GS504, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:DISABLED",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | OFF, 
+  p33EP64GS504, 0xC0, 0xC0, 0x0}
+{"FSEC:CWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | WRITE_PROTECT | ON,
+  p33EP64GS504, 0x100, 0x0, 0x0}
+{"FSEC:CWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | WRITE_PROTECT | OFF,
+  p33EP64GS504, 0x100, 0x100, 0x0}
+{"FSEC:CSS:HIGH",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | HIGH | NONE, 
+  p33EP64GS504, 0xE00, 0x0, 0x0}
+{"FSEC:CSS:ENHNCD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | ENHANCED | NONE, 
+  p33EP64GS504, 0xE00, 0x800, 0x0}
+{"FSEC:CSS:STNDRD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | STANDARD | NONE, 
+  p33EP64GS504, 0xE00, 0xC00, 0x0}
+{"FSEC:CSS:DISABLED",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | NONE, 
+  p33EP64GS504, 0xE00, 0xE00, 0x0}
+{"FSEC:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33EP64GS504, 0x1, 0x0, 0x0}
 {"FSEC:BWRP:OFF",
@@ -13918,6 +16124,54 @@
  *
  *------------------------------------------------------------------------*/
 
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | WRITE_PROTECT | ON,
+  p33EP64GS506, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p33EP64GS506, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HIGH",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | HIGH | NONE, 
+  p33EP64GS506, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STNDRD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | STANDARD | NONE, 
+  p33EP64GS506, 0x6, 0x4, 0x0}
+{"FSEC:BSS:DISABLED",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | BOOT | NONE, 
+  p33EP64GS506, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p33EP64GS506, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p33EP64GS506, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HIGH",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | HIGH | ON, 
+  p33EP64GS506, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STNDRD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p33EP64GS506, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:DISABLED",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CODE_PROTECT | OFF, 
+  p33EP64GS506, 0xC0, 0xC0, 0x0}
+{"FSEC:CWRP:ON",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | WRITE_PROTECT | ON,
+  p33EP64GS506, 0x100, 0x0, 0x0}
+{"FSEC:CWRP:OFF",
+ IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | WRITE_PROTECT | OFF,
+  p33EP64GS506, 0x100, 0x100, 0x0}
+{"FSEC:CSS:HIGH",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | HIGH | NONE, 
+  p33EP64GS506, 0xE00, 0x0, 0x0}
+{"FSEC:CSS:ENHNCD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | ENHANCED | NONE, 
+  p33EP64GS506, 0xE00, 0x800, 0x0}
+{"FSEC:CSS:STNDRD",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | STANDARD | NONE, 
+  p33EP64GS506, 0xE00, 0xC00, 0x0}
+{"FSEC:CSS:DISABLED",
+  IS_CODEGUARD_ID | PARTITIONED | FLASH | CONFIG | NONE, 
+  p33EP64GS506, 0xE00, 0xE00, 0x0}
 {"FSEC:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33EP64GS506, 0x1, 0x0, 0x0}
@@ -14316,6 +16570,780 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP64MU506, 0x2, 0x2, 0x2AFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
+  p33EV128GM002, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p33EV128GM002, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | BOOT | HIGH | NONE, 
+  p33EV128GM002, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | BOOT | STANDARD | NONE, 
+  p33EV128GM002, 0x6, 0x4, 0x0}
+{"FSEC:BSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | BOOT | NONE, 
+  p33EV128GM002, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p33EV128GM002, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p33EV128GM002, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | HIGH | ON, 
+  p33EV128GM002, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p33EV128GM002, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
+  p33EV128GM002, 0xC0, 0xC0, 0x0}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
+  p33EV128GM004, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p33EV128GM004, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | BOOT | HIGH | NONE, 
+  p33EV128GM004, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | BOOT | STANDARD | NONE, 
+  p33EV128GM004, 0x6, 0x4, 0x0}
+{"FSEC:BSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | BOOT | NONE, 
+  p33EV128GM004, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p33EV128GM004, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p33EV128GM004, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | HIGH | ON, 
+  p33EV128GM004, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p33EV128GM004, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
+  p33EV128GM004, 0xC0, 0xC0, 0x0}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
+  p33EV128GM006, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p33EV128GM006, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | BOOT | HIGH | NONE, 
+  p33EV128GM006, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | BOOT | STANDARD | NONE, 
+  p33EV128GM006, 0x6, 0x4, 0x0}
+{"FSEC:BSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | BOOT | NONE, 
+  p33EV128GM006, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p33EV128GM006, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p33EV128GM006, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | HIGH | ON, 
+  p33EV128GM006, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p33EV128GM006, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
+  p33EV128GM006, 0xC0, 0xC0, 0x0}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
+  p33EV128GM102, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p33EV128GM102, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | BOOT | HIGH | NONE, 
+  p33EV128GM102, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | BOOT | STANDARD | NONE, 
+  p33EV128GM102, 0x6, 0x4, 0x0}
+{"FSEC:BSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | BOOT | NONE, 
+  p33EV128GM102, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p33EV128GM102, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p33EV128GM102, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | HIGH | ON, 
+  p33EV128GM102, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p33EV128GM102, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
+  p33EV128GM102, 0xC0, 0xC0, 0x0}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
+  p33EV128GM104, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p33EV128GM104, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | BOOT | HIGH | NONE, 
+  p33EV128GM104, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | BOOT | STANDARD | NONE, 
+  p33EV128GM104, 0x6, 0x4, 0x0}
+{"FSEC:BSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | BOOT | NONE, 
+  p33EV128GM104, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p33EV128GM104, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p33EV128GM104, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | HIGH | ON, 
+  p33EV128GM104, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p33EV128GM104, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
+  p33EV128GM104, 0xC0, 0xC0, 0x0}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
+  p33EV128GM106, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p33EV128GM106, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | BOOT | HIGH | NONE, 
+  p33EV128GM106, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | BOOT | STANDARD | NONE, 
+  p33EV128GM106, 0x6, 0x4, 0x0}
+{"FSEC:BSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | BOOT | NONE, 
+  p33EV128GM106, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p33EV128GM106, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p33EV128GM106, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | HIGH | ON, 
+  p33EV128GM106, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p33EV128GM106, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
+  p33EV128GM106, 0xC0, 0xC0, 0x0}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
+  p33EV256GM002, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p33EV256GM002, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | BOOT | HIGH | NONE, 
+  p33EV256GM002, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | BOOT | STANDARD | NONE, 
+  p33EV256GM002, 0x6, 0x4, 0x0}
+{"FSEC:BSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | BOOT | NONE, 
+  p33EV256GM002, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p33EV256GM002, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p33EV256GM002, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | HIGH | ON, 
+  p33EV256GM002, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p33EV256GM002, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
+  p33EV256GM002, 0xC0, 0xC0, 0x0}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
+  p33EV256GM004, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p33EV256GM004, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | BOOT | HIGH | NONE, 
+  p33EV256GM004, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | BOOT | STANDARD | NONE, 
+  p33EV256GM004, 0x6, 0x4, 0x0}
+{"FSEC:BSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | BOOT | NONE, 
+  p33EV256GM004, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p33EV256GM004, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p33EV256GM004, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | HIGH | ON, 
+  p33EV256GM004, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p33EV256GM004, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
+  p33EV256GM004, 0xC0, 0xC0, 0x0}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
+  p33EV256GM006, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p33EV256GM006, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | BOOT | HIGH | NONE, 
+  p33EV256GM006, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | BOOT | STANDARD | NONE, 
+  p33EV256GM006, 0x6, 0x4, 0x0}
+{"FSEC:BSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | BOOT | NONE, 
+  p33EV256GM006, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p33EV256GM006, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p33EV256GM006, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | HIGH | ON, 
+  p33EV256GM006, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p33EV256GM006, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
+  p33EV256GM006, 0xC0, 0xC0, 0x0}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
+  p33EV256GM102, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p33EV256GM102, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | BOOT | HIGH | NONE, 
+  p33EV256GM102, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | BOOT | STANDARD | NONE, 
+  p33EV256GM102, 0x6, 0x4, 0x0}
+{"FSEC:BSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | BOOT | NONE, 
+  p33EV256GM102, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p33EV256GM102, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p33EV256GM102, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | HIGH | ON, 
+  p33EV256GM102, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p33EV256GM102, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
+  p33EV256GM102, 0xC0, 0xC0, 0x0}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
+  p33EV256GM104, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p33EV256GM104, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | BOOT | HIGH | NONE, 
+  p33EV256GM104, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | BOOT | STANDARD | NONE, 
+  p33EV256GM104, 0x6, 0x4, 0x0}
+{"FSEC:BSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | BOOT | NONE, 
+  p33EV256GM104, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p33EV256GM104, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p33EV256GM104, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | HIGH | ON, 
+  p33EV256GM104, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p33EV256GM104, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
+  p33EV256GM104, 0xC0, 0xC0, 0x0}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
+  p33EV256GM106, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p33EV256GM106, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | BOOT | HIGH | NONE, 
+  p33EV256GM106, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | BOOT | STANDARD | NONE, 
+  p33EV256GM106, 0x6, 0x4, 0x0}
+{"FSEC:BSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | BOOT | NONE, 
+  p33EV256GM106, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p33EV256GM106, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p33EV256GM106, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | HIGH | ON, 
+  p33EV256GM106, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p33EV256GM106, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
+  p33EV256GM106, 0xC0, 0xC0, 0x0}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
+  p33EV64GM002, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p33EV64GM002, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | BOOT | HIGH | NONE, 
+  p33EV64GM002, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | BOOT | STANDARD | NONE, 
+  p33EV64GM002, 0x6, 0x4, 0x0}
+{"FSEC:BSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | BOOT | NONE, 
+  p33EV64GM002, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p33EV64GM002, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p33EV64GM002, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | HIGH | ON, 
+  p33EV64GM002, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p33EV64GM002, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
+  p33EV64GM002, 0xC0, 0xC0, 0x0}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
+  p33EV64GM004, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p33EV64GM004, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | BOOT | HIGH | NONE, 
+  p33EV64GM004, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | BOOT | STANDARD | NONE, 
+  p33EV64GM004, 0x6, 0x4, 0x0}
+{"FSEC:BSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | BOOT | NONE, 
+  p33EV64GM004, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p33EV64GM004, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p33EV64GM004, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | HIGH | ON, 
+  p33EV64GM004, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p33EV64GM004, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
+  p33EV64GM004, 0xC0, 0xC0, 0x0}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
+  p33EV64GM006, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p33EV64GM006, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | BOOT | HIGH | NONE, 
+  p33EV64GM006, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | BOOT | STANDARD | NONE, 
+  p33EV64GM006, 0x6, 0x4, 0x0}
+{"FSEC:BSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | BOOT | NONE, 
+  p33EV64GM006, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p33EV64GM006, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p33EV64GM006, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | HIGH | ON, 
+  p33EV64GM006, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p33EV64GM006, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
+  p33EV64GM006, 0xC0, 0xC0, 0x0}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
+  p33EV64GM102, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p33EV64GM102, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | BOOT | HIGH | NONE, 
+  p33EV64GM102, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | BOOT | STANDARD | NONE, 
+  p33EV64GM102, 0x6, 0x4, 0x0}
+{"FSEC:BSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | BOOT | NONE, 
+  p33EV64GM102, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p33EV64GM102, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p33EV64GM102, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | HIGH | ON, 
+  p33EV64GM102, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p33EV64GM102, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
+  p33EV64GM102, 0xC0, 0xC0, 0x0}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
+  p33EV64GM104, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p33EV64GM104, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | BOOT | HIGH | NONE, 
+  p33EV64GM104, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | BOOT | STANDARD | NONE, 
+  p33EV64GM104, 0x6, 0x4, 0x0}
+{"FSEC:BSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | BOOT | NONE, 
+  p33EV64GM104, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p33EV64GM104, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p33EV64GM104, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | HIGH | ON, 
+  p33EV64GM104, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p33EV64GM104, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
+  p33EV64GM104, 0xC0, 0xC0, 0x0}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+{"FSEC:BWRP:ON",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
+  p33EV64GM106, 0x1, 0x0, 0x0}
+{"FSEC:BWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | OFF,
+  p33EV64GM106, 0x1, 0x1, 0x0}
+{"FSEC:BSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | BOOT | HIGH | NONE, 
+  p33EV64GM106, 0x6, 0x0, 0x0}
+{"FSEC:BSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | BOOT | STANDARD | NONE, 
+  p33EV64GM106, 0x6, 0x4, 0x0}
+{"FSEC:BSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | BOOT | NONE, 
+  p33EV64GM106, 0x6, 0x6, 0x0}
+{"FSEC:GWRP:ON",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
+  p33EV64GM106, 0x20, 0x0, 0x0}
+{"FSEC:GWRP:OFF",
+ IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | OFF,
+  p33EV64GM106, 0x20, 0x20, 0x0}
+{"FSEC:GSS:HIGH",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | HIGH | ON, 
+  p33EV64GM106, 0xC0, 0x0, 0x0}
+{"FSEC:GSS:STNDRD",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | STANDARD | ON, 
+  p33EV64GM106, 0xC0, 0x80, 0x0}
+{"FSEC:GSS:DISABLED",
+  IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
+  p33EV64GM106, 0xC0, 0xC0, 0x0}
 /*-------------------------------------------------------------------------
  * MPLAB-Cxx resource file
  *

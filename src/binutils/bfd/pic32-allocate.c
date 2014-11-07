@@ -1477,7 +1477,7 @@ allocate_default_stack() {
   struct pic32_memory *big_block = 0;
   struct pic32_memory *b, *next;
   bfd_vma under,over;
-#define KSEG1_DATA_MEM_LIMIT 0xAFFFFFFFul;
+#define KSEG1_DATA_MEM_LIMIT 0xFFFFFFFFul;
   bfd_vma max_addr = KSEG1_DATA_MEM_LIMIT;
 
   /* if a free block straddles the upper limit, divide it */

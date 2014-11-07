@@ -608,6 +608,42 @@
  *-------------------------------------------------------------------------*/
 
 
+{"24FJ1024GA606", IS_DEVICE_ID | P24F | HAS_EDS | HAS_GIE | HAS_DUALPARTITION | HAS_CODEGUARD , 0x0}
+#define p24FJ1024GA606 0x0
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------*/
+
+
+{"24FJ1024GA610", IS_DEVICE_ID | P24F | HAS_EDS | HAS_GIE | HAS_DUALPARTITION | HAS_CODEGUARD , 0x0}
+#define p24FJ1024GA610 0x0
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------*/
+
+
+{"24FJ1024GB606", IS_DEVICE_ID | P24F | HAS_EDS | HAS_GIE | HAS_DUALPARTITION | HAS_CODEGUARD , 0x0}
+#define p24FJ1024GB606 0x0
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------*/
+
+
+{"24FJ1024GB610", IS_DEVICE_ID | P24F | HAS_EDS | HAS_GIE | HAS_DUALPARTITION | HAS_CODEGUARD , 0x0}
+#define p24FJ1024GB610 0x0
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------*/
+
+
 {"24FJ128DA106", IS_DEVICE_ID | P24F | HAS_EDS , 0x14f}
 #define p24FJ128DA106 0x14f
 /*-------------------------------------------------------------------------
@@ -743,6 +779,24 @@
  *-------------------------------------------------------------------------*/
 
 
+{"24FJ128GA606", IS_DEVICE_ID | P24F | HAS_EDS | HAS_GIE | HAS_DUALPARTITION | HAS_CODEGUARD , 0x0}
+#define p24FJ128GA606 0x0
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------*/
+
+
+{"24FJ128GA610", IS_DEVICE_ID | P24F | HAS_EDS | HAS_GIE | HAS_DUALPARTITION | HAS_CODEGUARD , 0x0}
+#define p24FJ128GA610 0x0
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------*/
+
+
 {"24FJ128GB106", IS_DEVICE_ID | P24F | HAS_PMP , 0x84}
 #define p24FJ128GB106 0x84
 /*-------------------------------------------------------------------------
@@ -799,6 +853,24 @@
 
 {"24FJ128GB210", IS_DEVICE_ID | P24F | HAS_EDS , 0x152}
 #define p24FJ128GB210 0x152
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------*/
+
+
+{"24FJ128GB606", IS_DEVICE_ID | P24F | HAS_EDS | HAS_GIE | HAS_DUALPARTITION | HAS_CODEGUARD , 0x0}
+#define p24FJ128GB606 0x0
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------*/
+
+
+{"24FJ128GB610", IS_DEVICE_ID | P24F | HAS_EDS | HAS_GIE | HAS_DUALPARTITION | HAS_CODEGUARD , 0x0}
+#define p24FJ128GB610 0x0
 /*-------------------------------------------------------------------------
  * MPLAB-Cxx resource file
  *
@@ -977,6 +1049,24 @@
  *-------------------------------------------------------------------------*/
 
 
+{"24FJ256GA606", IS_DEVICE_ID | P24F | HAS_EDS | HAS_GIE | HAS_DUALPARTITION | HAS_CODEGUARD , 0x0}
+#define p24FJ256GA606 0x0
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------*/
+
+
+{"24FJ256GA610", IS_DEVICE_ID | P24F | HAS_EDS | HAS_GIE | HAS_DUALPARTITION | HAS_CODEGUARD , 0x0}
+#define p24FJ256GA610 0x0
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------*/
+
+
 {"24FJ256GB106", IS_DEVICE_ID | P24F | HAS_PMP , 0x7f}
 #define p24FJ256GB106 0x7f
 /*-------------------------------------------------------------------------
@@ -1015,6 +1105,24 @@
 
 {"24FJ256GB210", IS_DEVICE_ID | P24F | HAS_EDS , 0x150}
 #define p24FJ256GB210 0x150
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------*/
+
+
+{"24FJ256GB606", IS_DEVICE_ID | P24F | HAS_EDS | HAS_GIE | HAS_DUALPARTITION | HAS_CODEGUARD , 0x0}
+#define p24FJ256GB606 0x0
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------*/
+
+
+{"24FJ256GB610", IS_DEVICE_ID | P24F | HAS_EDS | HAS_GIE | HAS_DUALPARTITION | HAS_CODEGUARD , 0x0}
+#define p24FJ256GB610 0x0
 /*-------------------------------------------------------------------------
  * MPLAB-Cxx resource file
  *
@@ -1114,6 +1222,42 @@
 
 {"24FJ48GA004", IS_DEVICE_ID | P24F | HAS_PMP , 0x7c}
 #define p24FJ48GA004 0x7c
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------*/
+
+
+{"24FJ512GA606", IS_DEVICE_ID | P24F | HAS_EDS | HAS_GIE | HAS_DUALPARTITION | HAS_CODEGUARD , 0x0}
+#define p24FJ512GA606 0x0
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------*/
+
+
+{"24FJ512GA610", IS_DEVICE_ID | P24F | HAS_EDS | HAS_GIE | HAS_DUALPARTITION | HAS_CODEGUARD , 0x0}
+#define p24FJ512GA610 0x0
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------*/
+
+
+{"24FJ512GB606", IS_DEVICE_ID | P24F | HAS_EDS | HAS_GIE | HAS_DUALPARTITION | HAS_CODEGUARD , 0x0}
+#define p24FJ512GB606 0x0
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------*/
+
+
+{"24FJ512GB610", IS_DEVICE_ID | P24F | HAS_EDS | HAS_GIE | HAS_DUALPARTITION | HAS_CODEGUARD , 0x0}
+#define p24FJ512GB610 0x0
 /*-------------------------------------------------------------------------
  * MPLAB-Cxx resource file
  *
@@ -2309,6 +2453,33 @@
  *-------------------------------------------------------------------------*/
 
 
+{"33EP16GS502", IS_DEVICE_ID | P33E | HAS_ECORE | HAS_DSP | HAS_EDS | HAS_GIE | HAS_CODEGUARD , 0x0}
+#define p33EP16GS502 0x0
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------*/
+
+
+{"33EP16GS504", IS_DEVICE_ID | P33E | HAS_ECORE | HAS_DSP | HAS_EDS | HAS_GIE | HAS_CODEGUARD , 0x0}
+#define p33EP16GS504 0x0
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------*/
+
+
+{"33EP16GS506", IS_DEVICE_ID | P33E | HAS_ECORE | HAS_DSP | HAS_EDS | HAS_GIE | HAS_CODEGUARD , 0x0}
+#define p33EP16GS506 0x0
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------*/
+
+
 {"33EP256GM304", IS_DEVICE_ID | P33E | HAS_ECORE | HAS_DSP | HAS_EDS | HAS_GIE | HAS_DMAV2 | HAS_CODEGUARD , 0x26c}
 #define p33EP256GM304 0x26c
 /*-------------------------------------------------------------------------
@@ -2545,6 +2716,33 @@
 
 {"33EP32GP504", IS_DEVICE_ID | P33E | HAS_ECORE | HAS_DSP | HAS_EDS | HAS_GIE | HAS_DMAV2 | HAS_CODEGUARD , 0x20f}
 #define p33EP32GP504 0x20f
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------*/
+
+
+{"33EP32GS502", IS_DEVICE_ID | P33E | HAS_ECORE | HAS_DSP | HAS_EDS | HAS_GIE | HAS_CODEGUARD , 0x0}
+#define p33EP32GS502 0x0
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------*/
+
+
+{"33EP32GS504", IS_DEVICE_ID | P33E | HAS_ECORE | HAS_DSP | HAS_EDS | HAS_GIE | HAS_CODEGUARD , 0x0}
+#define p33EP32GS504 0x0
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------*/
+
+
+{"33EP32GS506", IS_DEVICE_ID | P33E | HAS_ECORE | HAS_DSP | HAS_EDS | HAS_GIE | HAS_CODEGUARD , 0x0}
+#define p33EP32GS506 0x0
 /*-------------------------------------------------------------------------
  * MPLAB-Cxx resource file
  *
@@ -2813,7 +3011,7 @@
  *-------------------------------------------------------------------------*/
 
 
-{"33EP64GS502", IS_DEVICE_ID | P33E | HAS_ECORE | HAS_DSP | HAS_EDS | HAS_GIE | HAS_CODEGUARD , 0x2b8}
+{"33EP64GS502", IS_DEVICE_ID | P33E | HAS_ECORE | HAS_DSP | HAS_EDS | HAS_GIE | HAS_DUALPARTITION | HAS_CODEGUARD , 0x2b8}
 #define p33EP64GS502 0x2b8
 /*-------------------------------------------------------------------------
  * MPLAB-Cxx resource file
@@ -2822,7 +3020,7 @@
  *-------------------------------------------------------------------------*/
 
 
-{"33EP64GS504", IS_DEVICE_ID | P33E | HAS_ECORE | HAS_DSP | HAS_EDS | HAS_GIE | HAS_CODEGUARD , 0x2ba}
+{"33EP64GS504", IS_DEVICE_ID | P33E | HAS_ECORE | HAS_DSP | HAS_EDS | HAS_GIE | HAS_DUALPARTITION | HAS_CODEGUARD , 0x2ba}
 #define p33EP64GS504 0x2ba
 /*-------------------------------------------------------------------------
  * MPLAB-Cxx resource file
@@ -2831,7 +3029,7 @@
  *-------------------------------------------------------------------------*/
 
 
-{"33EP64GS506", IS_DEVICE_ID | P33E | HAS_ECORE | HAS_DSP | HAS_EDS | HAS_GIE | HAS_CODEGUARD , 0x2bb}
+{"33EP64GS506", IS_DEVICE_ID | P33E | HAS_ECORE | HAS_DSP | HAS_EDS | HAS_GIE | HAS_DUALPARTITION | HAS_CODEGUARD , 0x2bb}
 #define p33EP64GS506 0x2bb
 /*-------------------------------------------------------------------------
  * MPLAB-Cxx resource file
@@ -2959,6 +3157,168 @@
 
 {"33EP64MU506", IS_DEVICE_ID | P33E | HAS_ECORE | HAS_DSP | HAS_EDS | HAS_GIE | HAS_DMAV2 | HAS_CODEGUARD , 0x27d}
 #define p33EP64MU506 0x27d
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------*/
+
+
+{"33EV128GM002", IS_DEVICE_ID | P33E | HAS_ECORE | HAS_DSP | HAS_EDS | HAS_GIE | HAS_CODEGUARD , 0x2c2}
+#define p33EV128GM002 0x2c2
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------*/
+
+
+{"33EV128GM004", IS_DEVICE_ID | P33E | HAS_ECORE | HAS_DSP | HAS_EDS | HAS_GIE | HAS_CODEGUARD , 0x2c3}
+#define p33EV128GM004 0x2c3
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------*/
+
+
+{"33EV128GM006", IS_DEVICE_ID | P33E | HAS_ECORE | HAS_DSP | HAS_EDS | HAS_GIE | HAS_CODEGUARD , 0x2c4}
+#define p33EV128GM006 0x2c4
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------*/
+
+
+{"33EV128GM102", IS_DEVICE_ID | P33E | HAS_ECORE | HAS_DSP | HAS_EDS | HAS_GIE | HAS_CODEGUARD , 0x2c5}
+#define p33EV128GM102 0x2c5
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------*/
+
+
+{"33EV128GM104", IS_DEVICE_ID | P33E | HAS_ECORE | HAS_DSP | HAS_EDS | HAS_GIE | HAS_CODEGUARD , 0x2c6}
+#define p33EV128GM104 0x2c6
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------*/
+
+
+{"33EV128GM106", IS_DEVICE_ID | P33E | HAS_ECORE | HAS_DSP | HAS_EDS | HAS_GIE | HAS_CODEGUARD , 0x2c7}
+#define p33EV128GM106 0x2c7
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------*/
+
+
+{"33EV256GM002", IS_DEVICE_ID | P33E | HAS_ECORE | HAS_DSP | HAS_EDS | HAS_GIE | HAS_CODEGUARD , 0x2c8}
+#define p33EV256GM002 0x2c8
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------*/
+
+
+{"33EV256GM004", IS_DEVICE_ID | P33E | HAS_ECORE | HAS_DSP | HAS_EDS | HAS_GIE | HAS_CODEGUARD , 0x2c9}
+#define p33EV256GM004 0x2c9
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------*/
+
+
+{"33EV256GM006", IS_DEVICE_ID | P33E | HAS_ECORE | HAS_DSP | HAS_EDS | HAS_GIE | HAS_CODEGUARD , 0x2ca}
+#define p33EV256GM006 0x2ca
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------*/
+
+
+{"33EV256GM102", IS_DEVICE_ID | P33E | HAS_ECORE | HAS_DSP | HAS_EDS | HAS_GIE | HAS_CODEGUARD , 0x2cb}
+#define p33EV256GM102 0x2cb
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------*/
+
+
+{"33EV256GM104", IS_DEVICE_ID | P33E | HAS_ECORE | HAS_DSP | HAS_EDS | HAS_GIE | HAS_CODEGUARD , 0x2cc}
+#define p33EV256GM104 0x2cc
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------*/
+
+
+{"33EV256GM106", IS_DEVICE_ID | P33E | HAS_ECORE | HAS_DSP | HAS_EDS | HAS_GIE | HAS_CODEGUARD , 0x2cd}
+#define p33EV256GM106 0x2cd
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------*/
+
+
+{"33EV64GM002", IS_DEVICE_ID | P33E | HAS_ECORE | HAS_DSP | HAS_EDS | HAS_GIE | HAS_CODEGUARD , 0x2bc}
+#define p33EV64GM002 0x2bc
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------*/
+
+
+{"33EV64GM004", IS_DEVICE_ID | P33E | HAS_ECORE | HAS_DSP | HAS_EDS | HAS_GIE | HAS_CODEGUARD , 0x2bd}
+#define p33EV64GM004 0x2bd
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------*/
+
+
+{"33EV64GM006", IS_DEVICE_ID | P33E | HAS_ECORE | HAS_DSP | HAS_EDS | HAS_GIE | HAS_CODEGUARD , 0x2be}
+#define p33EV64GM006 0x2be
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------*/
+
+
+{"33EV64GM102", IS_DEVICE_ID | P33E | HAS_ECORE | HAS_DSP | HAS_EDS | HAS_GIE | HAS_CODEGUARD , 0x2bf}
+#define p33EV64GM102 0x2bf
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------*/
+
+
+{"33EV64GM104", IS_DEVICE_ID | P33E | HAS_ECORE | HAS_DSP | HAS_EDS | HAS_GIE | HAS_CODEGUARD , 0x2c0}
+#define p33EV64GM104 0x2c0
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------*/
+
+
+{"33EV64GM106", IS_DEVICE_ID | P33E | HAS_ECORE | HAS_DSP | HAS_EDS | HAS_GIE | HAS_CODEGUARD , 0x2c1}
+#define p33EV64GM106 0x2c1
 /*-------------------------------------------------------------------------
  * MPLAB-Cxx resource file
  *

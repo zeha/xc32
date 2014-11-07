@@ -248,7 +248,9 @@ int main(int argc, char **argv){
     for (r = records; r; r = r->next) {
       /* Check if the record is a device */
 #ifdef PIC32
-      if ( strncmp(r->fields[0]->v.s,"32",2) == 0) {
+      if ( (strncmp(r->fields[0]->v.s,"32",2)  == 0) ||
+           (strncmp(r->fields[0]->v.s,"MEC",3) == 0) ||
+           (strncmp(r->fields[0]->v.s,"IPS",3) == 0)) {
 #else
       if ( (strncmp(r->fields[0]->v.s,"24",2) == 0) ||
            (strncmp(r->fields[0]->v.s,"33",2) == 0) ||
@@ -657,7 +659,7 @@ int main(int argc, char **argv){
 #ifdef PIC32
             indent_fprintf(deviceSupportXML,
                            "<mp:device mp:name=\"%s%s\"/>\n",
-                           "PIC",
+                           r->fields[0]->v.s[0] == '3' ? "PIC" : "",
                            r->fields[0]->v.s);
 #else
             indent_fprintf(deviceSupportXML,
