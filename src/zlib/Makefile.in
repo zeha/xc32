@@ -68,7 +68,7 @@ test: all
 	fi
 
 libz.a: $(OBJS) $(OBJA)
-	$(AR) $@ $(OBJS) $(OBJA)
+	$(AR) rc $@ $(OBJS) $(OBJA)
 	-@ ($(RANLIB) $@ || true) >/dev/null 2>&1
 
 match.o: match.S

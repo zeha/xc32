@@ -2998,146 +2998,147 @@ mchp_strip_name_encoding (const char *symbol_name)
           *f++=#ALT[0]; \
           added |=  JOIN(conv_,ALT); }
 
-              if (match->encoded_name == 0)
-                {
-                  char extra_flags[sizeof("_aAcdeEfFgGnopsuxX0")] = "_";
-                  char *f = &extra_flags[1];
-                  mchp_conversion_status added;
-                  /*
-                   * order is important here
-                   *  add new flags alphabetically with lower case preceding uppercase
-                   *    ie _aAcdEfgG not
-                   *       _acdfgAEG
-                   */
+              {
+                char extra_flags[sizeof("_aAcdeEfFgGnopsuxX0")] = "_";
+                char *f = &extra_flags[1];
+                mchp_conversion_status added;
+                /*
+                 * order is important here
+                 *  add new flags alphabetically with lower case preceding uppercase
+                 *    ie _aAcdEfgG not
+                 *       _acdfgAEG
+                 */
 
-                  added = 0;
-                  /*
-                   * we don't implement all 131K unique combinations, only
-                   * a subset...
-                  */
+                added = 0;
+                /*
+                 * we don't implement all 131K unique combinations, only
+                 * a subset...
+                */
 
-                  /* a | A -> aA */
-                  CCS_ADD_FLAG(a);
-                  CCS_ADD_FLAG_ALT(A,a);
-                  CCS_ADD_FLAG(A);
-                  CCS_ADD_FLAG_ALT(a,A);
+                /* a | A -> aA */
+                CCS_ADD_FLAG(a);
+                CCS_ADD_FLAG_ALT(A,a);
+                CCS_ADD_FLAG(A);
+                CCS_ADD_FLAG_ALT(a,A);
 
-                  /* c | d | n | o | p | u | x | X -> cdnopuxX */
-                  CCS_ADD_FLAG(c);
-                  CCS_ADD_FLAG_ALT(d,c);
-                  CCS_ADD_FLAG_ALT(n,c);
-                  CCS_ADD_FLAG_ALT(o,c);
-                  CCS_ADD_FLAG_ALT(p,c);
-                  CCS_ADD_FLAG_ALT(u,c);
-                  CCS_ADD_FLAG_ALT(x,c);
-                  CCS_ADD_FLAG_ALT(X,c);
+                /* c | d | n | o | p | u | x | X -> cdnopuxX */
+                CCS_ADD_FLAG(c);
+                CCS_ADD_FLAG_ALT(d,c);
+                CCS_ADD_FLAG_ALT(n,c);
+                CCS_ADD_FLAG_ALT(o,c);
+                CCS_ADD_FLAG_ALT(p,c);
+                CCS_ADD_FLAG_ALT(u,c);
+                CCS_ADD_FLAG_ALT(x,c);
+                CCS_ADD_FLAG_ALT(X,c);
 
-                  /* c | d | n | o | p | u | x | X -> cdnopuxX */
-                  CCS_ADD_FLAG(d);
-                  CCS_ADD_FLAG_ALT(c,d);
-                  CCS_ADD_FLAG_ALT(n,d);
-                  CCS_ADD_FLAG_ALT(o,d);
-                  CCS_ADD_FLAG_ALT(p,d);
-                  CCS_ADD_FLAG_ALT(u,d);
-                  CCS_ADD_FLAG_ALT(x,d);
-                  CCS_ADD_FLAG_ALT(X,d);
+                /* c | d | n | o | p | u | x | X -> cdnopuxX */
+                CCS_ADD_FLAG(d);
+                CCS_ADD_FLAG_ALT(c,d);
+                CCS_ADD_FLAG_ALT(n,d);
+                CCS_ADD_FLAG_ALT(o,d);
+                CCS_ADD_FLAG_ALT(p,d);
+                CCS_ADD_FLAG_ALT(u,d);
+                CCS_ADD_FLAG_ALT(x,d);
+                CCS_ADD_FLAG_ALT(X,d);
 
-                  /* e | E -> eE */
-                  CCS_ADD_FLAG(e);
-                  CCS_ADD_FLAG_ALT(E,e);
-                  CCS_ADD_FLAG(E);
-                  CCS_ADD_FLAG_ALT(e,E);
+                /* e | E -> eE */
+                CCS_ADD_FLAG(e);
+                CCS_ADD_FLAG_ALT(E,e);
+                CCS_ADD_FLAG(E);
+                CCS_ADD_FLAG_ALT(e,E);
 
-                  /* f | F -> fF */
-                  CCS_ADD_FLAG(f);
-                  CCS_ADD_FLAG_ALT(F,f);
-                  CCS_ADD_FLAG(F);
-                  CCS_ADD_FLAG_ALT(f,F);
+                /* f | F -> fF */
+                CCS_ADD_FLAG(f);
+                CCS_ADD_FLAG_ALT(F,f);
+                CCS_ADD_FLAG(F);
+                CCS_ADD_FLAG_ALT(f,F);
 
-                  /* g | G -> gG */
-                  CCS_ADD_FLAG(g);
-                  CCS_ADD_FLAG_ALT(G,g);
-                  CCS_ADD_FLAG(G);
-                  CCS_ADD_FLAG_ALT(g,G);
+                /* g | G -> gG */
+                CCS_ADD_FLAG(g);
+                CCS_ADD_FLAG_ALT(G,g);
+                CCS_ADD_FLAG(G);
+                CCS_ADD_FLAG_ALT(g,G);
 
-                  /* c | d | n | o | p | u | x | X -> cdnopuxX */
-                  CCS_ADD_FLAG(n);
-                  CCS_ADD_FLAG_ALT(c,n);
-                  CCS_ADD_FLAG_ALT(d,n);
-                  CCS_ADD_FLAG_ALT(n,n);
-                  CCS_ADD_FLAG_ALT(o,n);
-                  CCS_ADD_FLAG_ALT(p,n);
-                  CCS_ADD_FLAG_ALT(u,n);
-                  CCS_ADD_FLAG_ALT(x,n);
-                  CCS_ADD_FLAG_ALT(X,n);
+                /* c | d | n | o | p | u | x | X -> cdnopuxX */
+                CCS_ADD_FLAG(n);
+                CCS_ADD_FLAG_ALT(c,n);
+                CCS_ADD_FLAG_ALT(d,n);
+                CCS_ADD_FLAG_ALT(n,n);
+                CCS_ADD_FLAG_ALT(o,n);
+                CCS_ADD_FLAG_ALT(p,n);
+                CCS_ADD_FLAG_ALT(u,n);
+                CCS_ADD_FLAG_ALT(x,n);
+                CCS_ADD_FLAG_ALT(X,n);
 
-                  /* c | d | n | o | p | u | x | X -> cdnopuxX */
-                  CCS_ADD_FLAG(o);
-                  CCS_ADD_FLAG_ALT(c,o);
-                  CCS_ADD_FLAG_ALT(d,o);
-                  CCS_ADD_FLAG_ALT(n,o);
-                  CCS_ADD_FLAG_ALT(o,o);
-                  CCS_ADD_FLAG_ALT(p,o);
-                  CCS_ADD_FLAG_ALT(u,o);
-                  CCS_ADD_FLAG_ALT(x,o);
-                  CCS_ADD_FLAG_ALT(X,o);
+                /* c | d | n | o | p | u | x | X -> cdnopuxX */
+                CCS_ADD_FLAG(o);
+                CCS_ADD_FLAG_ALT(c,o);
+                CCS_ADD_FLAG_ALT(d,o);
+                CCS_ADD_FLAG_ALT(n,o);
+                CCS_ADD_FLAG_ALT(o,o);
+                CCS_ADD_FLAG_ALT(p,o);
+                CCS_ADD_FLAG_ALT(u,o);
+                CCS_ADD_FLAG_ALT(x,o);
+                CCS_ADD_FLAG_ALT(X,o);
 
-                  CCS_ADD_FLAG(p);
-                  CCS_ADD_FLAG_ALT(c,p);
-                  CCS_ADD_FLAG_ALT(d,p);
-                  CCS_ADD_FLAG_ALT(n,p);
-                  CCS_ADD_FLAG_ALT(o,p);
-                  CCS_ADD_FLAG_ALT(p,p);
-                  CCS_ADD_FLAG_ALT(u,p);
-                  CCS_ADD_FLAG_ALT(x,p);
-                  CCS_ADD_FLAG_ALT(X,p);
+                CCS_ADD_FLAG(p);
+                CCS_ADD_FLAG_ALT(c,p);
+                CCS_ADD_FLAG_ALT(d,p);
+                CCS_ADD_FLAG_ALT(n,p);
+                CCS_ADD_FLAG_ALT(o,p);
+                CCS_ADD_FLAG_ALT(p,p);
+                CCS_ADD_FLAG_ALT(u,p);
+                CCS_ADD_FLAG_ALT(x,p);
+                CCS_ADD_FLAG_ALT(X,p);
 
-                  CCS_ADD_FLAG(s);
+                CCS_ADD_FLAG(s);
 
-                  CCS_ADD_FLAG(u);
-                  CCS_ADD_FLAG_ALT(c,u);
-                  CCS_ADD_FLAG_ALT(d,u);
-                  CCS_ADD_FLAG_ALT(n,u);
-                  CCS_ADD_FLAG_ALT(o,u);
-                  CCS_ADD_FLAG_ALT(p,u);
-                  CCS_ADD_FLAG_ALT(u,u);
-                  CCS_ADD_FLAG_ALT(x,u);
-                  CCS_ADD_FLAG_ALT(X,u);
+                CCS_ADD_FLAG(u);
+                CCS_ADD_FLAG_ALT(c,u);
+                CCS_ADD_FLAG_ALT(d,u);
+                CCS_ADD_FLAG_ALT(n,u);
+                CCS_ADD_FLAG_ALT(o,u);
+                CCS_ADD_FLAG_ALT(p,u);
+                CCS_ADD_FLAG_ALT(u,u);
+                CCS_ADD_FLAG_ALT(x,u);
+                CCS_ADD_FLAG_ALT(X,u);
 
-                  CCS_ADD_FLAG(x);
-                  CCS_ADD_FLAG_ALT(c,x);
-                  CCS_ADD_FLAG_ALT(d,x);
-                  CCS_ADD_FLAG_ALT(n,x);
-                  CCS_ADD_FLAG_ALT(o,x);
-                  CCS_ADD_FLAG_ALT(p,x);
-                  CCS_ADD_FLAG_ALT(u,x);
-                  CCS_ADD_FLAG_ALT(x,x);
-                  CCS_ADD_FLAG_ALT(X,x);
+                CCS_ADD_FLAG(x);
+                CCS_ADD_FLAG_ALT(c,x);
+                CCS_ADD_FLAG_ALT(d,x);
+                CCS_ADD_FLAG_ALT(n,x);
+                CCS_ADD_FLAG_ALT(o,x);
+                CCS_ADD_FLAG_ALT(p,x);
+                CCS_ADD_FLAG_ALT(u,x);
+                CCS_ADD_FLAG_ALT(x,x);
+                CCS_ADD_FLAG_ALT(X,x);
 
-                  CCS_ADD_FLAG(X);
-                  CCS_ADD_FLAG_ALT(c,X);
-                  CCS_ADD_FLAG_ALT(d,X);
-                  CCS_ADD_FLAG_ALT(n,X);
-                  CCS_ADD_FLAG_ALT(o,X);
-                  CCS_ADD_FLAG_ALT(p,X);
-                  CCS_ADD_FLAG_ALT(u,X);
-                  CCS_ADD_FLAG_ALT(x,X);
-                  CCS_ADD_FLAG_ALT(X,X);
-                  *f++=0;
+                CCS_ADD_FLAG(X);
+                CCS_ADD_FLAG_ALT(c,X);
+                CCS_ADD_FLAG_ALT(d,X);
+                CCS_ADD_FLAG_ALT(n,X);
+                CCS_ADD_FLAG_ALT(o,X);
+                CCS_ADD_FLAG_ALT(p,X);
+                CCS_ADD_FLAG_ALT(u,X);
+                CCS_ADD_FLAG_ALT(x,X);
+                CCS_ADD_FLAG_ALT(X,X);
+                *f++=0;
 
-                  if (strlen(extra_flags) > 1)
-                    {
-                      match->encoded_name = (char*)xmalloc(strlen(match->map_to) +
-                                                           strlen(extra_flags) + 1);
-                      sprintf(match->encoded_name,"%s%s", match->map_to, extra_flags);
-                    }
-                  else
-                    {
-                      /* we have no flags */
-                      match->encoded_name = (char*)xmalloc(strlen(match->map_to) + 3);
-                      sprintf(match->encoded_name,"%s_0", match->map_to);
-                    }
-                }
+                if (strlen(extra_flags) > 1)
+                  {
+                    if (NULL != match->encoded_name)
+                      free(match->encoded_name);
+                    match->encoded_name = (char*)xmalloc(strlen(match->map_to) +
+                    strlen(extra_flags) + 1);
+                    sprintf(match->encoded_name,"%s%s", match->map_to, extra_flags);
+                  }
+                else
+                  {
+                    /* we have no flags */
+                    match->encoded_name = (char*)xmalloc(strlen(match->map_to) + 3);
+                    sprintf(match->encoded_name,"%s_0", match->map_to);
+                  }
+              }
               if (match->encoded_name) return match->encoded_name;
             }
           if (match[1].name &&
