@@ -4042,6 +4042,19 @@ output_constant_pool_1 (struct constant_descriptor_rtx *desc,
   return;
 }
 
+#ifdef _BUILD_MCHP_
+/* return the DECL for a constant string denoted by x, if found */
+/* this function has disappeared from later sources :( */
+static tree constant_string(rtx x)
+{
+  if (GET_CODE(x) == SYMBOL_REF)
+    {
+      if (TREE_CONSTANT_POOL_ADDRESS_P (x)) return SYMBOL_REF_DECL (x);
+    }
+  return 0;
+}
+#endif
+
 /* Given a SYMBOL_REF CURRENT_RTX, mark it and all constants it refers
    to as used.  Emit referenced deferred strings.  This function can
    be used with for_each_rtx to mark all SYMBOL_REFs in an rtx.  */
@@ -4070,8 +4083,9 @@ mark_constant (rtx *current_rtx, void *data ATTRIBUTE_UNUSED)
 	{
 #ifdef _BUILD_MCHP_
           /* we may not have seen this string yet */
-          if (!(exp && (TREE_CODE(exp)==STRING_CST))) exp = 0;
-          mchp_cache_conversion_state(x, exp); 
+          tree sym = constant_string(x);
+          if (!(sym && (TREE_CODE(sym)==STRING_CST) && STRING_CST_CHECK(sym))) sym = 0;
+          mchp_cache_conversion_state(x, sym);
 #endif
 	  n_deferred_constants--;
 	  output_constant_def_contents (x);

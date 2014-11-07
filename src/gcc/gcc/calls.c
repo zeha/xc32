@@ -2138,10 +2138,29 @@ expand_call (tree exp, rtx target, int ignore)
 	preferred_stack_boundary = i->preferred_incoming_stack_boundary;
     }
 
+#if !defined(_BUILD_C30_) && !defined(_BUILD_MCHP_) && !defined(_BUILD_C32_) 
   /* Operand 0 is a pointer-to-function; get the type of the function.  */
   funtype = TREE_TYPE (addr);
   gcc_assert (POINTER_TYPE_P (funtype));
   funtype = TREE_TYPE (funtype);
+
+  /* Scalar replacement may change the formal paremeters, but not the decl
+     which would easily confuse parameter allocation -
+  
+     This check looks for it */
+
+  if (funtype != fntype) {
+    fprintf(stderr,"calling: %s function types don't match... 0x%p != 0x%p\n",
+            IDENTIFIER_POINTER(DECL_NAME(fndecl)), funtype, fntype);
+  }
+#else
+  /* why not just use fntype, which also is the type of the function.
+
+     SRA might replace the expression, and the decl, but not bother to change
+     the type of the funtion.  Not sure who's to blame, but fix it here */
+  funtype = fntype;
+#endif
+
 
   /* Count whether there are actual complex arguments that need to be split
      into their real and imaginary parts.  Munge the type_arg_types

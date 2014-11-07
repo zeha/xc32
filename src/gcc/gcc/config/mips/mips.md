@@ -5548,7 +5548,7 @@
 
 ;; Conditional branch on equality comparison.
 
-(define_insn "branch_equality<mode>"
+(define_insn "*branch_equality<mode>"
   [(set (pc)
 	(if_then_else
 	 (match_operator 1 "equality_operator"
@@ -7293,7 +7293,7 @@
 
 ;; PIC32
 
-(define_insn "pic32_section_begin_32el"
+(define_insn "pic32_section_begin"
   [(set (match_operand:SI 0 "register_operand" "=d")
         (unspec [
           (match_operand 1 "immediate_operand" "i")
@@ -7348,7 +7348,7 @@
   }")
 
 
-(define_insn "pic32_section_end_32el"
+(define_insn "pic32_section_end"
   [(set (match_operand:SI 0 "register_operand" "=d")
         (unspec [
           (match_operand 1 "immediate_operand" "i")
@@ -7403,7 +7403,7 @@
   }")
 
 
-(define_insn "pic32_section_size_32el"
+(define_insn "pic32_section_size"
   [(set (match_operand:SI 0 "register_operand" "=d")
         (unspec [
           (match_operand 1 "immediate_operand" "i")

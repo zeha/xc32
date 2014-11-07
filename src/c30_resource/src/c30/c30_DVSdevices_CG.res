@@ -1,7 +1,7 @@
 /*-------------------------------------------------------------------------
  * MPLAB-Cxx resource file
  *
- * (c) Copyright 1999-2013 Microchip Technology, All rights reserved
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
  *-------------------------------------------------------------------------
  *
  * This file is composed of the following: 
@@ -23,6 +23,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24EP128GP202, 0x2, 0x2, 0x157EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p24EP128GP204, 0x1, 0x0, 0x0}
@@ -35,6 +48,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24EP128GP204, 0x2, 0x2, 0x157EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p24EP128GP206, 0x1, 0x0, 0x0}
@@ -47,6 +73,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24EP128GP206, 0x2, 0x2, 0x157EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p24EP128MC202, 0x1, 0x0, 0x0}
@@ -59,6 +98,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24EP128MC202, 0x2, 0x2, 0x157EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p24EP128MC204, 0x1, 0x0, 0x0}
@@ -71,6 +123,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24EP128MC204, 0x2, 0x2, 0x157EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p24EP128MC206, 0x1, 0x0, 0x0}
@@ -83,6 +148,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24EP128MC206, 0x2, 0x2, 0x157EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p24EP256GP202, 0x1, 0x0, 0x0}
@@ -95,6 +173,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24EP256GP202, 0x2, 0x2, 0x2AFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p24EP256GP204, 0x1, 0x0, 0x0}
@@ -107,6 +198,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24EP256GP204, 0x2, 0x2, 0x2AFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p24EP256GP206, 0x1, 0x0, 0x0}
@@ -119,6 +223,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24EP256GP206, 0x2, 0x2, 0x2AFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p24EP256GU810, 0x1, 0x0, 0x0}
@@ -131,6 +248,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24EP256GU810, 0x2, 0x2, 0x2ABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p24EP256GU814, 0x1, 0x0, 0x0}
@@ -143,6 +273,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24EP256GU814, 0x2, 0x2, 0x2ABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p24EP256MC202, 0x1, 0x0, 0x0}
@@ -155,6 +298,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24EP256MC202, 0x2, 0x2, 0x2AFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p24EP256MC204, 0x1, 0x0, 0x0}
@@ -167,6 +323,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24EP256MC204, 0x2, 0x2, 0x2AFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p24EP256MC206, 0x1, 0x0, 0x0}
@@ -179,6 +348,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24EP256MC206, 0x2, 0x2, 0x2AFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p24EP32GP202, 0x1, 0x0, 0x0}
@@ -191,6 +373,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24EP32GP202, 0x2, 0x2, 0x57EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p24EP32GP203, 0x1, 0x0, 0x0}
@@ -203,6 +398,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24EP32GP203, 0x2, 0x2, 0x57EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p24EP32GP204, 0x1, 0x0, 0x0}
@@ -215,6 +423,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24EP32GP204, 0x2, 0x2, 0x57EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p24EP32MC202, 0x1, 0x0, 0x0}
@@ -227,6 +448,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24EP32MC202, 0x2, 0x2, 0x57EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p24EP32MC203, 0x1, 0x0, 0x0}
@@ -239,6 +473,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24EP32MC203, 0x2, 0x2, 0x57EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p24EP32MC204, 0x1, 0x0, 0x0}
@@ -251,6 +498,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24EP32MC204, 0x2, 0x2, 0x57EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p24EP512GP202, 0x1, 0x0, 0x0}
@@ -263,6 +523,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24EP512GP202, 0x2, 0x2, 0x557EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p24EP512GP204, 0x1, 0x0, 0x0}
@@ -275,6 +548,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24EP512GP204, 0x2, 0x2, 0x557EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p24EP512GP206, 0x1, 0x0, 0x0}
@@ -287,6 +573,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24EP512GP206, 0x2, 0x2, 0x557EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p24EP512GP806, 0x1, 0x0, 0x0}
@@ -299,6 +598,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24EP512GP806, 0x2, 0x2, 0x557FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p24EP512GU810, 0x1, 0x0, 0x0}
@@ -311,6 +623,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24EP512GU810, 0x2, 0x2, 0x557FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p24EP512GU814, 0x1, 0x0, 0x0}
@@ -323,6 +648,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24EP512GU814, 0x2, 0x2, 0x557FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p24EP512MC202, 0x1, 0x0, 0x0}
@@ -335,6 +673,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24EP512MC202, 0x2, 0x2, 0x557EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p24EP512MC204, 0x1, 0x0, 0x0}
@@ -347,6 +698,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24EP512MC204, 0x2, 0x2, 0x557EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p24EP512MC206, 0x1, 0x0, 0x0}
@@ -359,6 +723,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24EP512MC206, 0x2, 0x2, 0x557EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p24EP64GP202, 0x1, 0x0, 0x0}
@@ -371,6 +748,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24EP64GP202, 0x2, 0x2, 0xAFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p24EP64GP203, 0x1, 0x0, 0x0}
@@ -383,6 +773,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24EP64GP203, 0x2, 0x2, 0xAFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p24EP64GP204, 0x1, 0x0, 0x0}
@@ -395,6 +798,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24EP64GP204, 0x2, 0x2, 0xAFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p24EP64GP206, 0x1, 0x0, 0x0}
@@ -407,6 +823,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24EP64GP206, 0x2, 0x2, 0xAFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p24EP64MC202, 0x1, 0x0, 0x0}
@@ -419,6 +848,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24EP64MC202, 0x2, 0x2, 0xAFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p24EP64MC203, 0x1, 0x0, 0x0}
@@ -431,6 +873,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24EP64MC203, 0x2, 0x2, 0xAFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p24EP64MC204, 0x1, 0x0, 0x0}
@@ -443,6 +898,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24EP64MC204, 0x2, 0x2, 0xAFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p24EP64MC206, 0x1, 0x0, 0x0}
@@ -455,6 +923,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24EP64MC206, 0x2, 0x2, 0xAFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p24F04KA200, 0x1, 0x0, 0x0}
@@ -467,6 +948,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24F04KA200, 0x2, 0x2, 0xAFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p24F04KA201, 0x1, 0x0, 0x0}
@@ -479,6 +973,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24F04KA201, 0x2, 0x2, 0xAFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p24F04KL100, 0x1, 0x0, 0x0}
@@ -491,6 +998,19 @@
 {"FGS:GSS0:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24F04KL100, 0x2, 0x2, 0xAFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p24F04KL101, 0x1, 0x0, 0x0}
@@ -503,6 +1023,19 @@
 {"FGS:GSS0:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24F04KL101, 0x2, 0x2, 0xAFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24F08KA101, 0x1, 0x0, 0x0}
@@ -530,6 +1063,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24F08KA101, 0x2, 0x2, 0x15FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24F08KA102, 0x1, 0x0, 0x0}
@@ -557,6 +1103,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24F08KA102, 0x2, 0x2, 0x15FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24F08KL200, 0x1, 0x0, 0x0}
@@ -584,6 +1143,19 @@
 {"FGS:GSS0:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24F08KL200, 0x2, 0x2, 0x15FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24F08KL201, 0x1, 0x0, 0x0}
@@ -611,6 +1183,19 @@
 {"FGS:GSS0:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24F08KL201, 0x2, 0x2, 0x15FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24F08KL301, 0x1, 0x0, 0x0}
@@ -638,6 +1223,19 @@
 {"FGS:GSS0:OFF",
   IS_CODEGUARD_ID | EEPROM | CODE_PROTECT | OFF, 
   p24F08KL301, 0x2, 0x2, 0x7FFFFF}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24F08KL302, 0x1, 0x0, 0x0}
@@ -665,6 +1263,19 @@
 {"FGS:GSS0:OFF",
   IS_CODEGUARD_ID | EEPROM | CODE_PROTECT | OFF, 
   p24F08KL302, 0x2, 0x2, 0x7FFFFF}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24F08KL401, 0x1, 0x0, 0x0}
@@ -692,6 +1303,19 @@
 {"FGS:GSS0:OFF",
   IS_CODEGUARD_ID | EEPROM | CODE_PROTECT | OFF, 
   p24F08KL401, 0x2, 0x2, 0x7FFFFF}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24F08KL402, 0x1, 0x0, 0x0}
@@ -719,6 +1343,19 @@
 {"FGS:GSS0:OFF",
   IS_CODEGUARD_ID | EEPROM | CODE_PROTECT | OFF, 
   p24F08KL402, 0x2, 0x2, 0x7FFFFF}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24F08KM101, 0x1, 0x0, 0x0}
@@ -746,6 +1383,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24F08KM101, 0x2, 0x2, 0x15FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24F08KM102, 0x1, 0x0, 0x0}
@@ -773,6 +1423,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24F08KM102, 0x2, 0x2, 0x15FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24F08KM202, 0x1, 0x0, 0x0}
@@ -800,6 +1463,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24F08KM202, 0x2, 0x2, 0x15FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24F08KM204, 0x1, 0x0, 0x0}
@@ -827,6 +1503,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24F08KM204, 0x2, 0x2, 0x15FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24F16KA101, 0x1, 0x0, 0x0}
@@ -860,6 +1549,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24F16KA101, 0x2, 0x2, 0x2BFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24F16KA102, 0x1, 0x0, 0x0}
@@ -893,6 +1595,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24F16KA102, 0x2, 0x2, 0x2BFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24F16KA301, 0x1, 0x0, 0x0}
@@ -926,6 +1641,19 @@
 {"FGS:GSS0:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24F16KA301, 0x2, 0x2, 0x2BFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24F16KA302, 0x1, 0x0, 0x0}
@@ -959,6 +1687,19 @@
 {"FGS:GSS0:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24F16KA302, 0x2, 0x2, 0x2BFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24F16KA304, 0x1, 0x0, 0x0}
@@ -992,6 +1733,19 @@
 {"FGS:GSS0:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24F16KA304, 0x2, 0x2, 0x2BFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24F16KL401, 0x1, 0x0, 0x0}
@@ -1025,6 +1779,19 @@
 {"FGS:GSS0:OFF",
   IS_CODEGUARD_ID | EEPROM | CODE_PROTECT | OFF, 
   p24F16KL401, 0x2, 0x2, 0x7FFFFF}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24F16KL402, 0x1, 0x0, 0x0}
@@ -1058,6 +1825,19 @@
 {"FGS:GSS0:OFF",
   IS_CODEGUARD_ID | EEPROM | CODE_PROTECT | OFF, 
   p24F16KL402, 0x2, 0x2, 0x7FFFFF}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24F16KM102, 0x1, 0x0, 0x0}
@@ -1091,6 +1871,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24F16KM102, 0x2, 0x2, 0x2BFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24F16KM104, 0x1, 0x0, 0x0}
@@ -1124,6 +1917,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24F16KM104, 0x2, 0x2, 0x2BFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24F16KM202, 0x1, 0x0, 0x0}
@@ -1157,6 +1963,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24F16KM202, 0x2, 0x2, 0x2BFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24F16KM204, 0x1, 0x0, 0x0}
@@ -1190,6 +2009,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24F16KM204, 0x2, 0x2, 0x2BFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24F32KA301, 0x1, 0x0, 0x0}
@@ -1229,6 +2061,19 @@
 {"FGS:GSS0:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24F32KA301, 0x2, 0x2, 0x57FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24F32KA302, 0x1, 0x0, 0x0}
@@ -1268,6 +2113,19 @@
 {"FGS:GSS0:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24F32KA302, 0x2, 0x2, 0x57FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24F32KA304, 0x1, 0x0, 0x0}
@@ -1307,6 +2165,1111 @@
 {"FGS:GSS0:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24F32KA304, 0x2, 0x2, 0x57FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24FV08KM101, 0x1, 0x0, 0x0}
@@ -1334,6 +3297,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24FV08KM101, 0x2, 0x2, 0x15FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24FV08KM102, 0x1, 0x0, 0x0}
@@ -1361,6 +3337,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24FV08KM102, 0x2, 0x2, 0x15FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24FV08KM202, 0x1, 0x0, 0x0}
@@ -1388,6 +3377,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24FV08KM202, 0x2, 0x2, 0x15FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24FV08KM204, 0x1, 0x0, 0x0}
@@ -1415,6 +3417,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24FV08KM204, 0x2, 0x2, 0x15FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24FV16KA301, 0x1, 0x0, 0x0}
@@ -1448,6 +3463,19 @@
 {"FGS:GSS0:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24FV16KA301, 0x2, 0x2, 0x2BFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24FV16KA302, 0x1, 0x0, 0x0}
@@ -1481,6 +3509,19 @@
 {"FGS:GSS0:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24FV16KA302, 0x2, 0x2, 0x2BFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24FV16KA304, 0x1, 0x0, 0x0}
@@ -1514,6 +3555,19 @@
 {"FGS:GSS0:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24FV16KA304, 0x2, 0x2, 0x57FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24FV16KM102, 0x1, 0x0, 0x0}
@@ -1547,6 +3601,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24FV16KM102, 0x2, 0x2, 0x2BFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24FV16KM104, 0x1, 0x0, 0x0}
@@ -1580,6 +3647,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24FV16KM104, 0x2, 0x2, 0x2BFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24FV16KM202, 0x1, 0x0, 0x0}
@@ -1613,6 +3693,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24FV16KM202, 0x2, 0x2, 0x2BFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24FV16KM204, 0x1, 0x0, 0x0}
@@ -1646,6 +3739,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24FV16KM204, 0x2, 0x2, 0x2BFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24FV32KA301, 0x1, 0x0, 0x0}
@@ -1685,6 +3791,19 @@
 {"FGS:GSS0:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24FV32KA301, 0x2, 0x2, 0x57FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24FV32KA302, 0x1, 0x0, 0x0}
@@ -1724,6 +3843,19 @@
 {"FGS:GSS0:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24FV32KA302, 0x2, 0x2, 0x57FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24FV32KA304, 0x1, 0x0, 0x0}
@@ -1763,6 +3895,19 @@
 {"FGS:GSS0:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24FV32KA304, 0x2, 0x2, 0x57FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24HJ128GP202, 0x1, 0x0, 0x0}
@@ -1922,6 +4067,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24HJ128GP202, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24HJ128GP204, 0x1, 0x0, 0x0}
@@ -2081,6 +4239,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24HJ128GP204, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24HJ128GP206, 0x1, 0x0, 0x0}
@@ -2240,6 +4411,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24HJ128GP206, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24HJ128GP206A, 0x1, 0x0, 0x0}
@@ -2399,6 +4583,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24HJ128GP206A, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24HJ128GP210, 0x1, 0x0, 0x0}
@@ -2558,6 +4755,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24HJ128GP210, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24HJ128GP210A, 0x1, 0x0, 0x0}
@@ -2717,6 +4927,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24HJ128GP210A, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24HJ128GP306, 0x1, 0x0, 0x0}
@@ -2876,6 +5099,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24HJ128GP306, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24HJ128GP306A, 0x1, 0x0, 0x0}
@@ -3035,6 +5271,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24HJ128GP306A, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24HJ128GP310, 0x1, 0x0, 0x0}
@@ -3194,6 +5443,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24HJ128GP310, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24HJ128GP310A, 0x1, 0x0, 0x0}
@@ -3353,6 +5615,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24HJ128GP310A, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24HJ128GP502, 0x1, 0x0, 0x0}
@@ -3512,6 +5787,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24HJ128GP502, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24HJ128GP504, 0x1, 0x0, 0x0}
@@ -3671,6 +5959,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24HJ128GP504, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24HJ128GP506, 0x1, 0x0, 0x0}
@@ -3830,6 +6131,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24HJ128GP506, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24HJ128GP506A, 0x1, 0x0, 0x0}
@@ -3989,6 +6303,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24HJ128GP506A, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24HJ128GP510, 0x1, 0x0, 0x0}
@@ -4148,6 +6475,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24HJ128GP510, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24HJ128GP510A, 0x1, 0x0, 0x0}
@@ -4307,6 +6647,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24HJ128GP510A, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24HJ12GP201, 0x1, 0x0, 0x0}
@@ -4370,6 +6723,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24HJ12GP201, 0x6, 0x6, 0x1FFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24HJ12GP202, 0x1, 0x0, 0x0}
@@ -4433,6 +6799,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24HJ12GP202, 0x6, 0x6, 0x1FFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24HJ16GP304, 0x1, 0x0, 0x0}
@@ -4496,6 +6875,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24HJ16GP304, 0x6, 0x6, 0x2BFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24HJ256GP206, 0x1, 0x0, 0x0}
@@ -4655,6 +7047,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24HJ256GP206, 0x6, 0x6, 0x2ABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24HJ256GP206A, 0x1, 0x0, 0x0}
@@ -4814,6 +7219,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24HJ256GP206A, 0x6, 0x6, 0x2ABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24HJ256GP210, 0x1, 0x0, 0x0}
@@ -4973,6 +7391,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24HJ256GP210, 0x6, 0x6, 0x2ABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24HJ256GP210A, 0x1, 0x0, 0x0}
@@ -5132,6 +7563,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24HJ256GP210A, 0x6, 0x6, 0x2ABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24HJ256GP610, 0x1, 0x0, 0x0}
@@ -5291,6 +7735,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24HJ256GP610, 0x6, 0x6, 0x2ABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24HJ256GP610A, 0x1, 0x0, 0x0}
@@ -5450,6 +7907,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24HJ256GP610A, 0x6, 0x6, 0x2ABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24HJ32GP202, 0x1, 0x0, 0x0}
@@ -5513,6 +7983,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24HJ32GP202, 0x6, 0x6, 0x3FFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24HJ32GP204, 0x1, 0x0, 0x0}
@@ -5576,6 +8059,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24HJ32GP204, 0x6, 0x6, 0x3FFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24HJ32GP302, 0x1, 0x0, 0x0}
@@ -5639,6 +8135,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24HJ32GP302, 0x6, 0x6, 0x3FFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24HJ32GP304, 0x1, 0x0, 0x0}
@@ -5702,6 +8211,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24HJ32GP304, 0x6, 0x6, 0x3FFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24HJ64GP202, 0x1, 0x0, 0x0}
@@ -5861,6 +8383,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24HJ64GP202, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24HJ64GP204, 0x1, 0x0, 0x0}
@@ -6020,6 +8555,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24HJ64GP204, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24HJ64GP206, 0x1, 0x0, 0x0}
@@ -6179,6 +8727,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24HJ64GP206, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24HJ64GP206A, 0x1, 0x0, 0x0}
@@ -6338,6 +8899,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24HJ64GP206A, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24HJ64GP210, 0x1, 0x0, 0x0}
@@ -6497,6 +9071,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24HJ64GP210, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24HJ64GP210A, 0x1, 0x0, 0x0}
@@ -6656,6 +9243,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24HJ64GP210A, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24HJ64GP502, 0x1, 0x0, 0x0}
@@ -6815,6 +9415,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24HJ64GP502, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24HJ64GP504, 0x1, 0x0, 0x0}
@@ -6974,6 +9587,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24HJ64GP504, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24HJ64GP506, 0x1, 0x0, 0x0}
@@ -7133,6 +9759,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24HJ64GP506, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24HJ64GP506A, 0x1, 0x0, 0x0}
@@ -7292,6 +9931,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24HJ64GP506A, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24HJ64GP510, 0x1, 0x0, 0x0}
@@ -7451,6 +10103,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24HJ64GP510, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p24HJ64GP510A, 0x1, 0x0, 0x0}
@@ -7610,6 +10275,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p24HJ64GP510A, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:BWRP_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p30F1010, 0x1, 0x0, 0x0}
@@ -7640,6 +10318,19 @@
 {"FGS:GSS:GSS_OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p30F1010, 0x6, 0x6, 0xFFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:GWRP_ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p30F2010, 0x1, 0x0, 0x0}
@@ -7652,6 +10343,19 @@
 {"FGS:GCP:CODE_PROT_OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p30F2010, 0x2, 0x2, 0x1FFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:GWRP_ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p30F2011, 0x1, 0x0, 0x0}
@@ -7664,6 +10368,19 @@
 {"FGS:GCP:CODE_PROT_OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p30F2011, 0x6, 0x6, 0x1FFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:GWRP_ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p30F2012, 0x1, 0x0, 0x0}
@@ -7676,6 +10393,19 @@
 {"FGS:GCP:CODE_PROT_OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p30F2012, 0x6, 0x6, 0x1FFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:BWRP_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p30F2020, 0x1, 0x0, 0x0}
@@ -7712,6 +10442,19 @@
 {"FGS:GSS:GSS_OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p30F2020, 0x6, 0x6, 0x1FFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:BWRP_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p30F2023, 0x1, 0x0, 0x0}
@@ -7748,6 +10491,19 @@
 {"FGS:GSS:GSS_OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p30F2023, 0x6, 0x6, 0x1FFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:GWRP_ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p30F3010, 0x1, 0x0, 0x0}
@@ -7760,6 +10516,19 @@
 {"FGS:GCP:CODE_PROT_OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p30F3010, 0x6, 0x6, 0x3FFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:GWRP_ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p30F3011, 0x1, 0x0, 0x0}
@@ -7772,6 +10541,19 @@
 {"FGS:GCP:CODE_PROT_OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p30F3011, 0x6, 0x6, 0x3FFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:GWRP_ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p30F3012, 0x1, 0x0, 0x0}
@@ -7784,6 +10566,19 @@
 {"FGS:GCP:CODE_PROT_OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p30F3012, 0x6, 0x6, 0x3FFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:GWRP_ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p30F3013, 0x1, 0x0, 0x0}
@@ -7796,6 +10591,19 @@
 {"FGS:GCP:CODE_PROT_OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p30F3013, 0x6, 0x6, 0x3FFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:GWRP_ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p30F3014, 0x1, 0x0, 0x0}
@@ -7808,6 +10616,19 @@
 {"FGS:GCP:CODE_PROT_OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p30F3014, 0x6, 0x6, 0x3FFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:GWRP_ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p30F4011, 0x1, 0x0, 0x0}
@@ -7820,6 +10641,19 @@
 {"FGS:GCP:CODE_PROT_OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p30F4011, 0x2, 0x2, 0x7FFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:GWRP_ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p30F4012, 0x1, 0x0, 0x0}
@@ -7832,6 +10666,19 @@
 {"FGS:GCP:CODE_PROT_OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p30F4012, 0x2, 0x2, 0x7FFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:GWRP_ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p30F4013, 0x1, 0x0, 0x0}
@@ -7844,6 +10691,19 @@
 {"FGS:GCP:CODE_PROT_OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p30F4013, 0x6, 0x6, 0x7FFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WR_PROTECT_BOOT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p30F5011, 0x1, 0x0, 0x0}
@@ -7955,6 +10815,19 @@
 {"FGS:GCP:GSS_OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p30F5011, 0x6, 0x6, 0xAFFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WR_PROTECT_BOOT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p30F5013, 0x1, 0x0, 0x0}
@@ -8066,6 +10939,19 @@
 {"FGS:GCP:GSS_OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p30F5013, 0x6, 0x6, 0xAFFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:GWRP_ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p30F5015, 0x1, 0x0, 0x0}
@@ -8078,6 +10964,19 @@
 {"FGS:GCP:CODE_PROT_OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p30F5015, 0x6, 0x6, 0xBFFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:GWRP_ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p30F5016, 0x1, 0x0, 0x0}
@@ -8090,6 +10989,19 @@
 {"FGS:GCP:CODE_PROT_OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p30F5016, 0x6, 0x6, 0xBFFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:GWRP_ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p30F6010, 0x1, 0x0, 0x0}
@@ -8102,6 +11014,19 @@
 {"FGS:GCP:CODE_PROT_OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p30F6010, 0x2, 0x2, 0x17FFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WR_PROTECT_BOOT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p30F6010A, 0x1, 0x0, 0x0}
@@ -8213,6 +11138,19 @@
 {"FGS:GCP:GSS_OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p30F6010A, 0x6, 0x6, 0x17FFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:GWRP_ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p30F6011, 0x1, 0x0, 0x0}
@@ -8225,6 +11163,19 @@
 {"FGS:GCP:CODE_PROT_OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p30F6011, 0x2, 0x2, 0x15FFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WR_PROTECT_BOOT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p30F6011A, 0x1, 0x0, 0x0}
@@ -8336,6 +11287,19 @@
 {"FGS:GCP:GSS_OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p30F6011A, 0x6, 0x6, 0x15FFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:GWRP_ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p30F6012, 0x1, 0x0, 0x0}
@@ -8348,6 +11312,19 @@
 {"FGS:GCP:CODE_PROT_OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p30F6012, 0x2, 0x2, 0x17FFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WR_PROTECT_BOOT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p30F6012A, 0x1, 0x0, 0x0}
@@ -8459,6 +11436,19 @@
 {"FGS:GCP:GSS_OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p30F6012A, 0x6, 0x6, 0x15FFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:GWRP_ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p30F6013, 0x1, 0x0, 0x0}
@@ -8471,6 +11461,19 @@
 {"FGS:GCP:CODE_PROT_OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p30F6013, 0x2, 0x2, 0x15FFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WR_PROTECT_BOOT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p30F6013A, 0x1, 0x0, 0x0}
@@ -8582,6 +11585,19 @@
 {"FGS:GCP:GSS_OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p30F6013A, 0x6, 0x6, 0x17FFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:GWRP_ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p30F6014, 0x1, 0x0, 0x0}
@@ -8594,6 +11610,19 @@
 {"FGS:GCP:CODE_PROT_OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p30F6014, 0x2, 0x2, 0x17FFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WR_PROTECT_BOOT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p30F6014A, 0x1, 0x0, 0x0}
@@ -8705,6 +11734,19 @@
 {"FGS:GCP:GSS_OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p30F6014A, 0x6, 0x6, 0x17FFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WR_PROTECT_BOOT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p30F6015, 0x1, 0x0, 0x0}
@@ -8816,6 +11858,19 @@
 {"FGS:GCP:GSS_OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p30F6015, 0x6, 0x6, 0x17FFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP128GM304, 0x1, 0x0, 0x0}
@@ -8828,6 +11883,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP128GM304, 0x2, 0x2, 0x155FA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP128GM306, 0x1, 0x0, 0x0}
@@ -8840,6 +11908,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP128GM306, 0x2, 0x2, 0x155FA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP128GM310, 0x1, 0x0, 0x0}
@@ -8852,6 +11933,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP128GM310, 0x2, 0x2, 0x155FA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP128GM604, 0x1, 0x0, 0x0}
@@ -8864,6 +11958,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP128GM604, 0x2, 0x2, 0x155FA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP128GM706, 0x1, 0x0, 0x0}
@@ -8876,6 +11983,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP128GM706, 0x2, 0x2, 0x155FA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP128GM710, 0x1, 0x0, 0x0}
@@ -8888,6 +12008,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP128GM710, 0x2, 0x2, 0x155FA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP128GP502, 0x1, 0x0, 0x0}
@@ -8900,6 +12033,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP128GP502, 0x2, 0x2, 0x157EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP128GP504, 0x1, 0x0, 0x0}
@@ -8912,6 +12058,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP128GP504, 0x2, 0x2, 0x157EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP128GP506, 0x1, 0x0, 0x0}
@@ -8924,6 +12083,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP128GP506, 0x2, 0x2, 0x157EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP128MC202, 0x1, 0x0, 0x0}
@@ -8936,6 +12108,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP128MC202, 0x2, 0x2, 0x157EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP128MC204, 0x1, 0x0, 0x0}
@@ -8948,6 +12133,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP128MC204, 0x2, 0x2, 0x157EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP128MC206, 0x1, 0x0, 0x0}
@@ -8960,6 +12158,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP128MC206, 0x2, 0x2, 0x157EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP128MC502, 0x1, 0x0, 0x0}
@@ -8972,6 +12183,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP128MC502, 0x2, 0x2, 0x157EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP128MC504, 0x1, 0x0, 0x0}
@@ -8984,6 +12208,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP128MC504, 0x2, 0x2, 0x157EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP128MC506, 0x1, 0x0, 0x0}
@@ -8996,6 +12233,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP128MC506, 0x2, 0x2, 0x157EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP128MU202, 0x1, 0x0, 0x0}
@@ -9008,6 +12258,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP128MU202, 0x2, 0x2, 0x2AFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP128MU204, 0x1, 0x0, 0x0}
@@ -9020,6 +12283,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP128MU204, 0x2, 0x2, 0x2AFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP128MU206, 0x1, 0x0, 0x0}
@@ -9032,6 +12308,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP128MU206, 0x2, 0x2, 0x2AFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP128MU502, 0x1, 0x0, 0x0}
@@ -9044,6 +12333,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP128MU502, 0x2, 0x2, 0x2AFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP128MU504, 0x1, 0x0, 0x0}
@@ -9056,6 +12358,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP128MU504, 0x2, 0x2, 0x2AFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP128MU506, 0x1, 0x0, 0x0}
@@ -9068,6 +12383,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP128MU506, 0x2, 0x2, 0x2AFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP256GM304, 0x1, 0x0, 0x0}
@@ -9080,6 +12408,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP256GM304, 0x2, 0x2, 0x2ABFA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP256GM306, 0x1, 0x0, 0x0}
@@ -9092,6 +12433,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP256GM306, 0x2, 0x2, 0x2ABFA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP256GM310, 0x1, 0x0, 0x0}
@@ -9104,6 +12458,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP256GM310, 0x2, 0x2, 0x2ABFA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP256GM604, 0x1, 0x0, 0x0}
@@ -9116,6 +12483,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP256GM604, 0x2, 0x2, 0x2ABFA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP256GM706, 0x1, 0x0, 0x0}
@@ -9128,6 +12508,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP256GM706, 0x2, 0x2, 0x2ABFA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP256GM710, 0x1, 0x0, 0x0}
@@ -9140,6 +12533,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP256GM710, 0x2, 0x2, 0x2ABFA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP256GP502, 0x1, 0x0, 0x0}
@@ -9152,6 +12558,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP256GP502, 0x2, 0x2, 0x2AFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP256GP504, 0x1, 0x0, 0x0}
@@ -9164,6 +12583,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP256GP504, 0x2, 0x2, 0x2AFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP256GP506, 0x1, 0x0, 0x0}
@@ -9176,6 +12608,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP256GP506, 0x2, 0x2, 0x2AFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP256MC202, 0x1, 0x0, 0x0}
@@ -9188,6 +12633,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP256MC202, 0x2, 0x2, 0x2AFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP256MC204, 0x1, 0x0, 0x0}
@@ -9200,6 +12658,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP256MC204, 0x2, 0x2, 0x2AFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP256MC206, 0x1, 0x0, 0x0}
@@ -9212,6 +12683,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP256MC206, 0x2, 0x2, 0x2AFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP256MC502, 0x1, 0x0, 0x0}
@@ -9224,6 +12708,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP256MC502, 0x2, 0x2, 0x2AFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP256MC504, 0x1, 0x0, 0x0}
@@ -9236,6 +12733,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP256MC504, 0x2, 0x2, 0x2AFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP256MC506, 0x1, 0x0, 0x0}
@@ -9248,6 +12758,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP256MC506, 0x2, 0x2, 0x2AFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP256MU202, 0x1, 0x0, 0x0}
@@ -9260,6 +12783,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP256MU202, 0x2, 0x2, 0x2AFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP256MU204, 0x1, 0x0, 0x0}
@@ -9272,6 +12808,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP256MU204, 0x2, 0x2, 0x2AFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP256MU206, 0x1, 0x0, 0x0}
@@ -9284,6 +12833,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP256MU206, 0x2, 0x2, 0x2AFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP256MU502, 0x1, 0x0, 0x0}
@@ -9296,6 +12858,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP256MU502, 0x2, 0x2, 0x2AFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP256MU504, 0x1, 0x0, 0x0}
@@ -9308,6 +12883,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP256MU504, 0x2, 0x2, 0x2AFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP256MU506, 0x1, 0x0, 0x0}
@@ -9320,6 +12908,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP256MU506, 0x2, 0x2, 0x2AFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP256MU806, 0x1, 0x0, 0x0}
@@ -9332,6 +12933,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP256MU806, 0x2, 0x2, 0x2ABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP256MU810, 0x1, 0x0, 0x0}
@@ -9344,6 +12958,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP256MU810, 0x2, 0x2, 0x2ABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP256MU814, 0x1, 0x0, 0x0}
@@ -9356,6 +12983,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP256MU814, 0x2, 0x2, 0x2ABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP32GP502, 0x1, 0x0, 0x0}
@@ -9368,6 +13008,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP32GP502, 0x2, 0x2, 0x57EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP32GP503, 0x1, 0x0, 0x0}
@@ -9380,6 +13033,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP32GP503, 0x2, 0x2, 0x57EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP32GP504, 0x1, 0x0, 0x0}
@@ -9392,6 +13058,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP32GP504, 0x2, 0x2, 0x57EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP32MC202, 0x1, 0x0, 0x0}
@@ -9404,6 +13083,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP32MC202, 0x2, 0x2, 0x57EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP32MC203, 0x1, 0x0, 0x0}
@@ -9416,6 +13108,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP32MC203, 0x2, 0x2, 0x57EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP32MC204, 0x1, 0x0, 0x0}
@@ -9428,6 +13133,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP32MC204, 0x2, 0x2, 0x57EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP32MC502, 0x1, 0x0, 0x0}
@@ -9440,6 +13158,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP32MC502, 0x2, 0x2, 0x57EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP32MC503, 0x1, 0x0, 0x0}
@@ -9452,6 +13183,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP32MC503, 0x2, 0x2, 0x57EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP32MC504, 0x1, 0x0, 0x0}
@@ -9464,6 +13208,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP32MC504, 0x2, 0x2, 0x57EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP512GM304, 0x1, 0x0, 0x0}
@@ -9476,6 +13233,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP512GM304, 0x2, 0x2, 0x557FA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP512GM306, 0x1, 0x0, 0x0}
@@ -9488,6 +13258,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP512GM306, 0x2, 0x2, 0x557FA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP512GM310, 0x1, 0x0, 0x0}
@@ -9500,6 +13283,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP512GM310, 0x2, 0x2, 0x557FA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP512GM604, 0x1, 0x0, 0x0}
@@ -9512,6 +13308,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP512GM604, 0x2, 0x2, 0x557FA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP512GM706, 0x1, 0x0, 0x0}
@@ -9524,6 +13333,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP512GM706, 0x2, 0x2, 0x557FA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP512GM710, 0x1, 0x0, 0x0}
@@ -9536,6 +13358,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP512GM710, 0x2, 0x2, 0x557FA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP512GP502, 0x1, 0x0, 0x0}
@@ -9548,6 +13383,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP512GP502, 0x2, 0x2, 0x557EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP512GP504, 0x1, 0x0, 0x0}
@@ -9560,6 +13408,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP512GP504, 0x2, 0x2, 0x557EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP512GP506, 0x1, 0x0, 0x0}
@@ -9572,6 +13433,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP512GP506, 0x2, 0x2, 0x557EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP512GP806, 0x1, 0x0, 0x0}
@@ -9584,6 +13458,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP512GP806, 0x2, 0x2, 0x557FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP512MC202, 0x1, 0x0, 0x0}
@@ -9596,6 +13483,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP512MC202, 0x2, 0x2, 0x557EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP512MC204, 0x1, 0x0, 0x0}
@@ -9608,6 +13508,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP512MC204, 0x2, 0x2, 0x557EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP512MC206, 0x1, 0x0, 0x0}
@@ -9620,6 +13533,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP512MC206, 0x2, 0x2, 0x557EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP512MC502, 0x1, 0x0, 0x0}
@@ -9632,6 +13558,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP512MC502, 0x2, 0x2, 0x557EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP512MC504, 0x1, 0x0, 0x0}
@@ -9644,6 +13583,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP512MC504, 0x2, 0x2, 0x557EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP512MC506, 0x1, 0x0, 0x0}
@@ -9656,6 +13608,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP512MC506, 0x2, 0x2, 0x557EA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP512MC806, 0x1, 0x0, 0x0}
@@ -9668,6 +13633,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP512MC806, 0x2, 0x2, 0x557FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP512MU810, 0x1, 0x0, 0x0}
@@ -9680,6 +13658,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP512MU810, 0x2, 0x2, 0x557FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP512MU814, 0x1, 0x0, 0x0}
@@ -9692,6 +13683,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP512MU814, 0x2, 0x2, 0x557FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP64GP502, 0x1, 0x0, 0x0}
@@ -9704,6 +13708,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP64GP502, 0x2, 0x2, 0xAFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP64GP503, 0x1, 0x0, 0x0}
@@ -9716,6 +13733,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP64GP503, 0x2, 0x2, 0xAFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP64GP504, 0x1, 0x0, 0x0}
@@ -9728,6 +13758,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP64GP504, 0x2, 0x2, 0xAFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP64GP506, 0x1, 0x0, 0x0}
@@ -9740,6 +13783,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP64GP506, 0x2, 0x2, 0xAFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FSEC:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33EP64GS502, 0x1, 0x0, 0x0}
@@ -9788,6 +13844,19 @@
 {"FSEC:CSS:DISABLED",
   IS_CODEGUARD_ID | FLASH | CONFIG | NONE, 
   p33EP64GS502, 0xE00, 0xE00, 0x0}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FSEC:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33EP64GS504, 0x1, 0x0, 0x0}
@@ -9836,6 +13905,19 @@
 {"FSEC:CSS:DISABLED",
   IS_CODEGUARD_ID | FLASH | CONFIG | NONE, 
   p33EP64GS504, 0xE00, 0xE00, 0x0}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FSEC:BWRP:ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33EP64GS506, 0x1, 0x0, 0x0}
@@ -9884,6 +13966,19 @@
 {"FSEC:CSS:DISABLED",
   IS_CODEGUARD_ID | FLASH | CONFIG | NONE, 
   p33EP64GS506, 0xE00, 0xE00, 0x0}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP64MC202, 0x1, 0x0, 0x0}
@@ -9896,6 +13991,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP64MC202, 0x2, 0x2, 0xAFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP64MC203, 0x1, 0x0, 0x0}
@@ -9908,6 +14016,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP64MC203, 0x2, 0x2, 0xAFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP64MC204, 0x1, 0x0, 0x0}
@@ -9920,6 +14041,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP64MC204, 0x2, 0x2, 0xAFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP64MC206, 0x1, 0x0, 0x0}
@@ -9932,6 +14066,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP64MC206, 0x2, 0x2, 0xAFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP64MC502, 0x1, 0x0, 0x0}
@@ -9944,6 +14091,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP64MC502, 0x2, 0x2, 0xAFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP64MC503, 0x1, 0x0, 0x0}
@@ -9956,6 +14116,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP64MC503, 0x2, 0x2, 0xAFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP64MC504, 0x1, 0x0, 0x0}
@@ -9968,6 +14141,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP64MC504, 0x2, 0x2, 0xAFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP64MC506, 0x1, 0x0, 0x0}
@@ -9980,6 +14166,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP64MC506, 0x2, 0x2, 0xAFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP64MU202, 0x1, 0x0, 0x0}
@@ -9992,6 +14191,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP64MU202, 0x2, 0x2, 0x2AFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP64MU204, 0x1, 0x0, 0x0}
@@ -10004,6 +14216,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP64MU204, 0x2, 0x2, 0x2AFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP64MU206, 0x1, 0x0, 0x0}
@@ -10016,6 +14241,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP64MU206, 0x2, 0x2, 0x2AFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP64MU502, 0x1, 0x0, 0x0}
@@ -10028,6 +14266,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP64MU502, 0x2, 0x2, 0x2AFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP64MU504, 0x1, 0x0, 0x0}
@@ -10040,6 +14291,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP64MU504, 0x2, 0x2, 0x2AFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33EP64MU506, 0x1, 0x0, 0x0}
@@ -10052,6 +14316,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33EP64MU506, 0x2, 0x2, 0x2AFEA}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33FJ06GS001, 0x1, 0x0, 0x0}
@@ -10064,6 +14341,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ06GS001, 0x2, 0x2, 0xFFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ06GS101, 0x1, 0x0, 0x0}
@@ -10127,6 +14417,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ06GS101, 0x6, 0x6, 0xFFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33FJ06GS101A, 0x1, 0x0, 0x0}
@@ -10139,6 +14442,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ06GS101A, 0x2, 0x2, 0xFFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ06GS102, 0x1, 0x0, 0x0}
@@ -10202,6 +14518,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ06GS102, 0x6, 0x6, 0xFFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33FJ06GS102A, 0x1, 0x0, 0x0}
@@ -10214,6 +14543,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ06GS102A, 0x2, 0x2, 0xFFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ06GS202, 0x1, 0x0, 0x0}
@@ -10277,6 +14619,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ06GS202, 0x6, 0x6, 0xFFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33FJ06GS202A, 0x1, 0x0, 0x0}
@@ -10289,6 +14644,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ06GS202A, 0x2, 0x2, 0xFFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FGS:GWRP:ON",
  IS_CODEGUARD_ID | FLASH | GENERAL | WRITE_PROTECT | ON,
   p33FJ09GS302, 0x1, 0x0, 0x0}
@@ -10301,6 +14669,19 @@
 {"FGS:GCP:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ09GS302, 0x2, 0x2, 0xFFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ128GP202, 0x1, 0x0, 0x0}
@@ -10460,6 +14841,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ128GP202, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ128GP204, 0x1, 0x0, 0x0}
@@ -10619,6 +15013,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ128GP204, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ128GP206, 0x1, 0x0, 0x0}
@@ -10778,6 +15185,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ128GP206, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ128GP206A, 0x1, 0x0, 0x0}
@@ -10937,6 +15357,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ128GP206A, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ128GP306, 0x1, 0x0, 0x0}
@@ -11096,6 +15529,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ128GP306, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ128GP306A, 0x1, 0x0, 0x0}
@@ -11255,6 +15701,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ128GP306A, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ128GP310, 0x1, 0x0, 0x0}
@@ -11414,6 +15873,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ128GP310, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ128GP310A, 0x1, 0x0, 0x0}
@@ -11573,6 +16045,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ128GP310A, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ128GP706, 0x1, 0x0, 0x0}
@@ -11732,6 +16217,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ128GP706, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ128GP706A, 0x1, 0x0, 0x0}
@@ -11891,6 +16389,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ128GP706A, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ128GP708, 0x1, 0x0, 0x0}
@@ -12050,6 +16561,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ128GP708, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ128GP708A, 0x1, 0x0, 0x0}
@@ -12209,6 +16733,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ128GP708A, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ128GP710, 0x1, 0x0, 0x0}
@@ -12368,6 +16905,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ128GP710, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ128GP710A, 0x1, 0x0, 0x0}
@@ -12527,6 +17077,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ128GP710A, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ128GP802, 0x1, 0x0, 0x0}
@@ -12686,6 +17249,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ128GP802, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ128GP804, 0x1, 0x0, 0x0}
@@ -12845,6 +17421,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ128GP804, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ128MC202, 0x1, 0x0, 0x0}
@@ -13004,6 +17593,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ128MC202, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ128MC204, 0x1, 0x0, 0x0}
@@ -13163,6 +17765,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ128MC204, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ128MC506, 0x1, 0x0, 0x0}
@@ -13322,6 +17937,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ128MC506, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ128MC506A, 0x1, 0x0, 0x0}
@@ -13481,6 +18109,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ128MC506A, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ128MC510, 0x1, 0x0, 0x0}
@@ -13640,6 +18281,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ128MC510, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ128MC510A, 0x1, 0x0, 0x0}
@@ -13799,6 +18453,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ128MC510A, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ128MC706, 0x1, 0x0, 0x0}
@@ -13958,6 +18625,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ128MC706, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ128MC706A, 0x1, 0x0, 0x0}
@@ -14117,6 +18797,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ128MC706A, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ128MC708, 0x1, 0x0, 0x0}
@@ -14276,6 +18969,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ128MC708, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ128MC708A, 0x1, 0x0, 0x0}
@@ -14435,6 +19141,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ128MC708A, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ128MC710, 0x1, 0x0, 0x0}
@@ -14594,6 +19313,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ128MC710, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ128MC710A, 0x1, 0x0, 0x0}
@@ -14753,6 +19485,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ128MC710A, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ128MC802, 0x1, 0x0, 0x0}
@@ -14912,6 +19657,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ128MC802, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ128MC804, 0x1, 0x0, 0x0}
@@ -15071,6 +19829,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ128MC804, 0x6, 0x6, 0x157FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ12GP201, 0x1, 0x0, 0x0}
@@ -15134,6 +19905,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ12GP201, 0x6, 0x6, 0x1FFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ12GP202, 0x1, 0x0, 0x0}
@@ -15197,6 +19981,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ12GP202, 0x6, 0x6, 0x1FFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ12MC201, 0x1, 0x0, 0x0}
@@ -15260,6 +20057,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ12MC201, 0x6, 0x6, 0x1FFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ12MC202, 0x1, 0x0, 0x0}
@@ -15323,6 +20133,45 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ12MC202, 0x6, 0x6, 0x1FFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ16GP304, 0x1, 0x0, 0x0}
@@ -15386,6 +20235,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ16GP304, 0x6, 0x6, 0x2BFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ16GS402, 0x1, 0x0, 0x0}
@@ -15449,6 +20311,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ16GS402, 0x6, 0x6, 0x2BFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ16GS404, 0x1, 0x0, 0x0}
@@ -15512,6 +20387,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ16GS404, 0x6, 0x6, 0x2BFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ16GS502, 0x1, 0x0, 0x0}
@@ -15575,6 +20463,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ16GS502, 0x6, 0x6, 0x2BFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ16GS504, 0x1, 0x0, 0x0}
@@ -15638,6 +20539,45 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ16GS504, 0x6, 0x6, 0x2BFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ16MC304, 0x1, 0x0, 0x0}
@@ -15701,6 +20641,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ16MC304, 0x6, 0x6, 0x2BFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ256GP506, 0x1, 0x0, 0x0}
@@ -15860,6 +20813,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ256GP506, 0x6, 0x6, 0x2ABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ256GP506A, 0x1, 0x0, 0x0}
@@ -16019,6 +20985,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ256GP506A, 0x6, 0x6, 0x2ABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ256GP510, 0x1, 0x0, 0x0}
@@ -16178,6 +21157,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ256GP510, 0x6, 0x6, 0x2ABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ256GP510A, 0x1, 0x0, 0x0}
@@ -16337,6 +21329,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ256GP510A, 0x6, 0x6, 0x2ABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ256GP710, 0x1, 0x0, 0x0}
@@ -16496,6 +21501,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ256GP710, 0x6, 0x6, 0x2ABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ256GP710A, 0x1, 0x0, 0x0}
@@ -16655,6 +21673,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ256GP710A, 0x6, 0x6, 0x2ABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ256MC510, 0x1, 0x0, 0x0}
@@ -16814,6 +21845,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ256MC510, 0x6, 0x6, 0x2ABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ256MC510A, 0x1, 0x0, 0x0}
@@ -16973,6 +22017,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ256MC510A, 0x6, 0x6, 0x2ABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ256MC710, 0x1, 0x0, 0x0}
@@ -17132,6 +22189,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ256MC710, 0x6, 0x6, 0x2ABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ256MC710A, 0x1, 0x0, 0x0}
@@ -17291,6 +22361,58 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ256MC710A, 0x6, 0x6, 0x2ABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ32GP202, 0x1, 0x0, 0x0}
@@ -17354,6 +22476,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ32GP202, 0x6, 0x6, 0x57FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ32GP204, 0x1, 0x0, 0x0}
@@ -17417,6 +22552,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ32GP204, 0x6, 0x6, 0x57FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ32GP302, 0x1, 0x0, 0x0}
@@ -17480,6 +22628,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ32GP302, 0x6, 0x6, 0x57FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ32GP304, 0x1, 0x0, 0x0}
@@ -17543,6 +22704,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ32GP304, 0x6, 0x6, 0x57FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ32GS406, 0x1, 0x0, 0x0}
@@ -17606,6 +22780,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ32GS406, 0x6, 0x6, 0x57FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ32GS606, 0x1, 0x0, 0x0}
@@ -17669,6 +22856,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ32GS606, 0x6, 0x6, 0x57FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ32GS608, 0x1, 0x0, 0x0}
@@ -17732,6 +22932,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ32GS608, 0x6, 0x6, 0x57FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ32GS610, 0x1, 0x0, 0x0}
@@ -17795,6 +23008,58 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ32GS610, 0x6, 0x6, 0x57FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ32MC202, 0x1, 0x0, 0x0}
@@ -17858,6 +23123,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ32MC202, 0x6, 0x6, 0x57FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ32MC204, 0x1, 0x0, 0x0}
@@ -17921,6 +23199,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ32MC204, 0x6, 0x6, 0x57FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ32MC302, 0x1, 0x0, 0x0}
@@ -17984,6 +23275,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ32MC302, 0x6, 0x6, 0x57FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ32MC304, 0x1, 0x0, 0x0}
@@ -18047,6 +23351,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ32MC304, 0x6, 0x6, 0x57FE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ64GP202, 0x1, 0x0, 0x0}
@@ -18206,6 +23523,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ64GP202, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ64GP204, 0x1, 0x0, 0x0}
@@ -18365,6 +23695,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ64GP204, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ64GP206, 0x1, 0x0, 0x0}
@@ -18524,6 +23867,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ64GP206, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ64GP206A, 0x1, 0x0, 0x0}
@@ -18683,6 +24039,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ64GP206A, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ64GP306, 0x1, 0x0, 0x0}
@@ -18842,6 +24211,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ64GP306, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ64GP306A, 0x1, 0x0, 0x0}
@@ -19001,6 +24383,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ64GP306A, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ64GP310, 0x1, 0x0, 0x0}
@@ -19160,6 +24555,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ64GP310, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ64GP310A, 0x1, 0x0, 0x0}
@@ -19319,6 +24727,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ64GP310A, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ64GP706, 0x1, 0x0, 0x0}
@@ -19478,6 +24899,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ64GP706, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ64GP706A, 0x1, 0x0, 0x0}
@@ -19637,6 +25071,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ64GP706A, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ64GP708, 0x1, 0x0, 0x0}
@@ -19796,6 +25243,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ64GP708, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ64GP708A, 0x1, 0x0, 0x0}
@@ -19955,6 +25415,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ64GP708A, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ64GP710, 0x1, 0x0, 0x0}
@@ -20114,6 +25587,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ64GP710, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ64GP710A, 0x1, 0x0, 0x0}
@@ -20273,6 +25759,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ64GP710A, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ64GP802, 0x1, 0x0, 0x0}
@@ -20432,6 +25931,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ64GP802, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ64GP804, 0x1, 0x0, 0x0}
@@ -20591,6 +26103,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ64GP804, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ64GS406, 0x1, 0x0, 0x0}
@@ -20654,6 +26179,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ64GS406, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ64GS606, 0x1, 0x0, 0x0}
@@ -20717,6 +26255,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ64GS606, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ64GS608, 0x1, 0x0, 0x0}
@@ -20780,6 +26331,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ64GS608, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ64GS610, 0x1, 0x0, 0x0}
@@ -20843,6 +26407,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ64GS610, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ64MC202, 0x1, 0x0, 0x0}
@@ -21002,6 +26579,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ64MC202, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ64MC204, 0x1, 0x0, 0x0}
@@ -21161,6 +26751,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ64MC204, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ64MC506, 0x1, 0x0, 0x0}
@@ -21320,6 +26923,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ64MC506, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ64MC506A, 0x1, 0x0, 0x0}
@@ -21479,6 +27095,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ64MC506A, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ64MC508, 0x1, 0x0, 0x0}
@@ -21638,6 +27267,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ64MC508, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ64MC508A, 0x1, 0x0, 0x0}
@@ -21797,6 +27439,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ64MC508A, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ64MC510, 0x1, 0x0, 0x0}
@@ -21956,6 +27611,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ64MC510, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ64MC510A, 0x1, 0x0, 0x0}
@@ -22115,6 +27783,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ64MC510A, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ64MC706, 0x1, 0x0, 0x0}
@@ -22274,6 +27955,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ64MC706, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ64MC706A, 0x1, 0x0, 0x0}
@@ -22433,6 +28127,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ64MC706A, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ64MC710, 0x1, 0x0, 0x0}
@@ -22592,6 +28299,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ64MC710, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ64MC710A, 0x1, 0x0, 0x0}
@@ -22751,6 +28471,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ64MC710A, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ64MC802, 0x1, 0x0, 0x0}
@@ -22910,6 +28643,19 @@
 {"FGS:GSS:OFF",
   IS_CODEGUARD_ID | FLASH | CODE_PROTECT | OFF, 
   p33FJ64MC802, 0x6, 0x6, 0xABFE}
+/*-------------------------------------------------------------------------
+ * MPLAB-Cxx resource file
+ *
+ * (c) Copyright 1999-2014 Microchip Technology, All rights reserved
+ *-------------------------------------------------------------------------
+ *
+ * This file is composed of the following: 
+ *   {"config word name:setting:value" 
+ *     flags (or'd together) 
+ *     processor, bit mask, bit value, boundary address} 
+ *
+ *------------------------------------------------------------------------*/
+
 {"FBS:BWRP:WRPROTECT_ON",
  IS_CODEGUARD_ID | FLASH | BOOT | WRITE_PROTECT | ON,
   p33FJ64MC804, 0x1, 0x0, 0x0}

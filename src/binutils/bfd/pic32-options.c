@@ -305,6 +305,9 @@ gldelf32pic32mx_parse_args (int argc, char ** argv)
       crypto_file = (const char *) malloc(strlen(optarg)+1);
       strcpy(crypto_file, optarg);
       break;
+    case MEMRESERVE_OPTION:
+      /* This option has already been handled by the xc32-sh shell */
+      break;
     case 'p':
       pic32_processor_option(optarg);
       break;

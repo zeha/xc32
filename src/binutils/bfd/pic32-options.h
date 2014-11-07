@@ -74,7 +74,8 @@ enum elfpic32mx_options {
   DATA_INIT_OPTION,
   NO_DATA_INIT_OPTION,
   FILL_OPTION,
-  CRYPTO_OPTION
+  CRYPTO_OPTION,
+  MEMRESERVE_OPTION
 };
 
 static struct option longopts[] =
@@ -87,6 +88,7 @@ static struct option longopts[] =
   { "no-data-init", no_argument, NULL, NO_DATA_INIT_OPTION },
   { "fill", required_argument, NULL, FILL_OPTION },
   { "crypto", required_argument, NULL, CRYPTO_OPTION },
+  { "mreserve", required_argument, NULL, MEMRESERVE_OPTION },
   { NULL,        no_argument,       NULL, 0                }
 };
 #endif

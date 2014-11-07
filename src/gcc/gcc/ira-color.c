@@ -1367,16 +1367,11 @@ static void
 setup_allocno_available_regs_num (ira_allocno_t allocno)
 {
   int i, n, hard_regs_num;
-#if 0
   int hard_regno;
   enum machine_mode mode;
-#endif
   enum reg_class cover_class;
   ira_allocno_t a;
   HARD_REG_SET temp_set;
-#if defined(TARGET_MIPS) || defined (TARGET_MCHP_PIC32MX)
-  int *a_costs;
-#endif
 
   cover_class = ALLOCNO_COVER_CLASS (allocno);
   ALLOCNO_AVAILABLE_REGS_NUM (allocno) = ira_available_class_regs[cover_class];
@@ -1392,20 +1387,14 @@ setup_allocno_available_regs_num (ira_allocno_t allocno)
       if (a == allocno)
 	break;
     }
-#if defined(TARGET_MIPS) || defined (TARGET_MCHP_PIC32MX)
-  ira_allocate_and_copy_costs (&ALLOCNO_UPDATED_HARD_REG_COSTS (a),
-                              cover_class, ALLOCNO_HARD_REG_COSTS (a));
-  a_costs = ALLOCNO_UPDATED_HARD_REG_COSTS (a);
-#endif
+  mode = ALLOCNO_MODE (allocno);
   for (n = 0, i = hard_regs_num - 1; i >= 0; i--)
     {
-    if (TEST_HARD_REG_BIT (temp_set, ira_class_hard_regs[cover_class][i])
-#if defined(TARGET_MIPS) || defined (TARGET_MCHP_PIC32MX)
-       || ((a_costs != NULL)
-           && a_costs[i] > ALLOCNO_UPDATED_MEMORY_COST (allocno))
-#endif
-       )
-	n++;
+      hard_regno = ira_class_hard_regs[cover_class][i];
+      if (TEST_HARD_REG_BIT (temp_set, hard_regno)
+        || TEST_HARD_REG_BIT (prohibited_class_mode_regs[cover_class][mode],
+                              hard_regno))
+        n++;
     }
   if (internal_flag_ira_verbose > 2 && n > 0 && ira_dump_file != NULL)
     fprintf (ira_dump_file, "    Reg %d of %s has %d regs less\n",

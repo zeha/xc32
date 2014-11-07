@@ -1363,9 +1363,13 @@ lang_memory_region_lookup (const char *const name, bfd_boolean create)
     for (n = &r->name_list; n != NULL; n = n->next)
       if (strcmp (n->name, name) == 0)
         {
+          /* Allow redeclaration of a memory region for PIC32 because we need to
+             be able to declare a temporary region for debug reserved memory.  */
+#if !defined(TARGET_IS_PIC32MX)
           if (create)
             einfo (_("%P:%S: warning: redeclaration of memory region `%s'\n"),
                    NULL, name);
+#endif
           return r;
         }
 
@@ -4912,7 +4916,7 @@ os_region_check (lang_output_section_statement_type *os,
 		 lang_memory_region_type *region,
 		 etree_type *tree,
 		 bfd_vma rbase)
-{
+{    
   if ((region->current < region->origin
        || (region->current - region->origin > region->length))
       && ((region->current != region->origin + region->length)
@@ -4920,12 +4924,14 @@ os_region_check (lang_output_section_statement_type *os,
     {
       if (tree != NULL)
 	{
+#if !defined(TARGET_IS_PIC32MX)
 	  einfo (_("%X%P: address 0x%v of %B section `%s'"
 		   " is not within region `%s'\n"),
 		 region->current,
 		 os->bfd_section->owner,
 		 os->bfd_section->name,
 		 region->name_list.name);
+#endif
 	}
       else if (!region->had_full_message)
 	{
@@ -5912,7 +5918,7 @@ lang_set_startof (void)
       sprintf (buf, ".startof.%s", secname);
 #ifdef TARGET_IS_PIC32MX
       /*
-      ** The pic30 linker appends chars to the end of
+      ** The pic32 linker appends chars to the end of
       ** unmapped section names. Avoid this part when
       ** searching for .startof. and .sizeof. symbols.
       */

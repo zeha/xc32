@@ -1016,7 +1016,11 @@ init_optimization_passes (void)
       NEXT_PASS (pass_validate_dsp_instructions);
 #endif
       NEXT_PASS (pass_combine);
+#if !defined(_BUILD_MCHP_)
+      /* Temporarily disable redundant zero-extension elimination */
+      /* We will get the new ree pass when we upgrade GCC base versions */
       NEXT_PASS (pass_ee);
+#endif
       NEXT_PASS (pass_if_after_combine);
       NEXT_PASS (pass_partition_blocks);
       NEXT_PASS (pass_regmove);

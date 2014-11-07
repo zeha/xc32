@@ -440,7 +440,7 @@ expandargv (int *argcp, char ***argvp)
 	{
 	  file_argv = (char **) xmalloc (sizeof (char *));
 	  file_argv[0] = NULL;
-	}
+	} 
       else
 	/* Parse the string.  */
 	file_argv = buildargv (buffer);

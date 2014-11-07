@@ -1763,7 +1763,7 @@ enum mips_code_readable_setting {
 #define COP0_REG_SELECT_NUM (COP0_REG_SELECT_LAST - COP0_REG_SELECT_FIRST + 1)
 
 /* ALL_COP_REG_NUM assumes that COP0,2,and 3 are numbered consecutively.  */
-#define ALL_COP_REG_NUM (COP0_REG_LAST - COP0_REG_FIRST + 1)
+#define ALL_COP_REG_NUM (COP0_REG_SELECT_LAST - COP0_REG_FIRST + 1)
 
 #define DSP_ACC_REG_FIRST 208
 #define DSP_ACC_REG_LAST 213

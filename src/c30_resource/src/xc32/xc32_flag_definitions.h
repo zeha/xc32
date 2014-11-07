@@ -14,7 +14,8 @@
 #define P32MZ              (1<<1)
 #define P32SK              (1<<2)
 
-#define FAMILY_MASK        (0xFF)
+#define FAMILY_MASK        (0x000000FFu)
+#define RECORD_TYPE_MASK   (0xF0000000u)
 
 /*
 ** Flags that identify record types

@@ -113,7 +113,9 @@ struct resource_introduction_block *read_device_rib(const char *name,
       temp = (char *)xcalloc(strlen(ultimate)+1,1);
       strcpy(temp, ultimate);
       strcpy(penultimate,ultimate);
-      //status = stat(name,&fileinfo);
+#if 0
+      status = stat(name,&fileinfo);
+#endif
     } else {
       name = device_buf;
     }
@@ -161,11 +163,6 @@ struct resource_introduction_block *read_device_rib(const char *name,
                                                             buffer_size+80);
       buffer_size += 80;
       if (buffer != new_buffer) {
-#if 0
-        free(buffer);    // silly rabbits, realloc frees the buffer if it moves it
-                         // and they are always after me lucky charms
-                         // and trix are for kids
-#endif
         buffer= new_buffer;
       }
     }
@@ -257,7 +254,7 @@ static int read_word(unsigned int *w) {
 
 /* what a stupid warning */
 static int adjust_for_readbyte(void);
-static int adjust_for_readbyte() {
+static int adjust_for_readbyte(void) {
   if (read_byte_used) {
     while (read_byte_used) {
       if (read_byte_used >= rib->field_sizes[current_field]) {

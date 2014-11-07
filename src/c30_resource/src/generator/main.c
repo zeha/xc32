@@ -7,6 +7,9 @@ static const char *version = "0.1 (alpha)";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#include <sys/time.h>
+
 #include "grammar.h"
 #ifdef PIC32
 #include "../xc32/xc32_flag_definitions.h"
@@ -154,8 +157,16 @@ int main(int argc, char **argv){
   int i,j;
   char *space=" ";
   int pic30_family_mask = FAMILY_MASK;
+  char *build_version="no version specified";
+  struct tm *tm_current;
+  struct timeval current_time;
+  char timep[64];
 
   fprintf(stderr,"Resource generation tool (Version %s)\n\n", version);
+
+  gettimeofday(&current_time,NULL);
+  tm_current = localtime(&current_time.tv_sec);
+  strftime(timep, sizeof(timep), "%Y-%m-%d", tm_current);
 
   buffer = calloc(1, buffer_size);
   i = 0;
@@ -169,6 +180,8 @@ int main(int argc, char **argv){
          case 'w': display_warnings=1;
                    break;
          case 's': split_res=1;
+                   break;
+         case 'v': build_version=argv[++input_arg];
                    break;
          default:  fprintf(stderr,"Ignoring rg option %s\n", argv[input_arg]);
                    break;
@@ -543,7 +556,7 @@ int main(int argc, char **argv){
           struct resource_data *last = 0;
   
           if ((r->fields[1]->kind == rik_int) &&
-              (r->fields[1]->v.i & IS_DEVICE_ID) &&
+              ((r->fields[1]->v.i & RECORD_TYPE_MASK) == IS_DEVICE_ID) &&
               (r->fields[1]->v.i & families[f])) {
             /* device for the family we are currently dumping */
             if (!header_dumped) {
@@ -591,8 +604,9 @@ int main(int argc, char **argv){
         "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n"
         "<mp:deviceSupport xmlns:mp=\"http://crownking/mplab\"\n"
         "         xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n"
-        "         xsi:schemaLocation=\"http://crownking/mplab%20mplab/deviceSupport\"\n"
-        ">\n\n";
+        "         xsi:schemaLocation=\"http://crownking/mplab%20mplab/deviceSupport\"\n";
+
+       const char *end_header = ">\n\n";
 
       const char *footer = "</mp:deviceSupport>";
 
@@ -619,6 +633,9 @@ int main(int argc, char **argv){
       int f;
 
       fprintf(deviceSupportXML, "%s", header);
+      fprintf(deviceSupportXML, "         mp:version=\"%s\"\n", build_version);
+      fprintf(deviceSupportXML, "         mp:builddate=\"%s\"\n",timep);
+      fprintf(deviceSupportXML, "%s", end_header);
       for (f = 0; families[f]; f++) {
         int header_dumped = 0;
 
@@ -627,7 +644,7 @@ int main(int argc, char **argv){
           struct resource_data *last = 0;
 
           if ((r->fields[1]->kind == rik_int) &&
-              (r->fields[1]->v.i & IS_DEVICE_ID) &&
+              ((r->fields[1]->v.i & RECORD_TYPE_MASK) == IS_DEVICE_ID) &&
               (r->fields[1]->v.i & families[f])) {
             /* device for the family we are currently dumping */
             if (!header_dumped) {

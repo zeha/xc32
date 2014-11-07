@@ -216,12 +216,12 @@ static void get_resource_path(const char *resource) {
     if (PATH) tool_name = command;
   }
   pic32_resource_file = xmalloc(strlen(tool_name) +
-                                sizeof("/xc32_device.info") + 1);
+                                sizeof("/../xc32_device.info") + 1);
   sprintf(pic32_resource_file,"%s", tool_name);
   for (c = pic32_resource_file + strlen(pic32_resource_file);
        !IS_DIR_SEPARATOR(*c); c--);
   *c = 0;
-  strcat(pic32_resource_file,"/xc32_device.info");/* Keep this to be able 
+  strcat(pic32_resource_file,"/../xc32_device.info");/* Keep this to be able 
                                                      to use same
                                                      read_device_rib as XC16 */ 
 }
@@ -265,7 +265,6 @@ void process_resource_file(unsigned int procID, int debug) {
   struct resource_data d;
   int version;
 
-
   if (pic32_resource_file == 0) {
     fprintf(stderr,"Provide a resource file");
     return;
@@ -287,10 +286,6 @@ void process_resource_file(unsigned int procID, int debug) {
     pic32_resource_version = xmalloc(strlen(version_part1) + 
                                      strlen(version_part2) + 40);
     version = rib->version.major * 100 + rib->version.minor;
-    if (version != pic32_tool_version) {
-      fprintf(stderr,"Warning: resource version (%d.%.2d) does not match!\n",
-              rib->version.major, rib->version.minor);
-    } 
     sprintf(pic32_resource_version,"Part Supprt version (%c) ",
               rib->resource_version_increment);
   }

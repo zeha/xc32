@@ -2,7 +2,7 @@
 <lti:LanguageToolSuite
   lti:uuid="{ec0473c6-f276-4a29-9b4a-41f899a460a2}"
   lti:name="MPLAB XC for PIC32MX/PIC32MZ"
-  lti:version="1.31"
+  lti:version="1.32"
   xmlns:lti="http://www.microchip.com/lti"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://www.microchip.com/lti lti/LanguageToolSuite.xsd">
@@ -26,7 +26,6 @@
     <lti:Device lti:device="32MX150F128C"/>
     <lti:Device lti:device="32MX150F128D"/>
     <lti:Device lti:device="32MX170F256B"/>
-    <lti:Device lti:device="32MX170F256C"/>
     <lti:Device lti:device="32MX170F256D"/>
     <lti:Device lti:device="32MX210F016B"/>
     <lti:Device lti:device="32MX210F016C"/>
@@ -41,7 +40,6 @@
     <lti:Device lti:device="32MX250F128C"/>
     <lti:Device lti:device="32MX250F128D"/>
     <lti:Device lti:device="32MX270F256B"/>
-    <lti:Device lti:device="32MX270F256C"/>
     <lti:Device lti:device="32MX270F256D"/>
     <lti:Device lti:device="32MX320F032H"/>
     <lti:Device lti:device="32MX320F064H"/>

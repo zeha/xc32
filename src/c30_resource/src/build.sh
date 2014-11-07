@@ -26,6 +26,6 @@ echo "Building C30 resource data files for version [$VERSION_ID]"
 
 #(cd c30; ../generator/rg +f 0x7 -DMCHP_VERSION=${VERSION_ID} -DMCHP_RESOURCE=${MCHP_RESOURCE:-$CMD_RVERSION} c30_devices.res c30_device.info dsPIC.LanguageToolSuite)
 #(cd c30; ../generator/rg +f 24 -DMCHP_VERSION=${VERSION_ID} -DMCHP_RESOURCE=${MCHP_RESOURCE:-$CMD_RVERSION} c30_devices.res c30_device.info PIC24.LanguageToolSuite)
-(cd c30; ../generator/rg -DMCHP_VERSION=${VERSION_ID} -DMCHP_RESOURCE=${MCHP_RESOURCE:-$CMD_RVERSION} c30_devices.res c30_device.info combo.LanguageToolSuite deviceSupport.xml)
+(cd c30; ../generator/rg +v "$VERSION_ID ($MCHP_RESOURCE)" -DMCHP_VERSION=${VERSION_ID} -DMCHP_RESOURCE=${MCHP_RESOURCE:-$CMD_RVERSION} c30_devices.res c30_device.info combo.LanguageToolSuite deviceSupport.xml)
 (cd c30; ../generator/rg +s -DMCHP_VERSION=${VERSION_ID} -DMCHP_RESOURCE=${MCHP_RESOURCE:-$CMD_RVERSION} c30_devices.res c30_device.info)
 

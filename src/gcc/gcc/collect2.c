@@ -55,6 +55,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "obstack.h"
 #include "intl.h"
 #include "version.h"
+
 
 /* On certain systems, we have code that works by scanning the object file
    directly.  But this code uses system-specific header files and library
@@ -1354,6 +1355,11 @@ main (int argc, char **argv)
   ld_file_name = find_a_file (&path, REAL_LD_FILE_NAME);
   if (ld_file_name == 0)
 #endif
+#ifdef COLLECT2_RELATIVE_LD_FILE_NAME
+  ld_file_name = find_a_file (&cpath, COLLECT2_RELATIVE_LD_FILE_NAME);
+
+  if (ld_file_name == 0)
+#endif
   /* Search the (target-specific) compiler dirs for ld'.  */
   ld_file_name = find_a_file (&cpath, real_ld_suffix);
   /* Likewise for `collect-ld'.  */
@@ -1796,6 +1802,7 @@ main (int argc, char **argv)
 
     if (early_exit)
       {
+
 #ifdef COLLECT_EXPORT_LIST
 	/* Make sure we delete the export file we may have created.  */
 	if (export_file != 0 && export_file[0])
@@ -1956,10 +1963,12 @@ main (int argc, char **argv)
     maybe_run_lto_and_relink (ld2_argv, object_lst, object, false);
 #else
   /* Otherwise, simply call ld because tlink is already done.  */
-  if (lto_mode)
+  if (lto_mode) {
     maybe_run_lto_and_relink (ld2_argv, object_lst, object, true);
-  else
+    }
+  else {
     fork_execute ("ld", ld2_argv);
+    }
 
   /* Let scan_prog_file do any final mods (OSF/rose needs this for
      constructors/destructors in shared libraries.  */
@@ -2023,6 +2032,27 @@ do_wait (const char *prog, struct pex_obj *pex)
 }
 
 
+#if defined(_BUILD_C32_)
+static void
+unbackslashify (char *s)
+{
+  char *save_s, *s2;
+  save_s = s;
+  while ((s = strchr (s, '\\')) != NULL) {
+    *s = '/';
+  }
+
+  /* Remove double slashes */
+  s = s2 =  save_s;
+  while ((s = strchr(s, '/')) != NULL) {
+    if (*(s+1) == '/') {
+      strcpy(s, (s+1));
+    }
+    s++;
+  }
+  return;
+}
+#endif
 /* Execute a program, and wait for the reply.  */
 
 struct pex_obj *
@@ -2033,7 +2063,13 @@ collect_execute (const char *prog, char **argv, const char *outname,
   const char *errmsg;
   int err;
   char *response_arg = NULL;
+#if defined(_BUILD_C32_)
+  char **response_argv ATTRIBUTE_UNUSED;
+  const char *mreserve_string ATTRIBUTE_UNUSED = "";
+  const char *arg_string ATTRIBUTE_UNUSED = "";
+#else
   char *response_argv[3] ATTRIBUTE_UNUSED;
+#endif
 
   if (HAVE_GNU_LD && at_file_supplied && argv[0] != NULL)
     {
@@ -2051,6 +2087,10 @@ collect_execute (const char *prog, char **argv, const char *outname,
 
       response_file = make_temp_file ("");
 
+#if defined(_BUILD_C32_)
+      unbackslashify (response_file);
+#endif
+
       f = fopen (response_file, "w");
 
       if (f == NULL)
@@ -2066,12 +2106,36 @@ collect_execute (const char *prog, char **argv, const char *outname,
       if (EOF == status)
         fatal ("could not close response file %s", response_file);
 
+
+#if defined(_BUILD_C32_)
+      /* Pass the --mreserve option outside of the response file since the
+         xc32-sh shell cannot yet handle options in response files. */
+      while(*current_argv != NULL)
+      {
+        char* mem_reserve_opt = NULL;
+        if ((mem_reserve_opt = strstr (*current_argv, "--mreserve=")))
+        {
+          if (mem_reserve_opt != NULL)
+          {
+            mreserve_string = concat (mreserve_string, "\"", mem_reserve_opt, "\" ", NULL);
+          }
+        }
+        else
+        {
+          arg_string = concat (arg_string, *current_argv, " ", NULL);
+        }
+        current_argv++;
+      }
+      response_arg = concat ("\"", argv0, "\" ", mreserve_string, " \"@", response_file, "\"", NULL);
+      argv = buildargv (response_arg);
+#else
       response_arg = concat ("@", response_file, NULL);
       response_argv[0] = argv0;
       response_argv[1] = response_arg;
       response_argv[2] = NULL;
 
       argv = response_argv;
+#endif
     }
 
   if (vflag || debug)

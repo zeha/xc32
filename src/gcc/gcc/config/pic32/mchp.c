@@ -4,11 +4,13 @@
    Free Software Foundation, Inc.
    Contributed by J. Grosbach, james.grosbach@microchip.com, and
    T. Kuhrt, tracy.kuhrt@microchip.com
-   Changes by J. Kajita, jason.kajita@microchip.com, and
-   G. Loegel, george.loegel@microchip.com
+   Changes by J. Kajita, jason.kajita@microchip.com,
+   G. Loegel, george.loegel@microchip.com and
+   S. Bekal, swaroopkumar.bekal@microchip.com
 
 This file is part of GCC.
 
+GCC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 3, or (at your option)
 any later version.
@@ -94,6 +96,7 @@ along with GCC; see the file COPYING3.  If not see
 #if !defined(SKIP_LICENSE_MANAGER)
 /* include file */
 #include "config/mchp-cci/xclm_public.h"
+#include "config/mchp-cci/mchp_sha.h"
 #endif
 
 #ifdef __MINGW32__
@@ -952,7 +955,7 @@ pic32_get_license (int require_cpp)
     int major_ver =0, minor_ver=0;
     extern char **save_argv;
     struct stat filestat;
-    int found_xclm = 0;
+    int found_xclm = 0, xclm_tampered = 1;
 
     /* Get the version number string from the entire version string */
     if ((version_string != NULL) && *version_string)
@@ -1015,23 +1018,38 @@ pic32_get_license (int require_cpp)
           found_xclm = 1;
       }
 
-    /* Call xclm to determine the license */
+    /* Verify SHA sum and call xclm to determine the license */
     if (found_xclm && mchp_pic32_license_valid==-1)
       {
-        args[0] = exec;
-        failure = pex_one(0, exec, args, "MPLAB XC32 Compiler", 0, 0, &status, &err);
 
-        if (failure != NULL)
+        /* Check if xclm executable is tampered */
+        xclm_tampered = mchp_sha256_validate(exec, MCHP_XCLM_SHA256_DIGEST);
+        
+        if (xclm_tampered != 0)
           {
-            /* Set free edition if the license manager isn't available. */
+            /* Set free edition if the license manager SHA digest does not match. */
             /* The free edition disables optimization options without an eval period. */
             mchp_pic32_license_valid=PIC32_FREE_LICENSE;
-            warning (0, "Could not retrieve compiler license (%s)", failure);
+            warning (0, "Detected corrupt executable file");
             inform (input_location, "Please reinstall the compiler");
           }
-        else if (WIFEXITED(status))
+        else
           {
-            mchp_pic32_license_valid = WEXITSTATUS(status);
+            args[0] = exec;
+            failure = pex_one(0, exec, args, "MPLAB XC32 Compiler", 0, 0, &status, &err);
+
+            if (failure != NULL)
+              {
+                /* Set free edition if the license manager isn't available. */
+                /* The free edition disables optimization options without an eval period. */
+                mchp_pic32_license_valid=PIC32_FREE_LICENSE;
+                warning (0, "Could not retrieve compiler license (%s)", failure);
+                inform (input_location, "Please reinstall the compiler");
+              }
+            else if (WIFEXITED(status))
+              {
+                mchp_pic32_license_valid = WEXITSTATUS(status);
+              }
           }
       }
   }
@@ -1135,7 +1153,7 @@ void mchp_override_options_after_change(void) {
             /* Disable -mips16 and -mips16e */
             NULLIFY(mips_base_mips16, "mips16 mode") = 0;
           }
-        if (mips_base_micromips != 0)
+        if (mips_base_micromips != 0 && (strncmp (mchp_processor_string, "32MM", 4) != 0))
           {
             /* Disable -mmicromips */
             NULLIFY(mips_base_micromips, "micromips mode") = 0;
@@ -1264,13 +1282,6 @@ mchp_subtarget_override_options2 (void)
   nullify_lto    = 1;
 #endif /* SKIP_LICENSE_MANAGER */
 
-  if (mips_base_mips16 || mips_base_micromips)
-    {
-      flag_inline_small_functions = 0;
-      flag_inline_functions = 0;
-      flag_no_inline = 1;
-    }
-
   if (mchp_profile_option) {
     flag_inline_small_functions = 0;
     flag_inline_functions = 0;
@@ -1342,7 +1353,7 @@ mchp_subtarget_override_options2 (void)
             NULLIFY(mips_base_mips16, "mips16 mode") = 0;
           }
 
-        if (mips_base_micromips != 0)
+        if (mips_base_micromips != 0 && (strncmp (mchp_processor_string, "32MM", 4) != 0))
           {
             /* Disable -mmicromips */
             NULLIFY(mips_base_micromips, "micromips mode") = 0;
@@ -4202,6 +4213,10 @@ bool mchp_subtarget_micromips_enabled (const_tree decl)
   bool disable_micromips;
 
   disable_micromips = (mchp_pic32_license_valid < 2) || !(pic32_device_mask & HAS_MICROMIPS);
+  if (strncmp (mchp_processor_string, "32MM", 4) == 0)
+    {
+      disable_micromips = false;
+    }
 
   if (disable_micromips)
     {

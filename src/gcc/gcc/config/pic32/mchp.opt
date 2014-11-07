@@ -359,6 +359,10 @@ mdebugger
 Target Var(TARGET_DEBUG_EXEC)
 Allocate space for debugger executive and enable debugging features
 
+mreserve=
+Target Report RejectNegative Joined
+-mreserve=MEM	Reserve memory for use by the debug tool
+
 mperipheral-libs
 Target Var(TARGET_LINK_PERIPHERAL_LIBS)
 Link peripheral libraries
@@ -384,7 +388,7 @@ Target Var Var(TARGET_LEGACY_LIBC)
 -legacy-libc	Use legacy lib/include directory
 
 mrelaxed-math
-Target Var Var(TARGET_RELAXED_MATH) Undocumented
+Target Var Var(TARGET_RELAXED_MATH) 
 -relaxed-math	Use alternative floating-point support routines
 
 mxc32cpp-lib

@@ -154,7 +154,7 @@ int main(int argc, char **argv) {
       device_id=0;
       vector_id=0;
       codeguard_id=0;
-      if (d.v.i & IS_DEVICE_ID) {
+      if ((d.v.i & RECORD_TYPE_MASK) == IS_DEVICE_ID) {
         char *family = "UNK";
         int o = 0,c;
 
@@ -195,7 +195,7 @@ int main(int argc, char **argv) {
         PRETTY
         if (d.v.i & HAS_5VOLTS) o += fprintf(stderr, "5V ");
         fprintf(stderr,"\n");
-      } else if (d.v.i & IS_VECTOR_ID) {
+      } else if ((d.v.i & RECORD_TYPE_MASK) == IS_VECTOR_ID) {
         int o = 0,c;
 
         vector_id=1;
@@ -216,7 +216,7 @@ int main(int argc, char **argv) {
         PRETTY
         if (d.v.i & P24E)     o += fprintf(stderr,"PIC24E ");
         fprintf(stderr,"\n");
-      } else if (d.v.i & IS_CODEGUARD_ID) {
+      } else if ((d.v.i & RECORD_TYPE_MASK) == IS_CODEGUARD_ID) {
         int o = 0,c;
         
         codeguard_id = 1;

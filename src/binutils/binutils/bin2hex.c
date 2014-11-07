@@ -48,6 +48,12 @@ static int physical_addresses = 1;
 static int a0_address_mapping = 0;
 static int show_usage = 0;
 
+static long long int pfm_offset_address_by = 0;
+static long long int bfm_offset_address_by = 0;
+
+#define IS_PFM_ADDR(x) ((((x) >= (0x1D000000)) && ((x) <= (0x1D1FFFFF))))
+#define IS_BFM_ADDR(x) ((((x) >= (0x1FC00000)) && ((x) <= (0x1FC73FFF))))
+
 static struct option long_options[] =
 {
   {"sort", no_argument, NULL, 'a'},
@@ -58,6 +64,8 @@ static struct option long_options[] =
   {"verbose", no_argument, NULL, 'v'},
   {"target", required_argument, NULL, 'b'},
   {"help", no_argument, NULL, '?'},
+  {"pfm-offset", required_argument, NULL, 'P'},
+  {"bfm-offset", required_argument, NULL, 'B'},
   {0, no_argument, 0, 0}
 };
 
@@ -73,7 +81,7 @@ main (int argc, char **argv)
   bfd_init ();
   set_default_bfd_target ();
 
-  while ((c = getopt_long (argc, argv, "aip0svb?",
+  while ((c = getopt_long (argc, argv, "aip0svb?P:B:",
                            long_options, (int *) 0)) != EOF)
     switch (c)
       {
@@ -100,6 +108,12 @@ main (int argc, char **argv)
         break;
       case '?' :
         show_usage = 1;
+        break;
+      case 'P' :
+        pfm_offset_address_by = strtoll(optarg,0,0);
+        break;
+      case 'B' :
+        bfm_offset_address_by = strtoll(optarg,0,0);
         break;
       default :
         show_usage = 1;
@@ -150,8 +164,10 @@ hexify_file (char *filename, char *target)
 
   if (bfd_check_format (abfd, bfd_object))
     {
-      if (verbose)
+      if (verbose) {
         printf ("\n");
+        printf("Offsetting PFM addresses by 0x%16.16llx and BFM address by 0x%16.16llx\n", pfm_offset_address_by, bfm_offset_address_by);
+      }
 
       /* strip extension from filename if present */
       dot = strrchr (filename, '.');
@@ -369,7 +385,18 @@ write_section (bfd *abfd, asection *sect, PTR fp)
     start = sect->lma;
     /* To convert to a physical address, the top 3 bits are masked off */
     if (physical_addresses)
+    {
       start = decode_address (start);
+
+      if (IS_PFM_ADDR(start))
+      {
+          start += pfm_offset_address_by;
+      }
+      else if (IS_BFM_ADDR(start))
+      {
+          start += bfm_offset_address_by;
+      }
+    }
 
     /* print section header */
     if (verbose)

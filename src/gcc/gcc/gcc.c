@@ -3595,10 +3595,8 @@ display_help (void)
   fputs (_("\
   -legacy-libc             Use legacy (pre C30 v3.25) lib C routines\n"),stdout);
 #elif defined(TARGET_MCHP_PIC32MX)
-#if !defined(PIC32_SKIP_RELAXED_MATH)
   fputs (_("\
   -relaxed-math            Use alternative floating-point support routines\n"), stdout);
-#endif /* PIC32_SKIP_RELAXED_MATH */
   fputs (_("\
   -legacy-libc             Use legacy (pre v1.12) lib C routines\n"), stdout);
 #endif
@@ -7735,64 +7733,34 @@ main (int argc, char **argv)
   if (print_version)
     {
 #if defined(TARGET_MCHP_PIC32MX)
-#if defined(MCHP_PIC32_PART_SUPPORT_VERSION)
-#define LTSFILENAME ".LanguageToolSuite"
-#define PARTSUPPORTVERSION_MARKER "partsupportversion"
-#define LTI_LINE_LENGTH 256
-#define xstr(s) str(s) 
-#define str(s) #s
+#define RESOURCEFILENAME "xc32_device.info"
       {
-        const char *bindir_path = NULL;
-        char *lts_filepath = NULL;
+        struct resource_introduction_block *rib;
+        const char *bindir_path = NULL; 
+        char *res_filepath = NULL;
         int max_pathlength = 0;
-        FILE *fptr;
-        char line [LTI_LINE_LENGTH] = {0};
-          
-        bindir_path = make_relative_prefix(argv[0],
-                                  "/bin",
-                                  "/bin");
-        max_pathlength = strlen((const char*)bindir_path) + 1 + strlen((const char*)LTSFILENAME) + 1;
-        lts_filepath = (char*)alloca(max_pathlength);
-        strncpy (lts_filepath, bindir_path, max_pathlength);
-        strncat (lts_filepath, LTSFILENAME, max_pathlength);
-      if ((fptr = fopen (lts_filepath, "rb")) != NULL)
-        {
-          while (get_line (line, sizeof (line), fptr) != NULL)
-            {
-              char *pch0, *pch1;
-              /* Find the line with the license directory */
-              if (strstr (line, PARTSUPPORTVERSION_MARKER))
-                {
-                  /* Find the quoted string on that line */
-                  pch0 = strchr (line,'"') +1;
-                  pch1 = strrchr (line,'"');
-                  if ((pch1-pch0) >= 1)
-                    {
-                      partsupportversion = (char*)alloca((pch1-pch0)+2);
-                      memset (partsupportversion, 0, (pch1-pch0)+2);
-                      strncpy (partsupportversion, pch0, pch1-pch0);
+        
+        bindir_path = make_relative_prefix(argv[0],"/bin","/bin");
+        max_pathlength = strlen((const char*)bindir_path) + 1 + 
+                                   strlen((const char*)RESOURCEFILENAME) + 1;
+        res_filepath = (char*)alloca(max_pathlength);
+        strncpy (res_filepath, bindir_path, max_pathlength);
+        strncat (res_filepath, RESOURCEFILENAME, max_pathlength);
+        rib = read_rib(res_filepath);
+        printf (_("%s %s%s Build date: %s\n"), programname,
+                                 pkgversion_string,version_string, __DATE__);
+        if (rib) 
+          {
+            printf("Part support version: %d.%2d (%c)\n",rib->version.major,
+                         rib->version.minor,rib->resource_version_increment);
+           close_rib();
+          }
+        else 
+          {
+            printf("Part support version: could not read %s\n", 
+                                                           RESOURCEFILENAME);
+          }
 
-                    }
-                  break;
-                }
-            }
-        }
-    }
-#undef LTSFILENAME
-#undef PARTSUPPORTVERSION_MARKER
-#undef str
-#undef xstr
-#endif
-#endif
-
-#if defined(TARGET_MCHP_PIC32MX)
-      if (partsupportversion) {
-        printf (_("%s %s%s(%s) Build date: %s\n"), programname, pkgversion_string,
-	        version_string, partsupportversion, __DATE__);
-      }
-      else {
-        printf (_("%s %s%s Build date: %s\n"), programname, pkgversion_string,
-	        version_string, __DATE__);
       }
 #elif defined(_BUILD_C30_) && defined(MCHP_VERSION)
           { int vid;
