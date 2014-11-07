@@ -46,6 +46,8 @@ struct pic32_section
 #define SHF_ABSOLUTE (1 << 24)  /* Absolute address */
 #define SHF_REVERSE  (1 << 25)  /* Reverse aligned */
 #define SHF_RAMFUNC  (1 << 26)  /* RAMFUNC */
+#define SHF_COHERENT (1 << 27)  /* COHERENT */
+#define SHF_KEEP     (1 << 28)  /* KEEP */
 /************************************************************************/
 
 #define PIC32_SECTION_IN_DATA_MEMORY(sec) \

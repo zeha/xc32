@@ -29,16 +29,7 @@
 #include "pic32-utils.h"
 #include "libiberty.h"
 
-/* Remove for XC32 v1.30 release */
-#ifndef MCHP_SKIP_RESOURCE_FILE
-#define MCHP_SKIP_RESOURCE_FILE 1
-#endif
-//#undef MCHP_SKIP_RESOURCE_FILE
-
-#if !defined(MCHP_SKIP_RESOURCE_FILE)
 #include "../../c30_resource/src/xc32/resource_info.h"
-#endif
-
 
 #ifndef DIR_SEPARATOR
 #define DIR_SEPARATOR '/'
@@ -93,8 +84,6 @@ extern char *program_name;
   bfd_default_compatible,  \
   bfd_default_scan,       \
   next }
-
-#if !defined(MCHP_SKIP_RESOURCE_FILE)
 
 const bfd_arch_info_type * pic32_get_machine (const char * const name);
 int pic32_proc_family(const bfd_arch_info_type *);
@@ -456,4 +445,3 @@ void pic32_processor_option(char *optarg)
       }
    
 }
-#endif /* !defined(MCHP_SKIP_RESOURCE_FILE) */

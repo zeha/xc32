@@ -3091,7 +3091,7 @@ msgid "static procedure (no name)"
 msgstr "静的プロシージャ(名前無し)"
 
 #: elfxx-mips.c:5628
-msgid "%B: %A+0x%lx: Direct jumps between ISA modes are not allowed; consider recompiling with interlinking enabled."
+msgid "%B: %A+0x%lx: Unsupported jump between ISA modes; consider recompiling with interlinking enabled (-minterlink-compressed)."
 msgstr "%B: %A+0x%lx: ISA モード間の直接のジャンプは許可されていません。相互リンクを有効にして再コンパイルしてみてください"
 
 #: elfxx-mips.c:6288 elfxx-mips.c:6511

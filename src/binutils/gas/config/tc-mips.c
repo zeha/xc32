@@ -16465,7 +16465,11 @@ s_change_section (int ignore ATTRIBUTE_UNUSED)
      if (has_auto_name)
        PIC32_SET_UNORDERED_ATTR(sec);
 
-      /* encode any attribute in a symbol. Stay mips compatible */
+     /* .comment section flags should alwasy be READONLY & HAS_CONTENTS */
+      if (strcmp(sec->name,".comment") == 0) 
+        sec->flags = SEC_NO_FLAGS | SEC_READONLY | SEC_HAS_CONTENTS;
+#if 0 /*We still don't use extended attributes xc32-375*/ 
+     /* encode any attribute in a symbol. Stay mips compatible */
      if (pic32_attribute_map(sec)) {
       char *sym_name;
       char *ext_attr_prefix = "__ext_attr_";
@@ -16482,6 +16486,7 @@ s_change_section (int ignore ATTRIBUTE_UNUSED)
         symbol_mark_resolved (symbolp);
        }
      }
+#endif
   /* Prevent SEC_HAS_CONTENTS from being inadvertently set.  */
   if (PIC32_IS_BSS_ATTR(sec))
     seg_info (sec)->bss = 1;

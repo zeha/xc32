@@ -69,6 +69,8 @@
 #define HIGH          1<<21
 #define ON            1<<22
 #define OFF           1<<23
+#define ENHANCED      1<<24
+#define CONFIG        1<<25
 
 #ifndef PATH_SEPARATOR_STR
 #define PATH_SEPARATOR_STR "|"

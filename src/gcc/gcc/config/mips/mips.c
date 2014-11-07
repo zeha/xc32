@@ -1368,7 +1368,10 @@ mips_near_type_p (const_tree type)
   return lookup_attribute ("near", TYPE_ATTRIBUTES (type)) != NULL;
 }
 
-static bool
+#if !defined(TARGET_MCHP_PIC32MX)
+static 
+#endif
+bool
 mips_far_type_p (const_tree type)
 {
   return (lookup_attribute ("long_call", TYPE_ATTRIBUTES (type)) != NULL
@@ -1460,7 +1463,10 @@ mips_use_mips16_mode_p (tree decl)
 
 /* Similar predicates for "micromips"/"nomicromips" function attributes.  */
 
-static bool
+#if !defined(TARGET_MCHP_PIC32MX)
+static 
+#endif
+bool
 mips_micromips_decl_p (const_tree decl)
 {
 #if defined (MIPS_SUBTARGET_MICROMIPS_ENABLED)
@@ -1478,7 +1484,10 @@ mips_micromips_decl_p (const_tree decl)
 
 }
 
-static bool
+#if !defined(TARGET_MCHP_PIC32MX)
+static 
+#endif
+bool
 mips_nomicromips_decl_p (const_tree decl)
 {
   return lookup_attribute ("nomicromips", DECL_ATTRIBUTES (decl)) != NULL;
@@ -6809,6 +6818,10 @@ mips_expand_call (enum mips_call_type type, rtx result, rtx addr,
     {
       if (type == MIPS_CALL_EPILOGUE)
         addr = MIPS_EPILOGUE_TEMP (Pmode);
+#if defined(TARGET_MCHP_PIC32MX)
+      else if (type == MIPS_CALL_PROLOGUE)
+        addr = MIPS_PROLOGUE_TEMP (Pmode);
+#endif
       else
         addr = gen_reg_rtx (Pmode);
       lazy_p |= mips_load_call_address (type, addr, orig_addr);
@@ -6903,7 +6916,7 @@ mips_function_ok_for_sibcall (tree decl, tree exp ATTRIBUTE_UNUSED)
       /* When -minterlink-mips16 is in effect, assume that non-locally-binding
 	 functions could be MIPS32 ones unless an attribute explicitly tells
 	 us otherwise.  */
-      if (TARGET_INTERLINK_MIPS16
+      if (TARGET_INTERLINK_COMPRESSED
 	  && decl
 	  && (DECL_EXTERNAL (decl) || !targetm.binds_local_p (decl))
 	  && !mips_micromips_decl_p (decl)
@@ -6927,7 +6940,7 @@ mips_function_ok_for_sibcall (tree decl, tree exp ATTRIBUTE_UNUSED)
   /* When -minterlink-mips16 is in effect, assume that non-locally-binding
      functions could be MIPS16 ones unless an attribute explicitly tells
      us otherwise.  */
-  if (TARGET_INTERLINK_MIPS16
+  if (TARGET_INTERLINK_COMPRESSED
       && decl
       && (DECL_EXTERNAL (decl) || !targetm.binds_local_p (decl))
       && !mips_nomips16_decl_p (decl)
@@ -8571,7 +8584,6 @@ mips_in_small_data_p (const_tree decl)
   unsigned HOST_WIDE_INT size;
 #ifdef TARGET_MCHP_PIC32MX
   tree space_attr = 0;
-  tree address_attr = 0;
 #endif
 
   if (TREE_CODE (decl) == STRING_CST || TREE_CODE (decl) == FUNCTION_DECL)
@@ -8595,10 +8607,11 @@ mips_in_small_data_p (const_tree decl)
       space_attr = lookup_attribute ("space", DECL_ATTRIBUTES (decl));
       if (space_attr && (get_identifier("prog") == (TREE_VALUE(TREE_VALUE(space_attr)))))
         return false;
-      address_attr = lookup_attribute ("address", DECL_ATTRIBUTES (decl));
-      if (address_attr)
+      if (lookup_attribute ("address", DECL_ATTRIBUTES (decl)))
         return false;
       if (lookup_attribute ("persistent", DECL_ATTRIBUTES (decl)))
+        return false;
+      if (lookup_attribute ("coherent", DECL_ATTRIBUTES (decl)))
         return false;
       if (TREE_READONLY (decl) && TARGET_EMBEDDED_DATA)
         return false;
@@ -11662,10 +11675,6 @@ mips_expand_epilogue (bool sibcall_p)
   rtx base, target, insn;
   bool use_jraddiusp_p = false;
 
-#if defined(MIPS_SUBTARGET_FUNCTION_PROFILING_EPILOGUE)
-  MIPS_SUBTARGET_FUNCTION_PROFILING_EPILOGUE (sibcall_p);
-#endif
-
 #if defined(MIPS_SUBTARGET_SUPPRESS_EPILOGUE)
   if (MIPS_SUBTARGET_SUPPRESS_EPILOGUE() == true)
     {
@@ -11676,6 +11685,10 @@ mips_expand_epilogue (bool sibcall_p)
         }
       return;
     }
+#endif
+
+#if defined(MIPS_SUBTARGET_FUNCTION_PROFILING_EPILOGUE)
+  MIPS_SUBTARGET_FUNCTION_PROFILING_EPILOGUE (sibcall_p);
 #endif
 
   if (!sibcall_p && mips_can_use_return_insn ())
@@ -16661,15 +16674,21 @@ static rtx
 pic32_expand_software_breakpoint_builtin ()
 {
   rtx pat;
-
+  
   emit_insn (gen_blockage ());
+  
+  if (!TARGET_DEBUG_EXEC)
+  {
+    rtx software_reset_sym;
+    software_reset_sym = init_one_libfunc ("__pic32_software_reset");
+    
+    pat = mips_expand_call (MIPS_CALL_NORMAL, NULL_RTX, software_reset_sym,
+                             const0_rtx, NULL_RTX, false);
+  
+    emit_insn (gen_blockage ());
+    return pat;
+  }
 
-  if (TARGET_MIPS16)
-    {
-      emit_insn (gen_pic32_switch_isabase());
-    }
-
-#warning generate software break here
 
   /* Enable interrupts */
   pat = gen_pic32_sdbbp0 ();
@@ -16677,10 +16696,6 @@ pic32_expand_software_breakpoint_builtin ()
     return 0;
   emit_insn (pat);
 
-  if (TARGET_MIPS16)
-    {
-      emit_insn (gen_pic32_switch_isabase());
-    }
   emit_insn (gen_blockage ());
 
   return 0;

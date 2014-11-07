@@ -225,11 +225,9 @@ print_version_id (void)
   fprintf (stderr, _("GNU assembler version %s (%s) using BFD version %s" " Build date: " __DATE__ "\n"),
 	   VERSION, TARGET_ALIAS, BFD_VERSION_STRING);
 #ifdef TARGET_IS_PIC32MX
-#if !defined(MCHP_SKIP_RESOURCE_FILE)
   if (pic32_has_processor_option) {
     fprintf (stdout, _("%s" "\n"), pic32_resource_version);
   }
-#endif /* !defined(MCHP_SKIP_RESOURCE_FILE) */
 #endif
 }
 
@@ -412,7 +410,7 @@ parse_args (int * pargc, char *** pargv)
     /* -K is not meaningful if .word is not being hacked.  */
     'K',
 #endif
-    'L', 'M', 'R', 'W', 'Z', 'a', 'p', ':', ':', 'D', 'f', 'g', ':',':', 'I', ':', 'o', ':',
+    'L', 'M', 'R', 'W', 'Z', 'a', ':', ':', 'D', 'f', 'g', ':',':', 'I', ':', 'o', ':', 'p', ':',
 #ifndef VMS
     /* -v takes an argument on VMS, so we don't make it a generic
        option.  */
@@ -636,11 +634,9 @@ parse_args (int * pargc, char *** pargv)
 	  printf (_("GNU assembler %s" " Build date: " __DATE__ ), BFD_VERSION_STRING);
             fprintf (stdout, _("\n"));
 #ifdef TARGET_IS_PIC32MX
-#if !defined(MCHP_SKIP_RESOURCE_FILE)
           if (pic32_has_processor_option) {
             fprintf (stdout, _("%s" "\n"), pic32_resource_version);
           }
-#endif
 #endif
 	  printf (_("Copyright 2012 Free Software Foundation, Inc.\n"));
 	  printf (_("\
@@ -968,13 +964,11 @@ This program has absolutely no warranty.\n"));
               as_fatal (_("--hash-size needs a numeric argument"));
 	    break;
 	  }
-#if !defined(MCHP_SKIP_RESOURCE_FILE)
         case 'p':
           {
             pic32_processor_option(optarg);
             break;
           }
-#endif
 
 	}
     }

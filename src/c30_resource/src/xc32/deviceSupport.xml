@@ -19,6 +19,9 @@
   <mp:device mp:name="PIC32MX150F128B"/>
   <mp:device mp:name="PIC32MX150F128C"/>
   <mp:device mp:name="PIC32MX150F128D"/>
+  <mp:device mp:name="PIC32MX170F256B"/>
+  <mp:device mp:name="PIC32MX170F256C"/>
+  <mp:device mp:name="PIC32MX170F256D"/>
   <mp:device mp:name="PIC32MX210F016B"/>
   <mp:device mp:name="PIC32MX210F016C"/>
   <mp:device mp:name="PIC32MX210F016D"/>
@@ -31,6 +34,9 @@
   <mp:device mp:name="PIC32MX250F128B"/>
   <mp:device mp:name="PIC32MX250F128C"/>
   <mp:device mp:name="PIC32MX250F128D"/>
+  <mp:device mp:name="PIC32MX270F256B"/>
+  <mp:device mp:name="PIC32MX270F256C"/>
+  <mp:device mp:name="PIC32MX270F256D"/>
   <mp:device mp:name="PIC32MX320F032H"/>
   <mp:device mp:name="PIC32MX320F064H"/>
   <mp:device mp:name="PIC32MX320F128H"/>
@@ -47,6 +53,8 @@
   <mp:device mp:name="PIC32MX350F256L"/>
   <mp:device mp:name="PIC32MX360F256L"/>
   <mp:device mp:name="PIC32MX360F512L"/>
+  <mp:device mp:name="PIC32MX370F512H"/>
+  <mp:device mp:name="PIC32MX370F512L"/>
   <mp:device mp:name="PIC32MX420F032H"/>
   <mp:device mp:name="PIC32MX430F064H"/>
   <mp:device mp:name="PIC32MX430F064L"/>
@@ -60,6 +68,8 @@
   <mp:device mp:name="PIC32MX450F256L"/>
   <mp:device mp:name="PIC32MX460F256L"/>
   <mp:device mp:name="PIC32MX460F512L"/>
+  <mp:device mp:name="PIC32MX470F512H"/>
+  <mp:device mp:name="PIC32MX470F512L"/>
   <mp:device mp:name="PIC32MX534F064H"/>
   <mp:device mp:name="PIC32MX534F064L"/>
   <mp:device mp:name="PIC32MX564F064H"/>
@@ -88,9 +98,30 @@
   <mp:device mp:name="PIC32MX775F512L"/>
   <mp:device mp:name="PIC32MX795F512H"/>
   <mp:device mp:name="PIC32MX795F512L"/>
+  <mp:device mp:name="PIC32MZ1024ECG064"/>
+  <mp:device mp:name="PIC32MZ1024ECG100"/>
+  <mp:device mp:name="PIC32MZ1024ECG124"/>
+  <mp:device mp:name="PIC32MZ1024ECG144"/>
+  <mp:device mp:name="PIC32MZ1024ECH064"/>
+  <mp:device mp:name="PIC32MZ1024ECH100"/>
+  <mp:device mp:name="PIC32MZ1024ECH124"/>
+  <mp:device mp:name="PIC32MZ1024ECH144"/>
+  <mp:device mp:name="PIC32MZ1024ECM064"/>
+  <mp:device mp:name="PIC32MZ1024ECM100"/>
+  <mp:device mp:name="PIC32MZ1024ECM124"/>
+  <mp:device mp:name="PIC32MZ1024ECM144"/>
+  <mp:device mp:name="PIC32MZ2048ECG064"/>
+  <mp:device mp:name="PIC32MZ2048ECG100"/>
+  <mp:device mp:name="PIC32MZ2048ECG124"/>
+  <mp:device mp:name="PIC32MZ2048ECG144"/>
   <mp:device mp:name="PIC32MZ2048ECH064"/>
   <mp:device mp:name="PIC32MZ2048ECH100"/>
+  <mp:device mp:name="PIC32MZ2048ECH124"/>
   <mp:device mp:name="PIC32MZ2048ECH144"/>
+  <mp:device mp:name="PIC32MZ2048ECM064"/>
+  <mp:device mp:name="PIC32MZ2048ECM100"/>
+  <mp:device mp:name="PIC32MZ2048ECM124"/>
+  <mp:device mp:name="PIC32MZ2048ECM144"/>
 </mp:family>
 
 </mp:deviceSupport>

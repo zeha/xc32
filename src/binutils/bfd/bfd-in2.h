@@ -1,7 +1,7 @@
-/* DO NOT EDIT!  -*- buffer-read-only: t -*-  This file is automatically
-   generated from "bfd-in.h", "init.c", "opncls.c", "libbfd.c",
-   "bfdio.c", "bfdwin.c", "section.c", "archures.c", "reloc.c",
-   "syms.c", "bfd.c", "archive.c", "corefile.c", "targets.c", "format.c",
+/* DO NOT EDIT!  -*- buffer-read-only: t -*-  This file is automatically 
+   generated from "bfd-in.h", "init.c", "opncls.c", "libbfd.c", 
+   "bfdio.c", "bfdwin.c", "section.c", "archures.c", "reloc.c", 
+   "syms.c", "bfd.c", "archive.c", "corefile.c", "targets.c", "format.c", 
    "linker.c", "simple.c" and "compress.c".
    Run "make headers" in your build bfd/ to regenerate.  */
 
@@ -69,7 +69,7 @@ extern "C" {
    problem for example when trying to use STRING_COMMA_LEN to build
    the arguments to the strncmp() macro.  Hence this alternative
    definition of strncmp is provided here.
-
+   
    Note - these macros do NOT work if STR2 is not a constant string.  */
 #define CONST_STRNEQ(STR1,STR2) (strncmp ((STR1), (STR2), sizeof (STR2) - 1) == 0)
   /* strcpy() can have a similar problem, but since we know we are
@@ -1423,7 +1423,7 @@ typedef struct bfd_section
 
   /* Bits used by various backends.  The generic code doesn't touch
      these fields.  */
-  
+
   unsigned int near:1;
   unsigned int persistent:1;
   unsigned int absolute:1;
@@ -1434,9 +1434,10 @@ typedef struct bfd_section
   unsigned int heap:1;
   unsigned int stack:1;
   unsigned int ramfunc:1;
+  unsigned int coherent:1;
 
   unsigned int sec_flg0:1;
-  
+
   /* End of internal packed boolean fields.  */
 
   /*  The virtual memory address of the section - where it will be
@@ -1707,10 +1708,10 @@ extern asection std_section[4];
      0,            0,             0,                                   \
                                                                        \
   /* near, persistent, absolute, reverse, unordered, dma,          */  \
-     0,        0,        0,        0,        0,        0,	       \
-								       \
-  /* memory, heap, stack, ramfunc,                                 */  \
-     0,        0,     0,       0,                                      \
+     0,        0,        0,        0,        0,        0,              \
+                                                                       \
+  /* memory, heap, stack, ramfunc, coherent,                       */  \
+     0,        0,     0,       0,         0,                             \
                                                                        \
   /* sec_flg0,                                                     */  \
      0,                                                                \
@@ -1887,7 +1888,7 @@ enum bfd_architecture
 #define bfd_mach_sparc_64bit_p(mach) \
   ((mach) >= bfd_mach_sparc_v9 && (mach) != bfd_mach_sparc_v8plusb)
   bfd_arch_spu,       /* PowerPC SPU */
-#define bfd_mach_spu           256
+#define bfd_mach_spu           256 
   bfd_arch_mips,      /* MIPS Rxxxx */
 #define bfd_mach_mips3000              3000
 #define bfd_mach_mips3900              3900
@@ -1926,8 +1927,8 @@ enum bfd_architecture
 #define bfd_mach_mipsisa32r2           33
 #define bfd_mach_mipsisa64             64
 #define bfd_mach_mipsisa64r2           65
-#define bfd_mach_mips_micromips        96
 #define bfd_mach_pic32mx               0x0c32
+#define bfd_mach_mips_micromips        96
   bfd_arch_i386,      /* Intel 386 */
 #define bfd_mach_i386_intel_syntax     (1 << 0)
 #define bfd_mach_i386_i8086            (1 << 1)
@@ -2161,7 +2162,7 @@ enum bfd_architecture
   bfd_arch_s390,      /* IBM s390 */
 #define bfd_mach_s390_31       31
 #define bfd_mach_s390_64       64
-  bfd_arch_score,     /* Sunplus score */
+  bfd_arch_score,     /* Sunplus score */ 
 #define bfd_mach_score3         3
 #define bfd_mach_score7         7
   bfd_arch_openrisc,  /* OpenRISC */
@@ -5510,7 +5511,8 @@ giving a 16 bit signed byte offset.  */
 
 /* Adapteva EPIPHANY - 8 bit immediate for 16 bit mov instruction.  */
   BFD_RELOC_EPIPHANY_IMM8,
-  BFD_RELOC_UNUSED };typedef enum bfd_reloc_code_real bfd_reloc_code_real_type;
+  BFD_RELOC_UNUSED };
+typedef enum bfd_reloc_code_real bfd_reloc_code_real_type;
 reloc_howto_type *bfd_reloc_type_lookup
    (bfd *abfd, bfd_reloc_code_real_type code);
 reloc_howto_type *bfd_reloc_name_lookup

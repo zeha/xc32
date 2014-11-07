@@ -572,38 +572,38 @@
 
 ;; Convert  mtlo $ac[1-3],$0  =>  mult $ac[1-3],$0,$0
 ;;          mthi $ac[1-3],$0
-(define_peephole2
-  [(set (match_operand:SI 0 "register_operand" "")
-	(const_int 0))
-   (set (match_operand:SI 1 "register_operand" "")
-	(const_int 0))]
-  "ISA_HAS_DSPR2
-   && !TARGET_MIPS16
-   && !TARGET_64BIT
-   && (((true_regnum (operands[0]) == AC1LO_REGNUM
-		     && true_regnum (operands[1]) == AC1HI_REGNUM)
-	|| (true_regnum (operands[0]) == AC1HI_REGNUM
-			&& true_regnum (operands[1]) == AC1LO_REGNUM))
-       || ((true_regnum (operands[0]) == AC2LO_REGNUM
-			&& true_regnum (operands[1]) == AC2HI_REGNUM)
-	   || (true_regnum (operands[0]) == AC2HI_REGNUM
-			&& true_regnum (operands[1]) == AC2LO_REGNUM))
-       || ((true_regnum (operands[0]) == AC3LO_REGNUM
-		     && true_regnum (operands[1]) == AC3HI_REGNUM)
-	   || (true_regnum (operands[0]) == AC3HI_REGNUM
-			   && true_regnum (operands[1]) == AC3LO_REGNUM)))"
-  [(parallel [(set (match_dup 0) (const_int 0))
-	      (set (match_dup 1) (const_int 0))])]
-)
+;;(define_peephole2
+;;  [(set (match_operand:SI 0 "register_operand" "")
+;;	(const_int 0))
+;;   (set (match_operand:SI 1 "register_operand" "")
+;;	(const_int 0))]
+;;  "ISA_HAS_DSPR2
+;;   && !TARGET_MIPS16
+;;   && !TARGET_64BIT
+;;   && (((true_regnum (operands[0]) == AC1LO_REGNUM
+;;		     && true_regnum (operands[1]) == AC1HI_REGNUM)
+;;	|| (true_regnum (operands[0]) == AC1HI_REGNUM
+;;			&& true_regnum (operands[1]) == AC1LO_REGNUM))
+;;       || ((true_regnum (operands[0]) == AC2LO_REGNUM
+;;			&& true_regnum (operands[1]) == AC2HI_REGNUM)
+;;	   || (true_regnum (operands[0]) == AC2HI_REGNUM
+;;			&& true_regnum (operands[1]) == AC2LO_REGNUM))
+;;       || ((true_regnum (operands[0]) == AC3LO_REGNUM
+;;		     && true_regnum (operands[1]) == AC3HI_REGNUM)
+;;	   || (true_regnum (operands[0]) == AC3HI_REGNUM
+;;			   && true_regnum (operands[1]) == AC3LO_REGNUM)))"
+;;  [(parallel [(set (match_dup 0) (const_int 0))
+;;	      (set (match_dup 1) (const_int 0))])]
+;;)
 
-(define_insn "*mips_acc_init"
-  [(parallel [(set (match_operand:SI 0 "register_operand" "=a")
-	      (const_int 0))
-	      (set (match_operand:SI 1 "register_operand" "=a")
-	      (const_int 0))])]
-  "ISA_HAS_DSPR2
-   && !TARGET_MIPS16
-   && !TARGET_64BIT"
-  "mult\t%q0,$0,$0\t\t# Clear ACC HI/LO"
-  [(set_attr "type"	"imul")
-   (set_attr "mode"	"SI")])
+;;(define_insn "*mips_acc_init"
+;;  [(parallel [(set (match_operand:SI 0 "register_operand" "=a")
+;;	      (const_int 0))
+;;	      (set (match_operand:SI 1 "register_operand" "=a")
+;;	      (const_int 0))])]
+;;  "ISA_HAS_DSPR2
+;;   && !TARGET_MIPS16
+;;   && !TARGET_64BIT"
+;;  "mult\t%q0,$0,$0\t\t# Clear ACC HI/LO"
+;;  [(set_attr "type"	"imul")
+;;   (set_attr "mode"	"SI")])

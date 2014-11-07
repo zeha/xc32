@@ -7,7 +7,7 @@
 # $gp != our _gp, and it allows them to be built with -G8 while
 # retaining link compability with -G0 and -G4.
 CFLAGS_FOR_TARGET += -Os -minterlink-mips16 -mcode-xonly -mno-gpopt
-CFLAGS += -DTARGET_IS_PIC32MX -DMCHP_SKIP_RESOURCE_FILE
+CFLAGS += -DTARGET_IS_PIC32MX
 CFLAGS += -DMCHP_VERSION=${MCHP_VERSION}
 CXXFLAGS_FOR_TARGET += -Os -minterlink-mips16 -mcode-xonly -mno-gpopt
 

@@ -987,8 +987,11 @@ _bfd_elf_make_section_from_shdr (bfd *abfd,
     PIC32_SET_DMA_ATTR(newsect);
   if (hdr->sh_flags & SHF_RAMFUNC)
     PIC32_SET_RAMFUNC_ATTR(newsect);
-
-  if (hdr->sh_flags & SHF_NOLOAD)  /* do this last */
+  if (hdr->sh_flags & SHF_COHERENT)
+    PIC32_SET_COHERENT_ATTR(newsect);
+  if (hdr->sh_flags & SHF_KEEP)
+    PIC32_SET_KEEP_ATTR(newsect);
+ if (hdr->sh_flags & SHF_NOLOAD)  /* do this last */
     PIC32_SET_NOLOAD_ATTR(newsect);
 #endif
 
@@ -2892,6 +2895,10 @@ elf_fake_sections (bfd *abfd, asection *asect, void *fsarg)
     this_hdr->sh_flags |= SHF_RAMFUNC;
   if (PIC32_IS_NOLOAD_ATTR(asect))
     this_hdr->sh_flags |= SHF_NOLOAD;
+  if (PIC32_IS_COHERENT_ATTR(asect))
+    this_hdr->sh_flags |= SHF_COHERENT;
+  if (PIC32_IS_KEEP_ATTR(asect))
+    this_hdr->sh_flags |= SHF_KEEP;
 
 #endif
 

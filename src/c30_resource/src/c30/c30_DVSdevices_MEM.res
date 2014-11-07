@@ -1565,6 +1565,21 @@
 { "", IS_MEM_ID | RAM, p33EP64GP506,
    0x2000, 0x0 }
 
+{ "", IS_MEM_ID | FLASH, p33EP64GS502,
+   0xad80, 0x0 }
+{ "", IS_MEM_ID | RAM, p33EP64GS502,
+   0x2000, 0x0 }
+
+{ "", IS_MEM_ID | FLASH, p33EP64GS504,
+   0xad80, 0x0 }
+{ "", IS_MEM_ID | RAM, p33EP64GS504,
+   0x2000, 0x0 }
+
+{ "", IS_MEM_ID | FLASH, p33EP64GS506,
+   0xad80, 0x0 }
+{ "", IS_MEM_ID | RAM, p33EP64GS506,
+   0x2000, 0x0 }
+
 { "", IS_MEM_ID | FLASH, p33EP64MC202,
    0xadec, 0x0 }
 { "", IS_MEM_ID | RAM, p33EP64MC202,

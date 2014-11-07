@@ -2388,7 +2388,11 @@ lang_add_section (lang_statement_list_type *ptr,
     }
 
   if (output->bfd_section == NULL) {
+#ifdef TARGET_IS_PIC32MX
+      init_os (output, 0);
+#else
       init_os (output, flags);
+#endif
   }
 
 #ifdef TARGET_IS_PIC32MX
@@ -2468,6 +2472,7 @@ lang_add_section (lang_statement_list_type *ptr,
       section->output_section->heap = section->heap;
       section->output_section->stack = section->stack;
       section->output_section->ramfunc = section->ramfunc;
+      section->output_section->coherent = section->coherent;
 
       /* promote absolute address, unless the output section
          already has a conflicting one */
@@ -2476,8 +2481,9 @@ lang_add_section (lang_statement_list_type *ptr,
             section->output_section->vma = section->vma;
             section->output_section->user_set_vma = TRUE;
           } else if (section->output_section->vma != section->vma)
-            einfo(_("%F: Link Error: address for input section \'%s\'"
-                   " (%lx) conflicts with output section \'%s\' (%lx)\n"),
+            einfo(_("%F%P: Link Error: address for input section \'%s\'"
+                   " (%lx) conflicts with address of output section"
+                   " \'%s\' (%lx) \n"),
                    section->name, section->vma,
                    section->output_section->name,
                    section->output_section->vma);

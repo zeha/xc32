@@ -186,7 +186,10 @@ struct mips16e_save_restore_info;
 enum mips_call_type {
   MIPS_CALL_NORMAL,
   MIPS_CALL_SIBCALL,
-  MIPS_CALL_EPILOGUE
+  MIPS_CALL_EPILOGUE,
+#if defined(TARGET_MCHP_PIC32MX)
+  MIPS_CALL_PROLOGUE
+#endif
 };
 
 extern bool mips_symbolic_constant_p (rtx, enum mips_symbol_context,

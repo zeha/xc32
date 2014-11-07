@@ -41,9 +41,12 @@ along with GCC; see the file COPYING3.  If not see
    the end of processing the translation unit. */
 struct vector_dispatch_spec
   {
-    const char *target; /* target function name */
-    int vector_number;  /* exception vector table number */
-    int emit_dispatch;  /* nonzero to emit a dispatch function */
+    const char *target;                 /* target function name */
+    enum pic32_isa_mode isr_isa_mode;   /* isa mode of the target function */
+    bool longcall;                      /* Is a longcall required? */
+    int vector_number;                  /* exception vector table number */
+    int emit_dispatch;                  /* nonzero to emit a dispatch function */
+    const_tree *node;
     struct vector_dispatch_spec *next;
   };
 extern struct vector_dispatch_spec *vector_dispatch_list_head;

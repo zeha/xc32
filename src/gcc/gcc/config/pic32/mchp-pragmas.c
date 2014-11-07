@@ -127,7 +127,8 @@ mchp_handle_vector_pragma (struct cpp_reader *pfile ATTRIBUTE_UNUSED)
       return;
     }
   /* add the vector to the list of dispatch functions to emit */
-  mchp_add_vector_dispatch_entry (fname, (int)TREE_INT_CST_LOW (tok_value),1);
+  mchp_add_vector_dispatch_entry (fname, (int)TREE_INT_CST_LOW (tok_value),
+                                  false, pic32_isa_unknown, 1);
 
   /* There are optionally more addresses, comma separated */
   tok = pragma_lex (&tok_value);
@@ -141,7 +142,8 @@ mchp_handle_vector_pragma (struct cpp_reader *pfile ATTRIBUTE_UNUSED)
         }
       /* add the vector to the list of dispatch functions to emit */
       mchp_add_vector_dispatch_entry (fname,
-                                      (int)TREE_INT_CST_LOW (tok_value),1);
+                                      (int)TREE_INT_CST_LOW (tok_value),
+                                      false, pic32_isa_unknown, 1);
 
       tok = pragma_lex (&tok_value);
     }
@@ -269,6 +271,7 @@ mchp_handle_interrupt_pragma (struct cpp_reader *pfile ATTRIBUTE_UNUSED)
       /* add the vector to the list of dispatch functions */
       mchp_add_vector_dispatch_entry (fname,
                                       (int)TREE_INT_CST_LOW (tok_value),
+                                      false, pic32_isa_unknown,
                                       0);
     }
   else
@@ -294,6 +297,7 @@ mchp_handle_interrupt_pragma (struct cpp_reader *pfile ATTRIBUTE_UNUSED)
       /* add the vector to the list of dispatch functions to emit */
       mchp_add_vector_dispatch_entry (fname,
                                       (int)TREE_INT_CST_LOW (tok_value),
+                                      false, pic32_isa_unknown,
                                       1);
     }
 
@@ -312,6 +316,7 @@ mchp_handle_interrupt_pragma (struct cpp_reader *pfile ATTRIBUTE_UNUSED)
       /* add the vector to the list of dispatch functions to emit */
       mchp_add_vector_dispatch_entry (fname,
                                       (int)TREE_INT_CST_LOW (tok_value),
+                                      false, pic32_isa_unknown,
                                       1);
       tok = pragma_lex (&tok_value);
     }
@@ -411,6 +416,10 @@ void mchp_handle_inline_pragma (struct cpp_reader *pfile) {
 
 void mchp_handle_keep_pragma (struct cpp_reader *pfile) {
   mchp_pragma_keep = 1;
+}
+
+void mchp_handle_coherent_pragma (struct cpp_reader *pfile) {
+  mchp_pragma_coherent = 1;
 }
 
 void mchp_handle_required_pragma(struct cpp_reader *pfile) {

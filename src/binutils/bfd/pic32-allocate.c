@@ -416,14 +416,10 @@ allocate_data_memory() {
 
   build_alloc_section_list(mask);
 
-#if !defined(MCHP_SKIP_RESOURCE_FILE)  
   if (pic32_is_l1cache_machine(global_PROCESSOR))
     region = region_lookup ("kseg0_data_mem");
   else
     region = region_lookup ("kseg1_data_mem");
-#else
-  region = region_lookup ("kseg1_data_mem");
-#endif
 
   build_free_block_list(region, mask);
 
@@ -563,6 +559,9 @@ group_section_size(struct pic32_section *g)
     b = select_free_block(s, len);
     if (b) {
       addr = b->addr + b->offset;
+      /* Translate the address from kseg0 to kseg1 */
+      if (PIC32_IS_COHERENT_ATTR(s->sec))
+        addr |= 0x20000000u;
       update_group_section_info(addr,s,region);
       create_remainder_blocks(free_blocks,b,len);
       remove_free_block(b);
@@ -622,6 +621,8 @@ group_section_size(struct pic32_section *g)
     b = select_free_block(s, len);
     if (b) {
       addr = b->addr + b->offset;
+      if (PIC32_IS_COHERENT_ATTR(s->sec))
+        addr |= 0x20000000;
       update_section_info(addr,s,region);
       create_remainder_blocks(free_blocks,b,len);
       remove_free_block(b);

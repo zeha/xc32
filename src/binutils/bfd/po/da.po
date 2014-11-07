@@ -2955,7 +2955,7 @@ msgid "static procedure (no name)"
 msgstr "statisk procedure (intet navn)"
 
 #: elfxx-mips.c:5623
-msgid "%B: %A+0x%lx: Direct jumps between ISA modes are not allowed; consider recompiling with interlinking enabled."
+msgid "%B: %A+0x%lx: Unsupported jump between ISA modes; consider recompiling with interlinking enabled (-minterlink-compressed)."
 msgstr "%B: %A+0x%lx: Direkte hop mellem ISA-tilstande er ikke tilladt; overvej at genkompilere med interlinking slået til."
 
 #: elfxx-mips.c:6280 elfxx-mips.c:6503

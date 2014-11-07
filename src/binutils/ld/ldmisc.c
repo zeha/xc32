@@ -410,6 +410,11 @@ vfinfo (FILE *fp, const char *fmt, va_list arg, bfd_boolean is_warning)
 	      fprintf (fp, "%u", va_arg (arg, unsigned int));
 	      break;
 
+            case 'x':
+              /* unsigned integer, like printf */
+              fprintf (fp, "%x", va_arg (arg, unsigned int));
+              break;
+
 	    case 'l':
 	      if (*fmt == 'd')
 		{
@@ -423,6 +428,13 @@ vfinfo (FILE *fp, const char *fmt, va_list arg, bfd_boolean is_warning)
 		  ++fmt;
 		  break;
 		}
+              else if (*fmt == 'x')
+                {
+                  fprintf (fp, "%lx", va_arg (arg, unsigned long));
+                  ++fmt;
+                  break;
+                }
+
 	      /* Fall thru */
 
 	    default:

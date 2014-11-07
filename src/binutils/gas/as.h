@@ -645,11 +645,9 @@ extern int previous_subsection;
 #endif
 
 #ifdef TARGET_IS_PIC32MX
-#if !defined(MCHP_SKIP_RESOURCE_FILE)
 extern bfd_boolean pic32_has_processor_option;
 extern void pic32_processor_option(char *);
 extern char *pic32_resource_version;
-#endif
 #endif
 
 #endif /* GAS */

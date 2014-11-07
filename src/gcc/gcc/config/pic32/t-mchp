@@ -4,27 +4,28 @@
 # instuction won't work across the divide (no jx instruction).
 # Compile libraries with -mcode-xonly, so that they are link-compatible
 # with both -mcode-readable=pcrel and -mcode-readable=yes.
-TARGET_LIBGCC2_CFLAGS = -G 0 -fno-optimize-sibling-calls -mcode-xonly -fno-common -msmart-io=0 -mmips16-exceptions -D_BUILD_C32_
+TARGET_LIBGCC2_CFLAGS = -G 0 -fno-optimize-sibling-calls -mcode-xonly -fno-common -msmart-io=0 -mmips16-exceptions -minterlink-compressed -D_BUILD_C32_
 
 # Don't let CTOR_LIST end up in sdata section.
-CRTSTUFF_T_CFLAGS = -G 0
+CRTSTUFF_T_CFLAGS = -G 0 -D_BUILD_C32_ -minterlink-compressed
 
 # Build the multilibs.
 LIBGCC = stmp-multilib
 INSTALL_LIBGCC = install-multilib
 
-# TODO: Restore full multilib permutations
 MULTILIB_OPTIONS = Os/O3 mips16/mmicromips mno-float
 MULTILIB_DIRNAMES = size speed mips16 micromips no-float
 MULTILIB_MATCHES = EL=mel EB=meb mips16=mips16e
 MULTILIB_EXCLUSIONS = mcode-readable=no/!mips16
-MULTILIB_EXCEPTIONS =
+MULTILIB_EXCEPTIONS = *mpic32mxlibs*/*mmicromips* 
+MULTILIB_EXCEPTIONS += *mpic32mzlibs*/*mips16* 
+MULTILIB_EXCEPTIONS += *mprocessor=32MX*/*mmicromips* 
+MULTILIB_EXCEPTIONS += *mprocessor=32MZ*/*mips16*
+MULTILIB_EXCEPTIONS += !mprocessor=*/*msmall-isa*
 
 EXTRA_MULTILIB_PARTS = crtbegin.o crtend.o
 
-driver-pic32-elf.o : $(srcdir)/config/pic32/driver-pic32-elf.c \
-  $(CONFIG_H) $(SYSTEM_H)
-	$(COMPILER) -c $(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $<
+MULTILIB_EXTRA_OPTS = mno-jals
 
 # Microchip PIC32-specific format checking and pragmas
 mchp.o: $(srcdir)/config/pic32/mchp.c $(srcdir)/config/pic32/mchp.h \

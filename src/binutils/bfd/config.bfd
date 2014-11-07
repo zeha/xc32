@@ -1128,7 +1128,7 @@ case "${targ}" in
 
   pic32*-mchp-elf)
     targ_defvec=bfd_elf32_tradlittlemips_vec
-    targ_cflags="-DMIPSSDE -DTARGET_IS_PIC32MX -DPIC32 -DTARGET_IS_PIC32 -DMCHP_SKIP_RESOURCE_FILE"
+    targ_cflags="-DMIPSSDE -DTARGET_IS_PIC32MX -DPIC32 -DTARGET_IS_PIC32"
     ;;
 
   pj-*-*)

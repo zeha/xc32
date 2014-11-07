@@ -68,6 +68,12 @@ extern tree mchp_target_error_attribute(tree *decl, tree identifier,
 extern tree mchp_keep_attribute(tree *decl, tree identifier,
                             tree args, int flags ATTRIBUTE_UNUSED,
                             bool *no_add_attrs);
+extern tree mchp_coherent_attribute(tree *decl, tree identifier,
+                            tree args, int flags ATTRIBUTE_UNUSED,
+                            bool *no_add_attrs);
+extern tree mchp_persistent_attribute(tree *decl, tree identifier,
+                            tree args, int flags ATTRIBUTE_UNUSED,
+                            bool *no_add_attrs);
 extern tree mchp_crypto_attribute(tree *decl, tree identifier,
                             tree args, int flags ATTRIBUTE_UNUSED,
                             bool *no_add_attrs);
@@ -116,6 +122,7 @@ extern void mchp_handle_printf_args_pragma(struct cpp_reader *);
 extern void mchp_handle_scanf_args_pragma(struct cpp_reader *);
 extern void mchp_handle_inline_pragma(struct cpp_reader *);
 extern void mchp_handle_keep_pragma(struct cpp_reader *);
+extern void mchp_handle_coherent_pragma(struct cpp_reader *);
 extern void mchp_handle_required_pragma(struct cpp_reader *);
 extern void mchp_handle_optimize_pragma(struct cpp_reader *pfile);
 
@@ -123,6 +130,7 @@ extern unsigned int mchp_pragma_align;
 extern tree mchp_pragma_section;
 extern unsigned int mchp_pragma_inline;
 extern unsigned int mchp_pragma_keep;
+extern unsigned int mchp_pragma_coherent;
 extern unsigned int mchp_pragma_printf_args;
 extern unsigned int mchp_pragma_scanf_args;
 
@@ -131,10 +139,15 @@ extern void mchp_asm_named_section(const char *pszSectionName,
                             tree decl ATTRIBUTE_UNUSED);
 extern section *mchp_select_section (tree decl, int reloc,
                      unsigned HOST_WIDE_INT align ATTRIBUTE_UNUSED);
-extern unsigned int mchp_section_type_flags(tree decl, const char *name,
+extern SECTION_FLAGS_INT mchp_section_type_flags(tree decl, const char *name,
                         int reloc ATTRIBUTE_UNUSED);
 extern int set_section_stack(const char *pszSectionName, SECTION_FLAGS_INT pszSectionFlag);
 extern const char *mchp_strip_name_encoding (const char *symbol_name);
 
 extern void mchp_init_cci_builtins(void);
+
+extern bool mips_far_type_p (const_tree type);
+extern bool mips_micromips_decl_p (const_tree decl);
+extern bool mips_nomicromips_decl_p (const_tree decl);
+
 #endif

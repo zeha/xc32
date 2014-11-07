@@ -188,12 +188,16 @@ mext=
 Target Joined Var(mchp_import)
 Enable support for importing external code from another vendor
 
+minterlink-compressed
+Target Report Var(TARGET_INTERLINK_COMPRESSED) Init(0)
+Generate code that is link-compatible with MIPS16 and microMIPS code.
+
 minterlink-mips16
-Target Report Var(TARGET_INTERLINK_MIPS16) Init(0)
-Generate code that can be safely linked with MIPS16 code.
+Target Report
+An alias for minterlink-compressed provided for backward-compatibility.
 
 mjals
-Target Report Var(TARGET_JALS) Init(1) Undocumented
+Target Report Var(TARGET_JALS) Init(0) 
 Generate jals for microMIPS by recognizing that the branch delay slot instruction can be 16 bits.  This implies that the function call cannot switch the current mode during the linking stage, because we don't have jalxs that supports 16-bit branch delay slot instructions.
 
 mips
@@ -353,7 +357,7 @@ Target Report RejectNagative Joined Var(mchp_config_data_dir) Undocumented
 
 mdebugger
 Target Var(TARGET_DEBUG_EXEC)
-Allocate space for debugger executive
+Allocate space for debugger executive and enable debugging features
 
 mperipheral-libs
 Target Var(TARGET_LINK_PERIPHERAL_LIBS)
@@ -378,6 +382,10 @@ Target Var RejectNegative Joined UInteger Var(mchp_io_size_val) Init(1)
 mlegacy-libc
 Target Var Var(TARGET_LEGACY_LIBC)
 -legacy-libc	Use legacy lib/include directory
+
+mrelaxed-math
+Target Var Var(TARGET_RELAXED_MATH) Undocumented
+-relaxed-math	Use alternative floating-point support routines
 
 mxc32cpp-lib
 Target Var Var(TARGET_XC32_LIBCPP) Undocumented
@@ -412,19 +420,19 @@ Target Var Var(TARGET_MIPS16_EXCEPTIONS) Undocumented
 -mmips16-exceptions	Allow unsupported mips16 exceptions
 
 mno-default-isr-vectors
-Target Var VAR(TARGET_DEFAULT_ISR_VECTORS) Undocumented
+Target Var Var(TARGET_DEFAULT_ISR_VECTORS) Undocumented
 -mno-default-isr-vectors	Prevent linking the default ISR vectors to the default handler
 
 msmall-isa
-Target Var VAR(TARGET_SMALL_ISA)
+Target Var Var(TARGET_SMALL_ISA) Init(0)
 -msmall-isa	Use -mips16 or -mmicromips as appropriate for the target specified in the -mprocessor option
 
 mpic32mxlibs
-Target RejectNegative Var VAR(TARGET_PIC32MX_LIBS) Undocumented
+Target RejectNegative Var Var(TARGET_PIC32MX_LIBS) Undocumented
 -mpic32mxlibs		Use the PIC32MX multilib variant 
 
 mpic32mzlibs
-Target RejectNegative Var VAR(TARGET_PIC32MZ_LIBS) Undocumented
+Target RejectNegative Var Var(TARGET_PIC32MZ_LIBS) Undocumented
 -mpic32mzlibs		Use the PIC32MZ multilib variant
 
 mresource=

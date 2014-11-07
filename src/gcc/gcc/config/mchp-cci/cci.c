@@ -557,6 +557,7 @@ mchp_handle_configuration_setting (const char *name,
     error ("unknown configuration setting: '%s'", name);
 }
 
+
 /* handler function for the config pragma */
 void
 mchp_handle_config_pragma (struct cpp_reader *pfile)
@@ -806,13 +807,14 @@ mchp_handle_configset_pragma (struct cpp_reader *pfile, const char* set)
   if (tok != CPP_EOF)
     CLEAR_REST_OF_INPUT_LINE();
 }
+
 void mchp_handle_config_alt_pragma(struct cpp_reader *pfile)
 {
-  mchp_handle_configset_pragma(pfile, "ALT");
+  mchp_handle_configset_pragma(pfile, "A");
 }
 void mchp_handle_config_bf1_pragma(struct cpp_reader *pfile)
 {
-  mchp_handle_config_pragma(pfile);
+  mchp_handle_configset_pragma(pfile, "BF1");
 }
 void mchp_handle_config_abf1_pragma(struct cpp_reader *pfile)
 {

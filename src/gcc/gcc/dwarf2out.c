@@ -137,6 +137,28 @@ int vms_file_stats_name (const char *, long long *, long *, char *, int *);
 /* Save the result of dwarf2out_do_frame across PCH.  */
 static GTY(()) bool saved_do_cfi_asm = 0;
 
+#if defined(TARGET_MCHP_PIC32MX)
+static void
+unbackslashify (char *s)
+{
+  char *save_s, *s2;
+  save_s = s;
+  while ((s = strchr (s, '\\')) != NULL) {
+    *s = '/';
+  }
+
+  /* Remove double slashes */
+  s = s2 =  save_s;
+  while ((s = strchr(s, '/')) != NULL) {
+    if (*(s+1) == '/') {
+      strcpy(s, (s+1));
+    }
+    s++;
+  }
+  return;
+}
+#endif
+
 /* Decide whether we want to emit frame unwind information for the current
    translation unit.  */
 
@@ -16344,6 +16366,9 @@ add_comp_dir_attribute (dw_die_ref die)
 {
   const char *wd = get_src_pwd ();
   char *wd1;
+#if defined (TARGET_MCHP_PIC32MX)
+  char *real_path;
+#endif
 
   if (wd == NULL)
     return;
@@ -16359,8 +16384,15 @@ add_comp_dir_attribute (dw_die_ref die)
       wd1 [wdlen + 1] = 0;
       wd = wd1;
     }
-
+#if defined (TARGET_MCHP_PIC32MX)
+    /* MPLAB IDE v8 currently expects only forward slashes in .file filename */
+    real_path = xstrdup (remap_debug_filename (wd));
+    unbackslashify (real_path);
+    add_AT_string (die, DW_AT_comp_dir, real_path);
+    free (real_path);
+#else
     add_AT_string (die, DW_AT_comp_dir, remap_debug_filename (wd));
+#endif
 }
 
 /* Return the default for DW_AT_lower_bound, or -1 if there is not any
@@ -18818,7 +18850,15 @@ gen_compile_unit_die (const char *filename)
 
   if (filename)
     {
+#if defined (TARGET_MCHP_PIC32MX)
+      char *real_path;
+      real_path = xstrdup(filename);
+      unbackslashify (real_path);
+      add_name_attribute (die, real_path);
+      free (real_path);
+#else
       add_name_attribute (die, filename);
+#endif
       /* Don't add cwd for <built-in>.  */
       if (!IS_ABSOLUTE_PATH (filename) && filename[0] != '<')
 	add_comp_dir_attribute (die);
@@ -19701,7 +19741,7 @@ gen_decl_die (tree decl, tree origin, dw_die_ref context_die)
 	  && (current_function_decl == NULL_TREE
 	      || DECL_ARTIFICIAL (decl_or_origin)))
 	break;
-
+ 
 #if 0
       /* FIXME */
       /* This doesn't work because the C frontend sets DECL_ABSTRACT_ORIGIN
@@ -20256,16 +20296,6 @@ lookup_filename (const char *file_name)
   return created;
 }
 
-#if defined(TARGET_MCHP_PIC32MX)
-static void
-unbackslashify (char *s)
-{
-  while ((s = strchr (s, '\\')) != NULL)
-    *s = '/';
-  return;
-}
-#endif
-
 /* If the assembler will construct the file table, then translate the compiler
    internal file table number into the assembler file table number, and emit
    a .file directive if we haven't already emitted one yet.  The file table
@@ -20285,14 +20315,14 @@ maybe_emit_file (struct dwarf_file_data * fd)
 
       if (DWARF2_ASM_LINE_DEBUG_INFO)
 	{ 
-#if defined (_WIN32) && defined (TARGET_MCHP_PIC32MX) && defined (CHIPKIT_PIC32)
+#if defined (TARGET_MCHP_PIC32MX)
 	  char *str;
 	  char *real_path;
 	  fprintf (asm_out_file, "\t.file %u ", fd->emitted_number);
 	  str = xstrdup (remap_debug_filename (fd->filename));
 	  /* Call lrealpath on str for chipKIT compiler */
 	  real_path = lrealpath (str);
-	  /* MPLAB IDE currently expects only forward slashes in .file filename */
+	  /* MPLAB IDE v8 currently expects only forward slashes in .file filename */
 	  unbackslashify (real_path);
 	  output_quoted_string (asm_out_file,
 				real_path );
@@ -20304,7 +20334,7 @@ maybe_emit_file (struct dwarf_file_data * fd)
 	  str = xstrdup (remap_debug_filename (fd->filename));
 
 #if defined(TARGET_MCHP_PIC32MX)
-	  /* MPLAB IDE currently expects only forward slashes in .file filename */
+	  /* MPLAB IDE v8 currently expects only forward slashes in .file filename */
 	  unbackslashify (str);
 #endif
 	  output_quoted_string (asm_out_file,
@@ -20613,9 +20643,19 @@ dwarf2out_source_line (unsigned int line, const char *filename,
 
       /* If requested, emit something human-readable.  */
       if (flag_debug_asm)
-	fprintf (asm_out_file, "\t%s %s:%d\n", ASM_COMMENT_START,
-		 filename, line);
-
+      {
+#if defined (TARGET_MCHP_PIC32MX)
+      char *real_path;
+      real_path = xstrdup(filename);
+      unbackslashify (real_path);
+	  fprintf (asm_out_file, "\t%s %s:%d\n", ASM_COMMENT_START,
+		   real_path, line);
+	  free (real_path);
+#else
+	  fprintf (asm_out_file, "\t%s %s:%d\n", ASM_COMMENT_START,
+		   filename, line);
+#endif
+      }
       if (DWARF2_ASM_LINE_DEBUG_INFO)
 	{
 	  /* Emit the .loc directive understood by GNU as.  */
@@ -20699,7 +20739,16 @@ dwarf2out_start_source_file (unsigned int lineno, const char *filename)
       dw_die_ref bincl_die;
 
       bincl_die = new_die (DW_TAG_GNU_BINCL, comp_unit_die, NULL);
+      
+#if defined (TARGET_MCHP_PIC32MX)
+      char *real_path;
+      real_path = xstrdup(remap_debug_filename (filename));
+      unbackslashify (real_path);
+      add_AT_string (bincl_die, DW_AT_name, real_path);
+      free (real_path);
+#else
       add_AT_string (bincl_die, DW_AT_name, remap_debug_filename (filename));
+#endif
     }
 
   if (debug_info_level >= DINFO_LEVEL_VERBOSE)
@@ -21477,7 +21526,16 @@ dwarf2out_finish (const char *filename)
 
   /* Add the name for the main input file now.  We delayed this from
      dwarf2out_init to avoid complications with PCH.  */
+#if defined (TARGET_MCHP_PIC32MX)
+      char *real_path;
+      real_path = xstrdup(remap_debug_filename (filename));
+      unbackslashify (real_path);
+      add_name_attribute (comp_unit_die, real_path);
+      free (real_path);
+#else
   add_name_attribute (comp_unit_die, remap_debug_filename (filename));
+#endif
+  
   if (!IS_ABSOLUTE_PATH (filename))
     add_comp_dir_attribute (comp_unit_die);
   else if (get_AT (comp_unit_die, DW_AT_comp_dir) == NULL)

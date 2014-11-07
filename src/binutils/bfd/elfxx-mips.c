@@ -6231,7 +6231,7 @@ mips_elf_perform_relocation (struct bfd_link_info *info,
       if (!ok)
 	{
 	  (*_bfd_error_handler)
-	    (_("%B: %A+0x%lx: Unsupported jump between ISA modes; consider recompiling with interlinking enabled."),
+	    (_("%B: %A+0x%lx: Unsupported jump between ISA modes; consider recompiling with interlinking enabled (-minterlink-compressed)."),
 	     input_bfd,
 	     input_section,
 	     (unsigned long) relocation->r_offset);

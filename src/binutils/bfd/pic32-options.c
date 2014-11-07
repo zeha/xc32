@@ -43,10 +43,8 @@ gldelf32pic32mx_list_options (FILE * file)
   fprintf (file, _("  --report-mem         Report memory usage to console\n"));
   fprintf (file, _("  --smart-io           Merge I/O library functions (default)\n"));
   fprintf (file, _("  --no-smart-io        Don't merge I/O library functions\n"));
-#if !defined(MCHP_SKIP_RESOURCE_FILE)
   fprintf (file, _("  -p,--processor PROC  Specify the target processor"
                    " (e.g., 32MX795F512L)\n"));
-#endif
 } /* static void elf32pic32mx_list_options () */
 
 static void pic32_init_fill_option_list (struct pic32_fill_option **lst)
@@ -307,13 +305,11 @@ gldelf32pic32mx_parse_args (int argc, char ** argv)
       crypto_file = (const char *) malloc(strlen(optarg)+1);
       strcpy(crypto_file, optarg);
       break;
-#if !defined(MCHP_SKIP_RESOURCE_FILE)
     case 'p':
       pic32_processor_option(optarg);
       break;
-
-#endif
-#endif
+      
+#endif /* TARGET_IS_PIC32MX */
     }
 
   return 1;

@@ -1258,6 +1258,7 @@ enum mips_code_readable_setting {
 %{gline:%{!g:%{!g0:%{!g1:%{!g2: -g1}}}}} \
 %{G*} %{EB:-meb} %{EL:-mel} %{EB:%{EL:%emay not use both -EB and -EL}} \
 %{save-temps: } \
+%{minterlink-mips16: -minterlink-compressed} \
 %(subtarget_cc1_spec)"
 
 /* Preprocessor specs.  */

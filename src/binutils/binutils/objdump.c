@@ -511,6 +511,7 @@ dump_section_header (bfd *abfd, asection *section,
   PF2 (heap, "HEAP");
   PF2 (stack, "STACK");
   PF2 (ramfunc, "RAMFUNC");
+  //PF2 (coherent, "COHERENT");
 #undef PF2
 #endif
  
@@ -3230,6 +3231,7 @@ dump_bfd (bfd *abfd)
     printf (_("\n%s:     file format %s\n"), bfd_get_filename (abfd),
 	    abfd->xvec->name);
 
+#if 0
 #if defined(TARGET_IS_PIC32MX)
   /* load symbols now */
   syms = slurp_symtab (abfd);
@@ -3259,6 +3261,7 @@ dump_bfd (bfd *abfd)
       }
     }
   }
+#endif
 #endif
 
 

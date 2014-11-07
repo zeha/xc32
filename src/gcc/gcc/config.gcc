@@ -2072,7 +2072,7 @@ pic32*-mchp-elf*)
 	extra_options="pic32/mchp.opt"
 	tm_p_file="${tm_p_file} pic32/mchp-protos.h"
 	extra_objs="${extra_objs} mchp.o cci-backend.o"
-	extra_gcc_objs="driver-pic32-elf.o"
+	#extra_gcc_objs="driver-pic32-elf.o"
 	use_gcc_stdint=none
 	default_use_cxa_atexit=no
 	case "${with_newlib}" in

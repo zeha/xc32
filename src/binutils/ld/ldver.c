@@ -37,11 +37,9 @@ ldversion (int noisy)
   /* Output for noisy == 2 is intended to follow the GNU standards.  */
   fprintf (stdout, _("GNU ld %s" " Build date: " __DATE__ "\n"), BFD_VERSION_STRING);
 #ifdef TARGET_IS_PIC32MX
-#if !defined(MCHP_SKIP_RESOURCE_FILE)
   if (pic32_has_processor_option) {
     fprintf (stdout, _("%s" "\n"), pic32_resource_version);
   }
-#endif
 #endif
   if (noisy & 2)
     {

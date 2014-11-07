@@ -3136,7 +3136,7 @@ msgid "MIPS16 and microMIPS functions cannot call each other"
 msgstr "hàm MIPS16 và microMIPS không được gợi lẫn nhau"
 
 #: elfxx-mips.c:5856
-msgid "%B: %A+0x%lx: Direct jumps between ISA modes are not allowed; consider recompiling with interlinking enabled."
+msgid "%B: %A+0x%lx: Unsupported jump between ISA modes; consider recompiling with interlinking enabled (-minterlink-compressed)."
 msgstr "%B: %A+0x%lx: Nhảy trực tiếp giữa các chế độ ISA là không được phép; cân nhắc việc dịch lại với liên kết móc nối được bật."
 
 #: elfxx-mips.c:6519 elfxx-mips.c:6742

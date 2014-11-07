@@ -839,12 +839,13 @@ bfd_pic32_report_memory_usage (fp)
       "         Total kseg1_boot_mem used"}};
 
   struct region_report_tag dmregions_to_report[] =
-    {{"kseg1_data_mem",
-      "kseg1 Data-Memory Usage",
-      "         Total kseg1_data_mem used"},
-    {"kseg0_data_mem",
+    {{"kseg0_data_mem",
       "kseg0 Data-Memory Usage",
-      "         Total kseg0_data_mem used"}};
+      "         Total kseg0_data_mem used"},
+      {"kseg1_data_mem",
+      "kseg1 Data-Memory Usage",
+      "         Total kseg1_data_mem used"}
+    };
 
   /* clear the counters */
   actual_prog_memory_used = 0;
@@ -1326,6 +1327,11 @@ bfd_pic32_report_sections (s, region, magic_sections, fp)
   unsigned long actual = s->sec->size;
   size_t name_len = 0;
 
+  if (PIC32_IS_COHERENT_ATTR(s->sec)) {
+    start &= 0xdfffffff;
+    load &= 0xdfffffff;
+  }
+    
   /*
   ** report SEC_ALLOC sections in memory
   */
@@ -2768,14 +2774,10 @@ bfd_pic32_finish(void)
 
   end_data_mem = stack_limit;
 
-#if !defined(MCHP_SKIP_RESOURCE_FILE)
   if (pic32_is_l1cache_machine(global_PROCESSOR))
     region = region_lookup("kseg0_data_mem");
   else
     region = region_lookup("kseg1_data_mem");
-#else 
-  region = region_lookup("kseg1_data_mem");
-#endif
 
   if (region) {
     end_data_mem = region->origin + region->length;

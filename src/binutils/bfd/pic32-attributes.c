@@ -284,15 +284,15 @@ pic32_is_valid_attributes (unsigned int mask, unsigned char flag_debug)
 #undef MASK2
 #undef MASK3
 #undef MASK4
-#define MASK2(a,b,c,d,e,f,g,h,i,j)                  \
-   if (type == (1<<a)) {                                      \
-     attr_mask = (1<<b)|(1<<c)|(1<<d)|(1<<e)|(1<<f)           \
-                 |(1<<g)|(1<<h)|(1<<i)|(1<<j);                       \
-     if (flag_debug || pic32_debug)                                          \
-       printf ("    pic32_is_valid_attributes::modifier_mask = %x\n",   \
-               attr_mask);                                    \
-     if ((mask & ~ (type_mask | attr_mask)) == 0)             \
-       valid_modifiers |= 1;                                  \
+#define MASK2(a,b,c,d,e,f,g,h,i,j,k)                                   \
+   if (type == (1<<a)) {                                               \
+     attr_mask = (1<<b)|(1<<c)|(1<<d)|(1<<e)|(1<<f)                    \
+                 |(1<<g)|(1<<h)|(1<<i)|(1<<j)|(1<<k);                  \
+     if (flag_debug || pic32_debug)                                    \
+       printf ("    pic32_is_valid_attributes::modifier_mask = %x\n",  \
+               attr_mask);                                             \
+     if ((mask & ~ (type_mask | attr_mask)) == 0)                      \
+       valid_modifiers |= 1;                                           \
    }
 
 #include "pic32-attributes.h"
@@ -307,10 +307,10 @@ pic32_is_valid_attributes (unsigned int mask, unsigned char flag_debug)
 #undef MASK2
 #undef MASK3
 #undef MASK4
-#define MASK3(a,b,c,d,e,f,g,h,i)                        \
+#define MASK3(a,b,c,d,e,f,g,h,i,j)                                \
    key = (1<<a);                                                  \
    attr_mask = (1<<b)|(1<<c)|(1<<d)|(1<<e)|(1<<f)                 \
-               |(1<<g)|(1<<h)|(1<<i);                                    \
+               |(1<<g)|(1<<h)|(1<<i)|(1<<j);                      \
    if ((key & mask) &&                                            \
        ((mask & ~ (key | type_mask | attr_mask)) != 0))           \
      invalid_combo |= 1;;

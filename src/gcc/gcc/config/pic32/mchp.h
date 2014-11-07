@@ -27,8 +27,6 @@ along with GCC; see the file COPYING3.  If not see
 #ifndef MCHP_H
 #define MCHP_H
 
-#define MCHP_SKIP_RESOURCE_FILE 1
-
 #include <safe-ctype.h>
 #include "config/mips/mips-machine-function.h"
 #include "config/mchp-cci/cci-backend.h"
@@ -52,6 +50,14 @@ extern const char *pic32_text_scn;
 extern int         mchp_profile_option;
 extern const char *mchp_it_transport;
 extern const char *mchp_resource_file;
+
+enum pic32_isa_mode
+{
+  pic32_isa_mips32r2  = 0,
+  pic32_isa_mips16e   = 1,
+  pic32_isa_micromips = 2,
+  pic32_isa_unknown = 255
+} ;
 
 #undef DEFAULT_SIGNED_CHAR
 #define DEFAULT_SIGNED_CHAR 1
@@ -87,7 +93,8 @@ do {                     \
  */
 #undef  LIB_SPEC
 #define LIB_SPEC "--start-group -lpic32 %{!mno-mpdebug-lib:-ldebug} \
- -lm -le -ldsp -lgcc \
+ %{mrelaxed-math: -lrcfastm} \
+ -lm -le %{!mprocessor=32MX*: -ldspr2 } %{mprocessor=32MX*: -ldsp } -lgcc \
  %{mxc32cpp-lib:%{!mno-xc32cpp-lib:-lxcpp -lsupc++}} -lpic32 \
  %{mperipheral-libs:-lmchp_peripheral %{mprocessor=*:-lmchp_peripheral_%*}} \
  %{mlegacy-libc:%{!mno-legacy-libc:%{!mxc32cpp-lib:-llega-c}}} %{mno-legacy-libc:%{!mxc32cpp-lib:-lc}} \
@@ -99,12 +106,27 @@ do {                     \
 
 #define XC32CPPLIB_OPTION "-mxc32cpp-lib"
 
-#undef  STARTFILE_SPEC
-#define STARTFILE_SPEC " crt0%O%s "
+#if 1 /* TODO: Work in progress, investigating alternate designs */
+# undef  STARTFILE_SPEC
+# define STARTFILE_SPEC " %{mmicromips: %s%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/crt0_micromips%O};\
+  : %s%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/crt0_mips32r2%O} } \
+  %{!mprocessor=* : crt0%O%s} \
+ "
 
-#undef STARTFILECXX_SPEC
-#define STARTFILECXX_SPEC " cpprt0%O%s \
+# undef STARTFILECXX_SPEC
+# define STARTFILECXX_SPEC "   %{mmicromips: %s%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/cpprt0_micromips%O} ;\
+  : %s%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/cpprt0_mips32r2%O} } \
+  %{!mprocessor=* : cpprt0%O%s} \
   crti%O%s crtbegin%O%s "
+#else
+# undef  STARTFILE_SPEC
+# define STARTFILE_SPEC " crt0%O%s \
+ "
+
+# undef STARTFILECXX_SPEC
+# define STARTFILECXX_SPEC " cpprt0%O%s \
+  crti%O%s crtbegin%O%s "
+#endif
 
 #undef ENDFILE_SPEC
 #define ENDFILE_SPEC ""
@@ -141,17 +163,16 @@ do {                     \
     %{fopenmp|ftree-parallelize-loops=*:%:include(libgomp.spec)%(link_gomp)} %(mflib)\
     %{fprofile-arcs|fprofile-generate*|coverage:-lgcov}\
     %{!A:%{!nostdlib:%{!mno-default-isr-vectors: -l:default_isr_vectors.o} }}\
-    %{T:%{T*}; !T: -T %s%{mprocessor=32MX*:./ldscripts/elf32pic32mx.x; \
+    %{T:%{T*};!T:-T %s%{mprocessor=32MX*:./ldscripts/elf32pic32mx.x; \
      :%{mprocessor=32mx*:./ldscripts/elf32pic32mx.x; \
      :%{!mprocessor=*:./ldscripts/elf32pic32mx.x; \
      :%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/p%*} %J%{mprocessor=*:.ld} }}}} \
     %{!nostdlib:%{!nodefaultlibs:%(link_ssp) %(link_gcc_c_sequence)}}\
     %{!A:%{!nostdlib:%{!nostartfiles:%E} }} \
+    %{mprocessor=*:-p%*} \
+    %{mdebugger : -l:software-debug-break.o} \
+    %{!mdebugger : %{mmicromips : -l:debug-exception-return-mm.o; !mmicromips: -l:debug-exception-return.o}} \
     }}}}}}"
-
-#if !defined (MCHP_SKIP_RESOURCE_FILE)
-   %{mprocessor=*:-p%*}
-#endif
 
 #undef LINK_COMMAND_SPEC_SUPPRESS_DEFAULT_SCRIPT
 #define LINK_COMMAND_SPEC_SUPPRESS_DEFAULT_SCRIPT "\
@@ -181,6 +202,9 @@ do {                     \
     %{T*} \
     %{!nostdlib:%{!nodefaultlibs:%(link_ssp) %(link_gcc_c_sequence)}}\
     %{!A:%{!nostdlib:%{!nostartfiles:%E} }} \
+    %{mprocessor=*:-p%*} \
+    %{mdebugger : -l:software-debug-break.o} \
+    %{!mdebugger : %{mmicromips : -l:debug-exception-return-mm.o; !mmicromips: -l:debug-exception-return.o}} \
     }}}}}}"
 
 /* Added on the linker command line after all user-specified -L options are
@@ -288,6 +312,7 @@ extern void pic32_system_include_paths(const char *root, const char *system,
 %{mxgot:-xgot} \
 %{mtune=*} %{v} \
 %{!mpdr:-mno-pdr} \
+%{mprocessor=*:-p%*} \
 %(target_asm_spec) \
 %(subtarget_asm_spec)"
 
@@ -301,6 +326,21 @@ extern void pic32_system_include_paths(const char *root, const char *system,
 #error MCHP_CCI_CC1_SPEC not defined
 #endif
 
+/* A spec that infers the -mdsp setting from an -march argument.  */
+#undef BASE_DRIVER_SELF_SPECS
+#define BASE_DRIVER_SELF_SPECS \
+  "%{!mno-dsp: \
+     %{march=24ke*|march=34kc*|march=34kf*|march=34kx*|march=1004k*: -mdsp} \
+     %{march=74k*|march=m14ke*: %{!mno-dspr2: -mdspr2 -mdsp}}} \
+   %{mprocessor=32MX* : %{msmall-isa:-mips16} %{!msmall-isa: %{mips16: -msmall-isa}} -mpic32mxlibs } \
+   %{mprocessor=32mx* : %{msmall-isa:-mips16} %{!msmall-isa: %{mips16: -msmall-isa}} -mpic32mxlibs} \
+   %{mprocessor=32MZ* : %{msmall-isa:-mmicromips} %{!msmall-isa: %{mmicromips: -msmall-isa}} -mpic32mzlibs} \
+   %{mprocessor=32mz* : %{msmall-isa:-mmicromips} %{!msmall-isa: %{mmicromips: -msmall-isa}} -mpic32mzlibs} \
+   %{mpic32mxlibs : %{msmall-isa: -mips16}} \
+   %{mpic32mxlibs : %{msmall-isa: -mmicromips}} \
+   %{D__DEBUG : -mdebugger} \
+     "
+
 /* CC1_SPEC is the set of arguments to pass to the compiler proper.  This
  * was copied from the one in mips.h, but that one had some problems and
  * contained the endian-selection options.
@@ -309,10 +349,16 @@ extern void pic32_system_include_paths(const char *root, const char *system,
 #define CC1_SPEC " \
  %{gline:%{!g:%{!g0:%{!g1:%{!g2: -g1}}}}} \
  %{G*} \
+ %{minterlink-mips16: -minterlink-compressed} \
+ %{minterlink-compressed: -mno-jals} \
+ %{mmicromips : %{!minterlink-compressed : %{!mno-jals : -mjals } }} \
+ %{msmall-isa : %{!minterlink-compressed : %{!mno-jals : -mjals } }} \
  %{mprocessor=32MX* : %{msmall-isa:-mips16} %{!msmall-isa: %{mips16: -msmall-isa}} -mpic32mxlibs } \
  %{mprocessor=32mx* : %{msmall-isa:-mips16} %{!msmall-isa: %{mips16: -msmall-isa}} -mpic32mxlibs} \
  %{mprocessor=32MZ* : %{msmall-isa:-mmicromips} %{!msmall-isa: %{mmicromips: -msmall-isa}} -mpic32mzlibs} \
  %{mprocessor=32mz* : %{msmall-isa:-mmicromips} %{!msmall-isa: %{mmicromips: -msmall-isa}} -mpic32mzlibs} \
+ %{-mpic32mxlibs : %{msmall-isa: -mips16}} \
+  %{-mpic32mxlibs : %{msmall-isa: -mmicromips}} \
  -mconfig-data-dir= %J%s%{ mprocessor=* :./proc/%*; :./proc/32MXGENERIC} \
  %{mno-float:-fno-builtin-fabs -fno-builtin-fabsf} \
  %{mlong-calls:-msmart-io=0} \
@@ -330,14 +376,11 @@ extern void pic32_system_include_paths(const char *root, const char *system,
  %{mips16: %{fexceptions: %{!mmips16-exceptions: %e-fexceptions with -mips16 not yet supported}}} \
  %{mips16: %{!mmips16-exceptions: -fno-exceptions}} \
  %{O2|Os|O3:%{!mtune:-mtune=4kec}} \
+ %{D__DEBUG : -mdebugger} \
+ %{-mit=profile : -fno-inline} \
  %(mchp_cci_cc1_spec) \
  %(subtarget_cc1_spec) \
 "
-
-#if 0
- %{mit=profile:%{mips16:%e-mit=profile not supported with -mips16}} \
- %{mit=profile:%{mlong-calls:%e-mit=profile not supported with -mlong-calls}}
-#endif
 
 #define CC1PLUS_SPEC " \
  %{!fenforce-eh-specs:-fno-enforce-eh-specs} \
@@ -608,18 +651,20 @@ extern const char *mchp_config_data_dir;
     builtin_define     ("__XC__");                          \
     if ((mchp_processor_string != NULL) && *mchp_processor_string) \
       {                                                     \
-        if (strstr (mchp_processor_string, "32MX") != NULL)  { \
+        if (strncmp (mchp_processor_string, "32MX", 4) == 0)  { \
         char *proc, *p;                                     \
         int setnum, memsize;                                \
         char *pinset;                                       \
-        gcc_assert(strlen(mchp_processor_string) < 20);     \
-        builtin_define_std ("PIC32MX");                     \
         pinset = (char*)alloca(2);                          \
         pinset[1] = 0;                                      \
-        proc = (char*)alloca (strlen (mchp_processor_string) + 5); \
-        sprintf (proc, "__%s__", mchp_processor_string);    \
-        for (p = proc ; *p ; p++)                           \
+        gcc_assert(strlen(mchp_processor_string) < 20);     \
+        for (p = mchp_processor_string ; *p ; p++)          \
           *p = TOUPPER (*p);                                \
+        builtin_define_std ("PIC32MX");                     \
+        proc = (char*)alloca (strlen (mchp_processor_string) + 6); \
+        gcc_assert (proc!=NULL);                            \
+        sprintf (proc, "__%s__", mchp_processor_string);    \
+        gcc_assert (strlen(proc)>0);                        \
         builtin_define (proc);                              \
                                                             \
         if (strchr(proc,'F') != NULL) {                     \
@@ -645,16 +690,78 @@ extern const char *mchp_config_data_dir;
               &pinset[0], 1);                               \
         }                                                   \
         }                                                   \
-        else if (strstr (mchp_processor_string, "32MZ") != NULL)  { \
-        char *proc, *p;                                     \
+        else if (strncmp (mchp_processor_string, "32MZ", 4) == 0)  { \
+        char *proc=NULL, *p=NULL;                           \
+        int pincount, flashsize;                            \
+        char *featureset=NULL;                              \
+        char *productgroup=NULL;                            \
+        char *macroname=NULL;                               \
+        int index = 0;                                      \
         gcc_assert(strlen(mchp_processor_string) < 20);     \
-        builtin_define_std ("PIC32MZ");                     \
-        proc = (char*)alloca (strlen (mchp_processor_string) + 5); \
-        sprintf (proc, "__%s__", mchp_processor_string);    \
-        for (p = proc ; *p ; p++)                           \
+        featureset = (char*)alloca(4);                      \
+        featureset[2] = featureset[3] = '\0';               \
+        productgroup = (char*)alloca(3);                    \
+        productgroup[1] = productgroup[2] = '\0';           \
+        for (p = mchp_processor_string ; *p ; p++)          \
           *p = TOUPPER (*p);                                \
+        macroname = (char*)alloca (                         \
+            strlen("__PIC32_FEATURE_SETnnnn__")+1);         \
+        builtin_define_std ("PIC32MZ");                     \
+        proc = (char*)alloca (                              \
+          strlen (mchp_processor_string) + 6);              \
+        gcc_assert(proc!=NULL);                             \
+        gcc_assert(featureset!=NULL);                       \
+        gcc_assert(productgroup!=NULL);                     \
+        gcc_assert(macroname!=NULL);                        \
+        sprintf (proc, "__%s__", mchp_processor_string);    \
+        gcc_assert (strlen(proc)>0);                        \
         builtin_define (proc);                              \
-                                                            \
+          sscanf (proc, "__32MZ%4d%2c%1c%4d__",             \
+                  &flashsize, &featureset[0],               \
+                  &productgroup[0], &pincount);             \
+          builtin_define_with_int_value                     \
+             ("__PIC32_FLASH_SIZE__",                       \
+              flashsize);                                   \
+          builtin_define_with_int_value                     \
+             ("__PIC32_FLASH_SIZE",                         \
+              flashsize);                                   \
+          builtin_define_with_value                         \
+             ("__PIC32_FEATURE_SET__",                      \
+              &featureset[0], 1);                           \
+          builtin_define_with_value                         \
+             ("__PIC32_FEATURE_SET",                        \
+              &featureset[0], 1);                           \
+          index = strlen(featureset);                       \
+          gcc_assert(index<3);                              \
+          while (index--) {                                 \
+          snprintf(macroname,                               \
+            strlen("__PIC32_FEATURE_SETnn__")+1,            \
+            "__PIC32_FEATURE_SET%d__", index);              \
+          builtin_define_with_int_value                     \
+             (macroname,                                    \
+              featureset[index]);                           \
+          };                                                \
+          index = strlen(featureset);                       \
+          while (index--) {                                 \
+          snprintf(macroname,                               \
+            strlen("__PIC32_FEATURE_SETnn")+1,              \
+            "__PIC32_FEATURE_SET%d", index);                \
+          builtin_define_with_int_value                     \
+             (macroname,                                    \
+              featureset[index]);                           \
+          };                                                \
+          builtin_define_with_int_value                     \
+             ("__PIC32_PRODUCT_GROUP__",                    \
+              productgroup[0]);                             \
+          builtin_define_with_int_value                     \
+             ("__PIC32_PRODUCT_GROUP",                      \
+              productgroup[0]);                             \
+          builtin_define_with_int_value                     \
+             ("__PIC32_PIN_COUNT__",                        \
+              pincount);                                    \
+          builtin_define_with_int_value                     \
+             ("__PIC32_PIN_COUNT",                          \
+              pincount);                                    \
         }                                                   \
       }                                                     \
     else                                                    \
@@ -788,6 +895,7 @@ extern const char *mchp_config_data_dir;
   c_register_pragma(0, "printf_args", mchp_handle_printf_args_pragma); \
   c_register_pragma(0, "scanf_args", mchp_handle_scanf_args_pragma); \
   c_register_pragma(0, "keep", mchp_handle_keep_pragma); \
+  c_register_pragma(0, "coherent", mchp_handle_coherent_pragma); \
   c_register_pragma(0, "optimize", mchp_handle_optimize_pragma); \
   mchp_init_cci_pragmas(); \
   }
@@ -808,16 +916,6 @@ extern const char *mchp_config_data_dir;
 #endif
 
 /* Disable options not supported by PIC32 */
-#if 0 /* Enable DSP and DSPR2 for M14KE */
-#undef MASK_DSP
-#define MASK_DSP 0
-#undef MASK_DSPR2
-#define MASK_DSPR2 0
-#undef TARGET_DSP
-#define TARGET_DSP ((target_flags & MASK_DSP) != 0)
-#undef TARGET_DSPR2
-#define TARGET_DSPR2 ((target_flags & MASK_DSPR2) != 0)
-#endif
 
 #undef MASK_PAIRED_SINGLE_FLOAT
 #define MASK_PAIRED_SINGLE_FLOAT 0
@@ -870,24 +968,25 @@ static const int TARGET_MDMX = 0;
 
 /* the flags may be any length if surrounded by | */
 #define MCHP_EXTENDED_FLAG  "|"
-#define MCHP_PROG_FLAG       MCHP_EXTENDED_FLAG "pm"      MCHP_EXTENDED_FLAG
-#define MCHP_DATA_FLAG       MCHP_EXTENDED_FLAG "dm"      MCHP_EXTENDED_FLAG
-#define MCHP_CONST_FLAG      MCHP_EXTENDED_FLAG "rd"      MCHP_EXTENDED_FLAG
-#define MCHP_RAMFUNC_FLAG    MCHP_EXTENDED_FLAG "rf"      MCHP_EXTENDED_FLAG
-#define MCHP_PRST_FLAG       MCHP_EXTENDED_FLAG "persist" MCHP_EXTENDED_FLAG
-#define MCHP_BSS_FLAG        MCHP_EXTENDED_FLAG "bss"     MCHP_EXTENDED_FLAG
+#define MCHP_PROG_FLAG       MCHP_EXTENDED_FLAG "pm"        MCHP_EXTENDED_FLAG
+#define MCHP_DATA_FLAG       MCHP_EXTENDED_FLAG "dm"        MCHP_EXTENDED_FLAG
+#define MCHP_CONST_FLAG      MCHP_EXTENDED_FLAG "rd"        MCHP_EXTENDED_FLAG
+#define MCHP_RAMFUNC_FLAG    MCHP_EXTENDED_FLAG "rf"        MCHP_EXTENDED_FLAG
+#define MCHP_PRST_FLAG       MCHP_EXTENDED_FLAG "persist"   MCHP_EXTENDED_FLAG
+#define MCHP_BSS_FLAG        MCHP_EXTENDED_FLAG "bss"       MCHP_EXTENDED_FLAG
 
-#define MCHP_MERGE_FLAG      MCHP_EXTENDED_FLAG "mrg"     MCHP_EXTENDED_FLAG
-#define MCHP_NOLOAD_FLAG     MCHP_EXTENDED_FLAG "nl"      MCHP_EXTENDED_FLAG
-#define MCHP_ALGN_FLAG       MCHP_EXTENDED_FLAG "a"       MCHP_EXTENDED_FLAG
-#define MCHP_RALGN_FLAG      MCHP_EXTENDED_FLAG "ra"      MCHP_EXTENDED_FLAG
-#define MCHP_ADDR_FLAG       MCHP_EXTENDED_FLAG "addr"    MCHP_EXTENDED_FLAG
+#define MCHP_MERGE_FLAG      MCHP_EXTENDED_FLAG "mrg"       MCHP_EXTENDED_FLAG
+#define MCHP_NOLOAD_FLAG     MCHP_EXTENDED_FLAG "nl"        MCHP_EXTENDED_FLAG
+#define MCHP_ALGN_FLAG       MCHP_EXTENDED_FLAG "a"         MCHP_EXTENDED_FLAG
+#define MCHP_RALGN_FLAG      MCHP_EXTENDED_FLAG "ra"        MCHP_EXTENDED_FLAG
+#define MCHP_ADDR_FLAG       MCHP_EXTENDED_FLAG "addr"      MCHP_EXTENDED_FLAG
 
-#define MCHP_FCNN_FLAG       MCHP_EXTENDED_FLAG "Nf"      MCHP_EXTENDED_FLAG
-#define MCHP_FCNS_FLAG       MCHP_EXTENDED_FLAG "Sf"      MCHP_EXTENDED_FLAG
-#define MCHP_SFR_FLAG        MCHP_EXTENDED_FLAG "sfr"     MCHP_EXTENDED_FLAG
-#define MCHP_NEAR_FLAG       MCHP_EXTENDED_FLAG "near"    MCHP_EXTENDED_FLAG
-#define MCHP_KEEP_FLAG       MCHP_EXTENDED_FLAG "keep"    MCHP_EXTENDED_FLAG
+#define MCHP_FCNN_FLAG       MCHP_EXTENDED_FLAG "Nf"        MCHP_EXTENDED_FLAG
+#define MCHP_FCNS_FLAG       MCHP_EXTENDED_FLAG "Sf"        MCHP_EXTENDED_FLAG
+#define MCHP_SFR_FLAG        MCHP_EXTENDED_FLAG "sfr"       MCHP_EXTENDED_FLAG
+#define MCHP_NEAR_FLAG       MCHP_EXTENDED_FLAG "near"      MCHP_EXTENDED_FLAG
+#define MCHP_KEEP_FLAG       MCHP_EXTENDED_FLAG "keep"      MCHP_EXTENDED_FLAG
+#define MCHP_COHERENT_FLAG   MCHP_EXTENDED_FLAG "coherent"  MCHP_EXTENDED_FLAG
 
 #define MCHP_IS_NAME_P(NAME,IS) (strncmp(NAME, IS, sizeof(IS)-1) == 0)
 #define MCHP_HAS_NAME_P(NAME,HAS) (strstr(NAME, HAS))
@@ -998,12 +1097,13 @@ static const int TARGET_MDMX = 0;
     { "naked",            0, 0,  true,  false, false, mchp_naked_attribute },   \
     { "address",          1, 1,  false, false, false, mchp_address_attribute }, \
     { "space",            1, 1,  false, false, false, mchp_space_attribute },   \
-    { "persistent",       0, 0,  false, false, false, NULL }, \
+    { "persistent",       0, 0,  false, false, false, mchp_persistent_attribute }, \
     { "ramfunc",          0, 0,  false, true,  true,  mchp_ramfunc_attribute }, \
     { "unsupported",      0, 1,  false, false, false, mchp_unsupported_attribute }, \
     { "target_error",     1, 1,  false, false, false, mchp_target_error_attribute }, \
-    { "keep",             0, 0,  false, false, false, mchp_keep_attribute }, \
-   { "crypto",           0, 0,  false, false, false, mchp_crypto_attribute },
+    { "keep",             0, 0,  false, false, false, mchp_keep_attribute },         \
+    { "coherent",         0, 0,  false, false, false, mchp_coherent_attribute },     \
+    { "crypto",           0, 0,  false, false, false, mchp_crypto_attribute },
 #undef MIPS_DISABLE_INTERRUPT_ATTRIBUTE
 #define MIPS_DISABLE_INTERRUPT_ATTRIBUTE
 
@@ -1085,6 +1185,21 @@ extern enum mips_function_type_tag current_function_type;
 /* Initialize the GCC target structure.  */
 #undef TARGET_OVERRIDE_OPTIONS_AFTER_CHANGE
 #define TARGET_OVERRIDE_OPTIONS_AFTER_CHANGE mchp_override_options_after_change
+
+/* True if we can optimize sibling calls.  For simplicity, we only
+   handle cases in which call_insn_operand will reject invalid
+   sibcall addresses.  There are two cases in which this isn't true:
+
+      - TARGET_MIPS16.  call_insn_operand accepts constant addresses
+	but there is no direct jump instruction.  It isn't worth
+	using sibling calls in this case anyway; they would usually
+	be longer than normal calls.
+
+      - TARGET_USE_GOT && !TARGET_EXPLICIT_RELOCS.  call_insn_operand
+	accepts global constants, but all sibcalls must be indirect.  */
+#undef TARGET_SIBCALLS
+#define TARGET_SIBCALLS \
+  (!TARGET_MIPS16 && (!TARGET_USE_GOT || TARGET_EXPLICIT_RELOCS) && !mchp_profile_option)
 
 #define PIC32_SUPPORT_CRYPTO_ATTRIBUTE 1
 

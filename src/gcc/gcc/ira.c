@@ -437,7 +437,7 @@ setup_class_hard_regs (void)
       AND_COMPL_HARD_REG_SET (temp_hard_regset, no_unit_alloc_regs);
       CLEAR_HARD_REG_SET (processed_hard_reg_set);
       for (i = 0; i < FIRST_PSEUDO_REGISTER; i++)
-	ira_class_hard_reg_index[cl][0] = -1;
+	ira_class_hard_reg_index[cl][i] = -1;
       for (n = 0, i = 0; i < FIRST_PSEUDO_REGISTER; i++)
 	{
 #ifdef REG_ALLOC_ORDER

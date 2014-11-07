@@ -62,6 +62,7 @@ extern void mchp_handle_keep_pragma (struct cpp_reader *pfile);
 extern void mchp_handle_optimize_pragma (struct cpp_reader *pfile);
 extern void mchp_handle_align_pragma (struct cpp_reader *pfile);
 #if defined(_BUILD_C32_) || defined(TARGET_IS_PIC32MX)
+extern void mchp_handle_coherent_pragma (struct cpp_reader *pfile);
 extern void mchp_handle_configset_pragma(struct cpp_reader *pfile, const char *set);
 extern void mchp_handle_config_alt_pragma(struct cpp_reader *pfile);
 extern void mchp_handle_config_bf1_pragma(struct cpp_reader *pfile);

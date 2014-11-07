@@ -1535,7 +1535,12 @@ translate_options (int *argcp, const char *const **argvp)
         newv[newindex++] = "-mlegacy-libc";
         i++;
       }
-
+#endif
+#if defined(TARGET_MCHP_PIC32MX) 
+      else if (strcmp(argv[i],"-relaxed-math") == 0) {
+        newv[newindex++] = "-mrelaxed-math";
+        i++;
+      }
 #endif
       /* Handle old-fashioned options--just copy them through,
 	 with their arguments.  */
@@ -3590,6 +3595,10 @@ display_help (void)
   fputs (_("\
   -legacy-libc             Use legacy (pre C30 v3.25) lib C routines\n"),stdout);
 #elif defined(TARGET_MCHP_PIC32MX)
+#if !defined(PIC32_SKIP_RELAXED_MATH)
+  fputs (_("\
+  -relaxed-math            Use alternative floating-point support routines\n"), stdout);
+#endif /* PIC32_SKIP_RELAXED_MATH */
   fputs (_("\
   -legacy-libc             Use legacy (pre v1.12) lib C routines\n"), stdout);
 #endif
@@ -4835,6 +4844,8 @@ process_command (int argc, const char **argv)
 		/* If we use the --script option, don't add the default script to the 
 		   LIB_COMMAND_SPEC */
 		if (strstr (infiles[n_infiles-1].name, "--script") != NULL)
+		  use_custom_linker_script++;
+		if (strstr (infiles[n_infiles-1].name, "-T") != NULL)
 		  use_custom_linker_script++;
 #endif
 		prev = j + 1;
