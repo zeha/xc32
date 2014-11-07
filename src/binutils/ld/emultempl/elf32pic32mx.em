@@ -52,7 +52,7 @@ fragment <<EOF
 #include "elf/pic32.h"
 #include "ctype.h"
 #include "../bfd/pic32-options.h"
-#include "../bfd/pic32-options.c"
+//#include "../bfd/pic32-options.c"
 #include "../bfd/pic32-utils.h"
 #include <stdint.h>
 
@@ -98,6 +98,8 @@ struct pic32_symbol
   bfd_vma value;
 };
 
+bfd_boolean need_layout;
+
 void bfd_pic32_report_memory_usage
   PARAMS ((FILE *));
 
@@ -117,6 +119,8 @@ static void bfd_pic32_finish
   PARAMS ((void));
 
 void pic32_create_data_init_template (void);
+
+void pic32_create_specific_fill_sections(void);
 
 static bfd * bfd_pic32_create_data_init_bfd
   PARAMS ((bfd *));
@@ -194,7 +198,7 @@ static struct pic32_memory * select_free_block
   PARAMS ((struct pic32_section *, unsigned int));
 
 static void create_remainder_blocks
-  PARAMS ((struct pic32_memory *, unsigned int));
+  PARAMS ((struct pic32_memory *, struct pic32_memory *, unsigned int));
 
 static void remove_free_block
   PARAMS ((struct pic32_memory *));
@@ -245,6 +249,20 @@ struct bfd_link_hash_entry *bfd_pic32_is_defined_global_symbol
 static void allocate_default_stack
   PARAMS ((void));
 
+#ifdef TARGET_IS_PIC32MX
+  /* fill option definitions */
+static bfd * bfd_pic32_create_fill_bfd
+  PARAMS ((bfd *));
+
+void pic32_create_fill_templates
+  PARAMS ((void));
+
+static void pic32_create_unused_program_sections
+  PARAMS ((struct pic32_fill_option *));
+
+int fill_section_count = 0;
+#endif
+
 static void gldelf32pic32mx_after_allocation (void);
 static struct pic32_section *memory_region_list;
 struct pic32_section *unassigned_sections;
@@ -282,15 +300,6 @@ extern struct pic32_section *data_sections;
 /* Symbol Tables */
 static asymbol **symtab;
 static int symptr;
-
-/* Free Memory List */
-struct pic32_memory
-{
-  struct pic32_memory *next;
-  bfd_vma addr;
-  bfd_vma size;
-  bfd_vma offset;
-};
 
 static struct pic32_memory *free_blocks, *data_memory_free_blocks;
 
@@ -571,6 +580,8 @@ struct function_pair_type function_pairs[] =
     /* null terminator */
     { 0, 0, 0 },
   };
+
+#include "../bfd/pic32-options.c"
 
 static void
 mips_after_parse (void)
@@ -1260,6 +1271,14 @@ bfd_pic32_report_sections (s, region, magic_sections, fp)
       char *name, *c;
 #define NAME_MAX_LEN 23
 #define NAME_FIELD_LEN "24"
+      if (strstr(s->sec->name, "fill$")) {
+        name = xmalloc(7);
+        if (PIC32_IS_ABSOLUTE_ATTR(s->sec))
+          strcpy(name, "FILLED");
+        else
+          strcpy(name, "UNUSED");
+      }
+      else {
       /* make a local copy of the name */
       name_len = strlen(s->sec->name);
       name = xmalloc(name_len + 1);
@@ -1271,7 +1290,7 @@ bfd_pic32_report_sections (s, region, magic_sections, fp)
         name_len = NAME_MAX_LEN;
       strncpy(name, s->sec->name, name_len);
       name[name_len] = '\0';
-
+      }
       /* clean the name of %n */
       c = strchr(name, '%');
       if (c) *c = (char) '\0';
@@ -1776,8 +1795,6 @@ void pic32_create_data_init_template(void)
     }
 }
 
-
-
 /*
 ** Create a bfd for the stack
 **
@@ -1905,9 +1922,10 @@ pic32_after_open(void)
 static void
 pic32_finish(void)
 {
-  bfd_boolean need_layout = bfd_elf_discard_info (link_info.output_bfd,
-						  &link_info);
-
+  need_layout = bfd_elf_discard_info (link_info.output_bfd,
+  				      &link_info);
+  /* We need to map segments here so that we determine file positions for 
+     sections added by best-fit-allocator */
   gld${EMULATION_NAME}_map_segments (need_layout);
 
   bfd_pic32_finish();
@@ -2484,6 +2502,10 @@ pic32_strip_sections (abfd)
         prev->next = sec->next;
         if (sec->next)
           sec->next->prev = prev; 
+        else
+          abfd->section_last = prev; /*update the bfd->section_last field
+                                       if the removed section is the 
+                                       last section.*/
         abfd->section_count -= 1;
         if (pic32_debug)
           printf("  Stripping section %s\n", sec->name);
@@ -2715,12 +2737,28 @@ elf_link_check_archive_element (name, abfd, sec_info)
 static void
 gldelf32pic32mx_after_allocation (void)
 {
+#if 0
+   /* If any sections are discarded then relocations of symbols referenced
+      in sections like .eh_frame, .stab, .pdr will be removed. Also entries 
+      these sections may be removed to eleminate duplication. 
+      So the size will change. If we don't map_segments before 
+      best-fit-allocation overlapping may occur. */
+   need_layout = bfd_elf_discard_info (link_info.output_bfd,
+                                                  &link_info);
+
+   gld${EMULATION_NAME}_map_segments (need_layout);
+#endif
 /*
 ** Invoke the best-fit allocator
 */
   if (pic32_allocate) {
     allocate_memory();
   }
+
+#ifdef TARGET_IS_PIC32MX
+  if (pic32_has_fill_option)
+    pic32_create_fill_templates();
+#endif
 }
 
 /*
@@ -2746,6 +2784,220 @@ bfd_boolean (*mchp_elf_link_check_archive_element)(char *name, bfd *abfd,
                                                     struct bfd_link_info *) =
   elf_link_check_archive_element;
 
+/*
+** Create a bfd for the fill templates
+**
+** Uses the following global variables:
+**   symtab
+**   symptr
+*/
+static bfd *
+bfd_pic32_create_fill_bfd (parent)
+     bfd *parent ATTRIBUTE_UNUSED;
+{
+  bfd_size_type size;
+  bfd *abfd;
+  asection *sec;
+  char *oname;
+  int flags, sec_align;
+  const char *sname;
+
+  /* create a bare-bones bfd */
+  oname = (char *) bfd_alloc (link_info.output_bfd, 20);
+  sprintf (oname, "fill%d", fill_section_count);
+  abfd = bfd_create (oname, parent);
+  bfd_find_target ("${OUTPUT_FORMAT}", abfd);
+  bfd_make_writable (abfd);
+
+  bfd_set_format (abfd, bfd_object);
+  bfd_set_arch_mach (abfd, bfd_arch_mips, 0);
+
+  /* create a symbol table (room for 1 entry) */
+  symptr = 0;
+  symtab = (asymbol **) bfd_alloc (link_info.output_bfd, sizeof (asymbol *));
+
+  /*
+  ** create a bare-bones section for
+  */
+  /* get unique section name */
+  sname = bfd_get_unique_section_name (abfd, "fill$", &fill_section_count);
+  flags = SEC_CODE | SEC_HAS_CONTENTS | SEC_IN_MEMORY;
+  sec_align = 0; 
+  sec = bfd_pic32_create_section (abfd, sname, flags, sec_align);
+  size = 0; /* will update later */
+  bfd_set_section_size (abfd, sec, size);
+
+  /* put in the symbol table */
+  bfd_set_symtab (abfd, symtab, symptr);
+  /* finish it */
+  if (!bfd_make_readable (abfd))
+    {
+      fprintf( stderr, "Link Error: can't make fill readable\n");
+      abort();
+    }
+  return abfd;
+} /* static bfd * bfd_pic32_create_fill_bfd (...)*/
+
+void pic32_create_fill_templates(void)
+{
+  struct pic32_fill_option *o;
+  if (program_memory_free_blocks)
+    {
+      if (pic32_fill_option_list)
+        {
+         for (o = pic32_fill_option_list; o != NULL; o = o->next)
+            {
+              if (o == pic32_fill_option_list)
+                continue;
+
+              if (o->loc.unused)
+                pic32_create_unused_program_sections(o);
+            }
+
+        }
+     }
+   else
+     einfo(_("%P: Warning: There is not any free program memory to fill.\n"));
+}
+
+static void pic32_create_unused_program_sections
+                      (struct pic32_fill_option *opt)
+{
+  asection * sec;
+  struct pic32_memory *b, *next;
+  bfd *fill_bfd;
+  unsigned char *fill_data;
+  struct pic32_section *s;
+  struct memory_region_struct *region;
+  bfd_vma size = 0;
+  bfd_vma addr = 0;
+  int sec_align = 2;
+
+  for (b = program_memory_free_blocks; b != NULL; b = next)
+    {
+     next = b->next;
+     if ((b->addr == 0) && (b->size == 0))
+      continue;
+     fill_bfd = bfd_pic32_create_fill_bfd(link_info.output_bfd);
+     bfd_pic32_add_bfd_to_link (fill_bfd, fill_bfd->filename);
+     
+     addr = align_power(b->addr, sec_align); /*align to an instruction word*/
+     size = b->size - (addr - b->addr);
+    
+
+     fill_bfd->sections->vma = fill_bfd->sections->lma = addr;
+     fill_bfd->sections->rawsize = size;
+     fill_bfd->sections->size = size;
+
+       /* create a pic32_section */
+     pic32_init_section_list(&s);
+     s->sec = fill_bfd->sections;
+     LANG_FOR_EACH_INPUT_STATEMENT (file)
+      {
+       if (strcmp(file->filename, fill_bfd->filename) == 0)
+        s->file = (PTR) file;
+      }
+       /* allocate memory for the template */
+     fill_data = (unsigned char *) bfd_alloc (link_info.output_bfd, size);
+     if (!fill_data)
+      {
+       fprintf( stderr, "Link Error: not enough memory for fill template\n");
+       abort();
+      }
+
+       /* fill the template with a default value */
+     fill_data = memset(fill_data, 0x11, size);
+
+       /* attach it to the input section */
+     sec = bfd_get_section_by_name(fill_bfd, fill_bfd->sections->name);
+     if (sec)
+      {
+       sec->rawsize = size;
+       sec->flags |= (SEC_HAS_CONTENTS | SEC_IN_MEMORY | SEC_LOAD | SEC_CODE);
+       sec->contents = fill_data;
+       bfd_set_section_alignment(fill_bfd, sec, sec_align); /*align to an insn word*/
+       bfd_set_section_size (fill_bfd, sec, size);
+       fill_bfd->sections = sec;  /* save a copy for later */
+      }
+ else
+       if (pic32_debug)
+         printf("after_open: section %s not found\n", sec->name);
+
+     region = region_lookup ("kseg0_program_mem");
+
+     update_section_info(addr, s, region);
+
+     pic32_append_section_to_list(opt->fill_section_list, 
+                                  (lang_input_statement_type *)s->file, sec);
+     pic32_remove_from_memory_list(program_memory_free_blocks, b);
+    }
+
+}
+
+void pic32_create_specific_fill_sections(void)
+{
+  asection * sec;
+  bfd *fill_bfd;
+  unsigned char *fill_data;
+  bfd_vma size;
+  bfd_vma addr;
+  struct pic32_fill_option *o;
+
+  for (o = pic32_fill_option_list->next; o != NULL; o = o->next)
+    {
+       if (o->loc.unused)
+         continue;
+
+       addr = o->loc.address;
+
+       if (o->loc.end_address)
+        size = (o->loc.end_address - o->loc.address) + 1;
+       else if (o->fill_width == 1)
+        size = 1;
+       else if (o->fill_width == 2)
+        size = 2;
+       else if (o->fill_width == 8)
+        size = 8;
+       else
+        size = 4;
+
+       fill_bfd = bfd_pic32_create_fill_bfd(link_info.output_bfd);
+       bfd_pic32_add_bfd_to_link (fill_bfd, fill_bfd->filename);
+
+       fill_bfd->sections->vma = fill_bfd->sections->lma = o->loc.address;
+       fill_bfd->sections->rawsize = size;
+       fill_bfd->sections->size = size;
+
+        /* allocate memory for the template */
+       fill_data = (unsigned char *) bfd_alloc (link_info.output_bfd, size);
+       if (!fill_data)
+        {
+         fprintf( stderr, "Link Error: not enough memory for fill template\n");
+         abort();
+        }
+
+        /* fill the template with a default value */
+       fill_data = memset(fill_data, 0x11, size);
+
+        /* attach it to the input section */
+       sec = bfd_get_section_by_name(fill_bfd,fill_bfd->sections->name );
+       if (sec)
+       {
+        sec->rawsize = size;
+        sec->flags |= (SEC_HAS_CONTENTS | SEC_IN_MEMORY | SEC_LOAD | SEC_CODE);
+        PIC32_SET_ABSOLUTE_ATTR(sec);
+        sec->contents = fill_data;
+        bfd_set_section_size (fill_bfd, sec, size);
+        fill_bfd->sections = sec;  /* save a copy for later */
+       }
+      else
+        if (pic32_debug)
+          printf("after_open: section %s not found\n", sec->name);
+
+      pic32_append_section_to_list(o->fill_section_list,
+                                 (lang_input_statement_type *)NULL, sec);
+   }
+}
 
 EOF
 

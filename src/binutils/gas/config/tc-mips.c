@@ -13727,7 +13727,7 @@ s_change_sec (int sec)
 	{
 	  bfd_set_section_flags (stdoutput, seg, (SEC_ALLOC | SEC_LOAD
 						  | SEC_READONLY | SEC_RELOC
-						  | SEC_DATA));
+						  | SEC_CODE));
 	  if (strncmp (TARGET_OS, "elf", 3) != 0)
 	    record_alignment (seg, 4);
 	}
@@ -13852,7 +13852,7 @@ s_change_section (int ignore ATTRIBUTE_UNUSED)
      pic32_attribute (1);
 
     if (flag_debug)
-       printf ("    pic30_section::new_attribute_map = 0x%x\n",
+       printf ("    pic32_section::new_attribute_map = 0x%x\n",
                pic32_attribute_map (sec));
 
      /* set implied attributes, if any */
@@ -23528,7 +23528,7 @@ pic32_attribute (int is_section)
     } /* while (!is_it_end_of_statement ()) */
 
     if (flag_debug)
-    printf ("    pic30_attribute::map = %x\n", attribute_map);
+    printf ("    pic32_attribute::map = %x\n", attribute_map);
 
   /*
  *   ** If we are processing a section directive,
@@ -23560,7 +23560,7 @@ pic32_attribute (int is_section)
     }
 #endif
    if (flag_debug)
-    printf ("<-- pic30_attribute::exit\n");
+    printf ("<-- pic32_attribute::exit\n");
 
   } /* pic32_attribute */
 

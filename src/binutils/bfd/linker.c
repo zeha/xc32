@@ -31,7 +31,7 @@
 /*
  * make common version of this symbol which will be initialized to NIL
  * unless we are creating the linker where an initialized definition will
- * be provided by pic30-elf.em or pic30-coff.em
+ * be provided by elf32pic32mx.em. 
  *
  * we only call this function if it is a valid pointer
  */

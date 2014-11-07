@@ -1343,7 +1343,7 @@ listing_general_info (char ** argv)
   listing_page (NULL);
 
   fprintf (list_file,
-           _(" GNU assembler version %s (%s)\n\t using BFD version %s."),
+           _(" GNU assembler version %s (%s)\n\t using BFD version %s." " Build date: " __DATE__ ),
            VERSION, TARGET_ALIAS, BFD_VERSION_STRING);
   print_options (argv);
   fprintf (list_file, _("\n input file    \t: %s"), fn);

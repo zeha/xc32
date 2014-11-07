@@ -336,7 +336,7 @@ mips*-*-*)
 	;;
 pic32*-*-*)
 	cpu_type=mips
-	need_64bit_hwint=no
+	need_64bit_hwint=yes
 	c_target_objs="${c_target_objs} mchp-pragmas.o"
 	cxx_target_objs="${cxx_target_objs} mchp-pragmas.o"
 	;;
@@ -2036,13 +2036,14 @@ pdp11-*-*)
 	use_gcc_stdint=wrap
 	;;
 pic32*-mchp-elf*)
-	tm_file="elfos.h ${tm_file} mips/elf.h mips/sde.h"
+	tm_file="elfos.h newlib-stdint.h ${tm_file} mips/elf.h mips/sde.h"
 	tm_file="${tm_file} mips/sdemtk.h"
 	tm_file="${tm_file} pic32/mchp.h"
 	tmake_file="${tmake_file} pic32/t-mchp pic32/t-libgcc-mips16"
 	extra_options="pic32/mchp.opt"
 	tm_p_file="${tm_p_file} pic32/mchp-protos.h"
 	extra_objs="${extra_objs} mchp.o"
+	use_gcc_stdint=none
 	case "${with_newlib}" in
 	  yes)
 	    # newlib

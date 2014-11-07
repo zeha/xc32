@@ -54,6 +54,7 @@
 #include "pic32-utils.h"
 bfd_boolean pic32_data_init = TRUE;
 bfd_boolean pic32_has_data_init_option = 0;
+bfd_boolean pic32_has_fill_option = 0;
 bfd_boolean pic32_has_stack_option = 0;
 unsigned int pic32_stack_size = 16;
 bfd_boolean pic32_has_stackguard_option = 0;
@@ -81,6 +82,16 @@ static void bfd_pic32_clean_section_names
 static void pic32_strip_sections
   PARAMS ((bfd *));
 #endif
+
+/* Data structures for fill option */
+struct pic32_fill_option *pic32_fill_option_list;
+
+/* Data structure for free program memory blocks */
+struct pic32_memory *program_memory_free_blocks;
+
+static void pic32_fill_unused_memory
+  PARAMS ((bfd *, struct pic32_fill_option *));
+
 #endif
 
 
@@ -12687,6 +12698,24 @@ _bfd_mips_elf_final_link (bfd *abfd, struct bfd_link_info *info)
           abort();
         }
   }
+
+   if (pic32_has_fill_option)
+    {
+     struct pic32_fill_option *opt;
+
+     if (pic32_fill_option_list)
+       {
+         for (opt = pic32_fill_option_list->next; opt != NULL; opt = opt->next)
+            {
+              if (opt->fill_section_list)
+                {
+                  pic32_fill_unused_memory(abfd, opt);
+                }
+            }
+       }
+    }
+
+
     /* clean the section names */
   if (pic32_debug)
     printf("\nCleaning section names:\n");
@@ -12745,6 +12774,117 @@ _bfd_mips_elf_final_link (bfd *abfd, struct bfd_link_info *info)
     }
 
   return TRUE;
+}
+
+/*****************************************************************************/
+
+static void
+pic32_fill_unused_memory(bfd *abfd, struct pic32_fill_option *o)
+{
+ unsigned int opb = bfd_octets_per_byte (abfd);
+ struct pic32_section *s;
+ asection *fill_sec;
+ bfd_size_type fill_size;
+ file_ptr fill_offset;
+ unsigned char *fill_data, *p, *value;
+ long long fill_value = 0;
+ long long add_value = 0;
+ int n = 0; 
+ int range_size = 0;
+
+ for (s=o->fill_section_list; s !=NULL; s=s->next)
+   {
+    if (s->sec)
+     {
+      fill_sec = s->sec->output_section;
+      fill_size = s->sec->rawsize;
+      fill_offset = s->sec->output_offset;
+      /* Write data */
+      fill_data = s->sec->contents;
+
+      /* fill with a range of values */
+        if (o->expr.values_range)
+         {
+          value = o->expr.values_range;
+          range_size = o->range_size;
+          p = fill_data;
+          while(p<(fill_data+fill_size))
+           {
+            *p++ = *(value + n); n++;
+            if (n == (range_size * o->fill_width)) n = 0;
+           }
+         }
+        else {
+      /* single value or changing value */
+        fill_value = o->expr.base_value;
+        if (o->expr.addened)
+         add_value = o->expr.addened;
+        p = fill_data;
+        if (o->fill_width == 1){
+         add_value = add_value & 0xFF;
+         *p++ = fill_value & 0xFF;
+         while (p<(fill_data+fill_size))
+          {
+           fill_value += add_value;
+           *p++ = fill_value & 0xFF;
+          }}
+        else if (o->fill_width == 2){
+          add_value = add_value & 0xFFFF;
+          *p++ = fill_value & 0xFF;
+          *p++ = (fill_value >> 8) & 0xFF;
+         while (p<(fill_data+fill_size))
+          {
+           fill_value += add_value;
+           *p++ = fill_value & 0xFF;
+           *p++ = (fill_value >> 8) & 0xFF;
+          }}
+        else if (o->fill_width == 8){
+          add_value = add_value;
+          *p++ = fill_value & 0xFF;
+          *p++ = (fill_value >> 8) & 0xFF;
+          *p++ = (fill_value >> 16) & 0xFF;
+          *p++ = (fill_value >> 24) & 0xFF;
+          *p++ = (fill_value >> 32) & 0xFF;
+          *p++ = (fill_value >> 40) & 0xFF;
+          *p++ = (fill_value >> 48) & 0xFF;
+          *p++ = (fill_value >> 56) & 0xFF;
+         while (p<(fill_data+fill_size))
+          {
+           fill_value += add_value;
+           *p++ = fill_value & 0xFF;
+           *p++ = (fill_value >> 8) & 0xFF;
+           *p++ = (fill_value >> 16) & 0xFF;
+           *p++ = (fill_value >> 24) & 0xFF;
+           *p++ = (fill_value >> 32) & 0xFF;
+           *p++ = (fill_value >> 40) & 0xFF;
+           *p++ = (fill_value >> 48) & 0xFF;
+           *p++ = (fill_value >> 56) & 0xFF;
+          }}
+
+        else {
+         add_value = add_value & 0xFFFFFFFF;
+         *p++ = fill_value & 0xFF;
+         *p++ = (fill_value >> 8) & 0xFF;
+         *p++ = (fill_value >> 16) & 0xFF;
+         *p++ = (fill_value >> 24) & 0xFF;
+         while (p<(fill_data+fill_size)){
+          fill_value += add_value;
+          *p++ = fill_value & 0xFF;
+          *p++ = (fill_value >> 8) & 0xFF;
+          *p++ = (fill_value >> 16) & 0xFF;
+          *p++ = (fill_value >> 24) & 0xFF;}}
+       }
+       fill_sec->flags |= SEC_HAS_CONTENTS;
+
+       if (!bfd_set_section_contents (abfd, fill_sec, fill_data,
+                                      fill_offset*opb, fill_size))
+        {
+          fprintf( stderr, "Link Error: can't write section %s contents\n",
+                   fill_sec->name);
+          abort();
+        }
+     }
+   }
 }
 
 /* Structure for saying that BFD machine EXTENSION extends BASE.  */

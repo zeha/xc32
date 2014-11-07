@@ -301,7 +301,7 @@ Target Report Mask(SYNCI) Undocumented
 Use synci instruction to invalidate i-cache
 
 mtune=
-Target RejectNegative Joined Var(mips_tune_string) Undocumented
+Target RejectNegative Joined Var(mips_tune_string) UndocumentedGCC does not support -C or -CC without -E
 -mtune=PROCESSOR	Optimize the output for PROCESSOR
 
 ;muclibc
@@ -335,9 +335,9 @@ mdebugger
 Target Var(TARGET_DEBUG_EXEC)
 Allocate space for debugger executive
 
-mno-peripheral-libs
-Target RejectNegative Var(TARGET_NOLINK_PERIPHERAL_LIBS)
-Do not link peripheral libraries
+mperipheral-libs
+Target Var(TARGET_LINK_PERIPHERAL_LIBS)
+Link peripheral libraries
 
 mno-mpdebug-lib
 Target RejectNegative Var(TARGET_NOLINK_MPDEBUG_LIBS)
@@ -370,4 +370,8 @@ Target Report RejectNegative Joined Var(mchp_it_transport)
 mprocessor=
 Target Report RejectNegative Joined Var(mchp_processor_string)
 -mprocessor=PROCESSOR	Specify the target PIC32 PROCESSOR
+
+mlicense-warning
+Target Var Var(TARGET_LICENSE_WARNING) Undocumented Init(1)
+-mlicense-warning	Emit the license warning when appropriate
 

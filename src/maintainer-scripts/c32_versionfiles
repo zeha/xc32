@@ -6,4 +6,5 @@
 # FILE			START						END
 binutils/bfd/version.h		#define\s+BFD_VERSION_DATE\s+
 gcc/gcc/version.c	const char version_string[] = BASEVER " " "[0-9.]+\s*	";
-#gdb/version.in								
+#gdb/version.in
+

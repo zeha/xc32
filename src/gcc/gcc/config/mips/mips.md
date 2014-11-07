@@ -279,7 +279,7 @@
    (UNSPECV_BCSC0_32        806) ; '__builtin_bcsc0' instruction
    (UNSPECV_SWITCH_ISA1632  807)
 
-   (UNSPECV_UNIQUEID        808) ; '__builtin_uniqueid' instruction
+   (UNSPECV_UNIQUEID        808) ; '__builtin_unique_id' instruction
    (UNSPECV_GENLABEL32      809)
    (UNSPECV_GENLABEL16      810)
    (UNSPECV_ITTYPE          811)
@@ -2751,7 +2751,7 @@
       operands[2] = GEN_INT (len);
       return "<d>ext\t%0,%1,0,%2";
     case 5:
-      return " # nop";
+      return "#";
     case 6:
       return "and\t%0,%1,%2";
     default:
@@ -6279,7 +6279,7 @@
 (define_insn "sibcall_internal"
   [(call (mem:SI (match_operand 0 "call_insn_operand" "j,S"))
 	 (match_operand 1 "" ""))]
-  "TARGET_SIBCALLS && SIBLING_CALL_P (insn) && (mchp_check_for_conversion(insn))"
+  "mchp_check_for_conversion(insn) && TARGET_SIBCALLS && SIBLING_CALL_P (insn)"
   {
     if (TARGET_MICROMIPS)
       return MICROMIPS_J (operands, 0);
@@ -6304,7 +6304,7 @@
   [(set (match_operand 0 "register_operand" "")
         (call (mem:SI (match_operand 1 "call_insn_operand" "j,S"))
               (match_operand 2 "" "")))]
-  "TARGET_SIBCALLS && SIBLING_CALL_P (insn) && (mchp_check_for_conversion(insn)) "
+  "(mchp_check_for_conversion(insn)) && TARGET_SIBCALLS && SIBLING_CALL_P (insn)"
   {
     if (TARGET_MICROMIPS)
       return MICROMIPS_J (operands, 1);
@@ -6320,7 +6320,7 @@
    (set (match_operand 3 "register_operand" "")
 	(call (mem:SI (match_dup 1))
 	      (match_dup 2)))]
-  "TARGET_SIBCALLS && SIBLING_CALL_P (insn) && (mchp_check_for_conversion(insn))"
+  "(mchp_check_for_conversion(insn)) && TARGET_SIBCALLS && SIBLING_CALL_P (insn)"
   {
     if (TARGET_MICROMIPS)
       return MICROMIPS_J (operands, 1);
@@ -6397,7 +6397,7 @@
 	 (match_operand 1 "" ""))
    (clobber (reg:SI RETURN_ADDR_REGNUM))
    (clobber (reg:SI 28))]
-  "TARGET_SPLIT_CALLS && (mchp_check_for_conversion(insn))"
+  "(mchp_check_for_conversion(insn)) && TARGET_SPLIT_CALLS"
   { return MIPS_CALL ("jal", operands, 0, 1); }
   [(set_attr "type" "call")])
 
@@ -6427,7 +6427,7 @@
    (const_int 1)
    (clobber (reg:SI RETURN_ADDR_REGNUM))
    (clobber (reg:SI 28))]
-  "TARGET_SPLIT_CALLS && (mchp_check_for_conversion(insn))"
+  " (mchp_check_for_conversion(insn)) && TARGET_SPLIT_CALLS"
   { return MIPS_CALL ("jal", operands, 0, -1); }
   [(set_attr "type" "call")])
 
@@ -6467,7 +6467,7 @@
               (match_operand 2 "" "")))
    (clobber (reg:SI RETURN_ADDR_REGNUM))
    (clobber (reg:SI 28))]
-  "TARGET_SPLIT_CALLS && (mchp_check_for_conversion(insn))"
+  "(mchp_check_for_conversion(insn)) && TARGET_SPLIT_CALLS"
   { return MIPS_CALL ("jal", operands, 1, 2); }
   [(set_attr "type" "call")])
 
@@ -6497,7 +6497,7 @@
    (const_int 1)
    (clobber (reg:SI RETURN_ADDR_REGNUM))
    (clobber (reg:SI 28))]
-  "TARGET_SPLIT_CALLS && (mchp_check_for_conversion(insn))"
+  "(mchp_check_for_conversion(insn)) && TARGET_SPLIT_CALLS"
   { return MIPS_CALL ("jal", operands, 1, -1); }
   [(set_attr "type" "call")])
 
@@ -6531,7 +6531,7 @@
 	      (match_dup 2)))
    (clobber (reg:SI RETURN_ADDR_REGNUM))
    (clobber (reg:SI 28))]
-  "TARGET_SPLIT_CALLS && (mchp_check_for_conversion(insn))"
+  "(mchp_check_for_conversion(insn)) && TARGET_SPLIT_CALLS"
   { return MIPS_CALL ("jal", operands, 1, 2); }
   [(set_attr "type" "call")])
 
@@ -6545,8 +6545,11 @@
   ""
 {
   int i;
+  rtx insn;
 
-  emit_call_insn (GEN_CALL (operands[0], const0_rtx, NULL, const0_rtx));
+  insn = GEN_CALL (operands[0], const0_rtx, NULL, const0_rtx);
+
+  emit_call_insn (insn);
 
   for (i = 0; i < XVECLEN (operands[2], 0); i++)
     {
@@ -6740,7 +6743,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define_insn "pic32_uniqueid"
+(define_insn "pic32_unique_id"
   [(set (match_operand:SI 0 "register_operand" "=d")
    (unspec_volatile:SI [(match_operand:SI 1 "immediate_operand" "i")
                      (match_operand:SI 2 "immediate_operand" "i")]
@@ -6753,7 +6756,7 @@
    (set_attr "mode"	"none")
    (set_attr "length"	"0")])
 
-(define_insn "pic32_uniqueid_32"
+(define_insn "pic32_unique_id_32"
   [(set (match_operand:SI 0 "register_operand" "=d")
    (unspec_volatile:SI [(match_operand:SI 1 "immediate_operand" "i")
                      (match_operand:SI 2 "immediate_operand" "i")]
@@ -6772,7 +6775,7 @@
    (set_attr "length"	"4")])
 
 ; pic32_unique_id_16 for mips16 mode
-(define_insn "pic32_uniqueid_16"
+(define_insn "pic32_unique_id_16"
   [(set (match_operand:SI 0 "register_operand" "=d")
    (unspec_volatile [(match_operand:SI 1 "const_int_operand" "i")
                      (match_operand:HI 2 "const_int_operand" "i")]

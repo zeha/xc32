@@ -1235,6 +1235,9 @@ static const struct option_map option_map[] =
    {"--entry", "-e", 0},
    {"--extra-warnings", "-W", 0},
    {"--extdirs", "-fextdirs=", "aj"},
+#if defined(_PIC30_H_) || defined(TARGET_MCHP_PIC32MX)
+   {"--fill", "-fill=", "aj"},
+#endif
    {"--for-assembler", "-Wa", "a"},
    {"--for-linker", "-Xlinker", "a"},
    {"--force-link", "-u", "a"},
@@ -1491,7 +1494,6 @@ translate_options (int *argcp, const char *const **argvp)
         newv[newindex++] = "-mlegacy-libc";
         i++;
       }
-
 #endif
 
       /* Handle old-fashioned options--just copy them through,
@@ -4008,6 +4010,12 @@ process_command (int argc, const char **argv)
 	  n_infiles++;
 	  n_switches++;
 	}
+#if defined(_PIC30_H_) || defined(TARGET_MCHP_PIC32MX)
+      else if (! strncmp (argv[i], "-fill=", 6))
+	{
+	  n_infiles++;
+	}
+#endif
       else if (strcmp (argv[i], "-ftarget-help") == 0)
 	{
 	  /* translate_options() has turned --target-help into -ftarget-help.  */
@@ -4654,6 +4662,17 @@ process_command (int argc, const char **argv)
 	  infiles[n_infiles].language = "*";
 	  infiles[n_infiles++].name = argv[i] + prev;
 	}
+#if defined(_PIC30_H_) || defined(TARGET_MCHP_PIC32MX)
+      else if (strncmp (argv[i], "-fill=", 6) == 0)
+	{
+	  char *fillopt;
+	  fillopt = (char*)xmalloc(strlen("--fill=") + strlen(argv[i]+6) + 1);
+	  strcpy (fillopt, "--fill=");
+	  strcat (fillopt, argv[i]+6);
+	  infiles[n_infiles].language = "*";
+	  infiles[n_infiles++].name = fillopt;
+	}
+#endif
       else if (strcmp (argv[i], "-Xlinker") == 0)
 	{
 	  infiles[n_infiles].language = "*";
@@ -7013,6 +7032,21 @@ compare_files (char *cmpfile[])
   return ret;
 }
 
+#if defined(TARGET_MCHP_PIC32MX)
+/* get a line, and remove any line-ending \n or \r\n */
+static char *get_line (char *buf, size_t n, FILE *fptr);
+static char *
+get_line (char *buf, size_t n, FILE *fptr)
+{
+  if (fgets (buf, n, fptr) == NULL)
+    return NULL;
+  while (buf [strlen (buf) - 1] == '\n'
+         || buf [strlen (buf) - 1] == '\r')
+    buf [strlen (buf) - 1] = '\0';
+  return buf;
+}
+#endif
+
 extern int main (int, char **);
 
 int
@@ -7031,6 +7065,10 @@ main (int argc, char **argv)
 #ifdef CSL_LICENSE_FEATURE
   csl_license_impl *license_impl = csl_license_subproc;
   csl_license *license = NULL;
+#endif
+
+#if defined(TARGET_MCHP_PIC32MX)
+  char *partsupportversion = NULL;
 #endif
 
   /* Initialize here, not in definition.  The IRIX 6 O32 cc sometimes chokes
@@ -7467,8 +7505,70 @@ main (int argc, char **argv)
 
   if (print_version)
     {
-      printf (_("%s %s%s\n"), programname, pkgversion_string,
-	      version_string);
+#if defined(TARGET_MCHP_PIC32MX)
+#if defined(MCHP_PIC32_PART_SUPPORT_VERSION)
+#define LTSFILENAME ".LanguageToolSuite"
+#define PARTSUPPORTVERSION_MARKER "partsupportversion"
+#define LTI_LINE_LENGTH 256
+#define xstr(s) str(s) 
+#define str(s) #s
+      {
+        const char *bindir_path = NULL;
+        char *lts_filepath = NULL;
+        int max_pathlength = 0;
+        FILE *fptr;
+        char line [LTI_LINE_LENGTH] = {0};
+          
+        bindir_path = make_relative_prefix(argv[0],
+                                  "/bin",
+                                  "/bin");
+        max_pathlength = strlen((const char*)bindir_path) + 1 + strlen((const char*)LTSFILENAME) + 1;
+        lts_filepath = (char*)alloca(max_pathlength);
+        strncpy (lts_filepath, bindir_path, max_pathlength);
+        strncat (lts_filepath, LTSFILENAME, max_pathlength);
+      if ((fptr = fopen (lts_filepath, "rb")) != NULL)
+        {
+          while (get_line (line, sizeof (line), fptr) != NULL)
+            {
+              char *pch0, *pch1;
+              /* Find the line with the license directory */
+              if (strstr (line, PARTSUPPORTVERSION_MARKER))
+                {
+                  /* Find the quoted string on that line */
+                  pch0 = strchr (line,'"') +1;
+                  pch1 = strrchr (line,'"');
+                  if ((pch1-pch0) >= 1)
+                    {
+                      partsupportversion = (char*)alloca((pch1-pch0)+2);
+                      memset (partsupportversion, 0, (pch1-pch0)+2);
+                      strncpy (partsupportversion, pch0, pch1-pch0);
+
+                    }
+                  break;
+                }
+            }
+        }
+    }
+#undef LTSFILENAME
+#undef PARTSUPPORTVERSION_MARKER
+#undef str
+#undef xstr
+#endif
+#endif
+
+#if defined(TARGET_MCHP_PIC32MX)
+      if (partsupportversion) {
+        printf (_("%s %s%s(%s) Build date: %s\n"), programname, pkgversion_string,
+	        version_string, partsupportversion, __DATE__);
+      }
+      else {
+        printf (_("%s %s%s Build date: %s\n"), programname, pkgversion_string,
+	        version_string, __DATE__);
+      }
+#else
+      printf (_("%s %s%s Build date: %s\n"), programname, pkgversion_string,
+	        version_string, __DATE__);
+#endif
       printf ("Copyright %s 2010 Free Software Foundation, Inc.\n",
 	      _("(C)"));
       fputs (_("This is free software; see the source for copying conditions.  There is NO\n\

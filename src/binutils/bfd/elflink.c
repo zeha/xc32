@@ -8809,12 +8809,11 @@ elf_link_output_extsym (struct elf_link_hash_entry *h, void *data)
 	    if (sym.st_shndx == SHN_BAD) 
 	      {
 #ifdef TARGET_IS_PIC32MX
-                /* This will allow symbols in zero-size stripped sections
-                   to be written to the symbol table as ABS section symbol
-                   without having a final link failure */
+               /* If we cannot identify the section because it is a 
+                  zero-size stripped section, don't emit the symbol. FS */
 		if (bfd_section_removed_from_list(finfo->output_bfd,
                                                  input_sec->output_section))
-                sym.st_shndx = SHN_ABS;
+                  return FALSE;
                 else
 #endif
                   {
@@ -12327,6 +12326,9 @@ bfd_elf_discard_info (bfd *output_bfd, struct bfd_link_info *info)
       if (!info->relocatable)
 	{
 	  eh = bfd_get_section_by_name (abfd, ".eh_frame");
+         /* Temporary fix for memory overlapping problem */
+          if (eh != NULL)
+            continue;
 	  if (eh != NULL
 	      && (eh->size == 0
 		  || bfd_is_abs_section (eh->output_section)))

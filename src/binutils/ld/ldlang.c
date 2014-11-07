@@ -56,6 +56,12 @@
 #define offsetof(TYPE, MEMBER) ((size_t) & (((TYPE*) 0)->MEMBER))
 #endif
 
+#if TARGET_IS_PIC32MX
+  lang_statement_union_type **last_os1 = NULL;
+  bfd_boolean best_fit_alloc_done = FALSE;
+#endif
+
+
 /* Locals variables.  */
 static struct obstack stat_obstack;
 static struct obstack map_obstack;
@@ -121,7 +127,7 @@ struct lang_nocrossrefs *nocrossref_list;
 bfd_boolean missing_file = FALSE;
 
 #ifdef TARGET_IS_PIC32MX
-/* functions defined in bfd/pic30-attributes.c */
+/* functions defined in bfd/pic32-attributes.c */
 extern unsigned int pic32_attribute_map
   PARAMS ((asection *));
 
@@ -129,6 +135,7 @@ extern int pic32_is_valid_attributes
   PARAMS ((unsigned int, unsigned char));
 
 extern void pic32_create_data_init_template(void);
+extern void pic32_create_specific_fill_sections(void);
 extern void pic32_create_stack_section(void);
 static bfd_boolean issue_warning = TRUE;
 #endif
@@ -946,6 +953,27 @@ lang_for_each_statement_worker (void (*func) (lang_statement_union_type *),
     }
 }
 
+#if defined(PIC30) || defined(TARGET_IS_PIC32MX)
+int
+lang_remove_input_file(lang_input_statement_type *);
+int
+lang_remove_input_file(lang_input_statement_type *entry)
+{
+  lang_input_statement_type *f, *prev, *next;
+
+  prev = (lang_input_statement_type *) input_file_chain.head;
+  for (f = prev; f != NULL; f = next) {
+    next = (lang_input_statement_type *) f->next_real_file;
+    if (f == entry) {
+      prev->next_real_file = (void *) next;
+      return 0;
+    }
+  }
+  return 1;
+}
+#endif
+
+
 void
 lang_for_each_statement (void (*func) (lang_statement_union_type *))
 {
@@ -1024,6 +1052,9 @@ new_afile (const char *name,
   lang_has_input_file = TRUE;
   p->target = target;
   p->sysrooted = FALSE;
+#if defined(PIC30) || defined(TARGET_IS_PIC32MX)
+  p->optional = FALSE;
+#endif
 
   if (file_type == lang_input_file_is_l_enum
       && name[0] == ':' && name[1] != '\0')
@@ -1058,6 +1089,17 @@ new_afile (const char *name,
       p->just_syms_flag = FALSE;
       p->search_dirs_flag = TRUE;
       break;
+#if defined(PIC30) || defined(TARGET_IS_PIC32MX)
+    case lang_input_file_is_optional_l_enum:
+      p->optional = TRUE;
+      p->is_archive = TRUE;
+      p->filename = name;
+      p->real = TRUE;
+      p->local_sym_name = concat ("-l", name, (const char *) NULL);
+      p->just_syms_flag = FALSE;
+      p->search_dirs_flag = TRUE;
+      break;
+#endif
     case lang_input_file_is_marker_enum:
       p->filename = name;
       p->is_archive = FALSE;
@@ -1075,6 +1117,18 @@ new_afile (const char *name,
       p->just_syms_flag = FALSE;
       p->search_dirs_flag = TRUE;
       break;
+#if defined(PIC30) || defined(TARGET_IS_PIC32MX)
+    case lang_input_file_is_optional_search_file_enum:
+      p->optional = TRUE;
+      p->sysrooted = ldlang_sysrooted_script;
+      p->filename = name;
+      p->is_archive = FALSE;
+      p->real = TRUE;
+      p->local_sym_name = name;
+      p->just_syms_flag = FALSE;
+      p->search_dirs_flag = TRUE;
+      break;
+#endif
     case lang_input_file_is_file_enum:
       p->filename = name;
       p->is_archive = FALSE;
@@ -2670,6 +2724,11 @@ load_symbols (lang_input_statement_type *entry,
     return TRUE;
 
   ldfile_open_file (entry);
+
+#if defined(PIC30) || defined(TARGET_IS_PIC32MX)
+  if (entry->the_bfd == 0)
+    return TRUE;
+#endif  
 
   /* Do not process further if the file was missing.  */
   if (entry->missing_file)
@@ -5350,6 +5409,17 @@ void
 one_lang_size_sections_pass (bfd_boolean *relax, bfd_boolean check_regions)
 {
   lang_statement_iteration++;
+#if TARGET_IS_PIC32MX
+  /* size output sections added by best-fit-allocation */
+  if (last_os1 && best_fit_alloc_done && 
+      (last_os1 != (lang_statement_union_type **) statement_list.tail))
+   {
+    lang_size_sections_1 (last_os1,
+                         abs_output_section, 0, 0, relax, check_regions);
+    last_os1 = NULL;
+   }
+  else
+#endif
   lang_size_sections_1 (&statement_list.head, abs_output_section,
 			0, 0, relax, check_regions);
 }
@@ -6392,6 +6462,7 @@ lang_relax_sections (bfd_boolean need_layout)
     }
 }
 
+
 void
 lang_process (void)
 {
@@ -6450,6 +6521,8 @@ lang_process (void)
 #ifdef TARGET_IS_PIC32MX
    pic32_create_data_init_template();
    //pic32_create_stack_section();
+   if (pic32_has_fill_option)
+   pic32_create_specific_fill_sections();
 #endif
 
   /* Update wild statements.  */
@@ -6501,9 +6574,21 @@ lang_process (void)
   /* Size up the sections.  */
   lang_size_sections (NULL, ! RELAXATION_ENABLED);
 
+#if TARGET_IS_PIC32MX 
+  last_os1 = (lang_statement_union_type **) statement_list.tail;
+#endif
+
   /* See if anything special should be done now we know how big
      everything is.  This is where relaxation is done.  */
   ldemul_after_allocation ();
+
+  best_fit_alloc_done = TRUE;
+
+#if TARGET_IS_PIC32MX
+  /* If the emulation added new output statements, size them now. */
+  if (last_os1 != (lang_statement_union_type **) statement_list.tail)
+    lang_size_sections (NULL, ! RELAXATION_ENABLED);
+#endif
 
   /* Fix any .startof. or .sizeof. symbols.  */
   lang_set_startof ();

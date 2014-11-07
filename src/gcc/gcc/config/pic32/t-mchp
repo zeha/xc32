@@ -4,7 +4,7 @@
 # instuction won't work across the divide (no jx instruction).
 # Compile libraries with -mcode-xonly, so that they are link-compatible
 # with both -mcode-readable=pcrel and -mcode-readable=yes.
-TARGET_LIBGCC2_CFLAGS = -G 0 -fno-optimize-sibling-calls -mcode-xonly -O2
+TARGET_LIBGCC2_CFLAGS = -G 0 -fno-optimize-sibling-calls -mcode-xonly -Os
 
 # Build the multilibs.
 LIBGCC = stmp-multilib

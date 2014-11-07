@@ -33,8 +33,11 @@ along with GCC; see the file COPYING3.  If not see
 #undef TARGET_MCHP_PIC32MX
 #define TARGET_MCHP_PIC32MX 1
 
-#undef MCHP_DEBUG
-#define MCHP_DEBUG 1
+#ifndef MCHP_DEBUG
+#define MCHP_DEBUG 0
+#endif
+
+#define XCLM_FULL_CHECKOUT 1
 
 extern       int mchp_io_size_val;
 extern       HOST_WIDE_INT mchp_pic32_license_valid;
@@ -73,7 +76,7 @@ do {                     \
 #define LIB_SPEC "--start-group %{!mno-mpdebug-lib:-ldebug} \
   %{mlegacy-libc:%{!mno-legacy-libc:-llega-c}} %{mno-legacy-libc:-lc} \
   %{!mlegacy-libc:-lc} \
- -lm -le -ldsp %{!mno-peripheral-libs:-lmchp_peripheral %{mprocessor=*:-lmchp_peripheral_%*}} --end-group"
+ -lm -le -ldsp %{mperipheral-libs:-lmchp_peripheral %{mprocessor=*:-lmchp_peripheral_%*}} --end-group"
 
 /* No libstdc++ for now.  Empty string doesn't work.  */
 #if 0
@@ -225,9 +228,11 @@ extern void pic32_system_include_paths(const char *root, const char *system,
 %(subtarget_cc1_spec) \
 "
 
+#if 0
 #define CC1PLUS_SPEC "%{!frtti:-fno-rtti} \
     %{!fenforce-eh-specs:-fno-enforce-eh-specs} \
     %{!fexceptions:-fno-exceptions}"
+#endif
 
 /* Preprocessor specs.  */
 
@@ -285,35 +290,35 @@ extern void pic32_system_include_paths(const char *root, const char *system,
    in a cross compiler, another environment variable might want to be used
    to avoid conflicts with the host any host GCC_EXEC_PREFIX */
 #ifndef GCC_EXEC_PREFIX_ENV
-#define GCC_EXEC_PREFIX_ENV "PIC32_EXEC_PREFIX"
+#define GCC_EXEC_PREFIX_ENV "XC32_EXEC_PREFIX"
 #endif
 
 /* By default, the COMPILER_PATH_ENV is "COMPILER_PATH", however
    in a cross compiler, another environment variable might want to be used
    to avoid conflicts with the host any host COMPILER_PATH */
 #ifndef COMPILER_PATH_ENV
-#define COMPILER_PATH_ENV "PIC32_COMPILER_PATH"
+#define COMPILER_PATH_ENV "XC32_COMPILER_PATH"
 #endif
 
 /* By default, the C_INCLUDE_PATH_ENV is "C_INCLUDE_PATH", however
    in a cross compiler, another environment variable might want to be used
    to avoid conflicts with the host any host C_INCLUDE_PATH */
 #ifndef C_INCLUDE_PATH_ENV
-#define C_INCLUDE_PATH_ENV "PIC32_C_INCLUDE_PATH"
+#define C_INCLUDE_PATH_ENV "XC32_C_INCLUDE_PATH"
 #endif
 
 /* By default, the CPLUS_INCLUDE_PATH_ENV is "CPLUS_INCLUDE_PATH", however
    in a cross compiler, another environment variable might want to be used
    to avoid conflicts with the host any host CPLUS_INCLUDE_PATH */
 #ifndef CPLUS_INCLUDE_PATH_ENV
-#define CPLUS_INCLUDE_PATH_ENV "PIC32_CPLUS_INCLUDE_PATH"
+#define CPLUS_INCLUDE_PATH_ENV "XC32_CPLUS_INCLUDE_PATH"
 #endif
 
 /* By default, the LIBRARY_PATH_ENV is "LIBRARY_PATH", however
    in a cross compiler, another environment variable might want to be used
    to avoid conflicts with the host any host LIBRARY_PATH */
 #ifndef LIBRARY_PATH_ENV
-#define LIBRARY_PATH_ENV "PIC32_LIBRARY_PATH"
+#define LIBRARY_PATH_ENV "XC32_LIBRARY_PATH"
 #endif
 
 /* None of the OPTIONS specified in MULTILIB_OPTIONS are set by default. */
@@ -460,6 +465,10 @@ extern const char *mchp_config_data_dir;
                                                             \
     builtin_define_std ("PIC32MX");                         \
     builtin_define     ("__C32__");                         \
+    builtin_define     ("__XC32");                          \
+    builtin_define     ("__XC32__");                        \
+    builtin_define     ("__XC");                            \
+    builtin_define     ("__XC__");                          \
     if ((mchp_processor_string != NULL) && *mchp_processor_string) \
       {                                                     \
         char *proc, *p;                                     \
@@ -481,10 +490,19 @@ extern const char *mchp_config_data_dir;
              ("__PIC32_FEATURE_SET__",                      \
               setnum);                                      \
           builtin_define_with_int_value                     \
+             ("__PIC32_FEATURE_SET",                        \
+              setnum);                                      \
+          builtin_define_with_int_value                     \
              ("__PIC32_MEMORY_SIZE__",                      \
+              memsize);                                     \
+          builtin_define_with_int_value                     \
+             ("__PIC32_MEMORY_SIZE",                        \
               memsize);                                     \
           builtin_define_with_value                         \
              ("__PIC32_PIN_SET__",                          \
+              &pinset[0], 1);                               \
+          builtin_define_with_value                         \
+             ("__PIC32_PIN_SET",                            \
               &pinset[0], 1);                               \
         }                                                   \
       }                                                     \
@@ -568,14 +586,22 @@ extern const char *mchp_config_data_dir;
                  Microchip++;                               \
                  minor = strtol(Microchip, &Microchip, 0);  \
                }                                            \
-             pic32_compiler_version = (major*100) + minor;  \
+             pic32_compiler_version = (major*1000) + minor;  \
           }                                                 \
         else                                                \
           {                                                 \
             fatal_error ("internal error: version_string == NULL");     \
             builtin_define_with_int_value ("__C32_VERSION__", -1);      \
+            builtin_define_with_int_value ("__XC32_VERSION__", -1);     \
+            builtin_define_with_int_value ("__XC32_VERSION", -1);       \
+            builtin_define_with_int_value ("__XC_VERSION__", -1);       \
+            builtin_define_with_int_value ("__XC_VERSION", -1);       \
           }                                                             \
         builtin_define_with_int_value ("__C32_VERSION__", pic32_compiler_version);  \
+        builtin_define_with_int_value ("__XC32_VERSION__", pic32_compiler_version); \
+        builtin_define_with_int_value ("__XC32_VERSION", pic32_compiler_version);   \
+        builtin_define_with_int_value ("__XC_VERSION__", pic32_compiler_version);   \
+        builtin_define_with_int_value ("__XC_VERSION", pic32_compiler_version);     \
       }                                                     \
                                                             \
   } while (0);

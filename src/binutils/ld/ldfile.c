@@ -379,6 +379,12 @@ ldfile_open_file_search (const char *arch,
   return FALSE;
 }
 
+/* Open the input file specified by ENTRY.  */
+#if defined(PIC30) || defined(TARGET_IS_PIC32MX)
+extern int
+lang_remove_input_file(lang_input_statement_type *);
+#endif
+
 /* Open the input file specified by ENTRY.
    PR 4437: Do not stop on the first missing file, but
    continue processing other input files in case there
@@ -434,12 +440,35 @@ ldfile_open_file (lang_input_statement_type *entry)
 	  if (entry->sysrooted
 	       && ld_sysroot
 	       && IS_ABSOLUTE_PATH (entry->local_sym_name))
-	    einfo (_("%P: cannot find %s inside %s\n"),
+	    {
+	        einfo (_("%P: cannot find %s inside %s\n"),
 		   entry->local_sym_name, ld_sysroot);
-	  else
-	    einfo (_("%P: cannot find %s\n"), entry->local_sym_name);
-	  entry->missing_file = TRUE;
-	  missing_file = TRUE;
+	        entry->missing_file = TRUE;
+	        missing_file = TRUE;
+	    }
+#if defined(PIC30) || defined(TARGET_IS_PIC32MX)
+	  else if (entry->optional) 
+	    {
+              /* not an error, print info message */
+               if (config.map_file != NULL) 
+                 {
+                   if (strncmp("-l", entry->local_sym_name, 2) == 0)
+                     fprintf(config.map_file,"\nOptional library lib%s.a not found\n",
+                             entry->filename);
+                   else
+                     fprintf(config.map_file,"\nOptional file %s not found\n",
+                             entry->filename);
+                 }
+               entry->search_dirs_flag = FALSE;
+               (void) lang_remove_input_file(entry); /* remove it from the link */
+            }
+#endif
+	  else 
+	    {
+	      einfo (_("%P: cannot find %s\n"), entry->local_sym_name);
+	      entry->missing_file = TRUE;
+	      missing_file = TRUE;
+	    }
 	}
     }
 }

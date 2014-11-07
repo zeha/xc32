@@ -15,7 +15,7 @@ $release = shift @ARGV;
 $basedir = shift @ARGV;
 
 ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime();
-$release .= sprintf "-%04d%02d%02d", 1900+$year, $mon+1, $mday;
+#$release .= sprintf "-%04d%02d%02d", 1900+$year, $mon+1, $mday;
 
 while (<>) {
   chop;

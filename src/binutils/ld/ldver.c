@@ -36,7 +36,7 @@ void
 ldversion (int noisy)
 {
   /* Output for noisy == 2 is intended to follow the GNU standards.  */
-  fprintf (stdout, _("GNU ld %s\n"), BFD_VERSION_STRING);
+  fprintf (stdout, _("GNU ld %s" " Build date: " __DATE__ "\n"), BFD_VERSION_STRING);
 
   if (noisy & 2)
     {

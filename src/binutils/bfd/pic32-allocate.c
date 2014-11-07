@@ -56,6 +56,9 @@ enum {
   LOCATE_HIGHEST,
 };
 
+/* Data structure for free program memory blocks */
+extern struct pic32_memory *program_memory_free_blocks;
+
 static void
 finish_section_info(struct pic32_section *s, lang_output_section_statement_type *os);
 
@@ -358,6 +361,10 @@ allocate_program_memory() {
   result |= locate_sections(address, 0, region);   /* most restrictive  */
   result |= locate_sections(all_attr, 0, region);  /* least restrictive */
 
+  /* save the free blocks list */
+  program_memory_free_blocks = free_blocks;
+  free_blocks = 0;
+
   return result;
 } /* allocate_program_memory() */
 
@@ -548,7 +555,7 @@ group_section_size(struct pic32_section *g)
     if (b) {
       addr = b->addr + b->offset;
       update_group_section_info(addr,s,region);
-      create_remainder_blocks(b,len);
+      create_remainder_blocks(free_blocks,b,len);
       remove_free_block(b);
     } else {
       if (locate_options != NO_LOCATE_OPTION) {
@@ -607,7 +614,7 @@ group_section_size(struct pic32_section *g)
     if (b) {
       addr = b->addr + b->offset;
       update_section_info(addr,s,region);
-      create_remainder_blocks(b,len);
+      create_remainder_blocks(free_blocks,b,len);
       remove_free_block(b);
     } else {
       if (locate_options != NO_LOCATE_OPTION) {
@@ -887,13 +894,6 @@ select_free_block(struct pic32_section *s, unsigned int len) {
     if (IS_LOCATE_OPTION(EXCLUDE_LOW_ADDR) &&
         !VALID_HIGH_ADDR((b->addr + b->size - len), len))
       continue;
-#if 0
-    /* qualify DMA with leftmost and rightmost position in dma address range  */
-    if (PIC32_IS_DMA_ATTR(s->sec) &&
-        (((b->addr + b->size - len) < dma_base) ||
-         ((b->addr + len - 1 ) > dma_end)))
-      continue;
-#endif
 
     /* fall through if block passes pre-qual tests */
 
@@ -937,21 +937,11 @@ select_free_block(struct pic32_section *s, unsigned int len) {
 
       if (IS_LOCATE_OPTION(EXCLUDE_LOW_ADDR) &&
           !VALID_HIGH_ADDR(option1, len)) {
-        option1 = exclude_addr - 2;  /* skip ahead */
+        option1 = exclude_addr - 1;  /* skip ahead */
         if (pic32_debug)
           printf("    approaching EXCLUDE boundary from %lx\n", option1);
         continue;
       }
-
-
-#if 0
-      if (PIC32_IS_DMA_ATTR(s->sec) && !VALID_DMA((bfd_vma)option1, len)) {
-        option1 = dma_base - 2;
-        if (pic32_debug)
-          printf("    option1 set to lower DMA boundary\n");
-        continue;
-      }
-#endif
 
       /* if we get here, the option is valid */
       break;
@@ -989,7 +979,7 @@ select_free_block(struct pic32_section *s, unsigned int len) {
 
 
         if  (PIC32_IS_NEAR_ATTR(s->sec)    && !VALID_NEAR(option2, len)) {
-          option2 = NEAR_BOUNDARY - len + 2;  /* skip back */
+          option2 = NEAR_BOUNDARY - len + 1;  /* skip back */
           if (pic32_debug)
             printf("    approaching Near boundary from %lx\n", option2);
           continue;
@@ -998,25 +988,11 @@ select_free_block(struct pic32_section *s, unsigned int len) {
 
         if (IS_LOCATE_OPTION(EXCLUDE_HIGH_ADDR) &&
             !VALID_LOW_ADDR(option2, len)) {
-          option2 = exclude_addr - len + 2;  /* skip back */
+          option2 = exclude_addr - len + 1;  /* skip back */
           if (pic32_debug)
             printf("    approaching EXCLUDE boundary from %lx\n", option2);
           continue;
         }
-
-#if 0
-        if (PIC32_IS_DMA_ATTR(s->sec) && !VALID_DMA((bfd_vma)option2, len)) {
-          if (option2 < dma_end) {
-            option2_valid = FALSE;
-            break;
-          }
-          option2 = dma_end + 1 - len + 2;
-          if (pic32_debug)
-            printf("    option2 set to upper DMA boundary\n");
-          continue;
-        }
-#endif
-
 
         /* if we get here, the option is valid */
         break;
@@ -1253,7 +1229,8 @@ update_group_section_info(bfd_vma alloc_addr,
  * block->offset and section->size.
  */
 static void
-create_remainder_blocks(struct pic32_memory *b, unsigned int len) {
+create_remainder_blocks(struct pic32_memory *lst,
+                        struct pic32_memory *b, unsigned int len) {
 
   bfd_vma remainder = b->size - (len + b->offset);
 
@@ -1262,10 +1239,10 @@ create_remainder_blocks(struct pic32_memory *b, unsigned int len) {
            b->offset, remainder);
 
   if (b->offset > 0)  /* gap at beginning */
-    pic32_add_to_memory_list(free_blocks, b->addr, b->offset);
+    pic32_add_to_memory_list(lst, b->addr, b->offset);
 
   if (remainder > 0)  /* gap at end */
-    pic32_add_to_memory_list(free_blocks,
+    pic32_add_to_memory_list(lst,
                              b->addr + b->offset + len, remainder);
 } /* create_remainder_blocks() */
 

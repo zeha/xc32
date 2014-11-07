@@ -57,5 +57,32 @@ struct pic32_section
   (((sec->flags & (SEC_ALLOC | SEC_DATA | SEC_READONLY | SEC_CODE)) \
      == SEC_ALLOC))
 
+struct pic32_memory
+{
+  struct pic32_memory *next;
+  bfd_vma addr;
+  bfd_vma size;
+  bfd_vma offset;
+};
+
+struct expression {
+        unsigned char *values_range;
+        long long base_value;
+        long long addened;};
+struct location {
+        bfd_boolean unused;
+        long long address;
+        long long end_address;};
+struct pic32_fill_option
+{
+  struct pic32_fill_option *next;
+  struct expression expr;
+  struct location loc;
+  struct pic32_section *fill_section_list;
+  int fill_width;
+  int range_size;
+};
+
+
 #endif /* _ELF_PIC32_H */
 

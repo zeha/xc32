@@ -115,5 +115,6 @@ extern void mchp_no_section(void);
 int set_section_stack(const char *pszSectionName,
                              SECTION_FLAGS_INT pszSectionFlag);
 extern bool mchp_ramfunc_type_p (tree decl);
+extern void mchp_asm_output_local(FILE *file, char *name, int size ATTRIBUTE_UNUSED, int rounded);
 #endif
 

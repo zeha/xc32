@@ -11169,11 +11169,11 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
  	LIBS="$LIBS -lppl_c -lppl -lgmpxx -lstdc++"
  	if test x$host_alias = xi686-darwin8; then
  	    LIBS="$LIBS -lgcc_s.10.4"
- 	elif test x$host_alias = xi686-apple-darwin10; then
- 	    LIBS="$LIBS -lgcc_s.10.4"
  	elif test x$host_alias != xi686-mingw32; then
           if test x$host_alias != xi586-mingw32msvc; then
- 	    LIBS="$LIBS -lgcc_s"
+            if test x$host_alias!= xi386-ming32; then
+              LIBS="$LIBS -lgcc_s"
+            fi
           fi
  	fi
 

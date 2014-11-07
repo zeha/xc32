@@ -43,6 +43,8 @@ extern bfd_boolean pic32_has_smart_io_option;
 extern bfd_boolean pic32_allocate;
 extern bfd_boolean pic32_data_init;
 extern bfd_boolean pic32_has_data_init_option;
+extern bfd_boolean pic32_has_fill_option;
+extern struct pic32_fill_option *pic32_fill_option_list;
 extern bfd_boolean pic32_has_stack_option;
 extern unsigned int pic32_stack_size;
 extern bfd_boolean pic33_has_stackguard_option;
@@ -67,7 +69,8 @@ enum elfpic32mx_options {
   SMART_IO_OPTION,
   NO_SMART_IO_OPTION,
   DATA_INIT_OPTION,
-  NO_DATA_INIT_OPTION
+  NO_DATA_INIT_OPTION,
+  FILL_OPTION
 };
 
 static struct option longopts[] =
@@ -78,6 +81,7 @@ static struct option longopts[] =
   { "report-mem", no_argument, NULL, REPORT_MEM_OPTION },
   { "data-init", no_argument, NULL, DATA_INIT_OPTION },
   { "no-data-init", no_argument, NULL, NO_DATA_INIT_OPTION },
+  { "fill", required_argument, NULL, FILL_OPTION },
   { NULL,        no_argument,       NULL, 0                }
 };
 #endif

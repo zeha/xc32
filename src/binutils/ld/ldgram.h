@@ -1,27 +1,37 @@
-/* A Bison parser, made by GNU Bison 1.875c.  */
 
-/* Skeleton parser for Yacc-like parsing with Bison,
-   Copyright (C) 1984, 1989, 1990, 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
+/* A Bison parser, made by GNU Bison 2.4.1.  */
 
-   This program is free software; you can redistribute it and/or modify
+/* Skeleton interface for Bison's Yacc-like parsers in C
+   
+      Copyright (C) 1984, 1989, 1990, 2000, 2001, 2002, 2003, 2004, 2005, 2006
+   Free Software Foundation, Inc.
+   
+   This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2, or (at your option)
-   any later version.
-
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+   
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-
+   
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330,
-   Boston, MA 02111-1307, USA.  */
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
-/* As a special exception, when this file is copied by Bison into a
-   Bison output file, you may use that output file without restriction.
-   This special exception was added by the Free Software Foundation
-   in version 1.24 of Bison.  */
+/* As a special exception, you may create a larger work that contains
+   part or all of the Bison parser skeleton and distribute that work
+   under terms of your choice, so long as that work isn't itself a
+   parser generator using the skeleton or a modified version thereof
+   as a parser skeleton.  Alternatively, if you modify or redistribute
+   the parser skeleton itself, you may (at your option) remove this
+   special exception, which will cause the skeleton and the resulting
+   Bison output files to be licensed under the GNU General Public
+   License without this special exception.
+   
+   This special exception was added by the Free Software Foundation in
+   version 2.2 of Bison.  */
+
 
 /* Tokens.  */
 #ifndef YYTOKENTYPE
@@ -105,53 +115,55 @@
      LENGTH = 331,
      CREATE_OBJECT_SYMBOLS = 332,
      INPUT = 333,
-     GROUP = 334,
-     OUTPUT = 335,
-     CONSTRUCTORS = 336,
-     ALIGNMOD = 337,
-     AT = 338,
-     SUBALIGN = 339,
-     PROVIDE = 340,
-     PROVIDE_HIDDEN = 341,
-     AS_NEEDED = 342,
-     CHIP = 343,
-     LIST = 344,
-     SECT = 345,
-     ABSOLUTE = 346,
-     LOAD = 347,
-     NEWLINE = 348,
-     ENDWORD = 349,
-     ORDER = 350,
-     NAMEWORD = 351,
-     ASSERT_K = 352,
-     FORMAT = 353,
-     PUBLIC = 354,
-     DEFSYMEND = 355,
-     BASE = 356,
-     ALIAS = 357,
-     TRUNCATE = 358,
-     REL = 359,
-     INPUT_SCRIPT = 360,
-     INPUT_MRI_SCRIPT = 361,
-     INPUT_DEFSYM = 362,
-     CASE = 363,
-     EXTERN = 364,
-     START = 365,
-     VERS_TAG = 366,
-     VERS_IDENTIFIER = 367,
-     GLOBAL = 368,
-     LOCAL = 369,
-     VERSIONK = 370,
-     INPUT_VERSION_SCRIPT = 371,
-     KEEP = 372,
-     ONLY_IF_RO = 373,
-     ONLY_IF_RW = 374,
-     SPECIAL = 375,
-     EXCLUDE_FILE = 376,
-     CONSTANT = 377,
-     INPUT_DYNAMIC_LIST = 378
+     OPTIONAL = 334,
+     GROUP = 335,
+     OUTPUT = 336,
+     CONSTRUCTORS = 337,
+     ALIGNMOD = 338,
+     AT = 339,
+     SUBALIGN = 340,
+     PROVIDE = 341,
+     PROVIDE_HIDDEN = 342,
+     AS_NEEDED = 343,
+     CHIP = 344,
+     LIST = 345,
+     SECT = 346,
+     ABSOLUTE = 347,
+     LOAD = 348,
+     NEWLINE = 349,
+     ENDWORD = 350,
+     ORDER = 351,
+     NAMEWORD = 352,
+     ASSERT_K = 353,
+     FORMAT = 354,
+     PUBLIC = 355,
+     DEFSYMEND = 356,
+     BASE = 357,
+     ALIAS = 358,
+     TRUNCATE = 359,
+     REL = 360,
+     INPUT_SCRIPT = 361,
+     INPUT_MRI_SCRIPT = 362,
+     INPUT_DEFSYM = 363,
+     CASE = 364,
+     EXTERN = 365,
+     START = 366,
+     VERS_TAG = 367,
+     VERS_IDENTIFIER = 368,
+     GLOBAL = 369,
+     LOCAL = 370,
+     VERSIONK = 371,
+     INPUT_VERSION_SCRIPT = 372,
+     KEEP = 373,
+     ONLY_IF_RO = 374,
+     ONLY_IF_RW = 375,
+     SPECIAL = 376,
+     EXCLUDE_FILE = 377,
+     CONSTANT = 378,
+     INPUT_DYNAMIC_LIST = 379
    };
 #endif
+/* Tokens.  */
 #define INT 258
 #define NAME 259
 #define LNAME 260
@@ -228,58 +240,63 @@
 #define LENGTH 331
 #define CREATE_OBJECT_SYMBOLS 332
 #define INPUT 333
-#define GROUP 334
-#define OUTPUT 335
-#define CONSTRUCTORS 336
-#define ALIGNMOD 337
-#define AT 338
-#define SUBALIGN 339
-#define PROVIDE 340
-#define PROVIDE_HIDDEN 341
-#define AS_NEEDED 342
-#define CHIP 343
-#define LIST 344
-#define SECT 345
-#define ABSOLUTE 346
-#define LOAD 347
-#define NEWLINE 348
-#define ENDWORD 349
-#define ORDER 350
-#define NAMEWORD 351
-#define ASSERT_K 352
-#define FORMAT 353
-#define PUBLIC 354
-#define DEFSYMEND 355
-#define BASE 356
-#define ALIAS 357
-#define TRUNCATE 358
-#define REL 359
-#define INPUT_SCRIPT 360
-#define INPUT_MRI_SCRIPT 361
-#define INPUT_DEFSYM 362
-#define CASE 363
-#define EXTERN 364
-#define START 365
-#define VERS_TAG 366
-#define VERS_IDENTIFIER 367
-#define GLOBAL 368
-#define LOCAL 369
-#define VERSIONK 370
-#define INPUT_VERSION_SCRIPT 371
-#define KEEP 372
-#define ONLY_IF_RO 373
-#define ONLY_IF_RW 374
-#define SPECIAL 375
-#define EXCLUDE_FILE 376
-#define CONSTANT 377
-#define INPUT_DYNAMIC_LIST 378
+#define OPTIONAL 334
+#define GROUP 335
+#define OUTPUT 336
+#define CONSTRUCTORS 337
+#define ALIGNMOD 338
+#define AT 339
+#define SUBALIGN 340
+#define PROVIDE 341
+#define PROVIDE_HIDDEN 342
+#define AS_NEEDED 343
+#define CHIP 344
+#define LIST 345
+#define SECT 346
+#define ABSOLUTE 347
+#define LOAD 348
+#define NEWLINE 349
+#define ENDWORD 350
+#define ORDER 351
+#define NAMEWORD 352
+#define ASSERT_K 353
+#define FORMAT 354
+#define PUBLIC 355
+#define DEFSYMEND 356
+#define BASE 357
+#define ALIAS 358
+#define TRUNCATE 359
+#define REL 360
+#define INPUT_SCRIPT 361
+#define INPUT_MRI_SCRIPT 362
+#define INPUT_DEFSYM 363
+#define CASE 364
+#define EXTERN 365
+#define START 366
+#define VERS_TAG 367
+#define VERS_IDENTIFIER 368
+#define GLOBAL 369
+#define LOCAL 370
+#define VERSIONK 371
+#define INPUT_VERSION_SCRIPT 372
+#define KEEP 373
+#define ONLY_IF_RO 374
+#define ONLY_IF_RW 375
+#define SPECIAL 376
+#define EXCLUDE_FILE 377
+#define CONSTANT 378
+#define INPUT_DYNAMIC_LIST 379
 
 
 
 
-#if ! defined (YYSTYPE) && ! defined (YYSTYPE_IS_DECLARED)
+#if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
+typedef union YYSTYPE
+{
+
+/* Line 1676 of yacc.c  */
 #line 62 "ldgram.y"
-typedef union YYSTYPE {
+
   bfd_vma integer;
   struct big_int
     {
@@ -306,15 +323,17 @@ typedef union YYSTYPE {
   struct bfd_elf_version_deps *deflist;
   struct bfd_elf_version_expr *versyms;
   struct bfd_elf_version_tree *versnode;
+
+
+
+/* Line 1676 of yacc.c  */
+#line 331 "ldgram.h"
 } YYSTYPE;
-/* Line 1275 of yacc.c.  */
-#line 312 "ldgram.h"
+# define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
-# define YYSTYPE_IS_TRIVIAL 1
 #endif
 
 extern YYSTYPE yylval;
-
 
 

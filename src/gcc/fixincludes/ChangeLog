@@ -1,3 +1,9 @@
+2010-11-20  Ralf Wildenhues  <Ralf.Wildenhues@gmx.de>
+
+	PR other/46202
+	* Makefile.in (install-strip): New phony target.
+	(all, check, install): Also mark as phony.
+
 2010-07-31  Release Manager
 
 	* GCC 4.5.1 released.
@@ -194,7 +200,7 @@
 
 	* inclhack.def (hpux_imaginary_i): Remove spaces.
 	* fixincl.x: Regenerate.
-	* tests/base/stdint.h: Update AIX fixes. 
+	* tests/base/stdint.h: Update AIX fixes.
 	* tests/base/complex.h: Change HPUX_IMAGINARY_I_CHECK fix.
 
 2009-08-24  Ralf Wildenhues  <Ralf.Wildenhues@gmx.de>
@@ -226,7 +232,7 @@
 
 	* inclhack.def (aix_complex): New fix.
 	* fixincl.x: Regenerate.
-	
+
 2009-08-01  John David Anglin  <dave.anglin@nrc-cnrc.gc.ca>
 
 	* inclhack.def (hpux_inttype_int_least8_t): Also apply on hpux10*.
@@ -657,7 +663,7 @@
 	* fixincl.x: Regenerate.
 	* tests/base/math.h: Update.
 
-2007-01-05  Bruce Korb <bkorb@gnu.org>, 
+2007-01-05  Bruce Korb <bkorb@gnu.org>,
             Daniel Franke <franke.daniel@gmail.com>
 
 	PR target/30008
@@ -674,7 +680,7 @@
 
 	* fixincludes/mkfixinc.sh: Add "*-*-vxworks*" to the list of
 	targets for which a no-op fixer is appropriate.
-	
+
 2006-11-07  Richard Guenther  <rguenther@suse.de>
 
 	* inclhack.def (glibc_c99_inline_2): Adjust for glibc 2.3
@@ -760,7 +766,7 @@
 
 	* inclhack.def (solaris_once_init_1): New.
 	* tests/base/pthread.h: Adjust for new fix.
-	
+
 	* fixincl.x: Regenerate.
 
 2006-07-17  Roger Sayle  <roger@eyesopen.com>

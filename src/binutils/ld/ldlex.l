@@ -268,6 +268,7 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^\\]([*?.$_a-zA-Z0-9\[\]\-\!\^\\]|::)*
 <BOTH,SCRIPT>"SEARCH_DIR"		{ RTOKEN(SEARCH_DIR);}
 <BOTH,SCRIPT>"OUTPUT"			{ RTOKEN(OUTPUT);}
 <BOTH,SCRIPT>"INPUT"			{ RTOKEN(INPUT);}
+<BOTH,SCRIPT>"OPTIONAL"			{ RTOKEN(OPTIONAL);}
 <EXPRESSION,BOTH,SCRIPT>"GROUP"		{ RTOKEN(GROUP);}
 <EXPRESSION,BOTH,SCRIPT>"AS_NEEDED"	{ RTOKEN(AS_NEEDED);}
 <EXPRESSION,BOTH,SCRIPT>"DEFINED"	{ RTOKEN(DEFINED);}
@@ -377,7 +378,15 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^\\]([*?.$_a-zA-Z0-9\[\]\-\!\^\\]|::)*
 				 yylval.name = xstrdup (yytext);
 				  return NAME;
 				}
+<SCRIPT>{FILENAMECHAR1}{NOCFILENAMECHAR}*	{
+				 yylval.name = xstrdup (yytext);
+				  return NAME;
+				}
 <EXPRESSION>"-l"{NOCFILENAMECHAR}+ {
+				  yylval.name = xstrdup (yytext + 2);
+				  return LNAME;
+				}
+<SCRIPT>"-l"{NOCFILENAMECHAR}+ {
 				  yylval.name = xstrdup (yytext + 2);
 				  return LNAME;
 				}

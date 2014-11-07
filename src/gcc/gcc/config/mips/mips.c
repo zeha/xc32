@@ -1326,7 +1326,7 @@ mips_far_type_p (const_tree type)
 static bool
 mips_mips16_decl_p (const_tree decl)
 {
-#if defined (MIPS_SUBTARGET_MIPS16_ENABLED) && 0
+#if defined (MIPS_SUBTARGET_MIPS16_ENABLED) && 1
   if (lookup_attribute ("mips16", DECL_ATTRIBUTES (decl)) != NULL)
     {
       return MIPS_SUBTARGET_MIPS16_ENABLED(decl);
@@ -2687,7 +2687,7 @@ mips_emit_call_insn (rtx pattern, rtx orig_addr, rtx addr, bool lazy_p)
   rtx insn, reg;
 
   insn = emit_call_insn (pattern);
-
+  
   if (TARGET_MIPS16 && mips_use_pic_fn_addr_reg_p (orig_addr))
     {
       /* MIPS16 JALRs only take MIPS16 registers.  If the target
@@ -2710,6 +2710,7 @@ mips_emit_call_insn (rtx pattern, rtx orig_addr, rtx addr, bool lazy_p)
                gen_rtx_REG (Pmode, GOT_VERSION_REGNUM));
       emit_insn (gen_update_got_version ());
     }
+    
   return insn;
 }
 
@@ -8431,7 +8432,7 @@ mips_in_small_data_p (const_tree decl)
         return false;
       if (lookup_attribute ("persistent", DECL_ATTRIBUTES (decl)))
         return false;
-      if (TREE_READONLY (decl))
+      if (TREE_READONLY (decl) && TARGET_EMBEDDED_DATA)
         return false;
     }
 #endif
@@ -8464,7 +8465,7 @@ mips_in_small_data_p (const_tree decl)
     }
 
 #ifdef TARGET_MCHP_PIC32MX
-    if (TREE_READONLY (decl))
+    if (TREE_READONLY (decl) && TARGET_EMBEDDED_DATA)
       return false;
 #endif
 
@@ -11279,6 +11280,7 @@ mips_restore_reg (rtx reg, rtx mem)
 #undef MIPS_PROLOGUE_LO_TEMP
 #undef MIPS_EPILOGUE_LO_TEMP
 }
+
 /* Emit any instructions needed before a return.  */
 
 void
@@ -14030,7 +14032,7 @@ static const struct mips_builtin_description mips_builtins[] =
   PIC32_BUILTIN (bcc0, PIC32_BUILTIN_BCC0, MIPS_USI_FTYPE_USI_USI_USI),
   PIC32_BUILTIN (bsc0, PIC32_BUILTIN_BSC0, MIPS_USI_FTYPE_USI_USI_USI),
   PIC32_BUILTIN (bcsc0, PIC32_BUILTIN_BCSC0, MIPS_USI_FTYPE_USI_USI_USI_USI),
-  PIC32_EXPAND_BUILTIN (uniqueid, PIC32_BUILTIN_UNIQUEID, MIPS_USI_FTYPE_CONSTSTRING_SI),
+  PIC32_EXPAND_BUILTIN (unique_id, PIC32_BUILTIN_UNIQUEID, MIPS_USI_FTYPE_CONSTSTRING_SI),
 #if 0 /* TODO: Need to fix this so that targetm.builtin_decl gets initialized */
   PIC32_EXPAND_BUILTIN (ittype, PIC32_BUILTIN_ITTYPE, MIPS_USI_FTYPE_TYPE),
 #endif
@@ -14593,7 +14595,7 @@ enum mips_builtinnums
   MIPS_BUILTIN_NUMS_bcc0,
   MIPS_BUILTIN_NUMS_bsc0,
   MIPS_BUILTIN_NUMS_bcsc0,
-  MIPS_BUILTIN_NUMS_uniqueid,
+  MIPS_BUILTIN_NUMS_unique_id,
 
 #if 0 /* TODO */
   MIPS_BUILTIN_NUMS_ittype,
@@ -15693,10 +15695,10 @@ pic32_expand_bcsc0 (enum insn_code icode,
 } /* End BCSC0 */
 
 #if defined(TARGET_MCHP_PIC32MX)
-/* Expand uniqueid */
-/* pic32_expand_uniqueid for unsigned int __builtin_unique_id(const char *fmt, int id) */
+/* Expand unique_id */
+/* pic32_expand_unique_id for unsigned int __builtin_unique_id(const char *fmt, int id) */
 static rtx
-pic32_expand_uniqueid (rtx target,
+pic32_expand_unique_id (rtx target,
                        tree exp)
 {
   tree arg0;
@@ -15760,11 +15762,11 @@ pic32_expand_uniqueid (rtx target,
 
   if (TARGET_MIPS16)
     {
-      emit_insn(gen_pic32_uniqueid_16(target,GEN_INT((ptrdiff_t)label_name), r1));
+      emit_insn(gen_pic32_unique_id_16(target,GEN_INT((ptrdiff_t)label_name), r1));
     }
   else
     {
-      emit_insn(gen_pic32_uniqueid_32(target,GEN_INT((ptrdiff_t)label_name), r1));
+      emit_insn(gen_pic32_unique_id_32(target,GEN_INT((ptrdiff_t)label_name), r1));
     }
 
   return target;
@@ -15780,19 +15782,62 @@ pic32_expand_ittype (tree exp)
   tree arg0;
   int result = 0;
   tree type;
+  gimple statement;
+
+  if (call_expr_nargs(exp) == 0)
+    { 
+      warning (0,"Too few arguments to function \'__builtin_ittype(var)\'");
+      return GEN_INT(0);
+    }
+    
+  if (call_expr_nargs(exp) > 1)
+    { 
+      warning (0,"Too many arguments to function \'__builtin_ittype(var)\'");
+      return GEN_INT(0);
+    }
 
   arg0 = CALL_EXPR_ARG (exp, 0);
   type = TREE_TYPE(arg0);
   switch (TREE_CODE(type))
     {
     case INTEGER_TYPE:
-      if (TREE_CODE(arg0) == NOP_EXPR)
+      /* Get the unit size of the argument */
+      if (TREE_CODE(arg0) == SSA_NAME)
+        {
+          tree base_val0, base_var;
+          statement = SSA_NAME_DEF_STMT(arg0);
+          if (gimple_code (statement) != GIMPLE_ASSIGN)
+            return GEN_INT(0);
+
+          if (gimple_assign_rhs_code (statement) !=  NOP_EXPR)
+            {
+              base_var = gimple_assign_rhs1(statement);
+              if (base_var)
+                {
+                  type = TREE_TYPE(base_var);
+                }
+              else
+                return GEN_INT(0);
+            }
+          else if (gimple_assign_rhs_code (statement) !=  VAR_DECL)
+            {
+              base_val0 = gimple_assign_rhs1(statement);
+              base_var = SSA_NAME_VAR (base_val0);
+              if (base_var)
+                {
+                  type = TREE_TYPE(base_var);
+                }
+              else
+                return GEN_INT(0);
+            }
+        }
+      else if (TREE_CODE(arg0) == NOP_EXPR)
         {
           /* a conversion */
           tree sub_arg0 = TREE_OPERAND(arg0,0);
-
           type = TREE_TYPE(sub_arg0);
         }
+
       if (TYPE_UNSIGNED(type))
         result |= (1 << 4);
       break;
@@ -15805,9 +15850,9 @@ pic32_expand_ittype (tree exp)
     default:
       error("__builtin_ittype() cannot accept an aggregate type");
     }
-  result |= (TYPE_PRECISION(type) /
-		  (((BITS_PER_UNIT/TREE_INT_CST_LOW(TYPE_SIZE_UNIT(type)))
-			*BITS_PER_UNIT) )) - 1;
+
+  result |= TREE_INT_CST_LOW(TYPE_SIZE_UNIT(type)) - 1;
+
   return GEN_INT(result);
 
 }
@@ -15881,7 +15926,7 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
 #if defined(TARGET_MCHP_PIC32MX)
       /* unique_id */
     case PIC32_BUILTIN_UNIQUEID:
-      return pic32_expand_uniqueid (target, exp);
+      return pic32_expand_unique_id (target, exp);
 #endif
 
     default:

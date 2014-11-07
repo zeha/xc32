@@ -71,10 +71,7 @@
 #define PIC32_SET_PERSIST_ATTR(sec)  \
   { (sec)->persistent = 1;           \
   (sec)->flags |= SEC_ALLOC;      \
-  (sec)->flags &= ~(SEC_LOAD | SEC_DATA | SEC_HAS_CONTENTS); \
-  (sec)->flags &= ~(SEC_READONLY | SEC_DEBUGGING); \
-  (sec)->heap = 0; \
-  (sec)->stack = 0; }
+  (sec)->flags &= ~(SEC_LOAD | SEC_DATA);}
 #define PIC32_SET_MEMORY_ATTR(sec) \
   { (sec)->memory = 1;             \
   (sec)->flags |= (SEC_HAS_CONTENTS | SEC_ALLOC); }
@@ -128,8 +125,7 @@
    ((sec)->heap != 1) && ((sec)->stack !=1))
 #define PIC32_IS_PERSIST_ATTR(sec) \
   ((((sec)->flags & (SEC_ALLOC|SEC_LOAD|SEC_CODE|SEC_DATA|SEC_HAS_CONTENTS)) == SEC_ALLOC) && \
-   ((sec)->persistent == 1) && ((sec)->memory !=1) && \
-   ((sec)->heap != 1) && ((sec)->stack !=1))
+   ((sec)->persistent == 1))
 #define PIC32_IS_MEMORY_ATTR(sec) \
   ((((sec)->flags & (SEC_ALLOC|SEC_LOAD|SEC_CODE|SEC_DATA)) == SEC_ALLOC) && \
   ((sec)->memory == 1))
@@ -200,5 +196,8 @@ extern struct mchp_undefsym_table *mchp_undefsym_init
   PARAMS ((struct bfd_link_info *info));
 
 /*****************************************************************************/
+
+extern bfd_boolean pic32_has_fill_option;
+
 #endif
 

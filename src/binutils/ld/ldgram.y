@@ -139,7 +139,7 @@ static int error_index;
 %token SIZEOF ALIGNOF ADDR LOADADDR MAX_K MIN_K
 %token STARTUP HLL SYSLIB FLOAT NOFLOAT NOCROSSREFS
 %token ORIGIN FILL
-%token LENGTH CREATE_OBJECT_SYMBOLS INPUT GROUP OUTPUT CONSTRUCTORS
+%token LENGTH CREATE_OBJECT_SYMBOLS INPUT OPTIONAL GROUP OUTPUT CONSTRUCTORS
 %token ALIGNMOD AT SUBALIGN PROVIDE PROVIDE_HIDDEN AS_NEEDED
 %type <token> assign_op atype attributes_opt sect_constraint
 %type <name>  filename
@@ -335,6 +335,10 @@ ifile_p1:
 	|	INHIBIT_COMMON_ALLOCATION
 		{ command_line.inhibit_common_definition = TRUE ; }
 	|	INPUT '(' input_list ')'
+        |       OPTIONAL
+		  { lang_enter_group (); }
+		    '(' optional_list ')'
+		  { lang_leave_group (); }
 	|	GROUP
 		  { lang_enter_group (); }
 		    '(' input_list ')'
@@ -389,6 +393,27 @@ input_list:
 		  { $<integer>$ = add_DT_NEEDED_for_regular; add_DT_NEEDED_for_regular = TRUE; }
 		     input_list ')'
 		  { add_DT_NEEDED_for_regular = $<integer>4; }
+	;
+
+optional_list:
+		NAME
+		{ lang_add_input_file($1,lang_input_file_is_optional_search_file_enum,
+				 (char *)NULL); }
+	|	input_list ',' NAME
+		{ lang_add_input_file($3,lang_input_file_is_optional_search_file_enum,
+				 (char *)NULL); }
+	|	input_list NAME
+		{ lang_add_input_file($2,lang_input_file_is_optional_search_file_enum,
+				 (char *)NULL); }
+	|	LNAME
+		{ lang_add_input_file($1,lang_input_file_is_optional_l_enum,
+				 (char *)NULL); }
+	|	input_list ',' LNAME
+		{ lang_add_input_file($3,lang_input_file_is_optional_l_enum,
+				 (char *)NULL); }
+	|	input_list LNAME
+		{ lang_add_input_file($2,lang_input_file_is_optional_l_enum,
+				 (char *)NULL); }
 	;
 
 sections:

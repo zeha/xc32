@@ -220,7 +220,7 @@ print_version_id (void)
     return;
   printed = 1;
 
-  fprintf (stderr, _("GNU assembler version %s (%s) using BFD version %s\n"),
+  fprintf (stderr, _("GNU assembler version %s (%s) using BFD version %s" " Build date: " __DATE__ "\n"),
 	   VERSION, TARGET_ALIAS, BFD_VERSION_STRING);
 }
 
@@ -614,7 +614,7 @@ parse_args (int * pargc, char *** pargv)
 
 	case OPTION_VERSION:
 	  /* This output is intended to follow the GNU standards document.  */
-	  printf (_("GNU assembler %s\n"), BFD_VERSION_STRING);
+	  printf (_("GNU assembler %s" " Build date: " __DATE__ "\n"), BFD_VERSION_STRING);
 	  printf (_("Copyright 2010 Free Software Foundation, Inc.\n"));
 	  printf (_("\
 This program is free software; you may redistribute it under the terms of\n\

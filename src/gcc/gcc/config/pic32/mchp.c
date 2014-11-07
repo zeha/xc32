@@ -60,6 +60,9 @@ along with GCC; see the file COPYING3.  If not see
 #include "gimple.h"
 #include "bitmap.h"
 #include "diagnostic.h"
+#include "params.h"
+#include "prefix.h"
+#include "bversion.h"
 
 #include <stdio.h>
 #include "cpplib.h"
@@ -71,11 +74,15 @@ along with GCC; see the file COPYING3.  If not see
 #include "incpath.h"
 #include "cppdefault.h"
 #include "config/mips/mips-machine-function.h"
+#include "version.h"
 #ifdef __MINGW32__
 void *alloca(size_t);
 #else
 #include <alloca.h>
 #endif
+
+#define xstr(s) str(s)
+#define str(s) #s
 
 #define const_section readonly_data_section
 #define dconst_section readonly_data_section
@@ -86,6 +93,9 @@ SECTION_FLAGS_INT mchp_text_flags = SECTION_CODE;
 extern bool user_defined_section_attribute;
 
 extern bool bss_initializer_p (const_tree decl);
+
+extern cpp_options *cpp_opts;
+
 
 /* Local Variables */
 
@@ -148,44 +158,64 @@ struct valid_section_flags_
   unsigned long long incompatible_with;
 } valid_section_flags[] =
 {
-  { SECTION_ATTR_ADDRESS, 0,
-    SECTION_ADDRESS, SECTION_ALIGN | SECTION_INFO },
-  { SECTION_ATTR_ALIGN, 0,
+  {
+    SECTION_ATTR_ADDRESS, 0,
+    SECTION_ADDRESS, SECTION_ALIGN | SECTION_INFO
+  },
+  {
+    SECTION_ATTR_ALIGN, 0,
     SECTION_ALIGN,   SECTION_ADDRESS |
-    SECTION_INFO },
-  { SECTION_ATTR_BSS, 'b',
+    SECTION_INFO
+  },
+  {
+    SECTION_ATTR_BSS, 'b',
     SECTION_BSS,     SECTION_CODE | SECTION_WRITE | SECTION_PERSIST |
-    SECTION_READ_ONLY },
-  { SECTION_ATTR_CODE, 'x',
+    SECTION_READ_ONLY
+  },
+  {
+    SECTION_ATTR_CODE, 'x',
     SECTION_CODE,     SECTION_WRITE | SECTION_BSS |
     SECTION_NEAR |
     SECTION_PERSIST |
-    SECTION_READ_ONLY },
-  { SECTION_ATTR_CONST, 'r',
+    SECTION_READ_ONLY
+  },
+  {
+    SECTION_ATTR_CONST, 'r',
     SECTION_READ_ONLY,SECTION_CODE | SECTION_WRITE | SECTION_BSS |
     SECTION_NEAR |
-    SECTION_INFO },
-  { SECTION_ATTR_DATA, 'd',
+    SECTION_INFO
+  },
+  {
+    SECTION_ATTR_DATA, 'd',
     SECTION_WRITE,    SECTION_BSS | SECTION_PERSIST |
-    SECTION_READ_ONLY },
+    SECTION_READ_ONLY
+  },
 
-  { SECTION_ATTR_INFO, 0,
+  {
+    SECTION_ATTR_INFO, 0,
     SECTION_INFO,     SECTION_PERSIST |
     SECTION_ADDRESS | SECTION_NEAR |
     SECTION_ALIGN |
     SECTION_NOLOAD | SECTION_MERGE |
-    SECTION_READ_ONLY },
-  { SECTION_ATTR_NOLOAD, 0,
-    SECTION_NOLOAD,   SECTION_MERGE | SECTION_INFO },
-  { SECTION_ATTR_PERSIST, 'b',
+    SECTION_READ_ONLY
+  },
+  {
+    SECTION_ATTR_NOLOAD, 0,
+    SECTION_NOLOAD,   SECTION_MERGE | SECTION_INFO
+  },
+  {
+    SECTION_ATTR_PERSIST, 'b',
     SECTION_PERSIST,  SECTION_CODE | SECTION_WRITE | SECTION_BSS |
     SECTION_MERGE |
-    SECTION_INFO | SECTION_READ_ONLY },
-  { SECTION_ATTR_RAMFUNC, 0,
+    SECTION_INFO | SECTION_READ_ONLY
+  },
+  {
+    SECTION_ATTR_RAMFUNC, 0,
     SECTION_RAMFUNC,     SECTION_WRITE | SECTION_BSS |
     SECTION_NEAR |
     SECTION_PERSIST |
-    SECTION_READ_ONLY },
+    SECTION_READ_ONLY
+  },
   { 0, 0, 0, 0},
 };
 
@@ -212,7 +242,6 @@ static const char *mchp_default_section = "*";
 static char this_default_name[sizeof("*_012345670123456701234567")];
 static time_t current_time = 0;
 static int size_t_used_externally = 0;
-
 static int lfInExecutableSection = FALSE;
 
 enum
@@ -330,7 +359,7 @@ static HOST_WIDE_INT mchp_offset_epc = 0;
 static HOST_WIDE_INT mchp_offset_srsctl = 0;
 
 static HOST_WIDE_INT mchp_invalid_ipl_warning = 0;
-HOST_WIDE_INT mchp_pic32_license_valid = 1;
+HOST_WIDE_INT mchp_pic32_license_valid = 2;
 
 static tree mchp_function_interrupt_p (tree decl);
 static int mchp_function_naked_p (tree func);
@@ -353,10 +382,10 @@ static void    mchp_merged_asm_named_section(const char *name,
 static char * mchp_get_named_section_flags (const char *pszSectionName,
     SECTION_FLAGS_INT flags);
 int set_section_stack(const char *pszSectionName,
-                             SECTION_FLAGS_INT pszSectionFlag);
+                      SECTION_FLAGS_INT pszSectionFlag);
 #if 1
 void mchp_push_section_name(const char *pszSectionName,
-                                   SECTION_FLAGS_INT pszSectionFlag);
+                            SECTION_FLAGS_INT pszSectionFlag);
 #endif
 #if 1
 static tree mchp_push_pop_constant_section(tree decl, enum css push,
@@ -401,212 +430,6 @@ mchp_subtarget_override_options1 (void)
     dwarf_strict = 1;
 }
 
-void
-mchp_subtarget_override_options2 (void)
-{
-  if (mips_base_mips16 || mips_base_micromips)
-    {
-      flag_inline_small_functions = 0;
-      flag_inline_functions = 0;
-      flag_no_inline = 1;
-    }
-
-  /*
-   *  On systems where we have a licence manager, call it
-   */
-#ifdef TARGET_MCHP_PIC32MX
-#define PIC32_EXPIRED_LICENSE -243
-  /* Lite Edition uses PIC32_ACADEMIC_LICENSE */
-#define PIC32_ACADEMIC_LICENSE -100
-#define PIC32_VALID_LICENSE 0x20
-#ifndef __MINGW32__
-#define SKIP_LICENSE_MANAGER
-#endif
-#ifndef SKIP_LICENSE_MANAGER
-  {
-    char *path;
-    char *exec;
-    char kopt[] = "-k";
-    char * args[] = { NULL, NULL, NULL };
-    /* char *c; */
-    char *err_msg, *err_arg;
-    int pid;
-    int status;
-    extern char **save_argv;
-    struct stat filestat;
-    args[1] = kopt;
-
-    mchp_pic32_license_valid = 0;
-
-    /* pic32-lm.exe must reside in the same directory as pic32-gcc */
-    path = make_relative_prefix(save_argv[0], "/pic32mx/bin/gcc/pic32mx/4.5.1",
-                                "/bin");
-
-    if (!path) fatal_error("Could not locate `%s`\n", save_argv[0]);
-#ifdef __MINGW32__
-    exec = (char*)alloca(strlen(path)+sizeof("pic32-lm.exe") + 1);
-    sprintf(exec, "%s/pic32-lm.exe", path);
-#else /* Linux and Mac */
-    exec = (char*)alloca(strlen(path)+sizeof("pic32-lm") + 1);
-    sprintf(exec, "%s/pic32-lm", path);
-#endif
-    if (-1 == stat (exec, &filestat))
-      {
-        sprintf (exec, "./pic32-lm");
-        if (-1 == stat (exec, &filestat))
-          {
-            /* Set academic/lite edition if the license manager isn't available. */
-            /* The lite edition disables optimization options without an eval period. */
-            mchp_pic32_license_valid=PIC32_ACADEMIC_LICENSE;
-          }
-      }
-    else
-      {
-        args[0] = exec;
-        pid = pexecute(exec, args, "MPLAB C Compiler for PIC32", 0, &err_msg, &err_arg,
-                       PEXECUTE_FIRST | PEXECUTE_LAST);
-        pid = pwait(pid, &status, 0);
-
-        if (pid < 0)
-          {
-            /* Set academic/lite edition if the license manager isn't available. */
-            /* The lite edition disables optimization options without an eval period. */
-            mchp_pic32_license_valid=PIC32_ACADEMIC_LICENSE;
-          }
-        else
-          {
-            if (WIFEXITED(status) && (WEXITSTATUS(status) == PIC32_VALID_LICENSE))
-              {
-                mchp_pic32_license_valid=1;
-              }
-            else if (WIFEXITED(status))
-              {
-                mchp_pic32_license_valid=WEXITSTATUS(status) - 256;
-              }
-          }
-      }
-  }
-#endif /* SKIP_LICENSE_MANAGER */
-
-  if (mchp_pic32_license_valid != 1)
-    {
-      static int message_displayed = 0;
-      static int message_purchase_displayed = 0;
-      const char *invalid = "an invalid license";
-
-#define NULLIFY(X,S) \
-    if ((X) && (message_displayed++ == 0)) {\
-      if (S != NULL) \
-        warning(0, "Compiler option (%s) ignored due to %s", S, invalid); \
-      else \
-        warning(0, "Compiler options ignored due to %s", invalid); \
-      if (message_purchase_displayed++ == 0) { \
-        warning (0, "Disable the option or visit http://www.microchip.com/c32 " \
-                 "to purchase a full standard-edition license."); \
-      } \
-    } \
-    X
-
-      if (mchp_pic32_license_valid == PIC32_EXPIRED_LICENSE)
-        {
-          invalid = "an expired standard-evaluation period";
-        }
-      else if (mchp_pic32_license_valid == PIC32_ACADEMIC_LICENSE)
-        {
-          invalid = "lite-mode limitations";
-          /* Suppress the purchase suggestion for the academic version / lite edition. */
-          message_purchase_displayed++;
-        }
-
-      /* Disable -O2 optimizations */
-
-      NULLIFY(optimize_size, "Optimize for size") = 0;
-
-      if (optimize >= 2) {
-        NULLIFY(optimize, "Optimization level") = 1;
-      }
-
-      NULLIFY(flag_inline_small_functions, "inline small functions") = 0;
-      NULLIFY(flag_indirect_inlining, "indirect inlining") = 0;
-      NULLIFY(flag_thread_jumps, "thread jumps") = 0;
-      NULLIFY(flag_crossjumping, "crossjumping") = 0;
-      NULLIFY(flag_optimize_sibling_calls, "optimize sibling calls") = 0;
-      NULLIFY(flag_forward_propagate, "forward propagate") = 0;
-      NULLIFY(flag_cse_follow_jumps, "cse follow jumps") = 0;
-      NULLIFY(flag_gcse, "gcse") = 0;
-      NULLIFY(flag_expensive_optimizations, "expensive optimizations") = 0;
-      NULLIFY(flag_rerun_cse_after_loop, "cse after loop") = 0;
-      NULLIFY(flag_caller_saves, "caller saves") = 0;
-      NULLIFY(flag_peephole2, "peephole2") = 0;
-#ifdef INSN_SCHEDULING
-      NULLIFY(flag_schedule_insns, "schedule insns") = 0;
-      NULLIFY(flag_schedule_insns_after_reload, "schedule insns after reload") = 0;
-#endif
-      NULLIFY(flag_regmove, "regmove") = 0;
-      NULLIFY(flag_strict_aliasing, "strict aliasing") = 0;
-      NULLIFY(flag_strict_overflow, "strict overflow") = 0;
-      NULLIFY(flag_reorder_blocks, "reorder blocks") = 0;
-      NULLIFY(flag_reorder_functions, "reorder functions") = 0;
-      NULLIFY(flag_tree_vrp, "tree vrp") = 0;
-      NULLIFY(flag_tree_builtin_call_dce, "tree builtin call dce") = 0;
-      NULLIFY(flag_tree_pre, "tree pre") = 0;
-      NULLIFY(flag_tree_switch_conversion, "tree switch conversion") = 0;
-      NULLIFY(flag_ipa_cp, "ipa cp") = 0;
-
-      /* Disable -O3 optimizations */
-
-      NULLIFY(flag_predictive_commoning, "predictive commoning") = 0;
-      NULLIFY(flag_inline_functions, "inline functions") = 0;
-      NULLIFY(flag_unswitch_loops, "unswitch loops") = 0;
-      NULLIFY(flag_gcse_after_reload, "gcse after reload") = 0;
-      NULLIFY(flag_tree_vectorize, "tree vectorize") = 0;
-      NULLIFY(flag_ipa_cp_clone, "ipa cp clone") = 0;
-      /*
-      NULLIFY(flag_tree_pre_partial_partial, "pre partial partial") = 0;
-      */
-      flag_ipa_cp = 0;
-
-      /* Disable -Os optimization(s) */
-      /* flag_web and flag_inline_functions already disabled */
-
-      /* Disable -mips16 and -mips16e */
-      if (mips_base_mips16 != 0)
-        {
-          /* Disable -mips16 and -mips16e */
-          NULLIFY(mips_base_mips16, "mips16 mode") = 0;
-          /*
-          NULLIFY(flag_section_relative_addressing) = 0;
-          */
-        }
-
-#undef NULLIFY
-    }
-
-#undef PIC32_EXPIRED_LICENSE
-#undef PIC32_ACADEMIC_LICENSE
-#undef PIC32_VALID_LICENSE
-
-  if (TARGET_LEGACY_LIBC)
-    { 
-      TARGET_MCHP_SMARTIO = 0;
-      mchp_io_size_val = 0;
-    }
-
-#endif /* TARGET_MCHP_PIC32MX */
-}
-
-/* Implement OPTIMIZATION_OPTIONS */
-/* Set default optimization options.  */
-void
-pic32_optimization_options (int level, int size ATTRIBUTE_UNUSED)
-{
-  if (size)
-    {
-      flag_inline_functions = 0;
-    }
-}
-
-
 /* get a line, and remove any line-ending \n or \r\n */
 static char *
 get_line (char *buf, size_t n, FILE *fptr)
@@ -618,6 +441,452 @@ get_line (char *buf, size_t n, FILE *fptr)
     buf [strlen (buf) - 1] = '\0';
   return buf;
 }
+
+#ifndef SKIP_LICENSE_MANAGER
+
+#define MCHP_MAX_LICENSEPATH_LINE_LENGTH 255
+#define MCHP_LICENSE_CONF_FILENAME "license.conf"
+#define MCHP_LICENSEPATH_MARKER "license_dir"
+#ifdef __MINGW32__
+#define MCHP_XCLM_FILENAME "xclm.exe"
+#else
+#define MCHP_XCLM_FILENAME "xclm"
+#endif
+
+static char*
+get_license_manager_path (void)
+{
+  char *conf_dir, *conf_fname;
+  extern char **save_argv;
+
+  FILE *fptr;
+  char line [MCHP_MAX_LICENSEPATH_LINE_LENGTH] = {0};
+  char *xclmpath;
+  int xclmpath_length;
+  struct stat filestat;
+
+  xclmpath_length = MCHP_MAX_LICENSEPATH_LINE_LENGTH + strlen(MCHP_XCLM_FILENAME);
+  xclmpath = (char*)xcalloc(xclmpath_length+1,sizeof(char));
+
+  /* MCHP_LICENSE_CONF_FILENAME must reside in the same directory as pic32-gcc */
+  conf_dir = make_relative_prefix(save_argv[0],
+                                  "/pic32mx/bin/gcc/pic32mx/"
+                                  str(BUILDING_GCC_MAJOR) "."
+                                  str(BUILDING_GCC_MINOR) "."
+                                  str(BUILDING_GCC_PATCHLEVEL),
+                                  "/bin");
+
+  /* alloc space for the filename: directory + '/' + MCHP_LICENSE_CONF_FILENAME
+   */
+  conf_fname = (char*)alloca (strlen (conf_dir) + 1 +
+                              strlen (MCHP_LICENSE_CONF_FILENAME) + 1);
+  strcpy (conf_fname, conf_dir);
+  if (conf_fname [strlen (conf_fname) - 1] != '/'
+      && conf_fname [strlen (conf_fname) - 1] != '\\')
+    strcat (conf_fname, "/");
+  strcat (conf_fname, MCHP_LICENSE_CONF_FILENAME);
+
+  if ((fptr = fopen (conf_fname, "rb")) != NULL)
+    {
+      while (get_line (line, sizeof (line), fptr) != NULL)
+        {
+          char *pch0, *pch1;
+          /* Find the line with the license directory */
+          if (strstr (line, MCHP_LICENSEPATH_MARKER))
+            {
+              /* Find the quoted string on that line */
+              pch0 = strchr (line,'"') +1;
+              pch1 = strrchr (line,'"');
+              if ((pch1-pch0) > 2)
+                strncpy (xclmpath, pch0, pch1-pch0);
+              break;
+            }
+        }
+      /* Append the xclm executable name to the directory. */
+      if (xclmpath [strlen (xclmpath) - 1] != '/'
+          && xclmpath [strlen (xclmpath) - 1] != '\\')
+        strcat (xclmpath, "/");
+      strcat (xclmpath, MCHP_XCLM_FILENAME);
+
+    }
+  else  if (-1 == stat (xclmpath, &filestat))
+    {
+      /*  If we can't find the license configuration file, try the compiler bin
+       *  directory.
+       */
+      strncpy (xclmpath, make_relative_prefix(save_argv[0],
+                                              "/pic32mx/bin/gcc/pic32mx/"
+                                              str(BUILDING_GCC_MAJOR) "."
+                                              str(BUILDING_GCC_MINOR) "."
+                                              str(BUILDING_GCC_PATCHLEVEL),
+                                              "/bin"), xclmpath_length);
+      /* Append the xclm executable name to the directory. */
+      if (xclmpath [strlen (xclmpath) - 1] != '/'
+          && xclmpath [strlen (xclmpath) - 1] != '\\')
+        strcat (xclmpath, "/");
+      strcat (xclmpath, MCHP_XCLM_FILENAME);
+
+      if (-1 == stat (xclmpath, &filestat))
+        {
+          /*  If we can't find the license configuration file, try the compiler bin
+           *  directory.
+           */
+          strncpy (xclmpath, "/opt/Microchip/xclm/bin", xclmpath_length);
+          /* Append the xclm executable name to the directory. */
+          if (xclmpath [strlen (xclmpath) - 1] != '/'
+              && xclmpath [strlen (xclmpath) - 1] != '\\')
+            strcat (xclmpath, "/");
+          strcat (xclmpath, MCHP_XCLM_FILENAME);
+        }
+    }
+  if (fptr != NULL)
+    {
+      fclose (fptr);
+      fptr = NULL;
+    }
+
+#if defined(__MINGW32__)
+  {
+    char *convert;
+    convert = xclmpath;
+    while (*convert != '\0')
+      {
+        if (*convert == '\\')
+          *convert = '/';
+        convert++;
+      }
+  }
+#endif
+
+  return xclmpath;
+}
+#undef MCHP_MAX_LICENSEPATH_LINE_LENGTH
+#undef MCHP_LICENSE_CONF_FILENAME
+#undef MCHP_LICENSEPATH_MARKER
+#undef MCHP_XCLM_FILENAME
+#endif
+
+#ifdef TARGET_MCHP_PIC32MX
+static const char *disabled_option_message = NULL;
+static int message_displayed = 0;
+static const char *invalid_license = "due to an invalid license";
+#define NULLIFY(X,S) \
+    if (X) { \
+      if ((S != NULL) && (disabled_option_message == NULL)) { \
+          disabled_option_message = S; \
+          message_displayed++;         \
+        } \
+    } \
+    X
+#endif
+
+static int
+pic32_get_license (void)
+{
+  /*
+   *  On systems where we have a licence manager, call it
+   */
+#ifdef TARGET_MCHP_PIC32MX
+#define PIC32_EXPIRED_LICENSE -49
+#define PIC32_FREE_LICENSE 0
+#define PIC32_VALID_STANDARD_LICENSE 0x1
+#define PIC32_VALID_PRO_LICENSE 0x2
+#ifndef SKIP_LICENSE_MANAGER
+  {
+    char *exec;
+#if XCLM_FULL_CHECKOUT
+    char kopt[] = "-full-checkout-for-compilers";
+#else
+    char kopt[] = "-checkout";
+#endif
+    char product[] = "swxc32";
+    char version[9] = "";
+    char date[] = __DATE__;
+
+#if XCLM_FULL_CHECKOUT
+    char * args[] = { NULL, NULL, NULL, NULL, NULL, NULL};
+#else
+    char * args[] = { NULL, NULL, NULL, NULL, NULL};
+#endif
+
+    char *err_msg=(char*)"", *err_arg=(char*)"";
+    const char *failure = NULL;
+    int status = 0;
+    int err = 0;
+    int major_ver =0, minor_ver=0;
+    extern char **save_argv;
+    struct stat filestat;
+
+    mchp_pic32_license_valid = 0;
+
+    /* Get the version number string from the entire version string */
+    if ((version_string != NULL) && *version_string)
+      {
+        char *Microchip;
+        gcc_assert(strlen(version_string) < 80);
+        Microchip = strrchr (version_string, 'v');
+        if (Microchip)
+          {
+            while ((*Microchip) &&
+                   ((*Microchip < '0') ||
+                    (*Microchip > '9')))
+              {
+                Microchip++;
+              }
+            if (*Microchip)
+              {
+                major_ver = strtol (Microchip, &Microchip, 0);
+              }
+            if ((*Microchip) &&
+                ((*Microchip=='_') || (*Microchip=='.')))
+              {
+                Microchip++;
+                minor_ver = strtol(Microchip, &Microchip, 0);
+              }
+          }
+        snprintf (version, 6, "%d.%02d", major_ver, minor_ver);
+      }
+
+    /* Arguments to pass to xclm */
+    args[1] = kopt;
+    args[2] = product;
+    args[3] = version;
+#if XCLM_FULL_CHECKOUT
+    args[4] = date;
+#endif
+    /* Get a path to the license manager to try */
+    exec = get_license_manager_path();
+
+#if MCHP_DEBUG
+    fprintf (stderr, "exec: %s\n", exec);
+#endif
+
+    if (-1 == stat (exec, &filestat))
+      {
+        /* Set free edition if the license manager isn't available. */
+        mchp_pic32_license_valid=PIC32_FREE_LICENSE;
+      }
+    else
+      {
+        /* Found xclm */
+        mchp_pic32_license_valid=-1;
+      }
+
+    /* Call xclm to determine the license */
+    if (-1 == mchp_pic32_license_valid)
+      {
+        args[0] = exec;
+        failure = pex_one(0, exec, args, "MPLAB XC32 Compiler", 0, 0, &status, &err);
+
+        if (failure != NULL)
+          {
+            /* Set free edition if the license manager isn't available. */
+            /* The free edition disables optimization options without an eval period. */
+            mchp_pic32_license_valid=PIC32_FREE_LICENSE;
+            warning (0, "Could not retrieve compiler license (%s)", failure);
+          }
+        else if (WIFEXITED(status))
+          {
+            mchp_pic32_license_valid = WEXITSTATUS(status);
+            if (mchp_pic32_license_valid > PIC32_VALID_PRO_LICENSE)
+              {
+                mchp_pic32_license_valid = PIC32_FREE_LICENSE;
+              }
+          }
+      }
+#if MCHP_DEBUG
+    fprintf (stderr, "valid license: %d\n", mchp_pic32_license_valid);
+#endif
+  }
+  return mchp_pic32_license_valid;
+#endif /* SKIP_LICENSE_MANAGER */
+}
+
+/* Implement OPTIMIZATION_OPTIONS */
+/* Set default optimization options.  */
+void
+pic32_optimization_options (int level ATTRIBUTE_UNUSED, int size ATTRIBUTE_UNUSED)
+{
+  if (size)
+    {
+      flag_inline_functions = 0;
+    }
+
+  {
+    mchp_pic32_license_valid = pic32_get_license ();
+    if (mchp_pic32_license_valid < PIC32_VALID_STANDARD_LICENSE)
+      {
+        int opt1_max;
+
+        /* Disable -O2 optimizations */
+        NULLIFY(optimize_size, "Optimize for size") = 0;
+        if (optimize >= 2)
+          {
+            NULLIFY(optimize, "Optimization level > 1") = 1;
+          }
+
+        NULLIFY(flag_inline_small_functions, "inline small functions") = 0;
+        NULLIFY(flag_indirect_inlining, "indirect inlining") = 0;
+        NULLIFY(flag_thread_jumps, "thread jumps") = 0;
+        NULLIFY(flag_crossjumping, "crossjumping") = 0;
+        NULLIFY(flag_optimize_sibling_calls, "optimize sibling calls") = 0;
+        NULLIFY(flag_cse_follow_jumps, "cse follow jumps") = 0;
+        NULLIFY(flag_gcse, "gcse") = 0;
+        NULLIFY(flag_expensive_optimizations, "expensive optimizations") = 0;
+        NULLIFY(flag_rerun_cse_after_loop, "cse after loop") = 0;
+        NULLIFY(flag_caller_saves, "caller saves") = 0;
+        NULLIFY(flag_peephole2, "peephole2") = 0;
+#ifdef INSN_SCHEDULING
+        NULLIFY(flag_schedule_insns, "schedule insns") = 0;
+        NULLIFY(flag_schedule_insns_after_reload, "schedule insns after reload") = 0;
+#endif
+        NULLIFY(flag_regmove, "regmove") = 0;
+        NULLIFY(flag_strict_aliasing, "strict aliasing") = 0;
+        NULLIFY(flag_strict_overflow, "strict overflow") = 0;
+        NULLIFY(flag_reorder_blocks, "reorder blocks") = 0;
+        NULLIFY(flag_reorder_functions, "reorder functions") = 0;
+        NULLIFY(flag_tree_vrp, "tree vrp") = 0;
+        NULLIFY(flag_tree_builtin_call_dce, "tree builtin call dce") = 0;
+        NULLIFY(flag_tree_pre, "tree pre") = 0;
+        NULLIFY(flag_tree_switch_conversion, "tree switch conversion") = 0;
+        NULLIFY(flag_ipa_cp, "ipa cp") = 0;
+        NULLIFY(flag_ipa_sra, "ipa sra") = 0;
+
+        /* Disable -O3 optimizations */
+        NULLIFY(flag_predictive_commoning, "predictive commoning") = 0;
+        NULLIFY(flag_inline_functions, "inline functions") = 0;
+        NULLIFY(flag_unswitch_loops, "unswitch loops") = 0;
+        NULLIFY(flag_gcse_after_reload, "gcse after reload") = 0;
+        NULLIFY(flag_tree_vectorize, "tree vectorize") = 0;
+        NULLIFY(flag_ipa_cp_clone, "ipa cp clone") = 0;
+        flag_ipa_cp = 0;
+
+        /* Just -O1/-O0 optimizations.  */
+        opt1_max = (optimize <= 1);
+        align_loops = opt1_max;
+        align_jumps = opt1_max;
+        align_labels = opt1_max;
+        align_functions = opt1_max;
+
+        /* Disable -Os optimization(s) */
+        /* flag_web and flag_inline_functions already disabled */
+
+        /* Disable -mips16 and -mips16e */
+        if (mips_base_mips16 != 0)
+          {
+            /* Disable -mips16 and -mips16e */
+            NULLIFY(mips_base_mips16, "mips16 mode") = 0;
+          }
+      }
+    if (mchp_pic32_license_valid < PIC32_VALID_PRO_LICENSE)
+      {
+        if (optimize_size)
+          {
+            optimize = 2;
+          }
+        NULLIFY(optimize_size, "Optimize for size") = 0;
+        NULLIFY(flag_inline_small_functions, "inline small functions") = 0;
+        NULLIFY(flag_lto, "Link-time optimization") = 0;
+        NULLIFY(flag_whopr, "Partitioned link-time optimization") = 0;
+        NULLIFY(flag_whole_program, "Whole-program optimizations") = 0;
+        NULLIFY(flag_generate_lto, "Link-time optimization") = 0;
+
+        if (mips_base_micromips != 0)
+          {
+            /* Disable -mmicromips */
+            NULLIFY(mips_base_micromips, "micromips mode") = 0;
+          }
+      }
+  }
+#endif
+}
+
+void
+mchp_subtarget_override_options2 (void)
+{
+  if (mips_base_mips16 || mips_base_micromips)
+    {
+      flag_inline_small_functions = 0;
+      flag_inline_functions = 0;
+      flag_no_inline = 1;
+    }
+  /*
+   *  On systems where we have a licence manager, call it
+   */
+#ifdef TARGET_MCHP_PIC32MX
+  {
+    static int message_purchase_display = 0;
+
+    switch (mchp_pic32_license_valid)
+      {
+      case PIC32_EXPIRED_LICENSE:
+        invalid_license = "because the evaluation period has expired";
+        break;
+      case PIC32_FREE_LICENSE:
+        invalid_license = "because this feature requires the MPLAB XC Standard or Pro compiler";
+        break;
+      case PIC32_VALID_STANDARD_LICENSE:
+        invalid_license = "because this feature requires the MPLAB XC Pro compiler";
+        break;
+      default:
+        invalid_license = "due to an invalid license";
+        break;
+      }
+
+    if (message_displayed && TARGET_LICENSE_WARNING)
+      {
+        /* Display a warning for the Standard option first */
+        if (disabled_option_message != NULL)
+          warning (0,"Standard-compiler option (%s) ignored %s",
+                   disabled_option_message, invalid_license);
+        disabled_option_message = NULL;
+        message_displayed = 0;
+        message_purchase_display++;
+      }
+
+    if (mchp_pic32_license_valid < PIC32_VALID_PRO_LICENSE)
+      {
+        NULLIFY(optimize_size, "Optimize for size") = 0;
+        NULLIFY(flag_lto, "Link-time optimization") = 0;
+        NULLIFY(flag_whopr, "Partitioned link-time optimization") = 0;
+        NULLIFY(flag_whole_program, "Whole-program optimizations") = 0;
+        NULLIFY(flag_generate_lto, "Link-time optimization") = 0;
+
+        if (mips_base_micromips != 0)
+          {
+            /* Disable -mmicromips */
+            NULLIFY(mips_base_micromips, "micromips mode") = 0;
+          }
+      }
+    if (message_displayed && TARGET_LICENSE_WARNING)
+      {
+        /* Now display a warning for the Pro option */
+        if (disabled_option_message != NULL)
+          warning (0,"Pro-compiler option (%s) ignored %s", disabled_option_message,
+                   invalid_license);
+        message_purchase_display++;
+      }
+    if ((message_purchase_display > 0) && (TARGET_LICENSE_WARNING))
+      {
+        inform (0, "Disable the option or visit http://www.microchip.com/xc32 "
+                "to purchase an MPLAB XC Standard or Pro compiler license.");
+      }
+
+    if (TARGET_LEGACY_LIBC)
+      {
+        TARGET_MCHP_SMARTIO = 0;
+        mchp_io_size_val = 0;
+      }
+  }
+#undef PIC32_EXPIRED_LICENSE
+#undef PIC32_ACADEMIC_LICENSE
+#undef PIC32_VALID_STANDARD_LICENSE
+#undef PIC32_VALID_PRO_LICENSE
+#endif /* TARGET_MCHP_PIC32MX */
+}
+#if defined(TARGET_MCHP_PIC32MX)
+#undef NULLIFY
+#endif
 
 /* Verify the header record for the configuration data file
  */
@@ -640,6 +909,8 @@ verify_configuration_header_record (FILE *fptr)
       warning (0, "malformed configuration word definition file.");
       return 1;
     }
+  message_displayed++;
+  \
   /* verify that the version number is one we can deal with */
   if (strncmp (header_record + sizeof (MCHP_CONFIGURATION_HEADER_MARKER) - 1,
                MCHP_CONFIGURATION_HEADER_VERSION,
@@ -1214,12 +1485,10 @@ static int ignore_attribute(const char *attribute, const char *attached_to,
               attached_to);
       return 1;
     }
-#if 0
-  scope = DECL_CONTEXT(node);
-#else
+
   /* DECL_CONTEXT is not set up by the time we process the attributes */
   scope = current_function_decl;
-#endif
+
   if (scope && (TREE_CODE(scope) == FUNCTION_DECL) &&
       (!TREE_STATIC(node)) &&
       ((TREE_CODE(node) != VAR_DECL) || !TREE_PUBLIC(node)))
@@ -1337,8 +1606,8 @@ tree mchp_address_attribute(tree *decl, tree identifier ATTRIBUTE_UNUSED,
 ** Return nonzero if IDENTIFIER is a valid attribute.
 */
 tree mchp_unsupported_attribute(tree *node, tree identifier ATTRIBUTE_UNUSED,
-                            tree args, int flags ATTRIBUTE_UNUSED,
-                            bool *no_add_attrs)
+                                tree args, int flags ATTRIBUTE_UNUSED,
+                                bool *no_add_attrs)
 {
   tree type = NULL_TREE;
   int warn = 0;
@@ -1365,18 +1634,18 @@ tree mchp_unsupported_attribute(tree *node, tree identifier ATTRIBUTE_UNUSED,
       type = TREE_TYPE (decl);
 
       if (TREE_CODE (decl) == TYPE_DECL
-	  || TREE_CODE (decl) == PARM_DECL
-	  || TREE_CODE (decl) == VAR_DECL
-	  || TREE_CODE (decl) == FUNCTION_DECL
-	  || TREE_CODE (decl) == FIELD_DECL)
-	TREE_DEPRECATED (decl) = 1;
+          || TREE_CODE (decl) == PARM_DECL
+          || TREE_CODE (decl) == VAR_DECL
+          || TREE_CODE (decl) == FUNCTION_DECL
+          || TREE_CODE (decl) == FIELD_DECL)
+        TREE_DEPRECATED (decl) = 1;
       else
-	warn = 1;
+        warn = 1;
     }
   else if (TYPE_P (*node))
     {
       if (!(flags & (int) ATTR_FLAG_TYPE_IN_PLACE))
-	*node = build_variant_type_copy (*node);
+        *node = build_variant_type_copy (*node);
       TREE_DEPRECATED (*node) = 1;
       type = *node;
     }
@@ -1387,17 +1656,17 @@ tree mchp_unsupported_attribute(tree *node, tree identifier ATTRIBUTE_UNUSED,
     {
       *no_add_attrs = true;
       if (type && TYPE_NAME (type))
-	{
-	  if (TREE_CODE (TYPE_NAME (type)) == IDENTIFIER_NODE)
-	    what = TYPE_NAME (*node);
-	  else if (TREE_CODE (TYPE_NAME (type)) == TYPE_DECL
-		   && DECL_NAME (TYPE_NAME (type)))
-	    what = DECL_NAME (TYPE_NAME (type));
-	}
+        {
+          if (TREE_CODE (TYPE_NAME (type)) == IDENTIFIER_NODE)
+            what = TYPE_NAME (*node);
+          else if (TREE_CODE (TYPE_NAME (type)) == TYPE_DECL
+                   && DECL_NAME (TYPE_NAME (type)))
+            what = DECL_NAME (TYPE_NAME (type));
+        }
       if (what)
-	warning (OPT_Wattributes, "%qE attribute ignored for %qE", identifier, what);
+        warning (OPT_Wattributes, "%qE attribute ignored for %qE", identifier, what);
       else
-	warning (OPT_Wattributes, "%qE attribute ignored", identifier);
+        warning (OPT_Wattributes, "%qE attribute ignored", identifier);
     }
 
   return NULL_TREE;
@@ -1412,7 +1681,7 @@ tree mchp_space_attribute(tree *decl, tree identifier ATTRIBUTE_UNUSED,
 {
   const char *attached_to = 0;
   const char *ident = NULL
-  ;
+                      ;
   if (args == NULL)
     {
       return NULL_TREE;
@@ -2295,7 +2564,7 @@ mchp_ramfunc_type_p (tree decl)
         return TRUE;
       space = lookup_attribute("space", DECL_ATTRIBUTES(decl));
       if (space && (get_identifier("data") ==
-                          (TREE_VALUE(TREE_VALUE(space)))))
+                    (TREE_VALUE(TREE_VALUE(space)))))
         return TRUE;
     }
   return FALSE;
@@ -2855,7 +3124,7 @@ bool mchp_subtarget_mips16_enabled (const_tree decl)
   static const_tree last_disabled_decl = NULL;
   static bool suppress_further_warnings = false;
 
-  if (mchp_pic32_license_valid < 0)
+  if (mchp_pic32_license_valid < 2)
     {
       if ((decl == first_disabled_decl) ||
           (decl == last_disabled_decl))
@@ -2865,16 +3134,16 @@ bool mchp_subtarget_mips16_enabled (const_tree decl)
 
       if (false == suppress_further_warnings)
         {
-          if (-100 == mchp_pic32_license_valid)
+          if (1 == mchp_pic32_license_valid)
             {
-              warning (0, "The lite edition does not support the %<mips16%>"
-                       " attribute on '%qs', attribute ignored",
+              warning (0, "The free compiler does not support the %<mips16%>"
+                       " attribute on %qs, attribute ignored",
                        IDENTIFIER_POINTER (DECL_NAME (decl)));
             }
           else
             {
-              warning (0, "The current limited compiler license does not support the %<mips16%>"
-                       " attribute on '%qs', attribute ignored",
+              warning (0, "The current compiler license does not support the %<mips16%>"
+                       " attribute on %qs, attribute ignored",
                        IDENTIFIER_POINTER (DECL_NAME (decl)));
             }
           if (NULL == first_disabled_decl)
@@ -3126,7 +3395,7 @@ mchp_strip_name_encoding (const char *symbol_name)
 
                 if (strlen(extra_flags) > 1)
                   {
-                    if (NULL != match->encoded_name)
+                    if (match->encoded_name = NULL)
                       free(match->encoded_name);
                     match->encoded_name = (char*)xmalloc(strlen(match->map_to) +
                     strlen(extra_flags) + 1);
@@ -3533,14 +3802,15 @@ static void mchp_handle_conversion(rtx val,
 static void mchp_handle_io_conversion(rtx call_insn,
                                       mchp_interesting_fn *matching_fn)
 {
-  /* the info_I/O function calls are all varargs functions, with the format
-     string pushed onto the stack as the anchor to the variable argument
-     portion.  In short, the interesting_arg portion is not used.
-     The format string is the last thing pushed onto the stack. */
   rtx format_arg;
 
   gcc_assert((matching_fn->conversion_style == info_I) ||
              (matching_fn->conversion_style == info_O));
+             
+  format_arg = PREV_INSN(call_insn);
+             
+  if (format_arg == NULL)
+    return;
 
   for (format_arg = PREV_INSN(call_insn);
        !(NOTE_INSN_BASIC_BLOCK_P(format_arg) ||
@@ -3754,14 +4024,14 @@ static int mchp_build_prefix(tree decl, int fnear, char *prefix)
 
   if (space_attr)
     {
-     if (get_identifier("psv") == (TREE_VALUE(TREE_VALUE(space_attr))))
-       {
-         const_rodata++;
-       }
+      if (get_identifier("psv") == (TREE_VALUE(TREE_VALUE(space_attr))))
+        {
+          const_rodata++;
+        }
       if (get_identifier("auto_psv") == (TREE_VALUE(TREE_VALUE(space_attr))))
-       {
-         const_rodata++;
-       }
+        {
+          const_rodata++;
+        }
     }
 
   ident = IDENTIFIER_POINTER(DECL_NAME(decl));
@@ -3769,7 +4039,7 @@ static int mchp_build_prefix(tree decl, int fnear, char *prefix)
     {
       const char *name = TREE_STRING_POINTER(DECL_SECTION_NAME(decl));
       flags = mchp_section_type_flags(0, name, 1);
-      if (((flags & SECTION_WRITE) && (!DECL_INITIAL(decl))) || 
+      if (((flags & SECTION_WRITE) && (!DECL_INITIAL(decl))) ||
           ((flags & SECTION_WRITE) && bss_initializer_p(decl)))
         {
           flags &= ~SECTION_WRITE;
@@ -3789,12 +4059,12 @@ static int mchp_build_prefix(tree decl, int fnear, char *prefix)
         }
       if (TREE_CODE(decl) == STRING_CST)
         flags |= SECTION_READ_ONLY;
-      if (TREE_CODE(decl) == VAR_DECL)
-        {
-          if (!space_attr && TREE_READONLY(decl) &&
-              (DECL_INITIAL(decl) || (DECL_EXTERNAL(decl))))
-            flags |= SECTION_READ_ONLY;
-        }
+    }
+  if (TREE_CODE(decl) == VAR_DECL)
+    {
+      if (!space_attr && TREE_READONLY(decl) && TARGET_EMBEDDED_DATA &&
+          (DECL_INITIAL(decl) || (DECL_EXTERNAL(decl))))
+        flags |= SECTION_READ_ONLY;
     }
   if (address_attr)
     {
@@ -3808,10 +4078,11 @@ static int mchp_build_prefix(tree decl, int fnear, char *prefix)
       f += sprintf(f, MCHP_PRST_FLAG);
       section_type_set = 1;
       DECL_COMMON (decl) = 0;
-      if (DECL_INITIAL(decl)) {
-        warning(0, "Persistent variable '%s' will not be initialized",
-                ident);
-      }
+      if (DECL_INITIAL(decl))
+        {
+          warning(0, "Persistent variable '%s' will not be initialized",
+                  ident);
+        }
     }
   if (1)
     {
@@ -3828,7 +4099,7 @@ static int mchp_build_prefix(tree decl, int fnear, char *prefix)
           section_type_set = 1;
         }
       if ((flags & SECTION_WRITE) ||
-           is_ramfunc ||
+          is_ramfunc ||
           (space_attr && (get_identifier("data") ==
                           (TREE_VALUE(TREE_VALUE(space_attr))))))
         {
@@ -3939,8 +4210,8 @@ mchp_select_section (tree decl, int reloc,
 {
   extern section *
   mergeable_string_section (tree decl ATTRIBUTE_UNUSED,
-			  unsigned HOST_WIDE_INT align ATTRIBUTE_UNUSED,
-			  unsigned int flags ATTRIBUTE_UNUSED); 
+                            unsigned HOST_WIDE_INT align ATTRIBUTE_UNUSED,
+                            unsigned int flags ATTRIBUTE_UNUSED);
   const char *sname;
   const char *ident = 0; /* compiler can't tell that this is intialized */
   rtx rtl;
@@ -3949,26 +4220,26 @@ mchp_select_section (tree decl, int reloc,
   if ((TREE_CODE(decl) == FUNCTION_DECL) || (TREE_CODE(decl) == VAR_DECL))
     {
       if (IN_NAMED_SECTION (decl) ||
-         lookup_attribute("address", DECL_ATTRIBUTES(decl)) || 
-         lookup_attribute("space", DECL_ATTRIBUTES(decl)) ||
-         lookup_attribute("persistent", DECL_ATTRIBUTES(decl)) ||
-         lookup_attribute("ramfunc", DECL_ATTRIBUTES(decl))
+          lookup_attribute("address", DECL_ATTRIBUTES(decl)) ||
+          lookup_attribute("space", DECL_ATTRIBUTES(decl)) ||
+          lookup_attribute("persistent", DECL_ATTRIBUTES(decl)) ||
+          lookup_attribute("ramfunc", DECL_ATTRIBUTES(decl))
          )
-      {
-      rtl = DECL_RTL(decl);
-      ident = XSTR(XEXP(rtl, 0), 0);
-      flags = validate_identifier_flags(ident);
-      sname = default_section_name(decl, flags);
-      if (flags)
         {
-          if (sname)
+          rtl = DECL_RTL(decl);
+          ident = XSTR(XEXP(rtl, 0), 0);
+          flags = validate_identifier_flags(ident);
+          sname = default_section_name(decl, flags);
+          if (flags)
             {
-              if (!DECL_P (decl))
-                decl = NULL_TREE;
-              return get_named_section (decl, sname, reloc);
+              if (sname)
+                {
+                  if (!DECL_P (decl))
+                    decl = NULL_TREE;
+                  return get_named_section (decl, sname, reloc);
+                }
             }
         }
-      }
     }
 
   switch (categorize_decl_for_section (decl, reloc))
@@ -4008,7 +4279,7 @@ mchp_select_section (tree decl, int reloc,
       break;
     case SECCAT_BSS:
       if (bss_section)
-	return bss_section;
+        return bss_section;
       sname = ".bss";
       break;
     case SECCAT_SBSS:
@@ -4076,14 +4347,15 @@ static const char *default_section_name(tree decl, SECTION_FLAGS_INT flags)
           pszSectionName = TREE_STRING_POINTER(DECL_SECTION_NAME(decl));
         }
 
-        if (a)
-          {
-            if (!pszSectionName||(strcmp(pszSectionName,mchp_default_section) == 0))
-              f += sprintf(result, "%s,%s(0x%lx)",
-                           this_default_name,
-                           SECTION_ATTR_ADDRESS,
-                           (long unsigned int)TREE_INT_CST_LOW(TREE_VALUE(TREE_VALUE(a))));
-            else {
+      if (a)
+        {
+          if (!pszSectionName||(strcmp(pszSectionName,mchp_default_section) == 0))
+            f += sprintf(result, "%s,%s(0x%lx)",
+                         this_default_name,
+                         SECTION_ATTR_ADDRESS,
+                         (long unsigned int)TREE_INT_CST_LOW(TREE_VALUE(TREE_VALUE(a))));
+          else
+            {
               if (((TREE_CODE(decl) == VAR_DECL) && flag_data_sections) ||
                   ((TREE_CODE(decl) == FUNCTION_DECL) && flag_function_sections))
                 f += sprintf(result, "%s.%s,%s(0x%lx)",
@@ -4096,76 +4368,75 @@ static const char *default_section_name(tree decl, SECTION_FLAGS_INT flags)
                              pszSectionName,
                              SECTION_ATTR_ADDRESS,
                              (long unsigned int)TREE_INT_CST_LOW(TREE_VALUE(TREE_VALUE(a))));
-             }
-          }
-        else if (TREE_CODE(decl) == VAR_DECL)
-          {
-            if (mchp_function_persistent_p(decl)) /* persist*/
-              {
-                pszSectionName = SECTION_NAME_PBSS;
-              }
-            else
-            if (mips_in_small_data_p(decl))
-              {
-                if (pszSectionName == NULL)
-                  {
-                    if (flags)
-                      {
-                        if (flags & SECTION_BSS)
-                          {
-                            pszSectionName = SECTION_NAME_SBSS;
-                          }
-                        else if (flags & SECTION_WRITE)
-                          {
-                            pszSectionName = SECTION_NAME_SDATA;
-                          }
-                      }
-                    else
-                      pszSectionName = this_default_name;
-                  }
-              }
-            if (pszSectionName)
-              {
-                    f += sprintf(result, "%s",
-                                 pszSectionName);
-              }
-            else
-              {
-                if (!is_aligned) is_default = 1;
-                f+= sprintf(result,"%s", this_default_name);
-              }
-          }
-        else if (TREE_CODE(decl) == FUNCTION_DECL)
-          {
-            if (pszSectionName)
-              {
+            }
+        }
+      else if (TREE_CODE(decl) == VAR_DECL)
+        {
+          if (mchp_function_persistent_p(decl)) /* persist*/
+            {
+              pszSectionName = SECTION_NAME_PBSS;
+            }
+          else if (mips_in_small_data_p(decl))
+            {
+              if (pszSectionName == NULL)
+                {
+                  if (flags)
+                    {
+                      if (flags & SECTION_BSS)
+                        {
+                          pszSectionName = SECTION_NAME_SBSS;
+                        }
+                      else if (flags & SECTION_WRITE)
+                        {
+                          pszSectionName = SECTION_NAME_SDATA;
+                        }
+                    }
+                  else
+                    pszSectionName = this_default_name;
+                }
+            }
+          if (pszSectionName)
+            {
+              f += sprintf(result, "%s",
+                           pszSectionName);
+            }
+          else
+            {
+              if (!is_aligned) is_default = 1;
+              f+= sprintf(result,"%s", this_default_name);
+            }
+        }
+      else if (TREE_CODE(decl) == FUNCTION_DECL)
+        {
+          if (pszSectionName)
+            {
 #if 1
-                if (flag_function_sections && is_rf)
-                  {
-                    f += sprintf(result, "%s.%s",
-                                 pszSectionName, IDENTIFIER_POINTER(DECL_NAME(decl)));
-                  }
-                else
-                  {
-                    f += sprintf(result, "%s",
-                                 pszSectionName);
-                  }
+              if (flag_function_sections && is_rf)
+                {
+                  f += sprintf(result, "%s.%s",
+                               pszSectionName, IDENTIFIER_POINTER(DECL_NAME(decl)));
+                }
+              else
+                {
+                  f += sprintf(result, "%s",
+                               pszSectionName);
+                }
 #else
-                    f += sprintf(result, "%s",
-                                 pszSectionName);
+              f += sprintf(result, "%s",
+                           pszSectionName);
 #endif
-              }
-            else
-              {
-                if (!is_aligned) is_default = 1;
-                f+= sprintf(result,"%s", this_default_name);
-              }
-          }
-        else
-          {
-            if (!is_aligned) is_default = 1;
-            f+= sprintf(result,"%s", this_default_name);
-          }
+            }
+          else
+            {
+              if (!is_aligned) is_default = 1;
+              f+= sprintf(result,"%s", this_default_name);
+            }
+        }
+      else
+        {
+          if (!is_aligned) is_default = 1;
+          f+= sprintf(result,"%s", this_default_name);
+        }
 
       if ((!is_default) ||
           (strncmp(result,this_default_name,len_this_default_name)))
@@ -4174,7 +4445,7 @@ static const char *default_section_name(tree decl, SECTION_FLAGS_INT flags)
   if (flags)
     {
       i = 0;
-      if ((flags & SECTION_READ_ONLY) /* && (!TARGET_CONST_IN_CODE) */ )
+      if ((flags & SECTION_READ_ONLY) && (!TARGET_EMBEDDED_DATA))
         {
           if ((TREE_CODE(decl) == STRING_CST) ||
               (DECL_INITIAL(decl) && TREE_CONSTANT(DECL_INITIAL(decl))))
@@ -4221,7 +4492,7 @@ static const char *default_section_name(tree decl, SECTION_FLAGS_INT flags)
                     {
                       char *retval;
                       retval = (char*)xmalloc(strlen(txt)+3+
-                                       strlen(IDENTIFIER_POINTER(DECL_NAME(decl))));
+                                              strlen(IDENTIFIER_POINTER(DECL_NAME(decl))));
                       /* if we are prepending .isr use that instead of the default name
                          of .text until keep attribute is implemented */
                       f +=sprintf(retval, "%s.%s", txt,
@@ -4260,9 +4531,9 @@ static char * mchp_get_named_section_flags (const char *pszSectionName,
   char pszSectionFlag[100] = " # Invalid Section Attributes";
   char *f;
 
-  if (pszSectionName == 0) return;
+  if (pszSectionName == 0) return NULL;
 #if 1
-  if (strcmp("*", pszSectionName) == 0) return;
+  if (strcmp("*", pszSectionName) == 0) return NULL;
 #endif
   f = pszSectionFlag;
   lfInExecutableSection = FALSE;
@@ -4311,7 +4582,7 @@ static void mchp_merged_asm_named_section(const char *pszSectionName,
 {
   char* pszSectionFlag;
   pszSectionFlag = mchp_get_named_section_flags (pszSectionName, flags);
- #if 1
+#if 1
   fprintf(asm_out_file, "\t.section\t%s%s\n", pszSectionName, pszSectionFlag);
 #endif
 }
@@ -4483,7 +4754,7 @@ mchp_section_type_flags(tree decl, const char *name,
 /* Save the current section name.                    */
 /************************************************************************/
 int set_section_stack(const char *pszSectionName,
-                             SECTION_FLAGS_INT pszSectionFlag)
+                      SECTION_FLAGS_INT pszSectionFlag)
 {
   if (!lSectionStack)
     {
@@ -4519,7 +4790,7 @@ int set_section_stack(const char *pszSectionName,
 
 #if 1
 void mchp_push_section_name(const char *pszSectionName,
-                                   SECTION_FLAGS_INT pszSectionFlag)
+                            SECTION_FLAGS_INT pszSectionFlag)
 {
   sectionStack *s;
 
@@ -4596,7 +4867,6 @@ static tree mchp_push_pop_constant_section(tree decl, enum css push,
   if (push == css_push) return decl;
   if (!decl || !DECL_SECTION_NAME(decl))
     {
-      tree space_attr;
       const char *force_named_section = 0;
       SECTION_FLAGS_INT flags;
       /*
@@ -4646,20 +4916,24 @@ static tree mchp_push_pop_constant_section(tree decl, enum css push,
   return decl;
 }
 
-const char *mchp_pushed_constant_section(void) {
+const char *mchp_pushed_constant_section(void)
+{
   const char *name = 0;
 
-  if (mchp_push_pop_constant_section(0, css_tos, &name) == 0) {
-     name= lSectionStack->pszFlag & SECTION_CONST ? lSectionStack->pszName : name;
-  }
+  if (mchp_push_pop_constant_section(0, css_tos, &name) == 0)
+    {
+      name= lSectionStack->pszFlag & SECTION_CONST ? lSectionStack->pszName : name;
+    }
   return name;
 }
 
-void mchp_push_constant_section(tree decl) {
+void mchp_push_constant_section(tree decl)
+{
   (void) mchp_push_pop_constant_section(decl,css_push,0);
 }
 
-void mchp_pop_constant_section(tree decl) {
+void mchp_pop_constant_section(tree decl)
+{
   (void) mchp_push_pop_constant_section(decl,css_pop,0);
 }
 
@@ -4697,24 +4971,26 @@ static void mchp_pop_section_name(void)
 ** definitions of uninitialized static variables are output.
 */
 /************************************************************************/
-void mchp_asm_output_local(FILE *file, char *name, int size ATTRIBUTE_UNUSED, 
-                            int rounded) {
-   const char *pszSectionName;
+void mchp_asm_output_local(FILE *file, char *name, int size ATTRIBUTE_UNUSED,
+                           int rounded)
+{
+  const char *pszSectionName;
 
-     SECTION_FLAGS_INT flags = validate_identifier_flags(name);
-     
-     /* if this is a data sectino, this is now a BSS section */
-     if (flags & SECTION_WRITE) {
-       flags &= ~SECTION_WRITE;
-       flags |= SECTION_BSS;
-     }
-     pszSectionName = default_section_name(0, flags);
-     mchp_push_section_name(pszSectionName, flags);
+  SECTION_FLAGS_INT flags = validate_identifier_flags(name);
 
-   assemble_name(file, name);
-   fputs(":\t.space\t", file);
-   fprintf(file, "%u\n", rounded);
-   mchp_pop_section_name();
+  /* if this is a data section, this is now a BSS section */
+  if (flags & SECTION_WRITE)
+    {
+      flags &= ~SECTION_WRITE;
+      flags |= SECTION_BSS;
+    }
+  pszSectionName = default_section_name(0, flags);
+  mchp_push_section_name(pszSectionName, flags);
+
+  assemble_name(file, name);
+  fputs(":\t.space\t", file);
+  fprintf(file, "%u\n", rounded);
+  mchp_pop_section_name();
 }
 
 /************************************************************************/
@@ -4727,27 +5003,29 @@ void mchp_asm_output_local(FILE *file, char *name, int size ATTRIBUTE_UNUSED,
 ** NB: this function is used in preference to mchp_asm_output_local
 */
 /************************************************************************/
-void mchp_asm_output_aligned_decl_local(FILE *file, tree decl, char *name, 
-                                         int size, int alignment) {
-   const char *pszSectionName;
-     SECTION_FLAGS_INT flags = validate_identifier_flags(name);
-     
-     /* if this is a data sectino, this is now a BSS section */
-     if (flags & SECTION_WRITE) {
-       flags &= ~SECTION_WRITE;
-       flags |= SECTION_BSS;
-     }
-     pszSectionName = default_section_name(decl, flags);
-     mchp_push_section_name(pszSectionName, flags);
+void mchp_asm_output_aligned_decl_local(FILE *file, tree decl, char *name,
+                                        int size, int alignment)
+{
+  const char *pszSectionName;
+  SECTION_FLAGS_INT flags = validate_identifier_flags(name);
 
-   if ((alignment > BITS_PER_UNIT))
-   {
-     fprintf(file, "\t.align\t%d\n", alignment / BITS_PER_UNIT);
-   }
-   assemble_name(file, name);
-   fputs(":\t.space\t", file);
-   fprintf(file, "%u\n", size);
-   mchp_pop_section_name();
+  /* if this is a data sectino, this is now a BSS section */
+  if (flags & SECTION_WRITE)
+    {
+      flags &= ~SECTION_WRITE;
+      flags |= SECTION_BSS;
+    }
+  pszSectionName = default_section_name(decl, flags);
+  mchp_push_section_name(pszSectionName, flags);
+
+  if ((alignment > BITS_PER_UNIT))
+    {
+      fprintf(file, "\t.align\t%d\n", alignment / BITS_PER_UNIT);
+    }
+  assemble_name(file, name);
+  fputs(":\t.space\t", file);
+  fprintf(file, "%u\n", size);
+  mchp_pop_section_name();
 }
 
 /************************************************************************/
@@ -4774,12 +5052,12 @@ const char * mchp_text_section_asm_op(void)
                  mchp_ramfunc_type_p(current_function_decl)) ;
       section_name = default_section_name(current_function_decl,
                                           ramfunc ? SECTION_RAMFUNC :
-                                                    SECTION_CODE);
+                                          SECTION_CODE);
       DECL_SECTION_NAME(current_function_decl) = section_name;
     }
   else
     {
-        section_name = mchp_text_scn ? mchp_text_scn : ".text";
+      section_name = mchp_text_scn ? mchp_text_scn : ".text";
     }
   set_section_stack(section_name, ramfunc ? SECTION_RAMFUNC : SECTION_CODE);
   lfInExecutableSection = TRUE;
@@ -4796,7 +5074,7 @@ const char * mchp_text_section_asm_op(void)
     }
   sprintf(pszSection, "\t.section\t%s,%s", lSectionStack->pszName,
           ramfunc ? SECTION_ATTR_RAMFUNC :
-                    SECTION_ATTR_CODE);
+          SECTION_ATTR_CODE);
   return  (const char *)pszSection;
 }
 
@@ -4952,87 +5230,87 @@ const char *mchp_rdata_section_asm_op(void)
 }
 
 void pic32_system_include_paths (const char *sysroot, const char *iprefix,
-			       int cxx_stdinc)
+                                 int cxx_stdinc)
 {
   const struct default_include *p;
   size_t len;
-  
+
   if (!TARGET_LEGACY_LIBC)
     return;
-  
+
   if (iprefix && (len = cpp_GCC_INCLUDE_DIR_len) != 0)
     {
       /* Look for directories that start with the standard prefix.
-	 "Translate" them, ie. replace /usr/local/lib/gcc... with
-	 IPREFIX and search them first.  */
+      "Translate" them, ie. replace /usr/local/lib/gcc... with
+      IPREFIX and search them first.  */
       for (p = cpp_include_defaults; p->fname; p++)
-	{
-	  if (!p->cplusplus || cxx_stdinc)
-	    {
-	      /* Should we be translating sysrooted dirs too?  Assume
-		 that iprefix and sysroot are mutually exclusive, for
-		 now.  */
-	      if (sysroot && p->add_sysroot)
-		continue;
-	      if (!strncmp (p->fname, cpp_GCC_INCLUDE_DIR, len))
-		{
-		  char *str;
-		  char *newfname;
+        {
+          if (!p->cplusplus || cxx_stdinc)
+            {
+              /* Should we be translating sysrooted dirs too?  Assume
+              that iprefix and sysroot are mutually exclusive, for
+              now.  */
+              if (sysroot && p->add_sysroot)
+                continue;
+              if (!strncmp (p->fname, cpp_GCC_INCLUDE_DIR, len))
+                {
+                  char *str;
+                  char *newfname;
 
-	      if (TARGET_LEGACY_LIBC)
-	        {
-	          newfname = concat (p->fname, "/lega-c", NULL);
-	          str = concat (iprefix, newfname + len, NULL);
-	          free(newfname);
-	          add_path (str, SYSTEM, p->cxx_aware, false);
-	        }
+                  if (TARGET_LEGACY_LIBC)
+                    {
+                      newfname = concat (p->fname, "/lega-c", NULL);
+                      str = concat (iprefix, newfname + len, NULL);
+                      free(newfname);
+                      add_path (str, SYSTEM, p->cxx_aware, false);
+                    }
 
-	      str = concat (iprefix, p->fname + len, NULL);
-	      add_path (str, SYSTEM, p->cxx_aware, false);
+                  str = concat (iprefix, p->fname + len, NULL);
+                  add_path (str, SYSTEM, p->cxx_aware, false);
 
-		}
-	    }
-	}
+                }
+            }
+        }
     }
- 
+
   for (p = cpp_include_defaults; p->fname; p++)
     {
       if (!p->cplusplus || cxx_stdinc)
-	{
-	  char *str;
-	  char *newfname;
+        {
+          char *str;
+          char *newfname;
 
-	  /* Should this directory start with the sysroot?  */
-	  if (sysroot && p->add_sysroot)
-	    {
-	      if (TARGET_LEGACY_LIBC)
-	        {
-	          newfname = concat (p->fname, "/lega-c", NULL);
-	          str = concat (sysroot, newfname, NULL);
-	          free(newfname);
-	        }
-	      else
-	        {
-	          str = concat (sysroot, p->fname, NULL);
-	        }
-	    }
-	  else
-	    {
-	    
-	      if (TARGET_LEGACY_LIBC)
-	        {
-	          newfname = concat (p->fname, "/lega-c", NULL);
-	          str = update_path (newfname, p->component);
-	          free(newfname);
-	        }
-	      else
-	        {
-	          str = update_path (p->fname, p->component);
-	        }
-	    }
+          /* Should this directory start with the sysroot?  */
+          if (sysroot && p->add_sysroot)
+            {
+              if (TARGET_LEGACY_LIBC)
+                {
+                  newfname = concat (p->fname, "/lega-c", NULL);
+                  str = concat (sysroot, newfname, NULL);
+                  free(newfname);
+                }
+              else
+                {
+                  str = concat (sysroot, p->fname, NULL);
+                }
+            }
+          else
+            {
 
-	  add_path (str, SYSTEM, p->cxx_aware, false);
-	}
+              if (TARGET_LEGACY_LIBC)
+                {
+                  newfname = concat (p->fname, "/lega-c", NULL);
+                  str = update_path (newfname, p->component);
+                  free(newfname);
+                }
+              else
+                {
+                  str = update_path (p->fname, p->component);
+                }
+            }
+
+          add_path (str, SYSTEM, p->cxx_aware, false);
+        }
     }
 }
 

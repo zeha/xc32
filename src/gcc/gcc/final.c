@@ -1474,7 +1474,6 @@ add_debug_prefix_map (const char *arg)
 static void
 unbackslashify (char *s)
 {
-  fprintf(stderr, "unbackslashify: $s\n", s);
   while ((s = strchr (s, '\\')) != NULL)
     *s = '/';
   return;

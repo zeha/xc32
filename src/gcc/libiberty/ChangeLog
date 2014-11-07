@@ -1,3 +1,11 @@
+2010-07-09  Pascal Obry  <obry@adacore.com>
+
+   * make-temp-file.c (choose_tmpdir): When TMPDIR, TMP and TEMP
+   are not set, P_tmpdir is used on Windows. This is defined as "\" in
+   current MingW header. Append a dot to ensure that when concatenating
+   with \dir we do not end-up with an UNC path. Fix a crash on the
+   compiler.
+
 2010-07-31  Release Manager
 
 	* GCC 4.5.1 released.
@@ -276,7 +284,7 @@
 
 2009-04-29  Julian Brown  <julian@codesourcery.com>
 
-	* pex-win32.c (pex_win32_pipe): Add _O_NOINHERIT.    
+	* pex-win32.c (pex_win32_pipe): Add _O_NOINHERIT.
 	(pex_win32_exec_child): Ensure each process has only one handle open
 	on pipe endpoints. Close standard input after creating child for
 	symmetry with standard output/standard error.
@@ -294,7 +302,7 @@
 	section, so that the native build does detect them at configure
 	time.
 	* configure: Regenerated.
-	
+
 2009-04-13  Ozkan Sezer  <sezeroz@gmail.com>
 
         PR target/39397
@@ -394,7 +402,7 @@
 2008-10-08  David Edelsohn  <edelsohn@gnu.org>
 
 	* xstrdup.c: Include <sys/types.h> after "config.h"
- 
+
 2008-10-07  Jan Kratochvil  <jan.kratochvil@redhat.com>
 
 	* configure.ac: Call AC_SYS_LARGEFILE.

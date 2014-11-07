@@ -33,6 +33,12 @@ typedef enum
   lang_input_file_is_fake_enum,
   lang_input_file_is_search_file_enum,
   lang_input_file_is_file_enum
+  #if defined(PIC30) || defined(TARGET_IS_PIC32MX) || 1
+  ,
+  lang_input_file_is_optional_l_enum,
+  lang_input_file_is_optional_search_file_enum
+#endif
+
 } lang_input_file_enum_type;
 
 struct _fill_type
@@ -64,6 +70,10 @@ typedef struct memory_region_struct
   flagword flags;
   flagword not_flags;
   bfd_boolean had_full_message;
+#if defined(PIC30) || defined(TARGET_IS_PIC32MX) || 1
+  bfd_boolean optional;
+#endif
+
 } lang_memory_region_type;
 
 enum statement_enum
@@ -286,6 +296,11 @@ typedef struct lang_input_statement_struct
 
   /* Set if the file does not exist.  */
   unsigned int missing_file : 1;
+
+#if defined(PIC30) || defined(TARGET_IS_PIC32MX)
+  bfd_boolean optional;
+#endif
+
 } lang_input_statement_type;
 
 typedef struct

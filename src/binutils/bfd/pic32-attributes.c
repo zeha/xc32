@@ -1,5 +1,5 @@
 /*
-** pic30-attributes.c
+** pic32-attributes.c
 **
 ** Copyright (c) 2004 Microchip Technology, Inc.
 **
@@ -7,12 +7,11 @@
 ** section attributes. It is included by the
 ** following omf-specific bfd utility files:
 **
-**   bfd/coff-pic30.c
-**   bfd/elf32-pic30.c
+**   bfd/elfxx-mips.c
 **
 ** A related chunk of code may be found
-** in gas/config/tc-pic30.c, in function
-** pic30_attribute().
+** in gas/config/tc-mips.c, in function
+** pic32_attribute().
 */
 
 #include "pic32-utils.h"
@@ -114,7 +113,7 @@ pic32_set_attributes(asection *sec, unsigned int mask, unsigned char flag_debug)
   unsigned int bit;
 
   if (flag_debug || pic32_debug)
-    printf ("--> pic30_set_attributes::begin\n");
+    printf ("--> pic32_set_attributes::begin\n");
 
 #undef ATTR
 #undef ATTR_IS
@@ -216,12 +215,12 @@ pic32_set_implied_attributes(asection *sec, unsigned char flag_debug)
  *
  * The bit mask is derived from source code by the
  * assembler. This function makes heavy use of
- * pic30-attributes.h, where all of the attribute
+ * pic32-attributes.h, where all of the attribute
  * compatibilty information is encoded.
  *
  * The encoding of the bit mask is performed
  * by pic32_attribute() in gas/config/tc-mips.c,
- * which also uses pic30-attributes.h.
+ * which also uses pic32-attributes.h.
  *
  *  Return codes:
  *
@@ -399,10 +398,10 @@ char * pic32_section_size_string (asection *sec)
   if (result == (char *) NULL)
     return result;
 
-  if (PIC32_SECTION_IN_DATA_MEMORY(sec) || PIC32_IS_MEMORY_ATTR(sec))
+  //if (PIC32_SECTION_IN_DATA_MEMORY(sec) || PIC32_IS_MEMORY_ATTR(sec))
     units = S2;
-  else
-    units = S3;
+  //else
+    //units = S3;
 
   if (sec->rawsize != 0)
     snprintf(result, MAX_LEN, "%s%ld%s", S1, sec->rawsize / 2, units);
