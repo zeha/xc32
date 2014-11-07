@@ -1,9 +1,0 @@
-# We default to building libraries optimised for size, no debug
-# information, and without gp-rel addressing. We switch off
-# sibling-call optimization to permit interlinking of MIPS16 and
-# non-MIPS16 functions. The -mcode-xonly option allows MIPS16
-# libraries to run on Harvard-style split I/D memories, so long as
-# they have the D-to-I redirect for pc-relative loads.
-
-CFLAGS_FOR_TARGET = -Os -G0 -fno-optimize-sibling-calls -mcode-xonly
-CXXFLAGS_FOR_TARGET = -Os -G0 -fno-optimize-sibling-calls -mcode-xonly

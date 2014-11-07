@@ -1,8 +1,0 @@
-# We default to building libraries with the following options:
-# - optimized (for size),
-# - basic debug only, and
-# - without gp addressing
-
-CFLAGS_FOR_TARGET = -g1 -Os -G0 -fno-optimize-sibling-calls
-CXXFLAGS_FOR_TARGET = -g1 -Os -G0 -fno-optimize-sibling-calls
-
