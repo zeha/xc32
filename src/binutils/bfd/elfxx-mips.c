@@ -12678,7 +12678,8 @@ _bfd_mips_elf_final_link (bfd *abfd, struct bfd_link_info *info)
           printf("\nProcessing data sections:\n");
       dat = init_data;
       for (s_sec = data_sections; s_sec != NULL; s_sec = s_sec->next)
-         if ((s_sec->sec) && ((s_sec->sec->flags & SEC_EXCLUDE) == 0))
+         if ((s_sec->sec) && (((s_sec->sec->flags & SEC_EXCLUDE) == 0) && 
+             (s_sec->sec->output_section != bfd_abs_section_ptr)))
            bfd_pic32_process_data_section(s_sec->sec, &dat);
 
      /* write zero terminator */
@@ -13714,7 +13715,8 @@ bfd_pic32_process_data_section(sect, fp)
     }
 
    /* process DATA-type sections */
-  if ((PIC32_IS_DATA_ATTR(sect) || PIC32_IS_RAMFUNC_ATTR(sect)) && (sect->size > 0))
+  if ((PIC32_IS_DATA_ATTR(sect) || PIC32_IS_RAMFUNC_ATTR(sect)) && 
+      (sect->size > 0))
     {
       if (pic32_debug)
         printf("  %s (data), size = %x bytes, template addr = %lx\n",

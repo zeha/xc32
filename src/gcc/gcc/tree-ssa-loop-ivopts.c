@@ -2254,6 +2254,14 @@ add_autoinc_candidates (struct ivopts_data *data, tree base, tree step,
 
       if (POINTER_TYPE_P (TREE_TYPE (base)))
 	{
+#ifdef _BUILD_C30_
+          /* This optimization can generate unacceptable relocations for 
+             address modes that are generic, especially if we wish to 
+             negate the step... we can't support negative addends with 
+             our version of binutils */
+          if (TYPE_ADDR_SPACE(TREE_TYPE(TREE_TYPE(base))) != ADDR_SPACE_GENERIC)
+            return;
+#endif
 	  new_step = fold_build1 (NEGATE_EXPR, TREE_TYPE (step), step);
 	  code = POINTER_PLUS_EXPR;
 	}
@@ -5465,12 +5473,36 @@ rewrite_use_nonlinear_expr (struct ivopts_data *data,
 	      || operand_equal_p (op, step, 0)))
 	return;
 
+#ifdef _BUILD_C30_
+      /* Hmmm.. we seem to be casting the the candidate to the 'step' instead
+         of converting the step to the candidate.  We loose information if
+         the 'step' has lower precision than the candidate */
+      if (TYPE_PRECISION(utype) != TYPE_PRECISION(ctype)) {
+        /* build2_stat appears to be 'broken' as the comment says:
+           "When the sizetype precision doesn't match tatht of pointers we
+            need ... "
+           and then checks for equality, not inequality.
+    
+           C30 only needs to preserve the correct pointer type - which may not
+           be the same as the sizetype */
+   
+        tree right_sized_type;
+
+        right_sized_type =pic30_extended_pointer_integer_type(TYPE_MODE(utype));
+        op = fold_convert(right_sized_type, unshare_expr(step));
+        comp = fold_convert(utype,
+                            build2(incr_code, right_sized_type, 
+                                   cand->var_before, op));
+      } else
+#endif
+      {
       /* Otherwise, add the necessary computations to express
 	 the iv.  */
       op = fold_convert (ctype, cand->var_before);
       comp = fold_convert (utype,
 			   build2 (incr_code, ctype, op,
 				   unshare_expr (step)));
+      }
     }
   else
     {

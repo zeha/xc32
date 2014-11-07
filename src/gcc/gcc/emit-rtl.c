@@ -1548,6 +1548,12 @@ set_mem_attributes_minus_bitpos (rtx ref, tree t, int objectp,
   unsigned int align = MEM_ALIGN (ref);
   HOST_WIDE_INT apply_bitpos = 0;
   tree type;
+#if defined(_BUILD_C30_) && 1
+  /* I don't think the adress space of the ref is the address space of
+     the final type... its the address space of the ref... 
+     Just like some of the other memory settings we make. (CW) */
+  addr_space_t as;
+#endif
 
   /* It can happen that type_for_mode was given a mode for which there
      is no language-level type.  In which case it returns NULL, which
@@ -1559,6 +1565,9 @@ set_mem_attributes_minus_bitpos (rtx ref, tree t, int objectp,
   if (type == error_mark_node)
     return;
 
+#if defined(_BUILD_C30_) && 1
+  as = TYPE_ADDR_SPACE(type);
+#endif
   /* If we have already set DECL_RTL = ref, get_alias_set will get the
      wrong answer, as it assumes that DECL_RTL already has the right alias
      info.  Callers should not set DECL_RTL until after the call to
@@ -1633,6 +1642,9 @@ set_mem_attributes_minus_bitpos (rtx ref, tree t, int objectp,
 	    MEM_NOTRAP_P (ref) = !DECL_WEAK (base);
 	  else
 	    MEM_NOTRAP_P (ref) = 1;
+#if defined(_BUILD_C30_) && 1
+          as = TYPE_ADDR_SPACE(TREE_TYPE(base));
+#endif
 	}
       else
 	MEM_NOTRAP_P (ref) = TREE_THIS_NOTRAP (base);
@@ -1669,6 +1681,9 @@ set_mem_attributes_minus_bitpos (rtx ref, tree t, int objectp,
 		  ? GEN_INT (tree_low_cst (DECL_SIZE_UNIT (t), 1)) : 0);
 	  align = DECL_ALIGN (t);
 	  align_computed = true;
+#if defined(_BUILD_C30_) && 1
+          as = TYPE_ADDR_SPACE(TREE_TYPE(base));
+#endif
 	}
 
       /* If this is a constant, we know the alignment.  */
@@ -1731,6 +1746,10 @@ set_mem_attributes_minus_bitpos (rtx ref, tree t, int objectp,
 	    {
 	      expr = t2;
 	      offset = NULL;
+#if defined(_BUILD_C30_) && 0
+/* moved into make_decl_rtl */
+              as = TYPE_ADDR_SPACE(TREE_TYPE(t2));
+#endif
 	      if (host_integerp (off_tree, 1))
 		{
 		  HOST_WIDE_INT ioff = tree_low_cst (off_tree, 1);
@@ -1801,9 +1820,14 @@ set_mem_attributes_minus_bitpos (rtx ref, tree t, int objectp,
     }
 
   /* Now set the attributes we computed above.  */
+#if defined(_BUILD_C30_) && 1
+  MEM_ATTRS (ref)
+    = get_mem_attrs (alias, expr, offset, size, align, as, GET_MODE (ref));
+#else
   MEM_ATTRS (ref)
     = get_mem_attrs (alias, expr, offset, size, align,
 		     TYPE_ADDR_SPACE (type), GET_MODE (ref));
+#endif
 
   /* If this is already known to be a scalar or aggregate, we are done.  */
   if (MEM_IN_STRUCT_P (ref) || MEM_SCALAR_P (ref))
@@ -3631,6 +3655,12 @@ make_insn_raw (rtx pattern)
       warning (0, "ICE: emit_insn used where emit_jump_insn needed:\n");
       debug_rtx (insn);
     }
+#endif
+
+#ifdef _BUILD_C30_
+  /* make it so that insn can be printed safely */
+  NEXT_INSN(insn) = 0;
+  PREV_INSN(insn) = 0;
 #endif
 
   return insn;
@@ -5830,6 +5860,17 @@ init_emit_once (void)
 	   mode != VOIDmode;
 	   mode = GET_MODE_WIDER_MODE (mode))
 	const_tiny_rtx[i][(int) mode] = GEN_INT (i);
+
+#ifdef _BUILD_C30_
+      const_tiny_rtx[i][P16PMPmode] = GEN_INT(i);
+      const_tiny_rtx[i][P32EXTmode] = GEN_INT(i);
+      const_tiny_rtx[i][P24PSVmode] = GEN_INT(i);
+      const_tiny_rtx[i][P24PROGmode] = GEN_INT(i);
+      const_tiny_rtx[i][P32PEDSmode] = GEN_INT(i);
+      const_tiny_rtx[i][P32EDSmode] = GEN_INT(i);
+      const_tiny_rtx[i][P16APSVmode] = GEN_INT(i);
+#endif
+
     }
 
   for (mode = GET_CLASS_NARROWEST_MODE (MODE_COMPLEX_INT);

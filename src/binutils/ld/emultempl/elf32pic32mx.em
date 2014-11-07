@@ -156,7 +156,7 @@ static void pic32_remove_from_section_list
   PARAMS ((struct pic32_section *, struct pic32_section *));
 
 static void pic32_remove_group_from_section_list
-  PARAMS ((struct pic32_section *, const char *));
+  PARAMS ((struct pic32_section *));
 
 static struct pic32_memory * pic32_static_assign_memory
   PARAMS ((struct pic32_memory *, bfd_vma, bfd_vma));
@@ -1599,6 +1599,15 @@ bfd_pic32_process_bfd_after_open (abfd, info)
   const char *sym_name;
   asymbol **symbols = 0;
   bfd_boolean has_extended_attributes = FALSE;
+
+  /*
+  ** check the input file name
+  */
+  if (!strcmp(abfd->filename, "sbrk.o"))
+  {
+      pic32_heap_required = 1;
+  }
+
    /*
   ** loop through the symbols in this bfd
   */
@@ -1892,8 +1901,25 @@ pic32_after_open(void)
              sec != (asection *) NULL;
              sec = sec->next)
           if (((sec->size > 0) && (PIC32_IS_DATA_ATTR(sec)))
-              || (PIC32_IS_BSS_ATTR(sec)) || PIC32_IS_RAMFUNC_ATTR(sec))
-            pic32_append_section_to_list(data_sections, f, sec);
+              || (PIC32_IS_BSS_ATTR(sec)) || PIC32_IS_RAMFUNC_ATTR(sec)) {
+            /* fix for xc32-146 */
+            if (PIC32_IS_DATA_ATTR(sec) &&
+                (strcmp(sec->name, ".rodata") == 0)) {
+              sec->flags &= ~SEC_DATA;
+              PIC32_SET_CODE_ATTR(sec);
+              if (sec->owner->my_archive) {
+                einfo(_("%P: Warning: %s of %s needs to be compiled"
+                        " with MPLAB XC32.\n"), 
+                        sec->owner->filename, sec->owner->my_archive->filename);
+              }
+              else {
+                einfo(_("%P: Warning: %s needs to be compiled"
+                        " with MPLAB XC32.\n"), sec->owner->filename);
+              }
+            }
+            else
+              pic32_append_section_to_list(data_sections, f, sec);
+          }
       }
   }
 
@@ -2188,9 +2214,8 @@ pic32_remove_from_section_list (lst, sec)
 ** any more allocation stages.
 */
 static void
-pic32_remove_group_from_section_list (lst, name)
+pic32_remove_group_from_section_list (lst)
      struct pic32_section *lst;
-     const char *name;
 {
   struct pic32_section *s, *prev, *next;
 
@@ -2198,8 +2223,7 @@ pic32_remove_group_from_section_list (lst, name)
   for (s = prev; s != NULL; s = next)
     {
       next = s->next;
-      if (s->sec && (strcmp(s->sec->name, name) == 0))
-        {
+      if (s->sec && (PIC32_IS_RAMFUNC_ATTR(s->sec))) {
           s->attributes = 0;
         }
       prev = s;
@@ -2543,6 +2567,12 @@ bfd_pic32_finish(void)
       pic32_stack_size = h->u.def.value;
   }
 
+
+   /* if heap is required, make sure one is specified */
+  if (pic32_heap_required && !heap_section_defined && !pic32_has_heap_option &&
+      !bfd_pic32_is_defined_global_symbol("_min_heap_size"))
+      einfo("%P%X Error: A heap is required, but has not been specified\n");
+
   /* check for _min_stack_size symbol -- this is an old way to specify
      a stack, and is really not preferred */
   if ((h = bfd_pic32_is_defined_global_symbol("_min_heap_size"))) {
@@ -2737,7 +2767,7 @@ elf_link_check_archive_element (name, abfd, sec_info)
 static void
 gldelf32pic32mx_after_allocation (void)
 {
-#if 0
+#ifdef TARGET_IS_PIC32MX
    /* If any sections are discarded then relocations of symbols referenced
       in sections like .eh_frame, .stab, .pdr will be removed. Also entries 
       these sections may be removed to eleminate duplication. 

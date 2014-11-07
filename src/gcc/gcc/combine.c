@@ -12983,7 +12983,15 @@ distribute_notes (rtx notes, rtx from_insn, rtx i3, rtx i2, rtx elim_i2,
 	    {
 	      basic_block bb = this_basic_block;
 
+#if defined(_BUILD_C30_) && 0
+              /* You might think you could search back from FROM_INSN
+                 rather than from I3, but combine tries to split invalid
+                 combined instructions.  This can result in the old I2
+                 or I1 moving later in the insn sequence.  */
+              for (tem = PREV_INSN (i3); place == 0; tem = PREV_INSN (tem))
+#else
 	      for (tem = PREV_INSN (tem); place == 0; tem = PREV_INSN (tem))
+#endif
 		{
 		  if (!NONDEBUG_INSN_P (tem))
 		    {

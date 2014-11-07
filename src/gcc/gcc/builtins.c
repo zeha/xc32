@@ -11493,12 +11493,17 @@ fold_builtin_next_arg (tree exp, bool va_start_p)
 	arg = TREE_OPERAND (arg, 0);
       if (arg != last_parm)
 	{
+#ifdef _BUILD_C30_
+          /* If we can't figure out if the warning is valid, why even bother
+             with the warning... this is stupid */
+#else
 	  /* FIXME: Sometimes with the tree optimizers we can get the
 	     not the last argument even though the user used the last
 	     argument.  We just warn and set the arg to be the last
 	     argument so that we will get wrong-code because of
 	     it.  */
 	  warning (0, "second parameter of %<va_start%> not last named argument");
+#endif
 	}
 
       /* Undefined by C99 7.15.1.4p4 (va_start):

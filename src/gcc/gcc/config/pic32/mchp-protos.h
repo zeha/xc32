@@ -81,8 +81,11 @@ extern void pic32_optimization_options (int level, int size ATTRIBUTE_UNUSED);
 extern void mchp_prepare_function_start (tree fndecl);
 extern bool mchp_subtarget_mips16_enabled (const_tree decl);
 
+#if 0
+/* now static in cci.c */
 extern int mchp_load_configuration_definition (const char *fname);
 extern void mchp_handle_configuration_setting (const char *name, const unsigned char *value_name);
+#endif
 extern void
 mchp_add_vector_dispatch_entry (const char *target_name, int vector_number);
 

@@ -8341,7 +8341,6 @@ mips_encode_section_info (tree decl, rtx rtl, int first)
 #ifdef MIPS_SUBTARGET_ENCODE_SECTION_INFO
   MIPS_SUBTARGET_ENCODE_SECTION_INFO (decl, rtl, first);
 #endif
-
 }
 
 /* Implement TARGET_SELECT_RTX_SECTION.  */
@@ -9757,12 +9756,7 @@ mips_cfun_might_clobber_call_saved_reg_p (unsigned int regno)
      the rtl.  Incoming values are passed in call-clobbered registers,
      so we can assume that any live call-saved register is set within
      the function.  */
-#ifdef TARGET_MCHP_PIC32MX
-  if (df_regs_ever_live_p (regno)
-      && !cfun->machine->use_shadow_register_set_p)
-#else
   if (df_regs_ever_live_p (regno))
-#endif
     return true;
 
   /* Check for registers that are clobbered by FUNCTION_PROFILER.
@@ -9777,12 +9771,7 @@ mips_cfun_might_clobber_call_saved_reg_p (unsigned int regno)
 
   /* The function's prologue will need to set the frame pointer if
      frame_pointer_needed.  */
-#ifdef TARGET_MCHP_PIC32MX
-  if (regno == HARD_FRAME_POINTER_REGNUM && frame_pointer_needed
-      && !cfun->machine->use_shadow_register_set_p)
-#else
   if (regno == HARD_FRAME_POINTER_REGNUM && frame_pointer_needed)
-#endif
     return true;
 
   /* If a MIPS16 function returns a value in FPRs, its epilogue
@@ -14739,6 +14728,9 @@ mips_build_function_type (enum mips_function_type type)
 static void
 mips_init_builtins (void)
 {
+#ifdef _BUILD_MCHP_
+  extern void mchp_print_builtin_function (const_tree);
+#endif
   const struct mips_builtin_description *d;
   unsigned int i;
   tree t;
@@ -14757,15 +14749,21 @@ mips_init_builtins (void)
                                 mips_build_function_type (d->function_type),
                                 i, BUILT_IN_MD, NULL, NULL_TREE);
 	     mips_builtin_fndecls[i] = t;
+#ifdef _BUILD_MCHP_
+	     if (TARGET_PRINT_BUILTINS)
+	       mchp_print_builtin_function (t);
+#endif
 	  }
     }
-#ifdef TARGET_MCHP_PIC32MX
+#ifdef _BUILD_MCHP_
   /* We cannot call build_function_type_list for this function because we
      need a prototye that looks like unsigned int foo(...) not one that
      looks like unsigned int foo(void). */
-  add_builtin_function("__builtin_ittype",
+  t = add_builtin_function("__builtin_ittype",
                        build_function_type(unsigned_type_node, NULL_TREE),
                        PIC32_BUILTIN_ITTYPE, BUILT_IN_MD, NULL, NULL_TREE);
+  if (TARGET_PRINT_BUILTINS)
+    mchp_print_builtin_function (t);
 #endif
 }
 

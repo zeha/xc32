@@ -1770,7 +1770,10 @@ s_app_line (int appline)
 	    {
 	      int this_flag;
 #if defined(TARGET_IS_PIC32MX)
-	      register_dependency(file);
+	      /* Add the file as a dependency only if it does not end with "//",
+	         which indicates a working directory rather than a file. */
+	      if (strncmp(file+strlen(file)-strlen("//"), "//", strlen("//")) != 0)
+	        register_dependency(file);
 #endif
 	      while (get_linefile_number (&this_flag))
 		switch (this_flag)

@@ -3592,6 +3592,14 @@ case "${target}" in
   mn10300-*-*)
     noconfigdirs="$noconfigdirs ${libgcj}"
     ;;
+  pic30-*-*)
+    extra_host_args="${extra_host_args} --program-prefix=${program_prefix}"
+    noconfigdirs="${noconfigdirs} ${target_libs}"
+    CC_FOR_TARGET="xc16-gcc"
+    AS_FOR_TARGET="xc16-as"
+    LD_FOR_TARGET="xc16-ld"
+    AR_FOR_TARGET="xc16-ar"
+    ;;
   mt-*-*)
     noconfigdirs="$noconfigdirs sim"
     ;;

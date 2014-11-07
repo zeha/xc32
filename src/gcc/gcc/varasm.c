@@ -521,9 +521,15 @@ object_block_entry_hash (const void *p)
 
 /* Return a new unnamed section with the given fields.  */
 
+#ifdef _BUILD_C30_
+section *
+get_unnamed_section (SECTION_FLAGS_INT flags, void (*callback) (const void *),
+		     const void *data)
+#else
 section *
 get_unnamed_section (unsigned int flags, void (*callback) (const void *),
 		     const void *data)
+#endif
 {
   section *sect;
 
@@ -539,8 +545,13 @@ get_unnamed_section (unsigned int flags, void (*callback) (const void *),
 
 /* Return a SECTION_NOSWITCH section with the given fields.  */
 
+#ifdef _BUILD_C30_
+static section *
+get_noswitch_section (SECTION_FLAGS_INT flags, noswitch_section_callback callback)
+#else
 static section *
 get_noswitch_section (unsigned int flags, noswitch_section_callback callback)
+#endif
 {
   section *sect;
 
@@ -554,8 +565,13 @@ get_noswitch_section (unsigned int flags, noswitch_section_callback callback)
 /* Return the named section structure associated with NAME.  Create
    a new section with the given fields if no such structure exists.  */
 
+#ifdef _BUILD_C30_
+section *
+get_section (const char *name, SECTION_FLAGS_INT flags, tree decl)
+#else
 section *
 get_section (const char *name, unsigned int flags, tree decl)
+#endif
 {
   section *sect, **slot;
 
@@ -574,8 +590,16 @@ get_section (const char *name, unsigned int flags, tree decl)
   else
     {
       sect = *slot;
+#if defined(_BUILD_MCHP_) && defined(TARGET_CHECK_SECTION_FLAGS)
+      /* not all targets must have all section flags identical,
+         eg its okay not to specify address() on subsequent sections */
+      if ((sect->common.flags & ~SECTION_DECLARED) != flags
+	  && (TARGET_CHECK_SECTION_FLAGS(sect->common.flags & ~SECTION_DECLARED,
+                                         flags)))
+#else
       if ((sect->common.flags & ~SECTION_DECLARED) != flags
 	  && ((sect->common.flags | flags) & SECTION_OVERRIDE) == 0)
+#endif
 	{
 	  /* Sanity check user variables for flag changes.  */
 	  if (decl == 0)
@@ -724,7 +748,11 @@ unlikely_text_section_p (section *sect)
 section *
 get_named_section (tree decl, const char *name, int reloc)
 {
+#ifdef _BUILD_C30_
+  SECTION_FLAGS_INT flags;
+#else
   unsigned int flags;
+#endif
 
   gcc_assert (!decl || DECL_P (decl));
   if (name == NULL)
@@ -854,7 +882,7 @@ function_section (tree decl)
 
 section * 
 current_function_section (void)
-{ /* Jason 04/20/2011 */
+{
 #if defined(_PIC30_H_) || defined(TARGET_MCHP_PIC32MX)
     return targetm.asm_out.select_section (current_function_decl,
 					   0,
@@ -1220,7 +1248,9 @@ get_variable_section (tree decl, bool prefer_noswitch_p ATTRIBUTE_UNUSED)
 {
   addr_space_t as = ADDR_SPACE_GENERIC;
   int reloc;
-
+  char *sectionname;
+  sectionname = DECL_SECTION_NAME (decl);
+  
   if (TREE_TYPE (decl) != error_mark_node)
     as = TYPE_ADDR_SPACE (TREE_TYPE (decl));
 
@@ -1360,6 +1390,10 @@ make_decl_rtl (tree decl)
   const char *name = 0;
   int reg_number;
   rtx x;
+#ifdef _BUILD_C30_
+  /* Must set the address space of the decl :\ (CW) */
+  addr_space_t as = ADDR_SPACE_GENERIC;  
+#endif
 
   /* Check that we are not being given an automatic variable.  */
   gcc_assert (TREE_CODE (decl) != PARM_DECL
@@ -1511,8 +1545,18 @@ make_decl_rtl (tree decl)
     {
       enum machine_mode address_mode = Pmode;
       if (TREE_TYPE (decl) != error_mark_node)
-	{
+	{ 
+#ifdef _BUILD_C30_
+          tree type = TREE_TYPE(decl);
+  
+          if (TREE_CODE(type) == ARRAY_TYPE) {
+            /* can't nominate the address space of an array directly,  */
+            /* but the inner type will define this  (CW)               */
+            as = TYPE_ADDR_SPACE (TREE_TYPE(type));
+          } else as = TYPE_ADDR_SPACE(type);
+#else
 	  addr_space_t as = TYPE_ADDR_SPACE (TREE_TYPE (decl));
+#endif
 	  address_mode = targetm.addr_space.address_mode (as);
 	}
       x = gen_rtx_SYMBOL_REF (address_mode, name);
@@ -1523,6 +1567,9 @@ make_decl_rtl (tree decl)
   x = gen_rtx_MEM (DECL_MODE (decl), x);
   if (TREE_CODE (decl) != FUNCTION_DECL)
     set_mem_attributes (x, decl, 1);
+#ifdef _BUILD_C30_
+  set_mem_addr_space(x, as);
+#endif
   SET_DECL_RTL (decl, x);
 
   /* Optionally set flags or add text to the name to record information
@@ -1628,7 +1675,11 @@ get_cdtor_priority_section (int priority, bool constructor_p)
 	      order; constructors are run from right to left, and the
 	      linker sorts in increasing order.  */
 	   MAX_INIT_PRIORITY - priority);
+#if 0 && defined(TARGET_MCHP_PIC32MX) || defined(_BUILD_C32_) 
+  return get_section (buf, SECTION_CODE, NULL);
+#else
   return get_section (buf, SECTION_WRITE, NULL);
+#endif
 }
 
 void
@@ -1640,7 +1691,13 @@ default_named_section_asm_out_destructor (rtx symbol, int priority)
     sec = get_cdtor_priority_section (priority,
 				      /*constructor_p=*/false);
   else
-    sec = get_section (".dtors", SECTION_WRITE, NULL);
+    {
+#if 0 && defined(TARGET_MCHP_PIC32MX) || defined(_BUILD_C32_)
+      sec = get_section (".dtors", SECTION_CODE, NULL);
+#else
+      sec = get_section (".dtors", SECTION_WRITE, NULL);
+#endif
+    }
 
   assemble_addr_to_section (symbol, sec);
 }
@@ -1680,7 +1737,13 @@ default_named_section_asm_out_constructor (rtx symbol, int priority)
     sec = get_cdtor_priority_section (priority,
 				      /*constructor_p=*/true);
   else
+  {
+#if 0 && defined(TARGET_MCHP_PIC32MX) || defined(_BUILD_C32_)
+    sec = get_section (".ctors", SECTION_CODE, NULL);
+#else  
     sec = get_section (".ctors", SECTION_WRITE, NULL);
+#endif
+  }
 
   assemble_addr_to_section (symbol, sec);
 }
@@ -1779,6 +1842,12 @@ assemble_start_function (tree decl, const char *fnname)
     }
 
   /* The following code does not need preprocessing in the assembler.  */
+
+#ifdef _BUILD_C30_
+#ifdef ASM_OUTPUT_FUNCTION_PRE
+  ASM_OUTPUT_FUNCTION_PRE(asm_out_file, decl, fnname);
+#endif
+#endif
 
   app_disable ();
 
@@ -2290,9 +2359,20 @@ assemble_variable (tree decl, int top_level ATTRIBUTE_UNUSED,
 
   /* Output any data that we will need to use the address of.  */
   if (DECL_INITIAL (decl) && DECL_INITIAL (decl) != error_mark_node)
-    {
-      output_addressed_constants (DECL_INITIAL (decl));
-    }
+#ifdef _BUILD_C30_
+  {
+    /* For C30 we need to output the 'constants' into the same section
+       as the DECL, just in case the data is in a peculiar section */
+    if (SECTION_STYLE(sect) == SECTION_NAMED) 
+      pic30_set_constant_section(sect->named.name, sect->common.flags,
+                                 sect->named.decl);
+#endif
+    output_addressed_constants (DECL_INITIAL (decl));
+#ifdef _BUILD_C30_
+    if (SECTION_STYLE(sect) == SECTION_NAMED) 
+      pic30_set_constant_section(0,0,sect->named.decl);
+  }
+#endif
 
   /* dbxout.c needs to know this.  */
   if (sect && (sect->common.flags & SECTION_CODE) != 0)
@@ -2315,6 +2395,9 @@ assemble_variable (tree decl, int top_level ATTRIBUTE_UNUSED,
 	ASM_OUTPUT_ALIGN (asm_out_file, floor_log2 (DECL_ALIGN_UNIT (decl)));
       assemble_variable_contents (decl, name, dont_output_data);
     }
+#ifdef _BUILD_C30_
+   pic30_emit_fillupper(decl,1);
+#endif
 }
 
 /* Return 1 if type TYPE contains any pointers.  */
@@ -3025,6 +3108,15 @@ const_desc_eq (const void *p1, const void *p2)
     = (const struct constant_descriptor_tree *) p2;
   if (c1->hash != c2->hash)
     return 0;
+#ifdef _BUILD_C30_
+  if (c1->section_name || c2->section_name) {
+    if (c1->section_name != c2->section_name) {
+      if (!(c1->section_name && c2->section_name &&
+          (strcmp(c1->section_name,c2->section_name) == 0))) return 0;
+    }
+    /* else names equal by default */
+  } /* else no named section */
+#endif
   return compare_constant (c1->value, c2->value);
 }
 
@@ -3276,6 +3368,12 @@ get_constant_size (tree exp)
    constant's location in memory.
    Caller is responsible for updating the hash table.  */
 
+#ifdef _BUILD_C30_
+#ifndef TARGET_CONSTANT_PMODE
+#define TARGET_CONSTANT_PMODE Pmode
+#endif
+#endif
+
 static struct constant_descriptor_tree *
 build_constant_desc (tree exp)
 {
@@ -3304,7 +3402,11 @@ build_constant_desc (tree exp)
 				    get_block_for_section (sect), -1);
     }
   else
+#ifdef _BUILD_C30_
+    symbol = gen_rtx_SYMBOL_REF (TARGET_CONSTANT_PMODE, ggc_strdup (label));
+#else
     symbol = gen_rtx_SYMBOL_REF (Pmode, ggc_strdup (label));
+#endif
   SYMBOL_REF_FLAGS (symbol) |= SYMBOL_FLAG_LOCAL;
   SET_SYMBOL_REF_DECL (symbol, desc->value);
   TREE_CONSTANT_POOL_ADDRESS_P (symbol) = 1;
@@ -3350,11 +3452,19 @@ output_constant_def (tree exp, int defer)
   struct constant_descriptor_tree *desc;
   struct constant_descriptor_tree key;
   void **loc;
+#ifdef _BUILD_C30_
+  const char *section_name = 0;
+
+  section_name = pic30_get_constant_section();
+#endif
 
   /* Look up EXP in the table of constant descriptors.  If we didn't find
      it, create a new one.  */
   key.value = exp;
   key.hash = const_hash_1 (exp);
+#ifdef _BUILD_C30_
+  key.section_name = section_name;
+#endif
   loc = htab_find_slot_with_hash (const_desc_htab, &key, key.hash, INSERT);
 
   desc = (struct constant_descriptor_tree *) *loc;
@@ -3362,6 +3472,10 @@ output_constant_def (tree exp, int defer)
     {
       desc = build_constant_desc (exp);
       desc->hash = key.hash;
+#ifdef _BUILD_C30_
+      desc->section_name = section_name;
+      if (loc)
+#endif
       *loc = desc;
     }
 
@@ -3423,6 +3537,9 @@ assemble_constant_contents (tree exp, const char *label, unsigned int align)
 
   /* Output the value of EXP.  */
   output_constant (exp, size, align);
+#ifdef _BUILD_C30_
+  pic30_emit_fillupper(exp,0);
+#endif
 }
 
 /* We must output the constant data referred to by SYMBOL; do so.  */
@@ -3447,8 +3564,10 @@ output_constant_def_contents (rtx symbol)
     place_block_symbol (symbol);
   else
     {
+#ifdef _BUILD_C30_
+      pic30_emit_fillupper(exp,1);
+#endif
       switch_to_section (get_constant_section (exp));
-
       align = get_constant_alignment (exp);
       if (align > BITS_PER_UNIT)
 	ASM_OUTPUT_ALIGN (asm_out_file, floor_log2 (align / BITS_PER_UNIT));
@@ -3456,6 +3575,9 @@ output_constant_def_contents (rtx symbol)
     }
   if (flag_mudflap)
     mudflap_enqueue_constant (exp);
+#ifdef _BUILD_C30_
+      pic30_emit_fillupper(exp,0);
+#endif
 }
 
 /* Look up EXP in the table of constant descriptors.  Return the rtl
@@ -3946,10 +4068,7 @@ mark_constant (rtx *current_rtx, void *data ATTRIBUTE_UNUSED)
       tree exp = SYMBOL_REF_DECL (x);
       if (!TREE_ASM_WRITTEN (exp))
 	{
-#ifdef _PIC30_H_
-          /* we may not have seen this string yet */
-          pic30_cache_conversion_state(x, exp);
-#elif defined(TARGET_MCHP_PIC32MX)
+#ifdef _BUILD_MCHP_
           /* we may not have seen this string yet */
           mchp_cache_conversion_state(x, exp);
 #endif
@@ -4142,6 +4261,13 @@ output_addressed_constants (tree exp)
 
   switch (TREE_CODE (exp))
     {
+#ifdef _BUILD_C30_
+    /* ADDR_SPACE_CONVERT_EXPR can be constant too */
+    case ADDR_SPACE_CONVERT_EXPR:
+      output_addressed_constants(TREE_OPERAND(exp,0));
+      break;
+#endif
+
     case ADDR_EXPR:
     case FDESC_EXPR:
       /* Go inside any operations that get_inner_reference can handle and see
@@ -4297,6 +4423,15 @@ initializer_constant_valid_p_1 (tree value, tree endtype, tree *cache)
 
   switch (TREE_CODE (value))
     {
+#ifdef _BUILD_C30_
+    case ADDR_SPACE_CONVERT_EXPR:
+      /* An extension to address spaces is probably required here.
+         By default I will asssume that converting a constant expression
+         is a constant operation in itself.  (CW) */
+      if (TREE_CONSTANT(value)) return null_pointer_node;
+      break;
+#endif
+
     case CONSTRUCTOR:
       if (constructor_static_from_elts_p (value))
 	{
@@ -6271,6 +6406,9 @@ enum section_category
 categorize_decl_for_section (const_tree decl, int reloc)
 {
   enum section_category ret;
+#if defined(_BUILD_C32_)
+  const char *name;
+#endif
 
   if (TREE_CODE (decl) == FUNCTION_DECL)
     return SECCAT_TEXT;
@@ -6294,9 +6432,18 @@ categorize_decl_for_section (const_tree decl, int reloc)
 	     do something.  If so, we wish to segregate the data in order to
 	     minimize cache misses inside the dynamic linker.  */
 	  if (reloc & targetm.asm_out.reloc_rw_mask ())
-	    ret = reloc == 1 ? SECCAT_DATA_REL_LOCAL : SECCAT_DATA_REL;
+	    {
+	      ret = reloc == 1 ? SECCAT_DATA_REL_LOCAL : SECCAT_DATA_REL;
+	    }
 	  else
-	    ret = SECCAT_DATA;
+	    {
+#if defined(_BUILD_C32_)
+	      name = IDENTIFIER_POINTER (DECL_ASSEMBLER_NAME (decl));
+	      if (strstr(name, "DW.ref.__gxx_personality_v0"))
+	        return SECCAT_RODATA;
+#endif
+	      ret = SECCAT_DATA;
+	    }
 	}
       else if (reloc & targetm.asm_out.reloc_rw_mask ())
 	ret = reloc == 1 ? SECCAT_DATA_REL_RO_LOCAL : SECCAT_DATA_REL_RO;
@@ -6459,6 +6606,8 @@ default_unique_section (tree decl, int reloc)
   bool one_only = DECL_ONE_ONLY (decl) && !HAVE_COMDAT_GROUP;
   const char *prefix, *name, *linkonce;
   char *string;
+
+  name = IDENTIFIER_POINTER (DECL_ASSEMBLER_NAME (decl));
 
   /* if there is a section name on the decl, we use that as the prefix;
      otherwise, we figure out the prefix based on the decl itself */

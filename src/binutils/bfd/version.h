@@ -1,4 +1,4 @@
-#define BFD_VERSION_DATE   MPLAB XC32 v1.00
+#define BFD_VERSION_DATE   MPLAB XC32 Compiler v1.10
 #define BFD_VERSION @bfd_version@
 #define BFD_VERSION_STRING  @bfd_version_package@ @bfd_version_string@
 #define REPORT_BUGS_TO @report_bugs_to@

@@ -2034,6 +2034,19 @@ df_ref_change_reg_with_loc_1 (struct df_reg_info *old_df,
 	  struct df_insn_info *insn_info = DF_REF_INSN_INFO (the_ref);
 	  unsigned int count = 0;
 
+#ifdef _BUILD_C30_
+          /* if we are altering a register that this bet set, adjust the
+             reference counts down (and up if necessary) or clear the flag */
+          if (DF_REF_FLAGS_IS_SET (the_ref, DF_HARD_REG_LIVE)) {
+            gcc_assert (DF_REF_REGNO(the_ref) < FIRST_PSEUDO_REGISTER);
+            df->hard_regs_live_count[DF_REF_REGNO (the_ref)]--;
+            if (new_regno >= FIRST_PSEUDO_REGISTER) 
+              DF_REF_FLAGS_CLEAR(the_ref, DF_HARD_REG_LIVE);
+            else
+              df->hard_regs_live_count[new_regno]++;
+          }
+#endif
+
 	  DF_REF_REGNO (the_ref) = new_regno;
 	  DF_REF_REG (the_ref) = regno_reg_rtx[new_regno];
 

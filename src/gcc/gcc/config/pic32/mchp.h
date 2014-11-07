@@ -10,7 +10,7 @@ This file is part of GCC.
 
 GCC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either mips_expand_prologueversion 3, or (at your option)
+the Free Software Foundation; either version 3, or (at your option)
 any later version.
 
 GCC is distributed in the hope that it will be useful,
@@ -29,9 +29,14 @@ along with GCC; see the file COPYING3.  If not see
 
 #include <safe-ctype.h>
 #include "config/mips/mips-machine-function.h"
+#include "config/mchp-cci/cci-backend.h"
 
 #undef TARGET_MCHP_PIC32MX
 #define TARGET_MCHP_PIC32MX 1
+#undef _BUILD_MCHP_
+#define _BUILD_MCHP_ 1
+#undef _BUILD_C32_
+#define _BUILD_C32_ 1
 
 #ifndef MCHP_DEBUG
 #define MCHP_DEBUG 0
@@ -51,11 +56,17 @@ extern const char *mchp_it_transport;
 #undef TARGET_SHORT_DOUBLE
 #define TARGET_SHORT_DOUBLE  1
 
+#define MCHP_CONFIGURATION_DATA_FILENAME "configuration.data"
+#define MCHP_CONFIGURATION_HEADER_MARKER \
+  "Daytona Configuration Word Definitions: "
+#define MCHP_CONFIGURATION_HEADER_VERSION "0001"
+#define MCHP_CONFIGURATION_HEADER_SIZE \
+  (sizeof (MCHP_CONFIGURATION_HEADER_MARKER) + 5)
+
 /*
 ** This is how to output a reference to a user-level label named NAME.
 ** `assemble_name_raw' uses this.
 */
-#if 1
 #undef ASM_OUTPUT_LABELREF
 #define ASM_OUTPUT_LABELREF(FILE, NAME) \
 do {                     \
@@ -63,7 +74,6 @@ do {                     \
   real_name = mchp_strip_name_encoding ((NAME));   \
   asm_fprintf (FILE, "%U%s", real_name);      \
 } while (0)
-#endif
 
 /* Put at the end of the command given to the linker if -nodefaultlibs or
  * -nostdlib is not specified on the command line. This includes all the
@@ -73,29 +83,88 @@ do {                     \
  * the -mprocessor option is specified.
  */
 #undef  LIB_SPEC
-#define LIB_SPEC "--start-group %{!mno-mpdebug-lib:-ldebug} \
-  %{mlegacy-libc:%{!mno-legacy-libc:-llega-c}} %{mno-legacy-libc:-lc} \
-  %{!mlegacy-libc:-lc} \
- -lm -le -ldsp %{mperipheral-libs:-lmchp_peripheral %{mprocessor=*:-lmchp_peripheral_%*}} --end-group"
+#define LIB_SPEC "--start-group -lpic32 %{!mno-mpdebug-lib:-ldebug} \
+ -lm -le -ldsp -lgcc \
+ %{mxc32cpp-lib:%{!mno-xc32cpp-lib:-lxcpp -lsupc++}} -lpic32 \
+ %{mperipheral-libs:-lmchp_peripheral %{mprocessor=*:-lmchp_peripheral_%*}} \
+ %{mlegacy-libc:%{!mno-legacy-libc:%{!mxc32cpp-lib:-llega-c}}} %{mno-legacy-libc:%{!mxc32cpp-lib:-lc}} \
+ %{!mlegacy-libc:%{!mxc32cpp-lib:-lc}} -lpic32 \
+ --end-group"
 
-/* No libstdc++ for now.  Empty string doesn't work.  */
-#if 0
-#undef LIBSTDCXX
 #define LIBSTDCXX "-lsupc++"
-#undef LIBSTDCXX_STATIC
 #define LIBSTDCXX_STATIC "-lsupc++"
-#else
-#undef LIBSTDCXX
-#define LIBSTDCXX "-lgcc"
-#undef LIBSTDCXX_STATIC
-#define LIBSTDCXX_STATIC "-lgcc"
-#endif
+
+#define XC32CPPLIB_OPTION "-mxc32cpp-lib"
 
 /* Don't set.  This defaults to crt0.o if not specified. */
 #undef  STARTFILE_SPEC
+#define STARTFILE_SPEC " crt0%O%s "
 
-/* Don't set.  This defaults to an empty string if not specified. */
-#undef  ENDFILE_SPEC
+#undef STARTFILECXX_SPEC
+#define STARTFILECXX_SPEC " cpprt0%O%s \
+  crti%O%s crtbegin%O%s "
+
+#undef ENDFILE_SPEC
+#define ENDFILE_SPEC ""
+
+#undef ENDFILECXX_SPEC
+#define ENDFILECXX_SPEC " crtend%O%s crtn%O%s "
+
+#undef LINK_COMMAND_SPEC
+/* Add the PIC32 default linker script with the -T option */
+#define LINK_COMMAND_SPEC "\
+%{!fsyntax-only:%{!c:%{!M:%{!MM:%{!E:%{!S:\
+    %(linker) \
+    %{fuse-linker-plugin: \
+    -plugin %(linker_plugin_file) \
+    -plugin-opt=%(lto_wrapper) \
+    -plugin-opt=%(lto_gcc) \
+    %{static|static-libgcc:-plugin-opt=-pass-through=%(lto_libgcc)}	\
+    %{static:-plugin-opt=-pass-through=-lc}	\
+    %{O*:-plugin-opt=-O%*} \
+    %{w:-plugin-opt=-w} \
+    %{f*:-plugin-opt=-f%*} \
+    %{m*:-plugin-opt=-m%*} \
+    %{v:-plugin-opt=-v} \
+    } \
+    %{flto} %{fwhopr} %l " LINK_PIE_SPEC \
+   "%X %{o*} %{A} %{d} %{e*} %{m} %{N} %{n} %{r}\
+    %{s} %{t} %{u*} %{x} %{z} %{Z} %{!A:%{!nostdlib:%{!nostartfiles:%S}}}\
+    %{Wno-poison-system-directories:--no-poison-system-directories}\
+    %{Werror=poison-system-directories:--error-poison-system-directories}\
+    %{static:} %{L*} %(mfwrap) %(link_libgcc) %o\
+    %{fopenmp|ftree-parallelize-loops=*:%:include(libgomp.spec)%(link_gomp)} %(mflib)\
+    %{fprofile-arcs|fprofile-generate*|coverage:-lgcov}\
+    %{T:%{T*}; !T: -T %s./ldscripts/elf32pic32mx.x} \
+    %{!nostdlib:%{!nodefaultlibs:%(link_ssp) %(link_gcc_c_sequence)}}\
+    %{!A:%{!nostdlib:%{!nostartfiles:%E}}} }}}}}}"
+#undef LINK_COMMAND_SPEC_SUPPRESS_DEFAULT_SCRIPT
+#define LINK_COMMAND_SPEC_SUPPRESS_DEFAULT_SCRIPT "\
+%{!fsyntax-only:%{!c:%{!M:%{!MM:%{!E:%{!S:\
+    %(linker) \
+    %{fuse-linker-plugin: \
+    -plugin %(linker_plugin_file) \
+    -plugin-opt=%(lto_wrapper) \
+    -plugin-opt=%(lto_gcc) \
+    %{static|static-libgcc:-plugin-opt=-pass-through=%(lto_libgcc)}	\
+    %{static:-plugin-opt=-pass-through=-lc}	\
+    %{O*:-plugin-opt=-O%*} \
+    %{w:-plugin-opt=-w} \
+    %{f*:-plugin-opt=-f%*} \
+    %{m*:-plugin-opt=-m%*} \
+    %{v:-plugin-opt=-v} \
+    } \
+    %{flto} %{fwhopr} %l " LINK_PIE_SPEC \
+   "%X %{o*} %{A} %{d} %{e*} %{m} %{N} %{n} %{r}\
+    %{s} %{t} %{u*} %{x} %{z} %{Z} %{!A:%{!nostdlib:%{!nostartfiles:%S}}}\
+    %{Wno-poison-system-directories:--no-poison-system-directories}\
+    %{Werror=poison-system-directories:--error-poison-system-directories}\
+    %{static:} %{L*} %(mfwrap) %(link_libgcc) %o\
+    %{fopenmp|ftree-parallelize-loops=*:%:include(libgomp.spec)%(link_gomp)} %(mflib)\
+    %{fprofile-arcs|fprofile-generate*|coverage:-lgcov}\
+    %{T*} \
+    %{!nostdlib:%{!nodefaultlibs:%(link_ssp) %(link_gcc_c_sequence)}}\
+    %{!A:%{!nostdlib:%{!nostartfiles:%E}}} }}}}}}"
 
 /* Added on the linker command line after all user-specified -L options are
  * included.  This will add all the standard -L search paths, the
@@ -204,35 +273,52 @@ extern void pic32_system_include_paths(const char *root, const char *system,
 #define SUBTARGET_CC1_SPEC ""
 #endif
 
+#ifndef MCHP_CCI_CC1_SPEC
+#error MCHP_CCI_CC1_SPEC not defined
+#endif
+
 /* CC1_SPEC is the set of arguments to pass to the compiler proper.  This
  * was copied from the one in mips.h, but that one had some problems and
  * contained the endian-selection options.
  */
 #undef CC1_SPEC
 #define CC1_SPEC " \
-%{gline:%{!g:%{!g0:%{!g1:%{!g2: -g1}}}}} \
-%{G*} \
--mconfig-data-dir= %J%s%{ mprocessor=* :./proc/%*; :./proc/32MXGENERIC} \
-%{mno-float:-fno-builtin-fabs -fno-builtin-fabsf} \
-%{mlong-calls:-msmart-io=0} \
-%{msmart-io:%{msmart-io=*:%emay not use both -msmart-io and -msmart-io=LEVEL}} \
-%{mno-smart-io:%{msmart-io=*:%emay not use both -mno-smart-io and -msmart-io=LEVEL}} \
-%{mlegacy-libc:%{!mno-legacy-libc:-fno-short-double -msmart-io=0}} \
-%{legacy-libc:%{!mno-legacy-libc:-fno-short-double -msmart-io=0}} \
-%{mno-smart-io:-msmart-io=0} \
-%{msmart-io:-msmart-io=1} \
-%{save-temps: -fverbose-asm} \
-%{O2:%{!fno-remove-local-statics: -fremove-local-statics}} \
-%{O*:%{O|O0|O1|O2|Os:;:%{!fno-remove-local-statics: -fremove-local-statics}}} \
-%{mips16e:-mips16} \
-%(subtarget_cc1_spec) \
+ %{gline:%{!g:%{!g0:%{!g1:%{!g2: -g1}}}}} \
+ %{G*} \
+ -mconfig-data-dir= %J%s%{ mprocessor=* :./proc/%*; :./proc/32MXGENERIC} \
+ %{mno-float:-fno-builtin-fabs -fno-builtin-fabsf} \
+ %{mlong-calls:-msmart-io=0} \
+ %{msmart-io:%{msmart-io=*:%emay not use both -msmart-io and -msmart-io=LEVEL}} \
+ %{mno-smart-io:%{msmart-io=*:%emay not use both -mno-smart-io and -msmart-io=LEVEL}} \
+ %{mlegacy-libc:%{!mno-legacy-libc:-fno-short-double -msmart-io=0}} \
+ %{legacy-libc:%{!mno-legacy-libc:-fno-short-double -msmart-io=0}} \
+ %{mno-smart-io:-msmart-io=0} \
+ %{msmart-io:-msmart-io=1} \
+ %{save-temps: -fverbose-asm} \
+ %{O2:%{!fno-remove-local-statics: -fremove-local-statics}} \
+ %{O*:%{O|O0|O1|O2|Os:;:%{!fno-remove-local-statics: -fremove-local-statics}}} \
+ %{mips16e:-mips16} \
+ %{mips16: %{fexceptions: %{!mmips16-exceptions: %e-fexceptions with -mips16 not yet supported}}} \
+ %{mips16: %{!mmips16-exceptions: -fno-exceptions}} \
+ %{mprocessor=32SK* : -mdspr2 -mmcu %{mips16*:%e-mips16 option not available on a PIC32SK MCU}} \
+ %{mprocessor=32sk* : -mdspr2 -mmcu %{mips16*:%e-mips16 option not available on a PIC32SK MCU}} \
+ %{mprocessor=32MX* : %{mmicromips:%e-mmicromips option not available on a PIC32MX MCU}} \
+ %{mprocessor=32mx* : %{mmicromips:%e-mmicromips option not available on a PIC32MX MCU}} \
+ %{mprocessor=32MX* : %{mdspr2:%e-mdspr2 option not available on a PIC32MX MCU}} \
+ %{mprocessor=32mx* : %{mdspr2:%e-mdspr2 option not available on a PIC32MX MCU}} \
+ %{mprocessor=32MX* : %{mmcu:%e-mmcu option not available on a PIC32MX MCU}} \
+ %{mprocessor=32mx* : %{mmcu:%e-mmcu option not available on a PIC32MX MCU}} \
+ %{O2:%{!mtune:-mtune=4kec}} \
+ %{O3:%{!mtune:-mtune=4kec}} \
+ %(mchp_cci_cc1_spec) \
+ %(subtarget_cc1_spec) \
 "
 
-#if 0
-#define CC1PLUS_SPEC "%{!frtti:-fno-rtti} \
-    %{!fenforce-eh-specs:-fno-enforce-eh-specs} \
-    %{!fexceptions:-fno-exceptions}"
-#endif
+#define CC1PLUS_SPEC " \
+ %{!fenforce-eh-specs:-fno-enforce-eh-specs} \
+ %{mxc32cpp-lib:%{!mno-xc32cpp-lib:%{!std=*:-std=c++0x} -msmart-io=0 }} \
+ %(subtarget_cc1plus_spec) \
+"
 
 /* Preprocessor specs.  */
 
@@ -246,6 +332,31 @@ extern void pic32_system_include_paths(const char *root, const char *system,
 #define CPP_SPEC "%(subtarget_cpp_spec)\
 %{mappio-debug:-D__APPIO_DEBUG} \
 "
+
+/* This macro defines names of additional specifications to put in the specs
+   that can be used in various specifications like CC1_SPEC.  Its definition
+   is an initializer with a subgrouping for each command option.
+
+   Each subgrouping contains a string constant, that defines the
+   specification name, and a string constant that used by the GCC driver
+   program.
+
+   Do not define this macro if it does not need to do anything.  */
+#undef EXTRA_SPECS
+#define EXTRA_SPECS							\
+  { "subtarget_cc1_spec", SUBTARGET_CC1_SPEC },				\
+  { "subtarget_cpp_spec", SUBTARGET_CPP_SPEC },				\
+  { "subtarget_asm_optimizing_spec", SUBTARGET_ASM_OPTIMIZING_SPEC },	\
+  { "subtarget_asm_debugging_spec", SUBTARGET_ASM_DEBUGGING_SPEC },	\
+  { "subtarget_asm_spec", SUBTARGET_ASM_SPEC },				\
+  { "asm_abi_default_spec", "-" MULTILIB_ABI_DEFAULT },			\
+  { "endian_spec", ENDIAN_SPEC },					\
+  { "mchp_cci_cc1_spec", MCHP_CCI_CC1_SPEC },				\
+  SUBTARGET_EXTRA_SPECS
+
+#ifndef SUBTARGET_EXTRA_SPECS
+#define SUBTARGET_EXTRA_SPECS
+#endif
 
 #undef SUBTARGET_SELF_SPECS
 #define SUBTARGET_SELF_SPECS      \
@@ -604,6 +715,7 @@ extern const char *mchp_config_data_dir;
         builtin_define_with_int_value ("__XC_VERSION", pic32_compiler_version);     \
       }                                                     \
                                                             \
+      if (TARGET_CCI) mchp_init_cci(pfile);    \
   } while (0);
 
 /*
@@ -631,12 +743,13 @@ extern const char *mchp_config_data_dir;
 #undef TARGET_BIG_ENDIAN
 #define TARGET_BIG_ENDIAN 0
 
-#if 0
+#if 1
 #undef TARGET_STRIP_NAME_ENCODING
 #define TARGET_STRIP_NAME_ENCODING mchp_strip_name_encoding
 #endif
 
 /* Disable options not supported by PIC32 */
+#if 0 /* Enable DSP and DSPR2 for M14KE */
 #undef MASK_DSP
 #define MASK_DSP 0
 #undef MASK_DSPR2
@@ -645,6 +758,8 @@ extern const char *mchp_config_data_dir;
 #define TARGET_DSP ((target_flags & MASK_DSP) != 0)
 #undef TARGET_DSPR2
 #define TARGET_DSPR2 ((target_flags & MASK_DSPR2) != 0)
+#endif
+
 #undef MASK_PAIRED_SINGLE_FLOAT
 #define MASK_PAIRED_SINGLE_FLOAT 0
 #undef TARGET_PAIRED_SINGLE_FLOAT
@@ -691,7 +806,6 @@ static const int TARGET_MDMX = 0;
 
 /* */
 
-
 #define SECTION_FLAGS_INT uint32_t
 
 /* the flags may be any length if surrounded by | */
@@ -724,59 +838,47 @@ static const int TARGET_MDMX = 0;
 /*
 ** Output before program text section
 */
-#if 1
 #undef TEXT_SECTION_ASM_OP
-#if 1
 #define TEXT_SECTION_ASM_OP mchp_text_section_asm_op()
-#else
-#define TEXT_SECTION_ASM_OP	"\t.section .text,code # hardcoded"	/* instructions */
-#endif
-#endif
 #undef READONLY_DATA_SECTION_ASM_OP
-#if 1
 #define READONLY_DATA_SECTION_ASM_OP	mchp_rdata_section_asm_op()	/* read-only data */
-#else
-#define READONLY_DATA_SECTION_ASM_OP	"\t.section .rodata,code"	/* read-only data */
-#endif
-
 
 #undef TARGET_ASM_SELECT_SECTION
 #define TARGET_ASM_SELECT_SECTION mchp_select_section
-#if 1
 /* CHANGE TO NAMED SECTION */
 #undef TARGET_ASM_NAMED_SECTION
 #define TARGET_ASM_NAMED_SECTION mchp_asm_named_section
-#endif
 
 /*
 ** Output before writable data.
 */
 #undef DATA_SECTION_ASM_OP
-#if 1
 #define DATA_SECTION_ASM_OP mchp_data_section_asm_op()
-#else
-#define DATA_SECTION_ASM_OP "\t.section .data,data"
-#endif
 
 #undef BSS_SECTION_ASM_OP
-#if 1
 #define BSS_SECTION_ASM_OP mchp_bss_section_asm_op()
-#else
-#define BSS_SECTION_ASM_OP "\t.section .bss,bss"
-#endif
 
 #undef SBSS_SECTION_ASM_OP
-#if 1
 #define SBSS_SECTION_ASM_OP mchp_sbss_section_asm_op()
-#else
-#define SBSS_SECTION_ASM_OP "\t.section .sbss,bss,near"
-#endif
 
 #undef SDATA_SECTION_ASM_OP
-#if 1
 #define SDATA_SECTION_ASM_OP mchp_sdata_section_asm_op()
-#else
-#define SDATA_SECTION_ASM_OP "\t.section .sdata,data,near"
+
+#if 1
+#define HAS_INIT_SECTION 1
+#undef INIT_SECTION_ASM_OP
+#define INIT_SECTION_ASM_OP "\t.section .init, code"
+
+#undef FINI_SECTION_ASM_OP
+#define FINI_SECTION_ASM_OP "\t.section .fini, code"
+#endif
+
+#if 1
+#undef CTORS_SECTION_ASM_OP
+#define CTORS_SECTION_ASM_OP "\t.section .ctors, code"
+
+#undef DTORS_SECTION_ASM_OP
+#define DTORS_SECTION_ASM_OP "\t.section .dtors, code"
 #endif
 
 #undef TARGET_ASM_FILE_END
@@ -825,8 +927,8 @@ static const int TARGET_MDMX = 0;
 #define MIPS_SUBTARGET_ATTRIBUTE_TABLE                                          \
     /* { name, min_len, max_len, decl_req, type_req, fn_type_req, handler } */  \
     /* Microchip: allow functions to be specified as interrupt handlers */      \
-    { "interrupt",        0, 1,  true,  true, true, mchp_interrupt_attribute }, \
-    { "vector",           1, 64, true, false, false, mchp_vector_attribute },   \
+    { "interrupt",        0, 1,  false, true,  true, mchp_interrupt_attribute }, \
+    { "vector",           1, 64, true,  false, false, mchp_vector_attribute },   \
     { "at_vector",        1, 1,  true,  false, false, mchp_at_vector_attribute }, \
     /* also allow functions to be created without prologue/epilogue code */     \
     { "naked",            0, 0,  true,  false, false, NULL },                   \
@@ -834,8 +936,7 @@ static const int TARGET_MDMX = 0;
     { "space",            1, 1,  false, false, false, mchp_space_attribute },   \
     { "persistent",       0, 0,  false, false, false, NULL }, \
     { "ramfunc",          0, 0,  false, true,  true,  NULL }, \
-    { "unsupported",      0, 1,  false, false, false, mchp_unsupported_attribute }, \
-    { "__unsupported__",  0, 1,  false, false, false, mchp_unsupported_attribute },
+    { "unsupported",      0, 1,  false, false, false, mchp_unsupported_attribute },
 #undef MIPS_DISABLE_INTERRUPT_ATTRIBUTE
 #define MIPS_DISABLE_INTERRUPT_ATTRIBUTE
 
@@ -877,13 +978,10 @@ extern enum mips_function_type_tag current_function_type;
 #define MIPS_SUBTARGET_ENCODE_SECTION_INFO(decl,rtl,first) \
   mchp_subtarget_encode_section_info(decl,rtl,first)
 
-#if 1
 #define USE_SELECT_SECTION_FOR_FUNCTIONS 1
-#endif
-#if 1
+
 #undef JUMP_TABLES_IN_TEXT_SECTION
 #define JUMP_TABLES_IN_TEXT_SECTION 1
-#endif
 
 #undef SUPPORTS_DISCRIMINATOR
 #define SUPPORTS_DISCRIMINATOR 0
@@ -895,7 +993,14 @@ extern enum mips_function_type_tag current_function_type;
 #define SR_EXL          1
 #define SR_ERL          2
 
+#undef TARGET_ASM_CONSTRUCTOR
+#define TARGET_ASM_CONSTRUCTOR default_named_section_asm_out_constructor
+#undef TARGET_ASM_DESTRUCTOR
+#define TARGET_ASM_DESTRUCTOR default_named_section_asm_out_destructor
 
+#undef TARGET_USE_JCR_SECTION
+#define TARGET_USE_JCR_SECTION 0
+#undef JCR_SECTION_NAME
 
 #endif /* MCHP_H */
 

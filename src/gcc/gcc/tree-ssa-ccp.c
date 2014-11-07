@@ -1813,7 +1813,21 @@ maybe_fold_offset_to_array_ref (location_t loc, tree base, tree offset,
   array_type = TREE_TYPE (base);
   if (TREE_CODE (array_type) != ARRAY_TYPE)
     return NULL_TREE;
+
   elt_type = TREE_TYPE (array_type);
+#ifdef _BUILD_C30_
+  /* The element type should have the same address space as the base type */
+  if (TYPE_ADDR_SPACE(array_type)) {
+     elt_type = build_variant_type_copy(elt_type);
+
+     if ((TYPE_ADDR_SPACE(elt_type)) &&
+         (TYPE_ADDR_SPACE(elt_type) !=
+          TYPE_ADDR_SPACE(array_type)))
+       error("Array element in different address space than array");
+
+     TYPE_ADDR_SPACE(elt_type) = TYPE_ADDR_SPACE(array_type);
+   }
+#endif
   if (!useless_type_conversion_p (orig_type, elt_type))
     return NULL_TREE;
 
@@ -1979,6 +1993,21 @@ maybe_fold_offset_to_component_ref (location_t loc, tree record_type,
 	continue;
 
       field_type = TREE_TYPE (f);
+#ifdef _BUILD_C30_
+      /* The field_type needs to have the address space as the 'base', since
+         the object recieves these qualifers and not the type.  We should copy
+         the type and add them in. */
+      if (TYPE_ADDR_SPACE(TREE_TYPE(base))) {
+        field_type = build_variant_type_copy(field_type);
+     
+        if ((TYPE_ADDR_SPACE(field_type)) &&
+            (TYPE_ADDR_SPACE(field_type) !=
+             TYPE_ADDR_SPACE(TREE_TYPE(base))))
+          error("Structure field in different address space than structure object");
+
+        TYPE_ADDR_SPACE(field_type) = TYPE_ADDR_SPACE(TREE_TYPE(base));
+      }
+#endif
 
       /* Here we exactly match the offset being checked.  If the types match,
 	 then we can return that field.  */

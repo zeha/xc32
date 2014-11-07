@@ -590,6 +590,12 @@ bind (tree name, tree decl, struct c_scope *scope, bool invisible,
 {
   struct c_binding *b, **here;
 
+#if _BUILD_C30_
+#ifdef TARGET_BIND
+  TARGET_BIND(name,decl);
+#endif
+#endif
+
   if (binding_freelist)
     {
       b = binding_freelist;

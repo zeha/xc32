@@ -127,7 +127,7 @@ static const bfd_arch_info_type arch_info_struct[] =
   N (64, 64, bfd_mach_mips5,    "mips:mips5",     FALSE, NN(I_mips5)),
   N (32, 32, bfd_mach_mipsisa32,  "mips:isa32",   FALSE, NN(I_mipsisa32)),
   N (32, 32, bfd_mach_mipsisa32r2,"mips:isa32r2", FALSE, NN(I_mipsisa32r2)),
-  N (32, 32, bfd_mach_pic32mx,    "pic32mx",      FALSE, 0),
+  N (32, 32, bfd_mach_pic32mx,    "pic32mx",      FALSE, NN(I_mipsisa32r2)),
   N (64, 64, bfd_mach_mipsisa64,  "mips:isa64",   FALSE, NN(I_mipsisa64)),
   N (64, 64, bfd_mach_mipsisa64r2,"mips:isa64r2", FALSE, NN(I_mipsisa64r2)),
   N (64, 64, bfd_mach_mips_sb1, "mips:sb1",       FALSE, NN(I_sb1)),

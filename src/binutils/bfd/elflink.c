@@ -12326,9 +12326,6 @@ bfd_elf_discard_info (bfd *output_bfd, struct bfd_link_info *info)
       if (!info->relocatable)
 	{
 	  eh = bfd_get_section_by_name (abfd, ".eh_frame");
-         /* Temporary fix for memory overlapping problem */
-          if (eh != NULL)
-            continue;
 	  if (eh != NULL
 	      && (eh->size == 0
 		  || bfd_is_abs_section (eh->output_section)))

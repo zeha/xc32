@@ -3428,6 +3428,35 @@ eliminate_regs_in_insn (rtx insn, int replace)
 	    val = 1;
 	    /* This can't have an effect on elimination offsets, so skip right
 	       to the end.  */
+
+#if defined(_BUILD_C30_) 
+            /* but it can turn a legal instruction into an illegal one,
+               so lets re-recognize the instruction */
+            {
+              int num_clobbers = 0;
+              int new_icode = recog (PATTERN (insn), insn, &num_clobbers);
+              if (new_icode > 0) {
+                INSN_CODE(insn) = new_icode;
+                if (num_clobbers) {
+                  rtvec vec = rtvec_alloc (num_clobbers + 1);
+                  vec->elem[0] = PATTERN (insn);
+                  PATTERN (insn) = gen_rtx_PARALLEL (VOIDmode, vec);
+                  add_clobbers (PATTERN (insn), INSN_CODE (insn));
+                }
+              }
+#if 0
+              /* This part is unnecessary, eliminate_regs_in_insns is 'allowed'
+                 to generate unrecognizable instructions */
+              if (INSN_CODE (insn) < 0) // abort();
+              {
+                PATTERN(insn) = old_body;
+                new_body = old_body;
+                val = 0;
+                break;
+              }
+#endif
+           }
+#endif
 	    goto done;
 	  }
     }
@@ -3556,8 +3585,15 @@ eliminate_regs_in_insn (rtx insn, int replace)
 	      || GET_CODE (SET_SRC (old_set)) == PLUS))
 	{
 	  int new_icode = recog (PATTERN (insn), insn, 0);
+#ifdef _BUILD_C30_
+          /* if we fail to recognize it here, then find_reloads will crap
+             out (technical term) because extract_insn cannot extract the
+             instruction */
+	  if (new_icode > 0)
+#else
 	  if (new_icode >= 0)
-	    INSN_CODE (insn) = new_icode;
+#endif
+            INSN_CODE (insn) = new_icode;
 	}
     }
 
@@ -7152,6 +7188,201 @@ static rtx operand_reload_insns = 0;
 static rtx other_operand_reload_insns = 0;
 static rtx other_output_reload_insns[MAX_RECOG_OPERANDS];
 
+#ifdef _BUILD_C30_
+static int rtx_modifies_or_offsets_stack(rtx *x, rtx **offset);
+static int update_pseudos_in(rtx *x, int offset_stack_by, int mem_level);
+static int update_pseudos_in(rtx *x, int offset_stack_by, int mem_level) {
+  int was_a_pseudo = 0;
+  int changes = 0;
+  int i = -1, j;
+  char *format_ptr;
+  rtx *modifies = 0;
+  rtx addr = 0;
+
+  switch (GET_CODE(*x)) {
+    case MEM:
+      mem_level++;
+      break;
+
+    case REG:
+      if (REG_P(*x)) {
+        i = REGNO(*x);
+        if ((i >= FIRST_PSEUDO_REGISTER) && 
+            (mem_level <= spill_indirect_levels)){
+          was_a_pseudo = 1;
+          if (reg_equiv_mem[i])
+            addr = XEXP (reg_equiv_mem[i], 0);
+
+          if (reg_equiv_address[i])
+            addr = reg_equiv_address[i];
+
+          if (reg_equiv_memory_loc[i]) {
+            rtx new_addr = 
+              XEXP(eliminate_regs(reg_equiv_memory_loc[i],0,NULL_RTX),0);
+            if (new_addr != addr) {
+              changes++;
+              addr = new_addr;
+            }
+          }
+        }
+      }
+
+      if (!addr) return 0;
+
+      addr = copy_rtx(addr);
+      modifies = 0;
+      rtx_modifies_or_offsets_stack(&addr, &modifies);
+      if (modifies) {
+        rtx update;
+
+        changes++;
+        update = *modifies;
+        if (GET_CODE(*modifies) == PLUS) {
+          update = gen_rtx_PLUS(
+                                GET_MODE(update),
+                                XEXP(update,0),
+                                GEN_INT(XINT(XEXP(update,1),0)-
+                                        offset_stack_by));
+        } else {
+          update = gen_rtx_MINUS(
+                                GET_MODE(update),
+                                XEXP(update,0),
+                                GEN_INT(XINT(XEXP(update,1),0)+
+                                        offset_stack_by));
+        }
+        (*modifies) = update;
+      }
+      if (addr) {
+           
+        if ((i != -1) && (was_a_pseudo)) {
+          if (reg_renumber[i] < 0) {
+            rtx reg = gen_rtx_MEM(GET_MODE(*x), addr);
+
+            *x = reg;
+            if (reg_equiv_memory_loc[i])
+                MEM_COPY_ATTRIBUTES (reg, reg_equiv_memory_loc[i]);
+            else {
+              MEM_IN_STRUCT_P (reg) = MEM_SCALAR_P (reg) = 0;
+              MEM_ATTRS (reg) = 0;
+            }
+          }
+        } else *x = addr;
+      }
+      break;
+    /* for modify or pre we don't care (reload is supposed to handle that) */
+    default:
+       break;
+  }
+
+  format_ptr = GET_RTX_FORMAT (GET_CODE (*x));
+  for (i = 0; i < GET_RTX_LENGTH (GET_CODE (*x)); i++)
+    {
+      switch (*format_ptr++)
+        {
+        case 'e':
+          changes += update_pseudos_in(&XEXP(*x,i), offset_stack_by, mem_level);
+          break;
+
+        case 'E':
+        case 'V':
+          if (XVEC (*x, i) != NULL)
+            {
+              for (j = 0; j < XVECLEN (*x, i); j++) {
+                changes += update_pseudos_in(&XVECEXP(*x,i,j), offset_stack_by, 
+                                             mem_level);
+              }
+            }
+          break;
+
+        case 't':
+        case 'w':
+        case 'i':
+        case 's':
+        case 'S':
+        case 'T':
+        case 'u':
+        case 'B':
+        case '0':
+          /* These are left unchanged.  */
+          break;
+
+        default:
+          gcc_unreachable ();
+        }
+    }
+  return changes;
+}
+
+int rtx_modifies_or_offsets_stack(rtx *x_ptr, rtx **offset) {
+  int result = 0, i, j;
+  char *format_ptr;
+  rtx x = *x_ptr;
+
+  /* it should be safe to check the stack_pointer_rtx regno rather than 
+     stack_pointer_rtx - we won't be eliminating that register but we might
+     be creating a stack offset that doesn't refer to it as stack_pointer_rtx */
+  switch (GET_CODE(x)) {
+    case MINUS:
+    case PLUS:
+      if (REG_P(XEXP(x, 0)) && (REGNO(XEXP(x,0)) == REGNO(stack_pointer_rtx))){
+        gcc_assert(GET_CODE(XEXP(x,1)) == CONST_INT); 
+        if (offset) *offset = x_ptr;
+        break;
+      }
+    case POST_INC:
+      if (REG_P(XEXP(x, 0)) && (REGNO(XEXP(x,0)) == REGNO(stack_pointer_rtx)))
+        return GET_MODE_SIZE(GET_MODE(x));
+      else return 0;
+    case POST_DEC:
+      if (REG_P(XEXP(x, 0)) && (REGNO(XEXP(x,0)) == REGNO(stack_pointer_rtx)))
+        return -1*GET_MODE_SIZE(GET_MODE(x));
+      else return 0;
+    /* for modify or pre we don't care (reload is supposed to handle that) */
+    default:
+       break;
+  }
+
+  format_ptr = GET_RTX_FORMAT (GET_CODE (x));
+  for (i = 0; i < GET_RTX_LENGTH (GET_CODE (x)); i++)
+    {
+      switch (*format_ptr++)
+        {
+        case 'e':
+          result= rtx_modifies_or_offsets_stack(&XEXP(x,i),offset);
+          if (result) return result;
+          break;
+
+        case 'E':
+        case 'V':
+          if (XVEC (x, i) != NULL)
+            {
+              for (j = 0; j < XVECLEN (x, i); j++) {
+                result = rtx_modifies_or_offsets_stack(&XVECEXP(x,i,j),offset);
+                if (result) return result;
+              }
+            }
+          break;
+
+        case 't':
+        case 'w':
+        case 'i':
+        case 's':
+        case 'S':
+        case 'T':
+        case 'u':
+        case 'B':
+        case '0':
+          /* These are left unchanged.  */
+          break;
+
+        default:
+          gcc_unreachable ();
+        }
+    }
+  return result;
+}
+#endif
+
 /* Values to be put in spill_reg_store are put here first.  */
 static rtx new_spill_reg_store[FIRST_PSEUDO_REGISTER];
 static HARD_REG_SET reg_reloaded_died;
@@ -7652,6 +7883,28 @@ emit_input_reload_insns (struct insn_chain *chain, struct reload *rl,
 		  rl->when_needed);
     }
 
+#ifdef _BUILD_C30_
+    /* Look at all insns we emitted, just to be safe.  */
+    { rtx p;
+   
+      for (p = get_insns (); p; p = NEXT_INSN (p))
+        if (INSN_P (p))
+          {
+            rtx new_pat = copy_rtx(PATTERN (p));
+            int changes;
+   
+            /* before instructions don't care if the instruction modifies stack
+               - but the code that removes pseudos in post-incs has been commented
+                 out because it didn't notice any changes for the output insn
+                 and generating two reloads to compensate won't work, fix it up
+                 here by re-checking elimination effects (which is what
+                 make_memloc did) */
+            changes = update_pseudos_in(&new_pat, 0, 0);
+            if (changes) PATTERN(p) = new_pat;
+          }
+      }
+#endif
+
   if (flag_non_call_exceptions)
     copy_reg_eh_region_note_forward (insn, get_insns (), NULL);
 
@@ -7678,6 +7931,9 @@ emit_output_reload_insns (struct insn_chain *chain, struct reload *rl,
   enum machine_mode mode;
   rtx p;
   rtx rl_reg_rtx;
+#ifdef _BUILD_C30_
+  int insn_modifies_stack_by = 0;
+#endif
 
   if (rl->when_needed == RELOAD_OTHER)
     start_sequence ();
@@ -7799,12 +8055,29 @@ emit_output_reload_insns (struct insn_chain *chain, struct reload *rl,
 		    rl->when_needed);
     }
 
+#ifdef _BUILD_C30_
+  if (reg_mentioned_p(stack_pointer_rtx, PATTERN(chain->insn))) {
+    insn_modifies_stack_by =
+      rtx_modifies_or_offsets_stack(&PATTERN(chain->insn), 0);
+  }
+#endif
+
   /* Look at all insns we emitted, just to be safe.  */
   for (p = get_insns (); p; p = NEXT_INSN (p))
     if (INSN_P (p))
       {
 	rtx pat = PATTERN (p);
 
+#ifdef _BUILD_C30_
+        if (insn_modifies_stack_by) {
+          int changes;
+          rtx new_pat;
+  
+          new_pat = copy_rtx(pat);
+          changes = update_pseudos_in(&new_pat, insn_modifies_stack_by, 0);
+          if (changes) PATTERN(p) = new_pat;
+        }
+#endif
 	/* If this output reload doesn't come from a spill reg,
 	   clear any memory of reloaded copies of the pseudo reg.
 	   If this output reload comes from a spill reg,

@@ -520,10 +520,20 @@ convert_move (rtx to, rtx from, int unsignedp)
       return;
     }
 
+#ifdef TARGET_CONVERT_POINTER
+   if (targetm.valid_pointer_mode(to_mode) ||
+       targetm.valid_pointer_mode(from_mode)) {
+     if (TARGET_CONVERT_POINTER(to,from,unsignedp)) return;
+   }
+#endif
   /* Now both modes are integers.  */
 
   /* Handle expanding beyond a word.  */
+#ifdef _BUILD_C30_
+  if (GET_MODE_BITSIZE (from_mode) <= GET_MODE_BITSIZE (to_mode)
+#else
   if (GET_MODE_BITSIZE (from_mode) < GET_MODE_BITSIZE (to_mode)
+#endif
       && GET_MODE_BITSIZE (to_mode) > BITS_PER_WORD)
     {
       rtx insns;
@@ -630,7 +640,11 @@ convert_move (rtx to, rtx from, int unsignedp)
      no more than a word long.  */
 
   /* For truncation, usually we can just refer to FROM in a narrower mode.  */
+#ifdef _BUILD_C30_
+  if (GET_MODE_BITSIZE (to_mode) <= GET_MODE_BITSIZE (from_mode)
+#else
   if (GET_MODE_BITSIZE (to_mode) < GET_MODE_BITSIZE (from_mode)
+#endif
       && TRULY_NOOP_TRUNCATION (GET_MODE_BITSIZE (to_mode),
 				GET_MODE_BITSIZE (from_mode)))
     {
@@ -793,6 +807,13 @@ convert_modes (enum machine_mode mode, enum machine_mode oldmode, rtx x, int uns
      non-volatile MEM.  Except for the constant case where MODE is no
      wider than HOST_BITS_PER_WIDE_INT, we must be narrowing the operand.  */
 
+#ifdef _BUILD_C30_
+  /* extended modes may not have a linear address mapping; not sure how
+     to do this in a target_specific_way ... */
+#ifdef TARGET_LINEAR_MODE
+  if (TARGET_LINEAR_MODE(mode))
+#endif
+#endif
   if ((CONST_INT_P (x)
        && GET_MODE_BITSIZE (mode) <= HOST_BITS_PER_WIDE_INT)
       || (GET_MODE_CLASS (mode) == MODE_INT
@@ -811,7 +832,11 @@ convert_modes (enum machine_mode mode, enum machine_mode oldmode, rtx x, int uns
 	 X does not need sign- or zero-extension.   This may not be
 	 the case, but it's the best we can do.  */
       if (CONST_INT_P (x) && oldmode != VOIDmode
+#ifdef _BUILD_C30_
+	  && GET_MODE_SIZE (mode) >= GET_MODE_SIZE (oldmode))
+#else
 	  && GET_MODE_SIZE (mode) > GET_MODE_SIZE (oldmode))
+#endif
 	{
 	  HOST_WIDE_INT val = INTVAL (x);
 	  int width = GET_MODE_BITSIZE (oldmode);
@@ -1170,6 +1195,16 @@ emit_block_move_hints (rtx x, rtx y, rtx size, enum block_op_methods method,
   rtx retval = 0;
   unsigned int align;
 
+#ifdef _BUILD_C30_
+  align = MIN (MEM_ALIGN (x), MEM_ALIGN (y));
+
+#ifdef TARGET_EMIT_BLOCK_MOVE
+  if (TARGET_EMIT_BLOCK_MOVE(x,&y,size,align)) {
+    return 0;
+  }
+#endif
+#endif
+
   switch (method)
     {
     case BLOCK_OP_NORMAL:
@@ -1193,7 +1228,9 @@ emit_block_move_hints (rtx x, rtx y, rtx size, enum block_op_methods method,
       gcc_unreachable ();
     }
 
+#ifndef _BUILD_C30_
   align = MIN (MEM_ALIGN (x), MEM_ALIGN (y));
+#endif
   gcc_assert (align >= BITS_PER_UNIT);
 
   gcc_assert (MEM_P (x));
@@ -1343,6 +1380,13 @@ emit_block_move_via_movmem (rtx x, rtx y, rtx size, unsigned int align,
 	  if (pred != 0 && ! (*pred) (op2, mode))
 	    op2 = copy_to_mode_reg (mode, op2);
 
+#ifdef _BUILD_C30_
+          /* what happens if op2 is invalid as a reg? */
+          if (pred != 0 && ! (*pred) (op2, mode)) {
+            volatile_ok = save_volatile_ok;
+            return false;
+          }
+#endif
 	  /* ??? When called via emit_block_move_for_call, it'd be
 	     nice if there were some way to inform the backend, so
 	     that it doesn't fail the expansion because it thinks
@@ -1385,8 +1429,13 @@ emit_block_move_via_libcall (rtx dst, rtx src, rtx size, bool tailcall)
      pseudos.  We can then place those new pseudos into a VAR_DECL and
      use them later.  */
 
+#ifdef _BUILD_C30_
+  dst_addr = copy_to_mode_reg (GET_MODE(XEXP(dst,0)), XEXP (dst, 0));
+  src_addr = copy_to_mode_reg (GET_MODE(XEXP(src,0)), XEXP (src, 0));
+#else
   dst_addr = copy_to_mode_reg (Pmode, XEXP (dst, 0));
   src_addr = copy_to_mode_reg (Pmode, XEXP (src, 0));
+#endif
 
   dst_addr = convert_memory_address (ptr_mode, dst_addr);
   src_addr = convert_memory_address (ptr_mode, src_addr);
@@ -7043,7 +7092,19 @@ expand_expr_addr_expr (tree exp, rtx target, enum machine_mode tmode,
 
   if (POINTER_TYPE_P (TREE_TYPE (exp)))
     {
-      as = TYPE_ADDR_SPACE (TREE_TYPE (TREE_TYPE (exp)));
+      tree Tau = TREE_TYPE (TREE_TYPE (exp));
+#ifdef _BUILD_C30_
+      /* what about pointers to arrays?  The underlying address space of the
+         element counts (or these things need to be propogated, which they
+         don't appear to be).
+
+         <address-space> char foo[12][12];  the address applies to the element
+         type, not the outer array type */
+
+      while (TREE_CODE(Tau) == ARRAY_TYPE) Tau = TREE_TYPE(Tau);
+#endif
+
+      as = TYPE_ADDR_SPACE (Tau) ;
       address_mode = targetm.addr_space.address_mode (as);
       pointer_mode = targetm.addr_space.pointer_mode (as);
     }
@@ -7451,6 +7512,19 @@ expand_expr_real_2 (sepops ops, rtx target, enum machine_mode tmode,
          of the PLUS_EXPR code.  */
       /* Make sure to sign-extend the sizetype offset in a POINTER_PLUS_EXPR
          if sizetype precision is smaller than pointer precision.  */
+#ifdef _BUILD_C30_
+      if (TYPE_ADDR_SPACE(TREE_TYPE(TREE_TYPE(treeop0)))) {
+        enum machine_mode target_mode;
+        tree target_type;
+
+        target_mode = targetm.addr_space.address_mode(
+                        TYPE_ADDR_SPACE(TREE_TYPE(TREE_TYPE(treeop0))));
+        target_type = lang_hooks.types.type_for_mode(target_mode,1);
+  
+        // treeop1 = convert (target_type, treeop1);
+        treeop1 = convert (TREE_TYPE(treeop0), treeop1);
+      } else
+#endif
       if (TYPE_PRECISION (sizetype) < TYPE_PRECISION (type))
 	treeop1 = fold_convert_loc (loc, type,
 				    fold_convert_loc (loc, ssizetype,
@@ -8997,13 +9071,25 @@ expand_expr_real_1 (tree exp, rtx target, enum machine_mode tmode,
 	if (offset)
 	  {
 	    enum machine_mode address_mode;
+#ifdef _BUILD_C30_
+            /* 
+               with expand_sum we would could have to convert it to the 
+               right mode; this will produce better code for extended pointers
+            */
+	    rtx offset_rtx;
+#else
 	    rtx offset_rtx = expand_expr (offset, NULL_RTX, VOIDmode,
 					  EXPAND_SUM);
+#endif
 
 	    gcc_assert (MEM_P (op0));
 
 	    address_mode
 	      = targetm.addr_space.address_mode (MEM_ADDR_SPACE (op0));
+#if _BUILD_C30_
+            offset_rtx = expand_expr (offset, NULL_RTX, VOIDmode,
+		address_mode ? EXPAND_NORMAL : EXPAND_SUM);
+#endif
 	    if (GET_MODE (offset_rtx) != address_mode)
 	      offset_rtx = convert_to_mode (address_mode, offset_rtx, 0);
 
@@ -10076,9 +10162,20 @@ try_casesi (tree index_type, tree index_expr, tree minval, tree range,
       (op2, op_mode))
     op2 = copy_to_mode_reg (op_mode, op2);
 
+#ifdef _BUILD_C30_
+  { rtx result;
+
+    result = gen_casesi (index, op1, op2, table_label,
+                         !default_label ? fallback_label : default_label);
+    if (result) emit_jump_insn(result);
+    else return 0;
+  }
+#else
+
   emit_jump_insn (gen_casesi (index, op1, op2,
 			      table_label, !default_label
 					   ? fallback_label : default_label));
+#endif
   return 1;
 }
 

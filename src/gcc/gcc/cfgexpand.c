@@ -988,6 +988,11 @@ expand_one_var (tree var, bool toplevel, bool really_expand)
 	}
     }
 
+#ifndef _BUILD_C30_
+  /* Don't really get this - it seems to complain about things that are
+     ignored by the rest of the code; of course the (useless) SVN log doesn't 
+     say a thing */
+  
   if (TREE_CODE (origvar) == SSA_NAME)
     {
       gcc_assert (TREE_CODE (var) != VAR_DECL
@@ -998,6 +1003,9 @@ expand_one_var (tree var, bool toplevel, bool really_expand)
 		      && !DECL_HARD_REGISTER (var)
 		      && really_expand));
     }
+#endif
+
+
   if (TREE_CODE (var) != VAR_DECL && TREE_CODE (origvar) != SSA_NAME)
     ;
   else if (DECL_EXTERNAL (var))
@@ -3862,6 +3870,14 @@ gimple_expand_cfg (void)
       if (TREE_CODE (var) != VAR_DECL
 	  && !SA.partition_to_pseudo[i])
 	SA.partition_to_pseudo[i] = DECL_RTL_IF_SET (var);
+#ifdef _BUILD_C30_
+      /* Not sure why DECL_REGISTERS crash this pass, but this is a global
+         asm register variable, it already has RTL - there seems to be a hack
+         above for other 'odd' conditions a new one shouldn't hurt */
+      if ((TREE_CODE (var) == VAR_DECL) && DECL_REGISTER(var) &&
+          DECL_RTL_SET_P(var) && !SA.partition_to_pseudo[i])
+        SA.partition_to_pseudo[i] = DECL_RTL(var);
+#endif
       gcc_assert (SA.partition_to_pseudo[i]);
 
       /* If this decl was marked as living in multiple places, reset

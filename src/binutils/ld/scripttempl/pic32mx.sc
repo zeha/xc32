@@ -146,7 +146,7 @@ fi
 RODATA="
   .rodata ${RELOCATING-0} :
   {
-    *( /* .rodata */ ${RELOCATING+ .rodata.* .gnu.linkonce.r.*})
+    *(${RELOCATING+ .gnu.linkonce.r.*})
     *(.rodata1)
     ${RELOCATING+. = ALIGN(${ALIGNMENT}) ;}
   } >${RODATA_MEMORY_REGION}
@@ -158,22 +158,24 @@ SDATA="
    * can access them all, and initialized data all before uninitialized, so
    * we can shorten the on-disk segment size.
    */
-  .sdata ALIGN(4) /*${RELOCATING-0}*/ :
+  .sdata ALIGN(${ALIGNMENT}) :
   {
     ${RELOCATING+${SDATA_START_SYMBOLS}}
     *(.sdata${RELOCATING+ .sdata.* .gnu.linkonce.s.*})
+    ${RELOCATING+. = ALIGN(${ALIGNMENT}) ;}
     ${RELOCATING+${SDATA_END_SYMBOLS}}
   } >${DATA_MEMORY_REGION}
 "
 
 SBSS="
-  .sbss ALIGN(4) ${RELOCATING-0} :
+  .sbss ALIGN(${ALIGNMENT}) :
   {
     ${RELOCATING+${SBSS_START_SYMBOLS}}
     *(.dynsbss)
     *(.sbss${RELOCATING+ .sbss.* .gnu.linkonce.sb.*})
     *(.scommon)
     ${RELOCATING+${SBSS_END_SYMBOLS}}
+    ${RELOCATING+. = ALIGN(${ALIGNMENT}) ;}
   } >${DATA_MEMORY_REGION}
 "
 
@@ -183,7 +185,7 @@ SDATA2="
    * .sdata2 section.  This is different from .sdata, which contains small
    * initialized non-constant global and static data.
    */
-  .sdata2 ALIGN(4) ${RELOCATING-0} :
+  .sdata2 ALIGN(${ALIGNMENT}) :
   {
     *(.sdata2${RELOCATING+ .sdata2.* .gnu.linkonce.s2.*})
     ${RELOCATING+. = ALIGN(${ALIGNMENT}) ;}
@@ -196,7 +198,7 @@ SBSS2="
    * always be zero).  Again, this is different from .sbss, which contains
    * small non-initialized, non-constant global and static data.
    */
-  .sbss2 ALIGN(4) ${RELOCATING-0} :
+  .sbss2 ALIGN(${ALIGNMENT}) :
   {
     *(.sbss2${RELOCATING+ .sbss2.* .gnu.linkonce.sb2.*})
     ${RELOCATING+. = ALIGN(${ALIGNMENT}) ;}
@@ -204,9 +206,10 @@ SBSS2="
 "
 
 GOT="
-  .got ALIGN(4) ${RELOCATING-0} :
+  .got ALIGN(${ALIGNMENT}) :
   {
-     *(.got.plt) *(.got)
+    *(.got.plt) *(.got)
+    ${RELOCATING+. = ALIGN(${ALIGNMENT}) ;}
   } >${DATA_MEMORY_REGION} /* ${DATA_IMAGE_MEMORY_REGION} */
 "
 
@@ -249,9 +252,85 @@ SECTIONS
   {
     *(.stub${RELOCATING+ .gnu.linkonce.t.*})
     KEEP (*(.text.*personality*))
-
     ${RELOCATING+${OTHER_TEXT_SECTIONS}}
     *(.gnu.warning)
+    ${RELOCATING+. = ALIGN(${ALIGNMENT}) ;}
+  } >${CODE_MEMORY_REGION}
+
+  /* Global-namespace object initialization */
+  .init ${RELOCATING-0} :
+  {
+    KEEP (*crti.o(.init))
+    KEEP (*crtbegin.o(.init))
+    KEEP (*(EXCLUDE_FILE (*crtend.o *crtend?.o *crtn.o ).init))
+    KEEP (*crtend.o(.init))
+    KEEP (*crtn.o(.init))
+    ${RELOCATING+. = ALIGN(${ALIGNMENT}) ;}
+  } >${CODE_MEMORY_REGION}
+
+  .fini ${RELOCATING-0} :
+  {
+    KEEP (*(.fini))
+    ${RELOCATING+. = ALIGN(${ALIGNMENT}) ;}
+  } >${CODE_MEMORY_REGION}
+
+  .preinit_array ${RELOCATING-0} :
+  {
+    PROVIDE_HIDDEN (__preinit_array_start = .);
+    KEEP (*(.preinit_array))
+    PROVIDE_HIDDEN (__preinit_array_end = .);
+    ${RELOCATING+. = ALIGN(${ALIGNMENT}) ;}
+  } >${CODE_MEMORY_REGION}
+
+  .init_array ${RELOCATING-0} :
+  {
+    PROVIDE_HIDDEN (__init_array_start = .);
+    KEEP (*(SORT(.init_array.*)))
+    KEEP (*(.init_array))
+    PROVIDE_HIDDEN (__init_array_end = .);
+    ${RELOCATING+. = ALIGN(${ALIGNMENT}) ;}
+  } >${CODE_MEMORY_REGION}
+
+  .fini_array ${RELOCATING-0} :
+  {
+    PROVIDE_HIDDEN (__fini_array_start = .);
+    KEEP (*(SORT(.fini_array.*)))
+    KEEP (*(.fini_array))
+    PROVIDE_HIDDEN (__fini_array_end = .);
+    ${RELOCATING+. = ALIGN(${ALIGNMENT}) ;}
+  } >${CODE_MEMORY_REGION}
+
+  .ctors ${RELOCATING-0} :
+  {
+    /* XC32 uses crtbegin.o to find the start of
+       the constructors, so we make sure it is
+       first.  Because this is a wildcard, it
+       doesn't matter if the user does not
+       actually link against crtbegin.o; the
+       linker won't look for a file to match a
+       wildcard.  The wildcard also means that it
+       doesn't matter which directory crtbegin.o
+       is in.  */
+    KEEP (*crtbegin.o(.ctors))
+    KEEP (*crtbegin?.o(.ctors))
+    /* We don't want to include the .ctor section from
+       the crtend.o file until after the sorted ctors.
+       The .ctor section from the crtend file contains the
+       end of ctors marker and it must be last */
+    KEEP (*(EXCLUDE_FILE (*crtend.o *crtend?.o ) .ctors))
+    KEEP (*(SORT(.ctors.*)))
+    KEEP (*(.ctors))
+    ${RELOCATING+. = ALIGN(${ALIGNMENT}) ;}
+  } >${CODE_MEMORY_REGION}
+
+  .dtors ${RELOCATING-0} :
+  {
+    KEEP (*crtbegin.o(.dtors))
+    KEEP (*crtbegin?.o(.dtors))
+    KEEP (*(EXCLUDE_FILE (*crtend.o *crtend?.o ) .dtors))
+    KEEP (*(SORT(.dtors.*)))
+    KEEP (*(.dtors))
+    ${RELOCATING+. = ALIGN(${ALIGNMENT}) ;}
   } >${CODE_MEMORY_REGION}
 
   /* Read-only sections */
@@ -259,9 +338,22 @@ SECTIONS
   ${CREATE_SHLIB-${SDATA2}}
   ${CREATE_SHLIB-${SBSS2}}
   ${OTHER_READONLY_SECTIONS}
-  .eh_frame_hdr : { *(.eh_frame_hdr) }
-  .eh_frame     ${RELOCATING-0} : ONLY_IF_RO { KEEP (*(.eh_frame)) }
 
+  .eh_frame_hdr ${RELOCATING-0} : 
+  {
+    *(.eh_frame_hdr) 
+  } >${CODE_MEMORY_REGION}
+    ${RELOCATING+. = ALIGN(${ALIGNMENT}) ;}
+  .eh_frame ${RELOCATING-0} : ONLY_IF_RO 
+  { 
+    KEEP (*(.eh_frame))
+  } >${CODE_MEMORY_REGION}
+    ${RELOCATING+. = ALIGN(${ALIGNMENT}) ;}
+  .gcc_except_table ${RELOCATING-0} : ONLY_IF_RO
+  {
+    *(.gcc_except_table .gcc_except_table.*)
+  } >${CODE_MEMORY_REGION}
+    ${RELOCATING+. = ALIGN(${ALIGNMENT}) ;}
   ${NO_SMALL_DATA+${GOT}}
 
   .dbg_data (NOLOAD) :
@@ -269,17 +361,46 @@ SECTIONS
     . += (DEFINED (_DEBUGGER) ? 0x200 : 0x0);
   } >${DATA_MEMORY_REGION}
 
-  /* Persistent data - Use the new C 'persistent' attribute instead. */
-  .persist :
+  .jcr ${RELOCATING-0} :
   {
-    _persist_begin = .;
-    *(.persist .persist.*)
-    . = ALIGN(4);
-    _persist_end = .;
+    KEEP (*(.jcr))
+    ${RELOCATING+. = ALIGN(${ALIGNMENT}) ;}
   } >${DATA_MEMORY_REGION}
 
   ${WRITABLE_RODATA+${RODATA}}
-  .eh_frame     ${RELOCATING-0} : ONLY_IF_RW { KEEP (*(.eh_frame)) }
+  .eh_frame ${RELOCATING-0}  : ONLY_IF_RW 
+  {
+    KEEP (*(.eh_frame)) 
+  } >${DATA_MEMORY_REGION}
+    ${RELOCATING+. = ALIGN(${ALIGNMENT}) ;}
+  .gcc_except_table ${RELOCATING-0}  : ONLY_IF_RW 
+  {
+    *(.gcc_except_table .gcc_except_table.*)
+  } >${DATA_MEMORY_REGION}
+    ${RELOCATING+. = ALIGN(${ALIGNMENT}) ;}
+  /* Persistent data - Use the new C 'persistent' attribute instead. */
+  .persist ${RELOCATING-0} :
+  {
+    _persist_begin = .;
+    *(.persist .persist.*)
+    *(.pbss .pbss.*)
+    ${RELOCATING+. = ALIGN(${ALIGNMENT}) ;}
+    _persist_end = .;
+  } >${DATA_MEMORY_REGION}
+
+  /*
+   * Note that input sections named .data* are no longer mapped here.
+   * Starting in C32 v2.00, the best-fit allocator locates them, so
+   * that they may flow around absolute sections as needed.
+   */
+  .data ${RELOCATING-0} :
+  {
+    *(${RELOCATING+ .gnu.linkonce.d.*})
+    ${CONSTRUCTING+SORT(CONSTRUCTORS)}
+    *(.data1)
+    ${RELOCATING+. = ALIGN(${ALIGNMENT}) ;}
+  } >${DATA_MEMORY_REGION}
+
   ${OTHER_READWRITE_SECTIONS}
   ${RELOCATING+${OTHER_GOT_SYMBOLS}}
   ${NO_SMALL_DATA-${GOT}}
@@ -300,12 +421,6 @@ SECTIONS
   ${NO_SMALL_DATA-${SBSS}}
 
   /*
-   * Note that input sections named .data* are no longer mapped here.
-   * Starting in C32 v2.00, the best-fit allocator locates them, so
-   * that they may flow around absolute sections as needed.
-   */
-
-  /*
    * Align here to ensure that the .bss section occupies space up to
    * _end.  Align after .bss to ensure correct alignment even if the
    * .bss section disappears because there are no input sections.
@@ -315,13 +430,15 @@ SECTIONS
    * that they may flow around absolute sections as needed.
    *
    */
-  .bss ${RELOCATING-0} :
+  .bss   ${RELOCATING-0} :
   {
     *(.dynbss)
     *(COMMON)
-    ${RELOCATING+. = ALIGN(${ALIGNMENT}) ;}
+   /* Align here to ensure that the .bss section occupies space up to
+      _end.  Align after .bss to ensure correct alignment even if the
+      .bss section disappears because there are no input sections. */
+   ${RELOCATING+. = ALIGN(. != 0 ? ${ALIGNMENT} : 1);}
   } >${DATA_MEMORY_REGION}
-
   ${OTHER_BSS_SECTIONS}
   ${RELOCATING+. = ALIGN(${ALIGNMENT}) ;}
   ${RELOCATING+_end = . ;}

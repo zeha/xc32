@@ -56,11 +56,6 @@
 #define offsetof(TYPE, MEMBER) ((size_t) & (((TYPE*) 0)->MEMBER))
 #endif
 
-#if TARGET_IS_PIC32MX
-  lang_statement_union_type **last_os1 = NULL;
-  bfd_boolean best_fit_alloc_done = FALSE;
-#endif
-
 
 /* Locals variables.  */
 static struct obstack stat_obstack;
@@ -906,7 +901,8 @@ walk_wild (lang_wild_statement_type *s, callback_t callback, void *data)
 }
 
 /* lang_for_each_statement walks the parse tree and calls the provided
-   function for each node.  */
+   function for each node, except those inside output section statements
+   with constraint set to -1.  */
 
 static void
 lang_for_each_statement_worker (void (*func) (lang_statement_union_type *),
@@ -922,8 +918,9 @@ lang_for_each_statement_worker (void (*func) (lang_statement_union_type *),
 	  lang_for_each_statement_worker (func, constructor_list.head);
 	  break;
 	case lang_output_section_statement_enum:
-	  lang_for_each_statement_worker
-	    (func, s->output_section_statement.children.head);
+          if (s->output_section_statement.constraint != -1)
+	    lang_for_each_statement_worker
+	      (func, s->output_section_statement.children.head);
 	  break;
 	case lang_wild_statement_enum:
 	  lang_for_each_statement_worker (func,
@@ -4023,6 +4020,7 @@ print_assignment (lang_assignment_statement_type *assignment,
   bfd_boolean is_dot;
   bfd_boolean computation_is_valid = TRUE;
   etree_type *tree;
+  asection *osec;
 
   for (i = 0; i < SECTION_NAME_MAP_LENGTH; i++)
     print_space ();
@@ -4042,7 +4040,11 @@ print_assignment (lang_assignment_statement_type *assignment,
       computation_is_valid = is_dot || (scan_for_self_assignment (dst, tree) == FALSE);
     }
 
-  exp_fold_tree (tree, output_section->bfd_section, &print_dot);
+  osec = output_section->bfd_section;
+  if (osec == NULL)
+    osec = bfd_abs_section_ptr;
+  exp_fold_tree (tree, osec, &print_dot);
+
   if (expld.result.valid_p)
     {
       bfd_vma value;
@@ -4839,6 +4841,9 @@ lang_size_sections_1
 	    lang_memory_region_type *r;
 
 	    os = &s->output_section_statement;
+            if (os->constraint == -1)
+              break;
+
 	    /* FIXME: We shouldn't need to zero section vmas for ld -r
 	       here, in lang_insert_orphan, or in the default linker scripts.
 	       This is covering for coff backend linker bugs.  See PR6945.  */
@@ -4853,7 +4858,11 @@ lang_size_sections_1
 		exp_fold_tree (os->addr_tree, bfd_abs_section_ptr, &dot);
 
 		if (expld.result.valid_p)
-		  dot = expld.result.value + expld.result.section->vma;
+                  {
+                    dot = expld.result.value;
+                    if (expld.result.section != NULL)
+                      dot += expld.result.section->vma;
+                  }
 		else if (expld.phase != lang_mark_phase_enum)
 		  einfo (_("%F%S: non constant or forward reference"
 			   " address expression for section %s\n"),
@@ -5409,17 +5418,6 @@ void
 one_lang_size_sections_pass (bfd_boolean *relax, bfd_boolean check_regions)
 {
   lang_statement_iteration++;
-#if TARGET_IS_PIC32MX
-  /* size output sections added by best-fit-allocation */
-  if (last_os1 && best_fit_alloc_done && 
-      (last_os1 != (lang_statement_union_type **) statement_list.tail))
-   {
-    lang_size_sections_1 (last_os1,
-                         abs_output_section, 0, 0, relax, check_regions);
-    last_os1 = NULL;
-   }
-  else
-#endif
   lang_size_sections_1 (&statement_list.head, abs_output_section,
 			0, 0, relax, check_regions);
 }
@@ -5564,8 +5562,11 @@ lang_do_assignments_1 (lang_statement_union_type *s,
 	case lang_data_statement_enum:
 	  exp_fold_tree (s->data_statement.exp, bfd_abs_section_ptr, &dot);
 	  if (expld.result.valid_p)
-	    s->data_statement.value = (expld.result.value
-				       + expld.result.section->vma);
+            {
+              s->data_statement.value = expld.result.value;
+              if (expld.result.section != NULL)
+                s->data_statement.value += expld.result.section->vma;
+            }
 	  else
 	    einfo (_("%F%P: invalid data statement\n"));
 	  {
@@ -6574,19 +6575,13 @@ lang_process (void)
   /* Size up the sections.  */
   lang_size_sections (NULL, ! RELAXATION_ENABLED);
 
-#if TARGET_IS_PIC32MX 
-  last_os1 = (lang_statement_union_type **) statement_list.tail;
-#endif
-
   /* See if anything special should be done now we know how big
      everything is.  This is where relaxation is done.  */
   ldemul_after_allocation ();
 
-  best_fit_alloc_done = TRUE;
-
 #if TARGET_IS_PIC32MX
   /* If the emulation added new output statements, size them now. */
-  if (last_os1 != (lang_statement_union_type **) statement_list.tail)
+    lang_reset_memory_regions ();
     lang_size_sections (NULL, ! RELAXATION_ENABLED);
 #endif
 

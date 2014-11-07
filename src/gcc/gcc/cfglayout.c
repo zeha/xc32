@@ -424,7 +424,10 @@ change_scope (rtx orig_insn, tree s1, tree s2)
   tree ts1 = s1, ts2 = s2;
   tree s;
 
-  while (ts1 != ts2)
+#ifdef _BUILD_C30_
+  if ((ts1) && (ts2)) {
+#endif
+    while (ts1 != ts2)
     {
       gcc_assert (ts1 && ts2);
       if (BLOCK_NUMBER (ts1) > BLOCK_NUMBER (ts2))
@@ -437,10 +440,17 @@ change_scope (rtx orig_insn, tree s1, tree s2)
 	  ts2 = BLOCK_SUPERCONTEXT (ts2);
 	}
     }
-  com = ts1;
+    com = ts1;
+#ifdef _BUILD_C30_
+  } else if (ts1) com = BLOCK_SUPERCONTEXT(ts1);
+  else if (ts2) com = BLOCK_SUPERCONTEXT(ts2);
+#endif
 
   /* Close scopes.  */
   s = s1;
+#ifdef _BUILD_C30_
+  if (s1)
+#endif
   while (s != com)
     {
       rtx note = emit_note_before (NOTE_INSN_BLOCK_END, insn);
@@ -450,6 +460,9 @@ change_scope (rtx orig_insn, tree s1, tree s2)
 
   /* Open scopes.  */
   s = s2;
+#ifdef _BUILD_C30_
+  if (s2)
+#endif
   while (s != com)
     {
       insn = emit_note_before (NOTE_INSN_BLOCK_BEG, insn);
@@ -590,6 +603,11 @@ reemit_insn_block_notes (void)
   insn = get_insns ();
   if (!active_insn_p (insn))
     insn = next_active_insn (insn);
+#ifdef _BUILD_C30_
+  /* dump block scope for functions with only one scope */
+  if (write_symbols == SDB_DEBUG)
+    change_scope (insn, 0, DECL_INITIAL (cfun->decl));
+#endif
   for (; insn; insn = next_active_insn (insn))
     {
       tree this_block;
@@ -625,6 +643,14 @@ reemit_insn_block_notes (void)
   note = emit_note (NOTE_INSN_DELETED);
   change_scope (note, cur_block, DECL_INITIAL (cfun->decl));
   delete_insn (note);
+
+#ifdef _BUILD_C30_
+  if (write_symbols == SDB_DEBUG) {
+    note = emit_note(NOTE_INSN_DELETED);
+    change_scope(note,DECL_INITIAL (cfun->decl), 0);
+    delete_insn(note);
+  }
+#endif
 
   reorder_blocks ();
 }

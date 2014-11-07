@@ -2085,6 +2085,9 @@ expand_binop (enum machine_mode mode, optab binoptab, rtx op0, rtx op1,
      try using a signed widening multiply.  */
 
   if (binoptab == smul_optab
+#ifdef _BUILD_C30_
+      && (optimize_size == 0)
+#endif
       && mclass == MODE_INT
       && GET_MODE_SIZE (mode) == 2 * UNITS_PER_WORD
       && optab_handler (smul_optab, word_mode)->insn_code != CODE_FOR_nothing

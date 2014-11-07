@@ -711,6 +711,10 @@ DEF_RTL_EXPR(US_TRUNCATE, "us_truncate", "e", RTX_UNARY)
    initialization status of variables.  */
 DEF_RTL_EXPR(VAR_LOCATION, "var_location", "tei", RTX_EXTRA)
 
+#ifdef _BUILD_C30_
+#include "config/pic30/pic30-rtl.def"
+#endif
+
 /* All expressions from this point forward appear only in machine
    descriptions.  */
 #ifdef GENERATOR_FILE

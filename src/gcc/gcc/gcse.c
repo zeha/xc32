@@ -3588,7 +3588,57 @@ insert_insn_end_basic_block (struct expr *expr, basic_block bb)
 	  if (maybe_cc0_setter
 	      && INSN_P (maybe_cc0_setter)
 	      && sets_cc0_p (PATTERN (maybe_cc0_setter)))
+#ifdef _BUILD_C30_
+          {
+            rtx p_insn;
+            int insn_uses_mem = 0;
+
+            insn = maybe_cc0_setter;
+
+            insn_uses_mem = rtx_uses_mem_p(PATTERN(pat));
+            /* if insn is not an expression, but just a register move,
+                  place it before the source, if it is found in this block */
+            if ((GET_CODE(PATTERN(insn)) == SET) &&
+                (GET_CODE(XEXP(PATTERN(insn),1)) == REG)) {
+              for (p_insn = PREV_INSN(insn); !NOTE_INSN_BASIC_BLOCK_P(p_insn);
+                   p_insn = PREV_INSN(p_insn)) {
+                rtx p;
+                int i = 0,okay;
+
+                if (!INSN_P(p_insn)) continue;
+                if (GET_CODE(p_insn) == CALL_INSN) {
+                  if (insn_uses_mem) break;
+                }
+                p = PATTERN(p_insn);
+                okay=1;
+                do {
+                  if (GET_CODE(PATTERN(p_insn)) == PARALLEL) {
+                    if (i < XVECLEN(PATTERN(p_insn),0)) {
+                      p = XVECEXP(PATTERN(p_insn),0,i++);
+                      if (GET_CODE(p) != SET) continue;
+                    } else {
+                      p = 0;
+                      continue;
+                    }
+                  }
+                  if (REG_P(XEXP(p,0))) {
+                    /* if p_insn sets a register used in the new instruction,
+                       give up */
+                    if (reg_mentioned_p(XEXP(p,0), pat)) okay=0;
+                   } else if (GET_CODE(XEXP(p,0)) == MEM) {
+                     /* if pat uses a mem, and the current instructions modifies
+                        a mem, stop - we don't do alias checking */
+                    if (insn_uses_mem) okay=0;
+                  }
+                } while ((GET_CODE(PATTERN(p_insn)) == PARALLEL) && p && okay);
+                if (!okay) break;
+                insn = p_insn;
+                }
+              }
+            }
+#else
 	    insn = maybe_cc0_setter;
+#endif
 	}
 #endif
       /* FIXME: What if something in cc0/jump uses value set in new insn?  */

@@ -958,8 +958,15 @@ copyprop_hardreg_forward_1 (basic_block bb, struct value_data *vd)
       note_stores (PATTERN (insn), kill_set_value, vd);
 
       /* Notice copies.  */
-      if (set && REG_P (SET_DEST (set)) && REG_P (SET_SRC (set)))
-	copy_value (SET_DEST (set), SET_SRC (set), vd);
+      if (set && REG_P (SET_DEST (set)) && REG_P (SET_SRC (set))) 
+        {
+#ifdef _BUILD_C30_
+          /* why record registers that have died, we can't use them
+             in the future wihtout clearing the DEAD notice */
+          if (find_regno_note(insn, REG_DEAD, REGNO(SET_SRC(set))) == 0)
+#endif
+	  copy_value (SET_DEST (set), SET_SRC (set), vd);
+        }
 
       if (insn == BB_END (bb))
 	break;

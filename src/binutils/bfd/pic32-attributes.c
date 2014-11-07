@@ -398,15 +398,12 @@ char * pic32_section_size_string (asection *sec)
   if (result == (char *) NULL)
     return result;
 
-  //if (PIC32_SECTION_IN_DATA_MEMORY(sec) || PIC32_IS_MEMORY_ATTR(sec))
     units = S2;
-  //else
-    //units = S3;
 
   if (sec->rawsize != 0)
-    snprintf(result, MAX_LEN, "%s%ld%s", S1, sec->rawsize / 2, units);
+    snprintf(result, MAX_LEN, "%s%ld%s", S1, sec->rawsize, units);
   else
-    snprintf(result, MAX_LEN, "%s%ld%s", S1, sec->size / 2, units);
+    snprintf(result, MAX_LEN, "%s%ld%s", S1, sec->size, units);
     
   return result;
 }

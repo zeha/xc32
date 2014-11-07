@@ -562,13 +562,23 @@ clone_of_p (struct cgraph_node *node, struct cgraph_node *node2)
   return node2 != NULL;
 }
 
+/* Switch to THIS_CFUN if needed and print STMT to stderr.  */                 
+static void                                                                    
+cgraph_debug_gimple_stmt (struct function *this_cfun, gimple stmt)             
+{                                                                              
+  /* debug_gimple_stmt needs correct cfun */                                   
+  if (cfun != this_cfun)                                                       
+    set_cfun (this_cfun);                                                      
+  debug_gimple_stmt (stmt);                                                    
+}
+
+
 /* Verify cgraph nodes of given cgraph node.  */
 void
 verify_cgraph_node (struct cgraph_node *node)
 {
   struct cgraph_edge *e;
   struct function *this_cfun = DECL_STRUCT_FUNCTION (node->decl);
-  struct function *saved_cfun = cfun;
   basic_block this_block;
   gimple_stmt_iterator gsi;
   bool error_found = false;
@@ -577,8 +587,6 @@ verify_cgraph_node (struct cgraph_node *node)
     return;
 
   timevar_push (TV_CGRAPH_VERIFY);
-  /* debug_generic_stmt needs correct cfun */
-  set_cfun (this_cfun);
   for (e = node->callees; e; e = e->next_callee)
     if (e->aux)
       {
@@ -768,7 +776,7 @@ verify_cgraph_node (struct cgraph_node *node)
 			if (e->aux)
 			  {
 			    error ("shared call_stmt:");
-			    debug_gimple_stmt (stmt);
+			    cgraph_debug_gimple_stmt (this_cfun, stmt);
 			    error_found = true;
 			  }
 			if (e->callee->same_body_alias)
@@ -792,7 +800,7 @@ verify_cgraph_node (struct cgraph_node *node)
 		    else
 		      {
 			error ("missing callgraph edge for call stmt:");
-			debug_gimple_stmt (stmt);
+			cgraph_debug_gimple_stmt (this_cfun, stmt);
 			error_found = true;
 		      }
 		  }
@@ -810,7 +818,7 @@ verify_cgraph_node (struct cgraph_node *node)
 	      error ("edge %s->%s has no corresponding call_stmt",
 		     identifier_to_locale (cgraph_node_name (e->caller)),
 		     identifier_to_locale (cgraph_node_name (e->callee)));
-	      debug_gimple_stmt (e->call_stmt);
+	      cgraph_debug_gimple_stmt (this_cfun, e->call_stmt);
 	      error_found = true;
 	    }
 	  e->aux = 0;
@@ -821,7 +829,6 @@ verify_cgraph_node (struct cgraph_node *node)
       dump_cgraph_node (stderr, node);
       internal_error ("verify_cgraph_node failed");
     }
-  set_cfun (saved_cfun);
   timevar_pop (TV_CGRAPH_VERIFY);
 }
 

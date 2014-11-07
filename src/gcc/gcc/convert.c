@@ -50,6 +50,36 @@ convert_to_pointer (tree type, tree expr)
   if (integer_zerop (expr))
     return force_fit_type_double (type, 0, 0, 0, TREE_OVERFLOW (expr));
 
+#if _BUILD_C30_
+  /* If expr is an INTEGER_TYPE  and type is an address space, we *still* need 
+     to call ADDR_SPACE_CONVERT_EXPR to make the address space.... */
+  {
+     addr_space_t to_as = TYPE_ADDR_SPACE (TREE_TYPE (type));
+     addr_space_t from_as = to_as;
+
+     switch (TREE_CODE(TREE_TYPE(expr))) {
+       default: break;
+       case POINTER_TYPE:
+       case REFERENCE_TYPE:
+         from_as = TYPE_ADDR_SPACE (TREE_TYPE (TREE_TYPE (expr)));
+         break;
+  
+       case INTEGER_TYPE:
+         if (TREE_CODE(expr) != INTEGER_CST) 
+         {
+           from_as = TYPE_ADDR_SPACE (TREE_TYPE (expr));
+           if (from_as != to_as) {
+             expr =convert_to_pointer(build_pointer_type(TREE_TYPE(expr)),expr);
+           }
+         }
+         break;
+     }
+ 
+     if (to_as != from_as) 
+       return fold_build1_loc (loc, ADDR_SPACE_CONVERT_EXPR, type, expr);
+  }
+#endif
+
   switch (TREE_CODE (TREE_TYPE (expr)))
     {
     case POINTER_TYPE:

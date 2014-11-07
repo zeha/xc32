@@ -1523,8 +1523,9 @@ instantiate_virtual_regs_in_insn (rtx insn)
   /* In the general case, we expect virtual registers to appear only in
      operands, and then only as either bare registers or inside memories.  */
   for (i = 0; i < recog_data.n_operands; ++i)
-    {
+    { 
       x = recog_data.operand[i];
+      
       switch (GET_CODE (x))
 	{
 	case MEM:
@@ -5024,6 +5025,12 @@ thread_prologue_and_epilogue_insns (void)
 #ifdef HAVE_prologue
   if (HAVE_prologue)
     {
+
+#ifdef _BUILD_C30_
+#ifdef PRE_PROLOGUE_FN
+      PRE_PROLOGUE_FN
+#endif
+#endif
       start_sequence ();
       seq = gen_prologue ();
       emit_insn (seq);

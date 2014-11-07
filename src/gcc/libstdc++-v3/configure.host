@@ -110,6 +110,10 @@ case "${host_cpu}" in
   mips*)
     try_cpu=mips
     ;;
+  pic32*)
+    try_cpu=mips
+    EXTRA_CXX_FLAGS=-mno-smart-io
+    ;;
   powerpc* | rs6000)
     try_cpu=powerpc
     ;;

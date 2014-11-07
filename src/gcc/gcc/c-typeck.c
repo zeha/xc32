@@ -2287,6 +2287,22 @@ build_array_ref (location_t loc, tree array, tree index)
 	}
 
       type = TREE_TYPE (TREE_TYPE (array));
+#ifdef _BUILD_C30_
+      /* from C30 GCC 4.0.2, leave of the type of the array since we are not
+         taking the main variant of the type.  However, an array of things
+         in address space x pretty much means the array is also in address
+         space x */
+      if (TYPE_ADDR_SPACE(TREE_TYPE(TREE_TYPE(array)))) {
+        type = build_variant_type_copy(type);
+
+        if ((TYPE_ADDR_SPACE(type)) && 
+            (TYPE_ADDR_SPACE(type) != 
+             TYPE_ADDR_SPACE(TREE_TYPE(TREE_TYPE(array)))))
+          error("Array element in different address space than array");
+      
+        TYPE_ADDR_SPACE(type) = TYPE_ADDR_SPACE(TREE_TYPE(TREE_TYPE(array)));
+      }
+#endif
       rval = build4 (ARRAY_REF, type, array, index, NULL_TREE, NULL_TREE);
       /* Array ref is const/volatile if the array elements are
 	 or if the array is.  */
@@ -3664,9 +3680,17 @@ build_unary_op (location_t location,
 	 only have to deal with `const' and `volatile' here.  */
       if ((DECL_P (arg) || REFERENCE_CLASS_P (arg))
 	  && (TREE_READONLY (arg) || TREE_THIS_VOLATILE (arg)))
+#ifdef _BUILD_C30_
+          /* make sure that the address spaces are not lost here */
+	  argtype = c_build_qualified_type (argtype,
+                      ENCODE_QUAL_ADDR_SPACE(TYPE_ADDR_SPACE(argtype)) |
+                      (TREE_READONLY (arg) ? TYPE_QUAL_CONST : 0) |
+                      (TREE_THIS_VOLATILE (arg) ? TYPE_QUAL_VOLATILE : 0));
+#else
 	  argtype = c_build_type_variant (argtype,
 					  TREE_READONLY (arg),
 					  TREE_THIS_VOLATILE (arg));
+#endif
 
       if (!c_mark_addressable (arg))
 	return error_mark_node;
@@ -5205,8 +5229,15 @@ convert_for_assignment (location_t location, tree type, tree rhs,
       /* See if the pointers point to incompatible address spaces.  */
       asl = TYPE_ADDR_SPACE (ttl);
       asr = TYPE_ADDR_SPACE (ttr);
+#ifdef _BUILD_C30_
+      /* To me (CW) it make sense that we check for the right hand side
+         being the subset of the left hand side - not the other way round */
+      if (!null_pointer_constant_p (rhs)
+	  && asr != asl && !targetm.addr_space.subset_p (asl, asr))
+#else
       if (!null_pointer_constant_p (rhs)
 	  && asr != asl && !targetm.addr_space.subset_p (asr, asl))
+#endif
 	{
 	  switch (errtype)
 	    {
@@ -6510,6 +6541,13 @@ push_init_level (int implicit)
   else if (TREE_CODE (constructor_type) == ARRAY_TYPE)
     {
       constructor_type = TREE_TYPE (constructor_type);
+#ifdef _BUILD_C30_
+      /* provide a better error message than an ICE */
+      if (TREE_OVERFLOW(constructor_index)) {
+        error_init("Array too large");
+        return;
+      }
+#endif
       push_array_bounds (tree_low_cst (constructor_index, 1));
       constructor_depth++;
     }

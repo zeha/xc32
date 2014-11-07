@@ -85,6 +85,32 @@ int target_flags;
 static unsigned int
 num_sign_bit_copies_in_rep[MAX_MODE_INT + 1][MAX_MODE_INT + 1];
 
+
+#ifdef _BUILD_C30_
+/* Return 1 X uses a MEM */
+int rtx_uses_mem_p(rtx x)
+{
+  RTX_CODE code = GET_CODE(x);
+  int i;
+  const char *fmt;
+
+  if (code == MEM) return 1;
+
+  fmt = GET_RTX_FORMAT (GET_CODE(x));
+  for (i = GET_RTX_LENGTH (code) - 1; i >= 0; i--)
+    if (fmt[i] == 'e') {
+      if (rtx_uses_mem_p (XEXP (x, i))) return 1;
+    }
+    else if (fmt[i] == 'E') {
+      int j;
+
+      for (j = 0; j < XVECLEN (x, i); j++)
+        if (rtx_uses_mem_p (XVECEXP (x, i, j))) return 1;
+    }
+  return 0;
+}
+#endif
+
 /* Return 1 if the value of X is unstable
    (would be different at a different point in the program).
    The frame pointer, arg pointer, etc. are considered stable

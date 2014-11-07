@@ -4262,6 +4262,9 @@ extern void layout_decl (tree, unsigned);
 /* Given a VAR_DECL, PARM_DECL or RESULT_DECL, clears the results of
    a previous call to layout_decl and calls it again.  */
 
+#ifdef _BUILD_C30_
+extern void relayout_type (tree);
+#endif
 extern void relayout_decl (tree);
 
 /* Return the mode for data of a given size SIZE and mode class CLASS.

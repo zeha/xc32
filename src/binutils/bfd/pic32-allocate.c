@@ -496,7 +496,7 @@ group_section_size(struct pic32_section *g)
     next = s->next;
     if (s->sec == 0)
       continue;
-    if (s->sec && (strcmp(g->sec->name, s->sec->name) == 0))
+    if (s->sec && (PIC32_IS_RAMFUNC_ATTR(s->sec)))
       result += s->sec->size;
   }
   return result;
@@ -569,7 +569,7 @@ group_section_size(struct pic32_section *g)
 
   if (pic32_debug)
     printf("    removing group from allocation list\n");
-  pic32_remove_group_from_section_list(alloc_section_list,s->sec->name);
+  pic32_remove_group_from_section_list(alloc_section_list);
 
   return result;
 } /* locate_group_section() */
@@ -714,13 +714,6 @@ locate_sections(unsigned int mask, unsigned int block,
               if (pic32_debug)
                 printf("  _bmxdkpba_address = %x\n", (unsigned int)(ramfunc_begin - region->origin));
             }
-          else {
-              reset_locate_options();
-              s->sec->alignment_power = 2;
-              result |= locate_group_section(s, region);
-            }
-
-
         }
       else {
           result |= locate_single_section(s, region);
@@ -1033,7 +1026,7 @@ select_free_block(struct pic32_section *s, unsigned int len) {
   else
     report_allocation_error(s);
 
-#if 1
+#if 0
   {
 #define PREFIX "/tmp"
     char *colon = "";
@@ -1189,15 +1182,17 @@ update_group_section_info(bfd_vma alloc_addr,
   lang_output_section_statement_type *os;
 
   /* create a unique name for the output section, if necessary */
-  sec = bfd_get_section_by_name(link_info.output_bfd, g->sec->name);
-  if (sec) {
-    name = ( g->sec->size > 0) ?
-            unique_section_name(g->sec->name) :
-            unique_zero_length_section_name(g->sec->name);
-  }
-  else
-    name = (char *) g->sec->name;
-
+     sec = bfd_get_section_by_name(link_info.output_bfd, g->sec->name);
+     if (sec) {
+       name = ( g->sec->size > 0) ?
+               unique_section_name(g->sec->name) :
+               unique_zero_length_section_name(g->sec->name);
+     }
+     else {
+       name = (char *) g->sec->name;
+       if (PIC32_IS_RAMFUNC_ATTR(g->sec))
+         strcpy(name, ".RAMFUNC$");
+     }
   /* create an output section (statement) */
   os = lang_output_section_statement_lookup (name, 0, TRUE);
   if (pic32_debug)
@@ -1206,7 +1201,7 @@ update_group_section_info(bfd_vma alloc_addr,
   /* loop through the input sections in this group */
   for (s = g; s != NULL; s = next) {
     next = s->next;
-    if (s->sec && (strcmp(g->sec->name, s->sec->name) == 0)) {
+    if (s->sec && (PIC32_IS_RAMFUNC_ATTR(s->sec))) {
       update_section_addr(s->sec, addr);
       addr += (s->sec->size);
 

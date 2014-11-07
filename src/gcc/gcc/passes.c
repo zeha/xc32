@@ -966,6 +966,9 @@ init_optimization_passes (void)
     {
       struct opt_pass **p = &pass_rest_of_compilation.pass.sub;
       NEXT_PASS (pass_init_function);
+#ifdef _BUILD_C30_
+      NEXT_PASS (pass_merge_accumulators);
+#endif
       NEXT_PASS (pass_jump);
       NEXT_PASS (pass_rtl_eh);
       NEXT_PASS (pass_initial_value_sets);
@@ -1007,6 +1010,9 @@ init_optimization_passes (void)
       NEXT_PASS (pass_inc_dec);
       NEXT_PASS (pass_initialize_regs);
       NEXT_PASS (pass_ud_rtl_dce);
+#ifdef _BUILD_C30_
+      NEXT_PASS (pass_validate_dsp_instructions);
+#endif
       NEXT_PASS (pass_combine);
       NEXT_PASS (pass_if_after_combine);
       NEXT_PASS (pass_partition_blocks);

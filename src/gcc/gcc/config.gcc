@@ -2035,6 +2035,31 @@ pdp11-*-*)
 	tm_file="${tm_file} newlib-stdint.h"
 	use_gcc_stdint=wrap
 	;;
+pic30-*-coff)
+        host_can_use_collect2=no
+        elf=no
+        build_xm_defines="PROGRAM_PREFIX=\\\"pic30-\\\" _BUILD_C30_ _BUILD_MCHP_ ${xm_defines}"
+        host_xm_defines="PROGRAM_PREFIX=\\\"pic30-\\\" _BUILD_C30_ _BUILD_MCHP_ ${xm_defines}"
+        host_xm_defines="OMF=\\\"coff\\\" ${host_xm_defines}"
+        extra_modes=pic30/pic30-modes.h
+        c_target_objs=pic30-c.o
+        extra_objs="${extra_objs} cci-backend.o"
+        LANGUAGES="c"
+        LIBGCCMK=
+        ;;
+pic30-*-elf)
+        host_can_use_collect2=no
+        elf=yes
+        tm_defines="OBJECT_FORMAT_ELF $tm_defines"
+        build_xm_defines="PROGRAM_PREFIX=\\\"pic30-\\\" _BUILD_C30_ _BUILD_MCHP_ ${xm_defines}"
+        host_xm_defines="PROGRAM_PREFIX=\\\"pic30-\\\" _BUILD_C30_ _BUILD_MCHP_ ${xm_defines}"
+        host_xm_defines="OMF=\\\"elf\\\" ${host_xm_defines}"
+        extra_modes=pic30/pic30-modes.h
+        c_target_objs=pic30-c.o
+        extra_objs="${extra_objs} cci-backend.o"
+        LANGUAGES="c"
+        LIBGCCMK=
+        ;;
 pic32*-mchp-elf*)
 	tm_file="elfos.h newlib-stdint.h ${tm_file} mips/elf.h mips/sde.h"
 	tm_file="${tm_file} mips/sdemtk.h"
@@ -2042,7 +2067,7 @@ pic32*-mchp-elf*)
 	tmake_file="${tmake_file} pic32/t-mchp pic32/t-libgcc-mips16"
 	extra_options="pic32/mchp.opt"
 	tm_p_file="${tm_p_file} pic32/mchp-protos.h"
-	extra_objs="${extra_objs} mchp.o"
+	extra_objs="${extra_objs} mchp.o cci-backend.o"
 	use_gcc_stdint=none
 	case "${with_newlib}" in
 	  yes)
@@ -2065,7 +2090,9 @@ pic32*-mchp-elf*)
 #	   tmake_file="${tmake_file} pic32/t-mchpmingw"
 #	   ;;
 #	esac
-	tm_defines="MIPS_ISA_DEFAULT=33 MIPS_ABI_DEFAULT=ABI_32"
+	tm_defines="${tm_defines} MIPS_ISA_DEFAULT=33 MIPS_ABI_DEFAULT=ABI_32 _BUILD_MCHP_=1 _BUILD_C32_=1"
+	build_xm_defines="_BUILD_C32_=1 _BUILD_MCHP_=1 ${xm_defines}"
+	host_xm_defines="_BUILD_C32_=1 _BUILD_MCHP_=1 ${xm_defines}"
 	;;
 picochip-*)
 	tm_file="${tm_file} newlib-stdint.h"

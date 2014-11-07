@@ -3306,10 +3306,18 @@ ira (FILE *f)
   timevar_pop (TV_IRA);
 
   timevar_push (TV_RELOAD);
+
+#ifdef _BUILD_C30_
+  do {
+    build_insn_chain ();
+    reload_completed = !reload (get_insns (), ira_conflicts_p);
+  }  while (reload_in_progress);
+#else
   df_set_flags (DF_NO_INSN_RESCAN);
   build_insn_chain ();
 
   reload_completed = !reload (get_insns (), ira_conflicts_p);
+#endif
 
   finish_subregs_of_mode ();
 

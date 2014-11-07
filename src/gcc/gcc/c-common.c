@@ -3804,6 +3804,20 @@ pointer_int_sum (location_t loc, enum tree_code resultcode,
 
   /* Convert the integer argument to a type the same size as sizetype
      so the multiply won't overflow spuriously.  */
+
+#ifdef _BUILD_C30_
+  /* C30 has different sized pointers but size_t is usually unsigned int
+     to keep the code efficient for the normal case -
+
+     if the precision of the result type is bigger than size_t use it instead */
+  if (TYPE_PRECISION (result_type) > TYPE_PRECISION(sizetype)) {
+
+    if (TYPE_PRECISION (TREE_TYPE (intop)) != TYPE_PRECISION (result_type)
+        || TYPE_UNSIGNED (TREE_TYPE (intop)) != TYPE_UNSIGNED (result_type))
+      intop = convert(c_common_type_for_size(TYPE_PRECISION(result_type),
+                                             TYPE_UNSIGNED(result_type)),intop);
+  } 
+#endif
   if (TYPE_PRECISION (TREE_TYPE (intop)) != TYPE_PRECISION (sizetype)
       || TYPE_UNSIGNED (TREE_TYPE (intop)) != TYPE_UNSIGNED (sizetype))
     intop = convert (c_common_type_for_size (TYPE_PRECISION (sizetype),
@@ -6640,6 +6654,14 @@ handle_section_attribute (tree *node, tree ARG_UNUSED (name), tree args,
 	}
       else
 	{
+#ifdef _BUILD_MCHP_
+          if ((TREE_CODE (decl) == FUNCTION_DECL
+               || TREE_CODE (decl) == VAR_DECL))
+            {
+              error ("%Dsection attribute expects string literal argument for %qD", *node, *node);
+            }
+            else
+#endif
 	  error ("section attribute not allowed for %q+D", *node);
 	  *no_add_attrs = true;
 	}

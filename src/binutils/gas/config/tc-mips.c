@@ -13842,6 +13842,9 @@ s_change_section (int ignore ATTRIBUTE_UNUSED)
        {
          name = xmalloc (input_line_pointer - section_name + 1);
          strcpy (name, section_name);
+         /*xc32-129*/
+         if (strcmp(name,".RAMFUNC$") == 0)
+             as_bad (_(".RAMFUNC$ is a reserved section name.\n"));
          *input_line_pointer = c;
        }
 
@@ -17145,7 +17148,8 @@ static const struct mips_cpu_info mips_cpu_info_table[] =
   { "xlr",            0,      ISA_MIPS64,     CPU_XLR },
 
   /* Microchip PIC32MX */
-  { "pic32mx",        0,      ISA_MIPS32R2,   CPU_PIC32MX },
+  { "pic32mx",        MIPS_CPU_ASE_DSP | MIPS_CPU_ASE_DSPR2,
+						ISA_MIPS32R2,   CPU_PIC32MX },
 
   /* End marker */
   { NULL, 0, 0, 0 }

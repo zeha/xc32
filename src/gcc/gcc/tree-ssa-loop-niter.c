@@ -2021,9 +2021,16 @@ chain_of_csts_start (struct loop *loop, tree x)
 {
   gimple stmt = SSA_NAME_DEF_STMT (x);
   tree use;
+#ifdef _BUILD_C30_
+  basic_block bb = NULL;
+#else
   basic_block bb = gimple_bb (stmt);
+#endif
   enum tree_code code;
 
+#ifdef _BUILD_C30_
+  if (stmt) bb = gimple_bb(stmt);
+#endif
   if (!bb
       || !flow_bb_inside_loop_p (loop, bb))
     return NULL;

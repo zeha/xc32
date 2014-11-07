@@ -176,7 +176,11 @@ struct gcc_target
     /* Tell assembler to change to section NAME with attributes FLAGS.
        If DECL is non-NULL, it is the VAR_DECL or FUNCTION_DECL with
        which this section is associated.  */
+#ifdef _BUILD_C30_
+    void (* named_section) (const char *name, SECTION_FLAGS_INT flags, tree decl);
+#else
     void (* named_section) (const char *name, unsigned int flags, tree decl);
+#endif
 
     /* Return a mask describing how relocations should be treated when
        selecting sections.  Bit 1 should be set if global relocations
@@ -626,7 +630,11 @@ struct gcc_target
   /* Given a decl, a section name, and whether the decl initializer
      has relocs, choose attributes for the section.  */
   /* ??? Should be merged with SELECT_SECTION and UNIQUE_SECTION.  */
+#ifdef _BUILD_C30_
+  SECTION_FLAGS_INT (* section_type_flags) (tree, const char *, int);
+#else
   unsigned int (* section_type_flags) (tree, const char *, int);
+#endif
 
   /* True if new jumps cannot be created, to replace existing ones or
      not, at the current point in the compilation.  */

@@ -623,4 +623,9 @@ extern bool first_pass_instance;
 /* Declare for plugins.  */
 extern void do_per_function_toporder (void (*) (void *), void *);
 
+#ifdef _BUILD_C30_
+extern struct rtl_opt_pass pass_validate_dsp_instructions;
+extern struct rtl_opt_pass pass_merge_accumulators;
+#endif
+
 #endif /* GCC_TREE_PASS_H */

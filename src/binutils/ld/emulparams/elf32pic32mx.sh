@@ -34,6 +34,14 @@ GENERATE_SHLIB_SCRIPT=no
 GENERATE_PIE_SCRIPT=no
 SHLIB_TEXT_START_ADDR=0
 
+INITIAL_READONLY_SECTIONS=
+if test -z "${CREATE_SHLIB}"; then
+  INITIAL_READONLY_SECTIONS=".interp       ${RELOCATING-0} : { *(.interp) }"
+fi
+INITIAL_READONLY_SECTIONS="${INITIAL_READONLY_SECTIONS}
+  .reginfo      ${RELOCATING-0} : { *(.reginfo) }
+"
+
 # Unlike most targets, the MIPS backend puts all dynamic relocations
 # in a single dynobj section, which it also calls ".rel.dyn".  It does
 # this so that it can easily sort all dynamic relocations before the
@@ -55,7 +63,7 @@ EXECUTABLE_SYMBOLS="
  */
 EXTERN (_min_stack_size _min_heap_size)
 PROVIDE(_min_stack_size = 0x400) ;
-PROVIDE(_min_heap_size = 0) ;
+/* PROVIDE(_min_heap_size = 0) ; Defined on the command line */
 "
 
 # These files will always be included in the link
@@ -616,9 +624,16 @@ OTHER_SECTIONS="
 
     /* The .pdr section belongs in the absolute section */
     /DISCARD/ : { *(.pdr) }
-    /* We don't load .reginfo onto the target, so don't locate it
-     * in real memory
-     */
-    /DISCARD/ : { *(.reginfo) }
+
+  .gptab.sdata : { *(.gptab.data) *(.gptab.sdata) }
+  .gptab.sbss : { *(.gptab.bss) *(.gptab.sbss) }
+  .mdebug.abi32 : { KEEP(*(.mdebug.abi32)) }
+  .mdebug.abiN32 : { KEEP(*(.mdebug.abiN32)) }
+  .mdebug.abi64 : { KEEP(*(.mdebug.abi64)) }
+  .mdebug.abiO64 : { KEEP(*(.mdebug.abiO64)) }
+  .mdebug.eabi32 : { KEEP(*(.mdebug.eabi32)) }
+  .mdebug.eabi64 : { KEEP(*(.mdebug.eabi64)) }
+  .gcc_compiled_long32 : { KEEP(*(.gcc_compiled_long32)) }
+  .gcc_compiled_long64 : { KEEP(*(.gcc_compiled_long64)) }
 "
 

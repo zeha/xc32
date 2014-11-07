@@ -5491,6 +5491,10 @@ build_qualified_type (tree type, int type_quals)
     {
       t = build_variant_type_copy (type);
       set_type_quals (t, type_quals);
+#ifdef _BUILD_C30_
+      /* new targetm ? */
+      pic30_notice_type_qualifier(t);
+#endif
 
       if (TYPE_STRUCTURAL_EQUALITY_P (type))
 	/* Propagate structural equality. */
@@ -9630,7 +9634,13 @@ needs_to_live_in_memory (const_tree t)
     t = SSA_NAME_VAR (t);
 
   return (TREE_ADDRESSABLE (t)
+#ifdef _BUILD_C30_
+          || (is_global_var (t) &&
+              (!(DECL_REGISTER(t) && TREE_CODE (t) != FIELD_DECL &&
+                 TREE_CODE(t) != FUNCTION_DECL && TREE_CODE(t) != LABEL_DECL)))
+#else
 	  || is_global_var (t)
+#endif
 	  || (TREE_CODE (t) == RESULT_DECL
 	      && aggregate_value_p (t, current_function_decl)));
 }
@@ -9749,6 +9759,12 @@ signed_or_unsigned_type_for (int unsignedp, tree type)
       if (!TYPE_ADDR_SPACE (TREE_TYPE (t)))
 	t = size_type_node;
       else
+#ifdef _BUILD_C30_
+        /* C30 extended pointer types don't behave like integers
+           and this is a bad assumption to make, they have different modes
+           for a reason */
+        return type;
+#endif
 	return lang_hooks.types.type_for_size (TYPE_PRECISION (t), unsignedp);
     }
 

@@ -865,6 +865,9 @@ shorten_branches (rtx first ATTRIBUTE_UNUSED)
   max_uid = get_max_uid ();
 
   /* Free uid_shuid before reallocating it.  */
+#ifdef _BUILD_C30_
+  if (uid_shuid)
+#endif
   free (uid_shuid);
 
   uid_shuid = XNEWVEC (int, max_uid);
@@ -2679,7 +2682,13 @@ final_scan_insn (rtx insn, FILE *file, int optimize ATTRIBUTE_UNUSED,
 	targetm.asm_out.unwind_emit (asm_out_file, insn);
 #endif
 
+#ifdef _BUILD_C30_
+        /*  call_insns might be peepholed to a point where we cannot
+            get a result from call_from_call_insn() */
+	if (CALL_P (insn) &&  (GET_CODE(PATTERN(insn)) != PARALLEL))
+#else
 	if (CALL_P (insn))
+#endif
 	  {
 	    rtx x = call_from_call_insn (insn);
 	    x = XEXP (x, 0);

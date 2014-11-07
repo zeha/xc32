@@ -538,6 +538,14 @@ layout_decl (tree decl, unsigned int known_align)
      size in bytes from the size in bits.  If we have already set the mode,
      don't set it again since we can be called twice for FIELD_DECLs.  */
 
+#if 0
+#ifdef _BUILD_C30_
+#ifdef TARGET_LAYOUT_DECL
+  TARGET_LAYOUT_DECL(decl);
+#endif
+#endif
+#endif
+
   DECL_UNSIGNED (decl) = TYPE_UNSIGNED (type);
   if (DECL_MODE (decl) == VOIDmode)
     DECL_MODE (decl) = TYPE_MODE (type);
@@ -696,6 +704,15 @@ layout_decl (tree decl, unsigned int known_align)
       SET_DECL_RTL (decl, rtl);
     }
 }
+
+#ifdef _BUILD_C30_
+void
+relayout_type (tree type)
+{
+  TYPE_SIZE(type) = 0;
+  layout_type(type);
+}
+#endif
 
 /* Given a VAR_DECL, PARM_DECL or RESULT_DECL, clears the results of
    a previous call to layout_decl and calls it again.  */
@@ -2083,6 +2100,14 @@ layout_type (tree type)
     default:
       gcc_unreachable ();
     }
+
+#if 0
+#ifdef _BUILD_C30_
+#ifdef TARGET_LAYOUT_TYPE
+  TARGET_LAYOUT_TYPE(type);
+#endif
+#endif
+#endif
 
   /* Compute the final TYPE_SIZE, TYPE_ALIGN, etc. for TYPE.  For
      records and unions, finish_record_layout already called this

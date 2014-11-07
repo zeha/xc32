@@ -81,6 +81,9 @@ void *alloca(size_t);
 #include <alloca.h>
 #endif
 
+#include "config/mchp-cci/cci.h"
+#include "config/mchp-cci/xclm_public.h"
+
 #define xstr(s) str(s)
 #define str(s) #s
 
@@ -95,6 +98,11 @@ extern bool user_defined_section_attribute;
 extern bool bss_initializer_p (const_tree decl);
 
 extern cpp_options *cpp_opts;
+
+#ifndef MCHP_XCLM_FREE_LICENSE
+ #define MCHP_XCLM_FREE_LICENSE 0x0
+ #warning MCHP_XCLM_FREE_LICENSE not defined by API
+#endif
 
 
 /* Local Variables */
@@ -118,6 +126,12 @@ extern cpp_options *cpp_opts;
 #define SECTION_NAME_CONST        ".rodata"
 #define SECTION_NAME_RAMFUNC      ".ramfunc"
 #define SECTION_NAME_PBSS         ".pbss"
+#define SECTION_NAME_INIT         ".init"
+#define SECTION_NAME_FINI         ".fini"
+#define SECTION_NAME_CTORS        ".ctors"
+#define SECTION_NAME_DTORS        ".dtors"
+#define SECTION_NAME_INIT_ARRAY   ".init_array"
+#define SECTION_NAME_FINI_ARRAY   ".fini_array"
 
 #define JOIN2(X,Y) (X ## Y)
 #define JOIN(X,Y) JOIN2(X,Y)
@@ -133,7 +147,6 @@ extern cpp_options *cpp_opts;
 #define SECTION_INFO            (MCHP_ULL(SECTION_MACH_DEP) << 5)
 #define SECTION_ADDRESS         (MCHP_ULL(SECTION_MACH_DEP) << 6)
 #define SECTION_ALIGN           (MCHP_ULL(SECTION_MACH_DEP) << 7)
-
 
 
 /* the attribute names from the assemblers point of view */
@@ -227,6 +240,7 @@ struct reserved_section_names_
 {
   { ".bss",    SECTION_BSS },
   { ".rodata",  SECTION_READ_ONLY },
+  { ".rodata1",  SECTION_READ_ONLY },
   { ".data",   SECTION_WRITE },
   { ".dconst", SECTION_WRITE },
   { ".sbss",   SECTION_BSS | SECTION_NEAR },
@@ -235,13 +249,24 @@ struct reserved_section_names_
   { ".pbss",   SECTION_PERSIST },
   { ".text",   SECTION_CODE },
   { ".ramfunc", SECTION_RAMFUNC },
+  { ".gnu.linkonce.d", SECTION_WRITE },
+  { ".gnu.linkonce.t", SECTION_CODE },
+  { ".gnu.linkonce.r", SECTION_READ_ONLY },
+  { ".gnu.linkonce.s2", SECTION_READ_ONLY },
+  { ".gnu.linkonce.sb2", SECTION_READ_ONLY },
+  { ".got", SECTION_WRITE },
+  { ".got.plt", SECTION_WRITE },
+  { ".gnu.linkonce.s", SECTION_WRITE | SECTION_NEAR },
+  { ".gnu.linkonce.sb", SECTION_BSS | SECTION_NEAR },
+  { ".dynsbss", SECTION_BSS | SECTION_NEAR },
+  { ".scommon", SECTION_BSS | SECTION_NEAR },
+  { ".dynbss", SECTION_BSS },
   { 0, 0},
 };
 
 static const char *mchp_default_section = "*";
 static char this_default_name[sizeof("*_012345670123456701234567")];
 static time_t current_time = 0;
-static int size_t_used_externally = 0;
 static int lfInExecutableSection = FALSE;
 
 enum
@@ -302,6 +327,13 @@ static sectionStack *freeSectionStack;
 
 enum mips_function_type_tag current_function_type;
 
+typedef struct cheap_rtx_list {
+  tree t;
+  rtx x;
+  int flag;
+  struct cheap_rtx_list *next;
+} cheap_rtx_list;
+
 typedef enum mchp_interesting_fn_info_
 {
   info_invalid,
@@ -359,7 +391,10 @@ static HOST_WIDE_INT mchp_offset_epc = 0;
 static HOST_WIDE_INT mchp_offset_srsctl = 0;
 
 static HOST_WIDE_INT mchp_invalid_ipl_warning = 0;
-HOST_WIDE_INT mchp_pic32_license_valid = 2;
+HOST_WIDE_INT mchp_pic32_license_valid = MCHP_XCLM_VALID_CPP_FULL;
+
+static void push_cheap_rtx(cheap_rtx_list **l, rtx x, tree t, int flag);
+static rtx pop_cheap_rtx(cheap_rtx_list **l, tree *t, int *flag);
 
 static tree mchp_function_interrupt_p (tree decl);
 static int mchp_function_naked_p (tree func);
@@ -430,6 +465,7 @@ mchp_subtarget_override_options1 (void)
     dwarf_strict = 1;
 }
 
+#ifdef MCHP_USE_LICENSE_CONF
 /* get a line, and remove any line-ending \n or \r\n */
 static char *
 get_line (char *buf, size_t n, FILE *fptr)
@@ -441,13 +477,17 @@ get_line (char *buf, size_t n, FILE *fptr)
     buf [strlen (buf) - 1] = '\0';
   return buf;
 }
+#endif
 
 #ifndef SKIP_LICENSE_MANAGER
 
-#define MCHP_MAX_LICENSEPATH_LINE_LENGTH 255
+#ifdef MCHP_USE_LICENSE_CONF
 #define MCHP_LICENSE_CONF_FILENAME "license.conf"
 #define MCHP_LICENSEPATH_MARKER "license_dir"
+#endif /* MCHP_USE_LICENSE_CONF */
+
 #ifdef __MINGW32__
+#define MCHP_MAX_LICENSEPATH_LINE_LENGTH 1024
 #define MCHP_XCLM_FILENAME "xclm.exe"
 #else
 #define MCHP_XCLM_FILENAME "xclm"
@@ -456,17 +496,16 @@ get_line (char *buf, size_t n, FILE *fptr)
 static char*
 get_license_manager_path (void)
 {
-  char *conf_dir, *conf_fname;
   extern char **save_argv;
-
-  FILE *fptr;
-  char line [MCHP_MAX_LICENSEPATH_LINE_LENGTH] = {0};
-  char *xclmpath;
-  int xclmpath_length;
+  char *xclmpath = NULL;
+  FILE *fptr = NULL;
   struct stat filestat;
+  int xclmpath_length;
 
-  xclmpath_length = MCHP_MAX_LICENSEPATH_LINE_LENGTH + strlen(MCHP_XCLM_FILENAME);
-  xclmpath = (char*)xcalloc(xclmpath_length+1,sizeof(char));
+#ifdef MCHP_USE_LICENSE_CONF
+  char *conf_dir, *conf_fname;
+  FILE *fptr = NULL;
+  char line [MCHP_MAX_LICENSEPATH_LINE_LENGTH] = {0};
 
   /* MCHP_LICENSE_CONF_FILENAME must reside in the same directory as pic32-gcc */
   conf_dir = make_relative_prefix(save_argv[0],
@@ -509,17 +548,30 @@ get_license_manager_path (void)
       strcat (xclmpath, MCHP_XCLM_FILENAME);
 
     }
-  else  if (-1 == stat (xclmpath, &filestat))
+
+  if (fptr != NULL)
     {
-      /*  If we can't find the license configuration file, try the compiler bin
-       *  directory.
+      fclose (fptr);
+      fptr = NULL;
+    }
+#endif /* MCHP_USE_LICENSE_CONF */
+
+#ifdef MCHP_USE_LICENSE_CONF
+  if (-1 == stat (xclmpath, &filestat))
+#endif /* MCHP_USE_LICENSE_CONF */
+    {
+      /*  Try the compiler bin directory.
+       *
        */
-      strncpy (xclmpath, make_relative_prefix(save_argv[0],
-                                              "/pic32mx/bin/gcc/pic32mx/"
-                                              str(BUILDING_GCC_MAJOR) "."
-                                              str(BUILDING_GCC_MINOR) "."
-                                              str(BUILDING_GCC_PATCHLEVEL),
-                                              "/bin"), xclmpath_length);
+      char* bindir = make_relative_prefix(save_argv[0],
+                                          "/pic32mx/bin/gcc/pic32mx/"
+                                          str(BUILDING_GCC_MAJOR) "."
+                                          str(BUILDING_GCC_MINOR) "."
+                                          str(BUILDING_GCC_PATCHLEVEL),
+                                          "/bin");
+      xclmpath_length = strlen(bindir) + strlen(MCHP_XCLM_FILENAME);
+      xclmpath = (char*)xcalloc(xclmpath_length+1,sizeof(char));
+      strncpy (xclmpath, bindir, xclmpath_length);
       /* Append the xclm executable name to the directory. */
       if (xclmpath [strlen (xclmpath) - 1] != '/'
           && xclmpath [strlen (xclmpath) - 1] != '\\')
@@ -528,9 +580,11 @@ get_license_manager_path (void)
 
       if (-1 == stat (xclmpath, &filestat))
         {
-          /*  If we can't find the license configuration file, try the compiler bin
-           *  directory.
+          free (xclmpath);
+          /*  Try the old common directory
            */
+          xclmpath_length = strlen("/opt/Microchip/xclm/bin") + strlen(MCHP_XCLM_FILENAME);
+          xclmpath = (char*)xcalloc(xclmpath_length+1,sizeof(char));
           strncpy (xclmpath, "/opt/Microchip/xclm/bin", xclmpath_length);
           /* Append the xclm executable name to the directory. */
           if (xclmpath [strlen (xclmpath) - 1] != '/'
@@ -538,11 +592,17 @@ get_license_manager_path (void)
             strcat (xclmpath, "/");
           strcat (xclmpath, MCHP_XCLM_FILENAME);
         }
-    }
-  if (fptr != NULL)
-    {
-      fclose (fptr);
-      fptr = NULL;
+      if (-1 == stat (xclmpath, &filestat))
+        {
+          /*  Try the build directory
+           */
+          strncpy (xclmpath, "/build/xc32/xclm/bin", xclmpath_length);
+          /* Append the xclm executable name to the directory. */
+          if (xclmpath [strlen (xclmpath) - 1] != '/'
+              && xclmpath [strlen (xclmpath) - 1] != '\\')
+            strcat (xclmpath, "/");
+          strcat (xclmpath, MCHP_XCLM_FILENAME);
+        }
     }
 
 #if defined(__MINGW32__)
@@ -557,12 +617,16 @@ get_license_manager_path (void)
       }
   }
 #endif
+  if (-1 == stat (xclmpath, &filestat))
+    return NULL;
 
   return xclmpath;
 }
+#ifdef MCHP_USE_LICENSE_CONF
 #undef MCHP_MAX_LICENSEPATH_LINE_LENGTH
 #undef MCHP_LICENSE_CONF_FILENAME
 #undef MCHP_LICENSEPATH_MARKER
+#endif /* MCHP_USE_LICENSE_CONF */
 #undef MCHP_XCLM_FILENAME
 #endif
 
@@ -581,25 +645,35 @@ static const char *invalid_license = "due to an invalid license";
 #endif
 
 static int
-pic32_get_license (void)
+pic32_get_license (int require_cpp)
 {
   /*
    *  On systems where we have a licence manager, call it
    */
 #ifdef TARGET_MCHP_PIC32MX
-#define PIC32_EXPIRED_LICENSE -49
-#define PIC32_FREE_LICENSE 0
-#define PIC32_VALID_STANDARD_LICENSE 0x1
-#define PIC32_VALID_PRO_LICENSE 0x2
+
+/* Misc. Return Codes */
+#ifndef MCHP_XCLM_EXPIRED_DEMO
+#define MCHP_XCLM_EXPIRED_DEMO 0x6
+#endif
+
+#define PIC32_EXPIRED_LICENSE MCHP_XCLM_EXPIRED_DEMO
+#define PIC32_FREE_LICENSE MCHP_XCLM_FREE_LICENSE
+#define PIC32_VALID_STANDARD_LICENSE MCHP_XCLM_VALID_STANDARD_LICENSE
+#define PIC32_VALID_PRO_LICENSE MCHP_XCLM_VALID_PRO_LICENSE
+#define PIC32_NO_CPP_LICENSE MCHP_XCLM_NO_CPP_LICENSE
+#define PIC32_VALID_CPP_FREE MCHP_XCLM_VALID_CPP_FREE
+#define PIC32_VALID_CPP_FULL MCHP_XCLM_VALID_CPP_FULL
 #ifndef SKIP_LICENSE_MANAGER
   {
     char *exec;
 #if XCLM_FULL_CHECKOUT
-    char kopt[] = "-full-checkout-for-compilers";
+    char kopt[] = "-fcfc";
 #else
     char kopt[] = "-checkout";
 #endif
-    char product[] = "swxc32";
+    char productc[]   = "swxc32";
+    char productcpp[] = "swxcpp32";
     char version[9] = "";
     char date[] = __DATE__;
 
@@ -649,7 +723,10 @@ pic32_get_license (void)
 
     /* Arguments to pass to xclm */
     args[1] = kopt;
-    args[2] = product;
+    if (require_cpp)
+      args[2] = productcpp;
+    else
+      args[2] = productc;
     args[3] = version;
 #if XCLM_FULL_CHECKOUT
     args[4] = date;
@@ -661,10 +738,12 @@ pic32_get_license (void)
     fprintf (stderr, "exec: %s\n", exec);
 #endif
 
-    if (-1 == stat (exec, &filestat))
+    if ((exec == NULL) || (-1 == stat (exec, &filestat)))
       {
         /* Set free edition if the license manager isn't available. */
         mchp_pic32_license_valid=PIC32_FREE_LICENSE;
+        warning (0, "Could not retrieve compiler license");
+        inform (input_location, "Please reinstall the compiler");
       }
     else
       {
@@ -684,22 +763,19 @@ pic32_get_license (void)
             /* The free edition disables optimization options without an eval period. */
             mchp_pic32_license_valid=PIC32_FREE_LICENSE;
             warning (0, "Could not retrieve compiler license (%s)", failure);
+            inform (input_location, "Please reinstall the compiler");
           }
         else if (WIFEXITED(status))
           {
             mchp_pic32_license_valid = WEXITSTATUS(status);
-            if (mchp_pic32_license_valid > PIC32_VALID_PRO_LICENSE)
-              {
-                mchp_pic32_license_valid = PIC32_FREE_LICENSE;
-              }
           }
       }
 #if MCHP_DEBUG
     fprintf (stderr, "valid license: %d\n", mchp_pic32_license_valid);
 #endif
   }
-  return mchp_pic32_license_valid;
 #endif /* SKIP_LICENSE_MANAGER */
+  return mchp_pic32_license_valid;
 }
 
 /* Implement OPTIMIZATION_OPTIONS */
@@ -707,25 +783,51 @@ pic32_get_license (void)
 void
 pic32_optimization_options (int level ATTRIBUTE_UNUSED, int size ATTRIBUTE_UNUSED)
 {
+    extern char **save_argv;
+
   if (size)
     {
       flag_inline_functions = 0;
     }
 
   {
-    mchp_pic32_license_valid = pic32_get_license ();
-    if (mchp_pic32_license_valid < PIC32_VALID_STANDARD_LICENSE)
+    int require_cpp    = 0;
+    int disable_O2     = 1;
+    int disable_O3     = 1;
+    int disable_Os     = 1;
+    int disable_mips16 = 1;
+    int disable_lto    = 1;
+
+    require_cpp = (TARGET_XC32_LIBCPP || (strstr (save_argv[0], "cc1plus")!=NULL));
+    mchp_pic32_license_valid = pic32_get_license (require_cpp);
+
+    if ((mchp_pic32_license_valid == PIC32_VALID_PRO_LICENSE) ||
+        (mchp_pic32_license_valid == PIC32_VALID_CPP_FULL))
+      {
+        disable_lto = disable_mips16 = disable_O2 =  disable_O3 = disable_Os = 0;
+      }
+    else if (mchp_pic32_license_valid == PIC32_VALID_STANDARD_LICENSE)
+      {
+        disable_O2 = 0;
+      }
+    if (disable_Os)
+      {
+        /* Disable -Os optimization(s) */
+        /* flag_web and flag_inline_functions already disabled */
+        if (optimize_size)
+          {
+            optimize = 2;
+          }
+        NULLIFY(optimize_size, "Optimize for size") = 0;
+      }
+    if (disable_O2)
       {
         int opt1_max;
-
         /* Disable -O2 optimizations */
-        NULLIFY(optimize_size, "Optimize for size") = 0;
-        if (optimize >= 2)
+        if (optimize > 1)
           {
             NULLIFY(optimize, "Optimization level > 1") = 1;
           }
-
-        NULLIFY(flag_inline_small_functions, "inline small functions") = 0;
         NULLIFY(flag_indirect_inlining, "indirect inlining") = 0;
         NULLIFY(flag_thread_jumps, "thread jumps") = 0;
         NULLIFY(flag_crossjumping, "crossjumping") = 0;
@@ -752,6 +854,19 @@ pic32_optimization_options (int level ATTRIBUTE_UNUSED, int size ATTRIBUTE_UNUSE
         NULLIFY(flag_ipa_cp, "ipa cp") = 0;
         NULLIFY(flag_ipa_sra, "ipa sra") = 0;
 
+        /* Just -O1/-O0 optimizations.  */
+        opt1_max = (optimize <= 1);
+        align_loops = opt1_max;
+        align_jumps = opt1_max;
+        align_labels = opt1_max;
+        align_functions = opt1_max;
+      }
+    if (disable_O3)
+      {
+        if (optimize >= 3)
+          {
+            NULLIFY(optimize, "Optimization level > 2") = 2;
+          }
         /* Disable -O3 optimizations */
         NULLIFY(flag_predictive_commoning, "predictive commoning") = 0;
         NULLIFY(flag_inline_functions, "inline functions") = 0;
@@ -760,42 +875,27 @@ pic32_optimization_options (int level ATTRIBUTE_UNUSED, int size ATTRIBUTE_UNUSE
         NULLIFY(flag_tree_vectorize, "tree vectorize") = 0;
         NULLIFY(flag_ipa_cp_clone, "ipa cp clone") = 0;
         flag_ipa_cp = 0;
-
-        /* Just -O1/-O0 optimizations.  */
-        opt1_max = (optimize <= 1);
-        align_loops = opt1_max;
-        align_jumps = opt1_max;
-        align_labels = opt1_max;
-        align_functions = opt1_max;
-
-        /* Disable -Os optimization(s) */
-        /* flag_web and flag_inline_functions already disabled */
-
+       }
+    if (disable_mips16)
+      {
         /* Disable -mips16 and -mips16e */
         if (mips_base_mips16 != 0)
           {
             /* Disable -mips16 and -mips16e */
             NULLIFY(mips_base_mips16, "mips16 mode") = 0;
           }
-      }
-    if (mchp_pic32_license_valid < PIC32_VALID_PRO_LICENSE)
-      {
-        if (optimize_size)
-          {
-            optimize = 2;
-          }
-        NULLIFY(optimize_size, "Optimize for size") = 0;
-        NULLIFY(flag_inline_small_functions, "inline small functions") = 0;
-        NULLIFY(flag_lto, "Link-time optimization") = 0;
-        NULLIFY(flag_whopr, "Partitioned link-time optimization") = 0;
-        NULLIFY(flag_whole_program, "Whole-program optimizations") = 0;
-        NULLIFY(flag_generate_lto, "Link-time optimization") = 0;
-
         if (mips_base_micromips != 0)
           {
             /* Disable -mmicromips */
             NULLIFY(mips_base_micromips, "micromips mode") = 0;
           }
+      }
+    if (disable_lto)
+      {
+        NULLIFY(flag_lto, "Link-time optimization") = 0;
+        NULLIFY(flag_whopr, "Partitioned link-time optimization") = 0;
+        NULLIFY(flag_whole_program, "Whole-program optimizations") = 0;
+        NULLIFY(flag_generate_lto, "Link-time optimization") = 0;
       }
   }
 #endif
@@ -804,12 +904,44 @@ pic32_optimization_options (int level ATTRIBUTE_UNUSED, int size ATTRIBUTE_UNUSE
 void
 mchp_subtarget_override_options2 (void)
 {
+  extern char **save_argv;
+  int require_cpp    = 0;
+  int disable_O2     = 1;
+  int disable_O3     = 1;
+  int disable_Os     = 1;
+  int disable_mips16 = 1;
+  int disable_lto    = 1;
+
   if (mips_base_mips16 || mips_base_micromips)
     {
       flag_inline_small_functions = 0;
       flag_inline_functions = 0;
       flag_no_inline = 1;
     }
+
+  require_cpp = (TARGET_XC32_LIBCPP || (strstr (save_argv[0], "cc1plus")!=NULL));
+
+#if MCHP_DEBUG
+  fprintf (stderr, "save_argv[0] == %s\n", save_argv[0]);
+#endif
+
+    if (require_cpp && !((mchp_pic32_license_valid == PIC32_VALID_CPP_FREE) ||
+                         (mchp_pic32_license_valid == PIC32_VALID_CPP_FULL)))
+      {
+        error  ("MPLAB XC32 C++ license not activated");
+        inform (input_location, "Visit http://www.microchip.com/MPLABXCcompilers to acquire a "
+               "free C++ license");
+       }
+    if ((mchp_pic32_license_valid == PIC32_VALID_PRO_LICENSE) ||
+        (mchp_pic32_license_valid == PIC32_VALID_CPP_FULL))
+      {
+        disable_lto = disable_mips16 = disable_O2 =  disable_O3 = disable_Os = 0;
+      }
+    else if (mchp_pic32_license_valid == PIC32_VALID_STANDARD_LICENSE)
+      {
+        disable_O2 = 0;
+      }
+
   /*
    *  On systems where we have a licence manager, call it
    */
@@ -823,10 +955,13 @@ mchp_subtarget_override_options2 (void)
         invalid_license = "because the evaluation period has expired";
         break;
       case PIC32_FREE_LICENSE:
-        invalid_license = "because this feature requires the MPLAB XC Standard or Pro compiler";
+        invalid_license = "because the free C compiler does not support this feature.";
+        break;
+      case PIC32_VALID_CPP_FREE:
+        invalid_license = "because the free C++ compiler does not support this feature.";
         break;
       case PIC32_VALID_STANDARD_LICENSE:
-        invalid_license = "because this feature requires the MPLAB XC Pro compiler";
+        invalid_license = "because this feature requires the MPLAB XC PRO compiler";
         break;
       default:
         invalid_license = "due to an invalid license";
@@ -837,20 +972,44 @@ mchp_subtarget_override_options2 (void)
       {
         /* Display a warning for the Standard option first */
         if (disabled_option_message != NULL)
-          warning (0,"Standard-compiler option (%s) ignored %s",
+          warning (0,"Compiler option (%s) ignored %s",
                    disabled_option_message, invalid_license);
         disabled_option_message = NULL;
         message_displayed = 0;
         message_purchase_display++;
       }
 
-    if (mchp_pic32_license_valid < PIC32_VALID_PRO_LICENSE)
+    if (disable_lto)
       {
+        if (optimize_size)
+          {
+            optimize = 2;
+          }
+        if (optimize >= 3)
+          {
+            NULLIFY(optimize, "Optimization level > 2") = 2;
+          }
         NULLIFY(optimize_size, "Optimize for size") = 0;
+
+        NULLIFY(flag_predictive_commoning, "predictive commoning") = 0;
+        NULLIFY(flag_inline_functions, "inline functions") = 0;
+        NULLIFY(flag_unswitch_loops, "unswitch loops") = 0;
+        NULLIFY(flag_gcse_after_reload, "gcse after reload") = 0;
+        NULLIFY(flag_tree_vectorize, "tree vectorize") = 0;
+        NULLIFY(flag_ipa_cp_clone, "ipa cp clone") = 0;
+        flag_ipa_cp = 0;
+
         NULLIFY(flag_lto, "Link-time optimization") = 0;
         NULLIFY(flag_whopr, "Partitioned link-time optimization") = 0;
         NULLIFY(flag_whole_program, "Whole-program optimizations") = 0;
         NULLIFY(flag_generate_lto, "Link-time optimization") = 0;
+
+        /* Disable -mips16 and -mips16e */
+        if (mips_base_mips16 != 0)
+          {
+            /* Disable -mips16 and -mips16e */
+            NULLIFY(mips_base_mips16, "mips16 mode") = 0;
+          }
 
         if (mips_base_micromips != 0)
           {
@@ -862,14 +1021,14 @@ mchp_subtarget_override_options2 (void)
       {
         /* Now display a warning for the Pro option */
         if (disabled_option_message != NULL)
-          warning (0,"Pro-compiler option (%s) ignored %s", disabled_option_message,
+          warning (0,"Pro Compiler option (%s) ignored %s", disabled_option_message,
                    invalid_license);
         message_purchase_display++;
       }
     if ((message_purchase_display > 0) && (TARGET_LICENSE_WARNING))
       {
-        inform (0, "Disable the option or visit http://www.microchip.com/xc32 "
-                "to purchase an MPLAB XC Standard or Pro compiler license.");
+        inform (0, "Disable the option or visit http://www.microchip.com/MPLABXCcompilers "
+                "to purchase a new MPLAB XC compiler license.");
       }
 
     if (TARGET_LEGACY_LIBC)
@@ -887,6 +1046,9 @@ mchp_subtarget_override_options2 (void)
 #if defined(TARGET_MCHP_PIC32MX)
 #undef NULLIFY
 #endif
+
+#if 0
+/* Moved to cci.c */
 
 /* Verify the header record for the configuration data file
  */
@@ -909,8 +1071,6 @@ verify_configuration_header_record (FILE *fptr)
       warning (0, "malformed configuration word definition file.");
       return 1;
     }
-  message_displayed++;
-  \
   /* verify that the version number is one we can deal with */
   if (strncmp (header_record + sizeof (MCHP_CONFIGURATION_HEADER_MARKER) - 1,
                MCHP_CONFIGURATION_HEADER_VERSION,
@@ -1143,6 +1303,8 @@ mchp_handle_configuration_setting (const char *name, const unsigned char *value_
   /* if we got here, we didn't find the setting, which is an error */
   error ("unknown configuration setting: '%s'", name);
 }
+
+#endif /* Moved to cci */
 
 static void
 mchp_output_configuration_words (void)
@@ -2483,7 +2645,8 @@ mchp_compute_frame_info (void)
           has_hilo_context = 1;
         }
       /* Both AUTO and SOFTWARE reserve space to save v0/v1 if necessary */
-      if ((cfun->machine->current_function_type == SOFTWARE_CONTEXT_SAVE) ||
+      if ((cfun->machine->current_function_type == SRS_CONTEXT_SAVE) ||
+          (cfun->machine->current_function_type == SOFTWARE_CONTEXT_SAVE) ||
           (cfun->machine->current_function_type == AUTO_CONTEXT_SAVE) ||
           (cfun->machine->current_function_type == DEFAULT_CONTEXT_SAVE) )
         {
@@ -3134,18 +3297,9 @@ bool mchp_subtarget_mips16_enabled (const_tree decl)
 
       if (false == suppress_further_warnings)
         {
-          if (1 == mchp_pic32_license_valid)
-            {
-              warning (0, "The free compiler does not support the %<mips16%>"
+          warning (0, "The current compiler license does not support the %<mips16%>"
                        " attribute on %qs, attribute ignored",
                        IDENTIFIER_POINTER (DECL_NAME (decl)));
-            }
-          else
-            {
-              warning (0, "The current compiler license does not support the %<mips16%>"
-                       " attribute on %qs, attribute ignored",
-                       IDENTIFIER_POINTER (DECL_NAME (decl)));
-            }
           if (NULL == first_disabled_decl)
             {
               first_disabled_decl = decl;
@@ -3668,6 +3822,9 @@ mchp_convertable_input_format_string(const char *string)
         case 'p':
           status |= conv_p;
           break;
+        case 's':
+          status |= conv_s;
+          break;
         case 'u':
           status |= conv_u;
           break;
@@ -3806,9 +3963,9 @@ static void mchp_handle_io_conversion(rtx call_insn,
 
   gcc_assert((matching_fn->conversion_style == info_I) ||
              (matching_fn->conversion_style == info_O));
-             
+
   format_arg = PREV_INSN(call_insn);
-             
+
   if (format_arg == NULL)
     return;
 
@@ -3934,42 +4091,6 @@ int mchp_check_for_conversion(rtx call_insn)
 }
 #endif  /* defined(C32_SMARTIO_RULES) */
 
-static int type_refers_to_size_t(tree type)
-{
-  if (TYPE_NAME(type))
-    {
-      if ((TREE_CODE(TYPE_NAME(type))) == IDENTIFIER_NODE)
-        {
-          if (strcmp(IDENTIFIER_POINTER(TYPE_NAME(type)), "size_t") == 0)
-            {
-              return 1;
-            }
-        }
-      else if (TREE_CODE(TYPE_NAME(type)) == TYPE_DECL)
-        {
-          if (strcmp(IDENTIFIER_POINTER(DECL_NAME(TYPE_NAME(type))),
-                     "size_t") == 0)
-            {
-              return 1;
-            }
-        }
-    }
-  if (TREE_CODE(type) == RECORD_TYPE)
-    {
-      tree fields;
-
-      for (fields = TYPE_FIELDS(type); fields; fields = TREE_CHAIN(fields))
-        {
-          if (type_refers_to_size_t(TREE_TYPE(fields))) return 1;
-        }
-    }
-  else if (TREE_CODE(type) == ARRAY_TYPE)
-    {
-      return type_refers_to_size_t(TREE_TYPE(type));
-    }
-  return 0;
-}
-
 static int mchp_build_prefix(tree decl, int fnear, char *prefix)
 {
   char *f = prefix;
@@ -3984,32 +4105,6 @@ static int mchp_build_prefix(tree decl, int fnear, char *prefix)
   int section_type_set = 0;
   tree paramtype;
 
-  if (TREE_CODE(decl) == FUNCTION_DECL)
-    {
-      if (TREE_PUBLIC(decl))
-        {
-          paramtype = TREE_TYPE(decl);
-          if (type_refers_to_size_t(paramtype)) size_t_used_externally = 1;
-          if (!size_t_used_externally)
-            {
-              tree arglist = TYPE_ARG_TYPES(TREE_TYPE(decl));
-
-              for (; arglist; arglist = TREE_CHAIN(arglist))
-                {
-                  paramtype = TREE_VALUE(arglist);
-                  if (type_refers_to_size_t(paramtype))
-                    {
-                      size_t_used_externally = 1;
-                      break;
-                    }
-                }
-            }
-        }
-    }
-  else if ((TREE_CODE(decl) == VAR_DECL) && TREE_PUBLIC(decl))
-    {
-      if (type_refers_to_size_t(TREE_TYPE(decl))) size_t_used_externally = 1;
-    }
   if (fnear == -1)
     {
       section_type_set = 1;
@@ -4019,8 +4114,6 @@ static int mchp_build_prefix(tree decl, int fnear, char *prefix)
   address_attr = get_mchp_absolute_address (decl);
   space_attr = get_mchp_space_attribute (decl);
   is_ramfunc = mchp_ramfunc_type_p (decl);
-
-  ident = IDENTIFIER_POINTER(DECL_NAME(decl));
 
   if (space_attr)
     {
@@ -4034,7 +4127,6 @@ static int mchp_build_prefix(tree decl, int fnear, char *prefix)
         }
     }
 
-  ident = IDENTIFIER_POINTER(DECL_NAME(decl));
   if (DECL_SECTION_NAME(decl))
     {
       const char *name = TREE_STRING_POINTER(DECL_SECTION_NAME(decl));
@@ -4069,8 +4161,18 @@ static int mchp_build_prefix(tree decl, int fnear, char *prefix)
   if (address_attr)
     {
       if (flags & SECTION_ADDRESS)
-        warning(0, "address attribute conflicts with section attribute for '%s'",
-                ident);
+        {
+            if (DECL_NAME(decl) != NULL_TREE)
+              {
+                ident = IDENTIFIER_POINTER(DECL_NAME(decl));
+                warning(0, "address attribute conflicts with section attribute for '%s'",
+                        ident);
+              }
+            else
+              {
+                warning(0, "address attribute conflicts with section attribute");
+              }
+        }
       else f += sprintf(f, MCHP_ADDR_FLAG);
     }
   if ((flags & SECTION_PERSIST) || (mchp_function_persistent_p(decl)))
@@ -4080,8 +4182,16 @@ static int mchp_build_prefix(tree decl, int fnear, char *prefix)
       DECL_COMMON (decl) = 0;
       if (DECL_INITIAL(decl))
         {
-          warning(0, "Persistent variable '%s' will not be initialized",
-                  ident);
+            if (DECL_NAME(decl) != NULL_TREE)
+              {
+                ident = IDENTIFIER_POINTER(DECL_NAME(decl));
+                warning(0, "Persistent variable '%s' will not be initialized",
+                        ident);
+              }
+            else
+              {
+                warning(0, "Persistent variable will not be initialized");
+              }
         }
     }
   if (1)
@@ -4305,7 +4415,7 @@ mchp_select_section (tree decl, int reloc,
 
 static const char *default_section_name(tree decl, SECTION_FLAGS_INT flags)
 {
-  static char result[120];
+  static char result[1024];
   char *f;
   int i;
   tree a,is_aligned;
@@ -4397,8 +4507,15 @@ static const char *default_section_name(tree decl, SECTION_FLAGS_INT flags)
             }
           if (pszSectionName)
             {
-              f += sprintf(result, "%s",
-                           pszSectionName);
+              if (flag_data_sections)
+                {
+                  f += sprintf (result, "%s.%s", pszSectionName,
+                                IDENTIFIER_POINTER(DECL_NAME(decl)));
+                }
+              else
+                {
+                  f += sprintf(result, "%s", pszSectionName);
+                }
             }
           else
             {
@@ -4455,7 +4572,7 @@ static const char *default_section_name(tree decl, SECTION_FLAGS_INT flags)
               while (reserved_section_names[i].section_name)
                 {
                   if (((flags ^ reserved_section_names[i].mask) == 0) &&
-                      strcmp(name, reserved_section_names[i].section_name) == 0)
+                      strstr(name, reserved_section_names[i].section_name) == 0)
                     return name;
                   i++;
                 }
@@ -4470,7 +4587,7 @@ static const char *default_section_name(tree decl, SECTION_FLAGS_INT flags)
               while (reserved_section_names[i].section_name)
                 {
                   if (((flags ^ reserved_section_names[i].mask) == 0) &&
-                      strcmp(name, reserved_section_names[i].section_name) == 0)
+                      strstr(name, reserved_section_names[i].section_name) == 0)
                     return name;
                   i++;
                 }
@@ -5126,7 +5243,7 @@ static SECTION_FLAGS_INT validate_identifier_flags(const char *id)
   int add_section_code_flag = 0;
   struct valid_section_flags_ *v_flags = 0;
 
-  while (*f == MCHP_EXTENDED_FLAG[0])
+  while (f && *f == MCHP_EXTENDED_FLAG[0])
     {
       if (strncmp(f, MCHP_PROG_FLAG, sizeof(MCHP_PROG_FLAG)-1) == 0)
         {
@@ -5235,7 +5352,7 @@ void pic32_system_include_paths (const char *sysroot, const char *iprefix,
   const struct default_include *p;
   size_t len;
 
-  if (!TARGET_LEGACY_LIBC)
+  if (!TARGET_LEGACY_LIBC && !TARGET_XC32_LIBCPP)
     return;
 
   if (iprefix && (len = cpp_GCC_INCLUDE_DIR_len) != 0)
@@ -5245,7 +5362,7 @@ void pic32_system_include_paths (const char *sysroot, const char *iprefix,
       IPREFIX and search them first.  */
       for (p = cpp_include_defaults; p->fname; p++)
         {
-          if (!p->cplusplus || cxx_stdinc)
+          if (/* !p->cplusplus || */ cxx_stdinc)
             {
               /* Should we be translating sysrooted dirs too?  Assume
               that iprefix and sysroot are mutually exclusive, for
@@ -5257,7 +5374,18 @@ void pic32_system_include_paths (const char *sysroot, const char *iprefix,
                   char *str;
                   char *newfname;
 
-                  if (TARGET_LEGACY_LIBC)
+                  if (TARGET_XC32_LIBCPP)
+                    {
+                      newfname = concat (p->fname, "/Cpp/c", NULL);
+                      str = concat (iprefix, newfname + len, NULL);
+                      free(newfname);
+                      add_path (str, SYSTEM, p->cxx_aware, false);
+                      newfname = concat (p->fname, "/Cpp", NULL);
+                      str = concat (iprefix, newfname + len, NULL);
+                      free(newfname);
+                      add_path (str, SYSTEM, p->cxx_aware, false);
+                    }
+                  else if (TARGET_LEGACY_LIBC)
                     {
                       newfname = concat (p->fname, "/lega-c", NULL);
                       str = concat (iprefix, newfname + len, NULL);
@@ -5275,18 +5403,32 @@ void pic32_system_include_paths (const char *sysroot, const char *iprefix,
 
   for (p = cpp_include_defaults; p->fname; p++)
     {
-      if (!p->cplusplus || cxx_stdinc)
+      if (/* !p->cplusplus || */ cxx_stdinc)
         {
           char *str;
+          char *str2;
           char *newfname;
+          char *newfname2;
 
           /* Should this directory start with the sysroot?  */
           if (sysroot && p->add_sysroot)
             {
-              if (TARGET_LEGACY_LIBC)
+              if (TARGET_XC32_LIBCPP)
+                {
+                  newfname2 = concat (p->fname, "/Cpp/c", NULL);
+                  str2 = concat (sysroot, newfname2, NULL);
+                  add_path (str2, SYSTEM, p->cxx_aware, false);
+                  free(newfname2);
+                  newfname = concat (p->fname, "/Cpp", NULL);
+                  str = concat (sysroot, newfname, NULL);
+                  add_path (str, SYSTEM, p->cxx_aware, false);
+                  free(newfname);
+                }
+              else if (TARGET_LEGACY_LIBC)
                 {
                   newfname = concat (p->fname, "/lega-c", NULL);
                   str = concat (sysroot, newfname, NULL);
+                  add_path (str, SYSTEM, p->cxx_aware, false);
                   free(newfname);
                 }
               else
@@ -5296,22 +5438,63 @@ void pic32_system_include_paths (const char *sysroot, const char *iprefix,
             }
           else
             {
-
-              if (TARGET_LEGACY_LIBC)
+              if (TARGET_XC32_LIBCPP)
+                {
+                  newfname2 = concat (p->fname, "/Cpp/c", NULL);
+                  str2 = update_path (newfname2, p->component);
+                  add_path (str2, SYSTEM, p->cxx_aware, false);
+                  free(newfname2);
+                  newfname = concat (p->fname, "/Cpp", NULL);
+                  str = update_path (newfname, p->component);
+                  add_path (str, SYSTEM, p->cxx_aware, false);
+                  free(newfname);
+                }
+              else if (TARGET_LEGACY_LIBC)
                 {
                   newfname = concat (p->fname, "/lega-c", NULL);
                   str = update_path (newfname, p->component);
+                  add_path (str, SYSTEM, p->cxx_aware, false);
                   free(newfname);
                 }
               else
                 {
                   str = update_path (p->fname, p->component);
+                  add_path (str, SYSTEM, p->cxx_aware, false);
                 }
             }
-
-          add_path (str, SYSTEM, p->cxx_aware, false);
         }
     }
+}
+
+
+void push_cheap_rtx(cheap_rtx_list **l, rtx x, tree t, int flag) {
+  cheap_rtx_list *item;
+
+  if (l == 0) return;
+  item = (struct cheap_rtx_list*) xmalloc(sizeof(cheap_rtx_list));
+  gcc_assert(item != NULL);
+  item->x = x;
+  item->t = t;
+  item->flag = flag;
+  item->next = *l;
+
+  *l = item;
+}
+
+rtx pop_cheap_rtx(cheap_rtx_list **l, tree *t, int *flag) {
+  cheap_rtx_list *item;
+  rtx result;
+
+  if (l == 0) return 0;
+  item = (*l);
+  if (item == 0) return 0;
+  *l = item->next;
+  if (t) *t = item->t;
+  if (flag) *flag = item->flag;
+  result = item->x;
+  free(item);
+  item = NULL;
+  return result;
 }
 
 #endif

@@ -424,7 +424,12 @@ memory_address_addr_space (enum machine_mode mode, rtx x, addr_space_t as)
 
   /* By passing constant addresses through registers
      we get a chance to cse them.  */
+#ifdef _BUILD_C30_
+  if (! cse_not_expected && CONSTANT_P (x) && CONSTANT_ADDRESS_P (x) &&
+      (!pic30_neardata_space_operand_p(x)))
+#else
   if (! cse_not_expected && CONSTANT_P (x) && CONSTANT_ADDRESS_P (x))
+#endif
     x = force_reg (address_mode, x);
 
   /* We get better cse by rejecting indirect addressing at this stage.
@@ -433,7 +438,12 @@ memory_address_addr_space (enum machine_mode mode, rtx x, addr_space_t as)
      are visible.  But not if cse won't be done!  */
   else
     {
+#ifdef _BUILD_C30_
+      if (! cse_not_expected && !REG_P (x) && 
+          (!pic30_neardata_space_operand_p(x)))
+#else
       if (! cse_not_expected && !REG_P (x))
+#endif
 	x = break_out_memory_refs (x);
 
       /* At this point, any valid address is accepted.  */

@@ -1810,6 +1810,10 @@ typedef struct replace_label_data
   bool update_label_nuses;
 } replace_label_data;
 
+#ifdef _BUILD_C30_
+extern int rtx_uses_mem_p  (rtx);
+#endif
+
 extern int rtx_addr_can_trap_p (const_rtx);
 extern bool nonzero_address_p (const_rtx);
 extern int rtx_unstable_p (const_rtx);

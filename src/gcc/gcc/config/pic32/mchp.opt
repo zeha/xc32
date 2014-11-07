@@ -74,13 +74,13 @@ Use trap instructions to check for integer divide by zero
 ;Target Report RejectNegative InverseMask(SINGLE_FLOAT, DOUBLE_FLOAT) Undocumented
 ;Allow hardware floating-point instructions to cover both 32-bit and 64-bit operations
 
-;mdsp
-;Target Report Mask(DSP) Undocumented
-;Use MIPS-DSP instructions
+mdsp
+Target Report Mask(DSP) Undocumented
+Use MIPS-DSP instructions
 
-;mdspr2
-;Target Report Mask(DSPR2) Undocumented
-;Use MIPS-DSP REV 2 instructions
+mdspr2
+Target Report Mask(DSPR2)
+Use MIPS-DSP REV 2 instructions
 
 mdebugmips
 Target Undocumented Var(TARGET_DEBUG_MODE)
@@ -359,6 +359,10 @@ mlegacy-libc
 Target Var Var(TARGET_LEGACY_LIBC)
 -legacy-libc	Use legacy lib/include directory
 
+mxc32cpp-lib
+Target Var Var(TARGET_XC32_LIBCPP) Undocumented
+-mxc32cpp-lib	Use the XC32 Standard C++ Libraries
+
 mtext=
 Target Report RejectNegative Joined Var(mchp_text_scn) Init(NULL)
 -mtext=NAME	Name the text section NAME (default .text)
@@ -374,4 +378,16 @@ Target Report RejectNegative Joined Var(mchp_processor_string)
 mlicense-warning
 Target Var Var(TARGET_LICENSE_WARNING) Undocumented Init(1)
 -mlicense-warning	Emit the license warning when appropriate
+
+mcci
+Target RejectNegative Var(TARGET_CCI)
+-mcci	Use CCI keywords
+
+mprint-builtins
+Target RejectNegative Var(TARGET_PRINT_BUILTINS)
+-mprint-builtins	Print a list of enabled builtin functions
+
+mmips16-exceptions
+Target Var Var(TARGET_MIPS16_EXCEPTIONS) Undocumented
+-mmips16-exceptions	Allow unsupported mips16 exceptions
 

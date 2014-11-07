@@ -1790,7 +1790,12 @@ true_regnum (const_rtx x)
 	{
 	  struct subreg_info info;
 
-	  subreg_get_info (REGNO (SUBREG_REG (x)),
+	  subreg_get_info (
+#ifdef _BUILD_C30_
+                           base,
+#else
+                           REGNO (SUBREG_REG (x)),
+#endif
 			   GET_MODE (SUBREG_REG (x)),
 			   SUBREG_BYTE (x), GET_MODE (x), &info);
 
