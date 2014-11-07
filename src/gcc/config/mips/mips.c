@@ -8435,8 +8435,6 @@ mips_output_function_prologue (FILE *file, HOST_WIDE_INT size ATTRIBUTE_UNUSED)
           /* Load EPC into k1 */
           fprintf (file, "\tmfc0\t$k1, $14\n");
 
-          /* right justify the RIPL in k0 */
-          fprintf (file, "\tsrl\t$k0, $k0, %d\n", CAUSE_IPL);
         }
 
 
@@ -8455,6 +8453,12 @@ mips_output_function_prologue (FILE *file, HOST_WIDE_INT size ATTRIBUTE_UNUSED)
 
       /* Push status into its stack slot */
       fprintf (file, "\tmfc0\t$k1, $12\n");
+      if (current_function_type == SOFTWARE_CONTEXT_SAVE) {
+          /* right justify the RIPL in k0               */
+	  /* and avoid Read after Write interlock on k1 */ 
+          /* C32-119                                    */
+          fprintf (file, "\tsrl\t$k0, $k0, %d\n", CAUSE_IPL);
+      }
       fprintf (file, "\tsw\t$k1, " HOST_WIDE_INT_PRINT_DEC "($sp)\n", offset);
       offset -= GET_MODE_SIZE (SImode);
 
@@ -8492,9 +8496,9 @@ mips_output_function_prologue (FILE *file, HOST_WIDE_INT size ATTRIBUTE_UNUSED)
         fprintf (file, "\tins\t$k1, $0, %d, %d\n", SR_IE, 5);
 	/*
  	In current PIC32 IPL7 is the ONLY one with a SRS
- 	so we can set the IPL in Status directly
+ 	so we can set the IPL in Status directly IPL=bits 15-10
  	*/
-        fprintf (file, "\tori\t$k1, $k1, 0x700\n");  
+        fprintf (file, "\tori\t$k1, $k1, 0x1c00\n");  
 	}
       fprintf (file, "\tmtc0\t$k1, $12\n");
     }

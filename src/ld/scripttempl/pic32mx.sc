@@ -247,7 +247,9 @@ SECTIONS
     ${RELOCATING+${OTHER_TEXT_SECTIONS}}
     ${RELOCATING+${TEXT_END_SYMBOLS}}
   } >${CODE_MEMORY_REGION} =${NOP-0}
-
+  ASSERT(SIZEOF(.C32_EDITION_LIMITED_TO_64KB_EVALUATION) < (LENGTH(kseg0_program_mem) - (SIZEOF(.text)+SIZEOF(.rodata)+SIZEOF(.sdata2)+SIZEOF(.sbss2)+SIZEOF(.data)+SIZEOF(.got)+SIZEOF(.sdata)+SIZEOF(.lit8)+SIZEOF(.lit4)+SIZEOF(.ramfunc))), "HINT: This application may be too large for this 64KB-limited edition of the MPLAB C32 Compiler. Visit http://www.microchip.com/c32 to upgrade to full version.")
+  ASSERT(SIZEOF(.C32_EDITION_LIMITED_TO_16KB_EVALUATION) < (LENGTH(kseg0_program_mem) - (SIZEOF(.text)+SIZEOF(.rodata)+SIZEOF(.sdata2)+SIZEOF(.sbss2)+SIZEOF(.data)+SIZEOF(.got)+SIZEOF(.sdata)+SIZEOF(.lit8)+SIZEOF(.lit4)+SIZEOF(.ramfunc))), "HINT: This application may be too large for this 16KB-limited edition of the MPLAB C32 Compiler. Visit http://www.microchip.com/c32 to upgrade to full version.")
+  ASSERT(SIZEOF(.C32_EDITION_SIZELIMITED_EVALUATION) < (LENGTH(kseg0_program_mem) - (SIZEOF(.text)+SIZEOF(.rodata)+SIZEOF(.sdata2)+SIZEOF(.sbss2)+SIZEOF(.data)+SIZEOF(.got)+SIZEOF(.sdata)+SIZEOF(.lit8)+SIZEOF(.lit4)+SIZEOF(.ramfunc))), "HINT: This application may be too large for this size-limited edition of the MPLAB C32 Compiler. Visit http://www.microchip.com/c32 to upgrade to full version.")  
   /* Read-only sections */
   ${WRITABLE_RODATA-${RODATA}}
   ${CREATE_SHLIB-${SDATA2}}
