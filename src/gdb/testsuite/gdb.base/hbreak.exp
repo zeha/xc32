@@ -1,0 +1,907 @@
+#   Copyright 1988, 1990, 1991, 1992, 1994, 1995, 1996, 1997, 1998, 1999,
+#   2000, 2002, 2003, 2005
+#   Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
+
+# Please email any bugs, comments, and/or additions to this file to:
+# bug-gdb@prep.ai.mit.edu
+
+# Based on break.exp by Rob Savoye. (rob@cygnus.com)
+# Only one hardware breakpoint is set at a time as targets may limit
+# the number of ones available.
+
+if $tracelevel then {
+    strace $tracelevel
+}
+
+
+#
+# test running programs
+#
+set prms_id 0
+set bug_id 0
+
+set testfile "break"
+set srcfile ${testfile}.c
+set srcfile1 ${testfile}1.c
+set binfile ${objdir}/${subdir}/${testfile}
+
+if  { [gdb_compile "${srcdir}/${subdir}/${srcfile}" "${binfile}0.o" object {debug additional_flags=-w}] != "" } {
+     gdb_suppress_entire_file "Testcase compile failed, so all tests in this file will automatically fail."
+}
+
+if  { [gdb_compile "${srcdir}/${subdir}/${srcfile1}" "${binfile}1.o" object {debug additional_flags=-w}] != "" } {
+     gdb_suppress_entire_file "Testcase compile failed, so all tests in this file will automatically fail."
+}
+
+if  { [gdb_compile "${binfile}0.o ${binfile}1.o" "${binfile}" executable {debug additional_flags=-w}] != "" } {
+     gdb_suppress_entire_file "Testcase compile failed, so all tests in this file will automatically fail."
+}
+
+if [get_compiler_info ${binfile}] {
+    return -1
+}
+
+gdb_exit
+gdb_start
+gdb_reinitialize_dir $srcdir/$subdir
+gdb_load ${binfile}
+
+if [target_info exists gdb_stub] {
+    gdb_step_for_stub;
+}
+
+#
+# Test whether the target supports hardware breakpoints at all.
+#
+send_gdb "hbreak main\n"
+gdb_expect {
+    -re "No hardware breakpoint support in the target.*$" {
+	unsupported "$test"
+	return
+    }
+    -re "Hardware assisted breakpoint.*at.* file .*$srcfile, line.*$" {
+	pass "hardware breakpoint support"
+    }
+    -re ".*$gdb_prompt $" {
+	fail "hardware breakpoint support"
+    }
+    timeout {
+	fail "hardware breakpoint support (timeout)"
+    }
+}
+delete_breakpoints
+
+#
+# Test simple hardware breakpoint setting commands
+#
+
+#
+# test break at function
+#
+gdb_test "hbreak main" \
+    "Hardware assisted breakpoint.*at.* file .*$srcfile, line.*" \
+    "hardware breakpoint function"
+delete_breakpoints
+
+#
+# test break at quoted function
+#
+gdb_test "hbreak \"marker2\"" \
+    "Hardware assisted breakpoint.*at.* file .*$srcfile1, line.*" \
+    "hardware breakpoint quoted function"
+delete_breakpoints
+
+#
+# test break at function in file
+#
+gdb_test "hbreak $srcfile:factorial" \
+    "Hardware assisted breakpoint.*at.* file .*$srcfile, line.*" \
+    "hardware breakpoint function in file"
+delete_breakpoints
+
+set bp_location1 [gdb_get_line_number "set breakpoint 1 here"]
+
+#
+# test break at line number
+#
+# Note that the default source file is the last one whose source text
+# was printed.  For native debugging, before we've executed the
+# program, this is the file containing main, but for remote debugging,
+# it's wherever the processor was stopped when we connected to the
+# board.  So, to be sure, we do a list command.
+#
+gdb_test "list main" \
+    ".*main \\(argc, argv, envp\\).*" \
+    "use `list' to establish default source file"
+gdb_test "hbreak $bp_location1" \
+    "Hardware assisted breakpoint.*at.* file .*$srcfile, line $bp_location1\\." \
+    "hardware breakpoint line number"
+delete_breakpoints
+
+set bp_location2 [gdb_get_line_number "set breakpoint 2 here"]
+
+#
+# test break at line number in file
+#
+gdb_test "hbreak $srcfile:$bp_location2" \
+    "Hardware assisted breakpoint.*at.* file .*$srcfile, line $bp_location2\\." \
+    "hardware breakpoint line number in file"
+delete_breakpoints
+
+set bp_location3 [gdb_get_line_number "set breakpoint 3 here"]
+set bp_location4 [gdb_get_line_number "set breakpoint 4 here"]
+
+#
+# Test putting a break at the start of a multi-line if conditional.
+# Verify the breakpoint was put at the start of the conditional.
+#
+gdb_test "hbreak multi_line_if_conditional" \
+    "Hardware assisted breakpoint.*at.* file .*$srcfile, line $bp_location3\\." \
+    "hardware breakpoint at start of multi line if conditional"
+delete_breakpoints
+
+gdb_test "hbreak multi_line_while_conditional" \
+    "Hardware assisted breakpoint.*at.* file .*$srcfile, line $bp_location4\\." \
+    "hardware breakpoint at start of multi line while conditional"
+
+set bp_location5 [gdb_get_line_number "set breakpoint 5 here"]
+set bp_location6 [gdb_get_line_number "set breakpoint 6 here"]
+
+#
+# check to see what breakpoints are set
+#
+if [target_info exists gdb_stub] {
+    set main_line $bp_location5
+} else {
+    set main_line $bp_location6
+}
+
+if {$hp_aCC_compiler} {
+    set proto "\\(int\\)"
+} else {
+    set proto ""
+}
+
+set bp_location7 [gdb_get_line_number "set breakpoint 7 here"]
+set bp_location8 [gdb_get_line_number "set breakpoint 8 here" $srcfile1]
+set bp_location9 [gdb_get_line_number "set breakpoint 9 here" $srcfile1]
+
+gdb_test "info break" \
+    "Num Type\[ \]+Disp Enb Address\[ \]+What.*
+\[0-9\]+\[\t \]+hw breakpoint  keep y.* in multi_line_while_conditional at .*$srcfile:$bp_location4" \
+    "breakpoint info"
+delete_breakpoints
+
+# FIXME: The rest of this test doesn't work with anything that can't
+# handle arguments.
+# Huh? There doesn't *appear* to be anything that passes arguments
+# below.
+if [istarget "mips-idt-*"] then {
+    return
+}
+
+#
+# run until the breakpoint at main is hit. For non-stubs-using targets.
+#
+gdb_test "hbreak main" \
+    "Hardware assisted breakpoint.*at.* file .*$srcfile, line.*" \
+    "hardware breakpoint function (2)"
+if ![target_info exists use_gdb_stub] {
+  if [istarget "*-*-vxworks*"] then {
+    send_gdb "run vxmain \"2\"\n"
+    set timeout 120
+    verbose "Timeout is now $timeout seconds" 2
+  } else {
+	send_gdb "run\n"
+  }
+  gdb_expect {
+    -re "The program .* has been started already.*y or n. $" {
+	send_gdb "y\n"
+	exp_continue
+    }
+    -re "Starting program.*Breakpoint \[0-9\]+,.*main .*argc.*argv.* at .*$srcfile:$bp_location6.*$bp_location6\[\t \]+if .argc.* \{.*$gdb_prompt $"\
+	                    { pass "run until function breakpoint" }
+    -re ".*$gdb_prompt $"       { fail "run until function breakpoint" }
+    timeout	            { fail "run until function breakpoint (timeout)" }
+  }
+} else {
+    if ![target_info exists gdb_stub] {
+	gdb_test continue ".*Continuing\\..*Breakpoint \[0-9\]+, main \\(argc=.*, argv=.*, envp=.*\\) at .*$srcfile:$bp_location6.*$bp_location6\[\t \]+if .argc.*\{.*" "stub continue"
+    }
+}
+delete_breakpoints
+
+#
+# run until the breakpoint at a line number
+#
+gdb_test "hbreak $bp_location1" \
+    "Hardware assisted breakpoint.*at.* file .*$srcfile, line $bp_location1\\." \
+    "hardware breakpoint line number (2)"
+gdb_test continue "Continuing\\..*Breakpoint \[0-9\]+, main \\(argc=.*, argv=.*, envp=.*\\) at .*$srcfile:$bp_location1.*$bp_location1\[\t \]+printf.*factorial.*" \
+			"run until breakpoint set at a line number"
+delete_breakpoints
+
+#
+# Run until the breakpoint set in a function in a file
+#
+gdb_test "hbreak $srcfile:factorial" \
+    "Hardware assisted breakpoint.*at.* file .*$srcfile, line.*" \
+    "hardware breakpoint function in file (2)"
+for {set i 6} {$i >= 1} {incr i -1} {
+	gdb_test continue "Continuing\\..*Breakpoint \[0-9\]+, factorial \\(value=$i\\) at .*$srcfile:$bp_location7.*$bp_location7\[\t \]+.*if .value > 1. \{.*" \
+			"run until file:function($i) breakpoint"
+}
+delete_breakpoints
+
+#
+# Run until the breakpoint set at a quoted function
+#
+gdb_test "hbreak \"marker2\"" \
+    "Hardware assisted breakpoint.*at.* file .*$srcfile1, line.*" \
+    "hardware breakpoint quoted function (2)"
+gdb_test continue "Continuing\\..*Breakpoint \[0-9\]+, (0x\[0-9a-f\]+ in )?marker2 \\(a=43\\) at .*$srcfile1:($bp_location8|$bp_location9).*" \
+		"run until quoted breakpoint"
+delete_breakpoints
+#
+# run until the file:function breakpoint at a line number in a file
+#
+gdb_test "hbreak $srcfile:$bp_location2" \
+    "Hardware assisted breakpoint.*at.* file .*$srcfile, line $bp_location2\\." \
+    "hardware breakpoint line number in file (2)"
+gdb_test continue "Continuing\\..*Breakpoint \[0-9\]+, main \\(argc=.*, argv=.*, envp=.*\\) at .*$srcfile:$bp_location2.*$bp_location2\[\t \]+argc = \\(argc == 12345\\);.*" \
+		"run until file:linenum breakpoint"
+delete_breakpoints
+
+# Test break at offset +1
+set bp_location10 [gdb_get_line_number "set breakpoint 10 here"]
+
+gdb_test "hbreak +1" \
+    "Hardware assisted breakpoint.*at.* file .*$srcfile, line $bp_location10\\." \
+    "hardware breakpoint offset +1"
+
+# Check to see if breakpoint is hit when stepped onto
+
+gdb_test "step" \
+    ".*Breakpoint \[0-9\]+, main \\(argc=.*, argv=.*, envp=.*\\) at .*$srcfile:$bp_location10.*$bp_location10\[\t \]+return argc;.*breakpoint 10 here.*" \
+    "step onto hardware breakpoint"
+
+#
+# delete all breakpoints so we can start over, course this can be a test too
+#
+delete_breakpoints
+
+#
+# test temporary breakpoint at function
+#
+
+gdb_test "thbreak main" \
+    "Hardware assisted breakpoint.*at.* file .*$srcfile, line.*" \
+    "temporary hardware breakpoint function"
+delete_breakpoints
+
+#
+# test break at function in file
+#
+
+gdb_test "thbreak $srcfile:factorial" \
+    "Hardware assisted breakpoint.*at.* file .*$srcfile, line.*" \
+    "temporary hardware breakpoint function in file"
+delete_breakpoints
+
+#
+# test break at line number
+#
+send_gdb "thbreak $bp_location1\n"
+gdb_expect {
+    -re "Hardware assisted breakpoint.*at.* file .*$srcfile, line $bp_location1.*$gdb_prompt $" {
+	pass "temporary hardware breakpoint line number #1"
+    }
+    -re ".*$gdb_prompt $" {
+	fail "temporary hardware breakpoint line number #1"
+    }
+    timeout {
+	fail "temporary hardware breakpoint line number #1 (timeout)"
+    }
+}
+delete_breakpoints
+
+gdb_test "thbreak $bp_location6" \
+    "Hardware assisted breakpoint.*at.* file .*$srcfile, line $bp_location6.*" \
+    "temporary hardware breakpoint line number #2"
+delete_breakpoints
+
+#
+# test break at line number in file
+#
+send_gdb "thbreak $srcfile:$bp_location2\n"
+gdb_expect {
+    -re "Hardware assisted breakpoint.*at.* file .*$srcfile, line $bp_location2.*$gdb_prompt $" {
+	pass "temporary hardware breakpoint line number in file #1"
+    }
+    -re ".*$gdb_prompt $" {
+	fail "temporary hardware breakpoint line number in file #1"
+    }
+    timeout {
+	fail "temporary hardware breakpoint line number in file #1 (timeout)"
+    }
+}
+delete_breakpoints
+
+set bp_location11 [gdb_get_line_number "set breakpoint 11 here"]
+gdb_test "thbreak $srcfile:$bp_location11" \
+    "Hardware assisted breakpoint.*at.* file .*$srcfile, line $bp_location11.*" \
+    "temporary hardware breakpoint line number in file #2"
+
+#
+# check to see what breakpoints are set (temporary this time)
+#
+gdb_test "info break" "Num Type.*Disp Enb Address.*What.*\[\r\n\]
+\[0-9\]+\[\t \]+hw breakpoint  del.*y.*in main at .*$srcfile:$bp_location11.*" \
+    "temporary hardware breakpoint info"
+
+
+#***********
+
+if ![runto_main] then { fail "break tests suppressed" }
+
+# Verify that GDB responds gracefully when asked to set a breakpoint
+# on a nonexistent source line.
+#
+send_gdb "hbreak 999\n"
+gdb_expect {
+    -re "No line 999 in file .*$gdb_prompt $" {
+	pass "hardware break on non-existent source line"
+    }
+    -re "$gdb_prompt $" {
+	fail "hardware break on non-existent source line"
+    }
+    timeout {
+	fail "(timeout) hardware break on non-existent source line"
+    }
+}
+
+# Run to the desired default location. If not positioned here, the
+# tests below don't work.
+#
+gdb_test "until $bp_location1" "main .* at .*:$bp_location1.*" "until bp_location1"
+
+
+# Verify that GDB allows one to just say "break", which is treated
+# as the "default" breakpoint.  Note that GDB gets cute when printing
+# the informational message about other breakpoints at the same
+# location.  We'll hit that bird with this stone too.
+#
+send_gdb "hbreak\n"
+gdb_expect {
+    -re "Hardware assisted breakpoint \[0-9\]*.*$gdb_prompt $" {
+	pass "hardware break on default location"
+    }
+    -re "$gdb_prompt $" {
+	fail "hardware break on default location"
+    }
+    timeout {
+	fail "(timeout) hardware break on default location, 1st time"
+    }
+}
+
+# Verify that a "silent" breakpoint can be set, and that GDB is indeed
+# "silent" about its triggering.
+#
+if ![runto_main] then { fail "break tests suppressed" }
+
+send_gdb "hbreak $bp_location1\n"
+gdb_expect {
+    -re "Hardware assisted breakpoint (\[0-9\]*) at .*, line $bp_location1.*$gdb_prompt $" {
+	pass "set to-be-silent hardware break bp_location1"
+    }
+    -re "$gdb_prompt $" {
+	fail "set to-be-silent hardware break bp_location1"
+    }
+    timeout {
+	fail "(timeout) set to-be-silent break bp_location1"
+    }
+}
+
+send_gdb "commands $expect_out(1,string)\n"
+send_gdb "silent\n"
+send_gdb "end\n"
+gdb_expect {
+    -re ".*$gdb_prompt $" {
+	pass "set silent hardware break bp_location1"
+    }
+    timeout {
+	fail "(timeout) set silent hardware break bp_location1"
+    }
+}
+
+send_gdb "info break $expect_out(1,string)\n"
+gdb_expect {
+    -re "\[0-9\]*\[ \t\]*hw breakpoint.*:$bp_location1\r\n\[ \t\]*silent.*$gdb_prompt $" {
+	pass "info silent hardware break bp_location1"
+    }
+    -re "$gdb_prompt $" {
+	fail "info silent hardware break bp_location1"
+    }
+    timeout {
+	fail "(timeout) info silent hardware break bp_location1"
+    }
+}
+send_gdb "continue\n"
+gdb_expect {
+    -re "Continuing.\r\n$gdb_prompt $" {
+	pass "hit silent hardware break bp_location1"
+    }
+    -re "$gdb_prompt $" {
+	fail "hit silent hardware break bp_location1"
+    }
+    timeout {
+	fail "(timeout) hit silent hardware break bp_location1"
+    }
+}
+send_gdb "bt\n"
+gdb_expect {
+    -re "#0  main .* at .*:$bp_location1.*$gdb_prompt $" {
+	pass "stopped for silent hardware break bp_location1"
+    }
+    -re "$gdb_prompt $" {
+	fail "stopped for silent hardware break bp_location1"
+    }
+    timeout {
+	fail "(timeout) stopped for hardware silent break bp_location1"
+    }
+}
+
+# Verify that GDB can at least parse a breakpoint with the
+# "thread" keyword.  (We won't attempt to test here that a
+# thread-specific breakpoint really triggers appropriately.
+# The gdb.threads subdirectory contains tests for that.)
+#
+set bp_location12 [gdb_get_line_number "set breakpoint 12 here"]
+send_gdb "hbreak $bp_location12 thread 999\n"
+gdb_expect {
+    -re "Unknown thread 999.*$gdb_prompt $" {
+	pass "thread-specific hardware breakpoint on non-existent thread disallowed"
+    }
+    -re "$gdb_prompt $" {
+	fail "thread-specific hardware breakpoint on non-existent thread disallowed"
+    }
+    timeout {
+	fail "(timeout) thread-specific hardware breakpoint on non-existent thread disallowed"
+    }
+}
+send_gdb "hbreak $bp_location12 thread foo\n"
+gdb_expect {
+    -re "Junk after thread keyword..*$gdb_prompt $" {
+	pass "thread-specific hardware breakpoint on bogus thread ID disallowed"
+    }
+    -re "$gdb_prompt $" {
+	fail "thread-specific hardware breakpoint on bogus thread ID disallowed"
+    }
+    timeout {
+	fail "(timeout) thread-specific hardware breakpoint on bogus thread ID disallowed"
+    }
+}
+
+# Verify that GDB responds gracefully to a breakpoint command with
+# trailing garbage.
+#
+send_gdb "hbreak $bp_location12 foo\n"
+gdb_expect {
+    -re "Junk at end of arguments..*$gdb_prompt $" {
+	pass "hardware breakpoint with trailing garbage disallowed"
+    }
+    -re "$gdb_prompt $" {
+	fail "hardware breakpoint with trailing garbage disallowed"
+    }
+    timeout {
+	fail "(timeout) hardware breakpoint with trailing garbage disallowed"
+    }
+}
+
+# Verify that GDB responds gracefully to a "clear" command that has
+# no matching breakpoint.  (First, get us off the current source line,
+# which we know has a breakpoint.)
+#
+send_gdb "next\n"
+gdb_expect {
+    -re ".*$gdb_prompt $" {
+	pass "step over hardware breakpoint"
+    }
+    timeout {
+	fail "(timeout) step over hardware breakpoint"
+    }
+}
+send_gdb "clear 81\n"
+gdb_expect {
+    -re "No breakpoint at 81..*$gdb_prompt $" {
+	pass "clear line has no breakpoint disallowed"
+    }
+    -re "$gdb_prompt $" {
+	fail "clear line has no breakpoint disallowed"
+    }
+    timeout {
+	fail "(timeout) clear line has no breakpoint disallowed"
+    }
+}
+send_gdb "clear\n"
+gdb_expect {
+    -re "No breakpoint at this line..*$gdb_prompt $" {
+	pass "clear current line has no breakpoint disallowed"
+    }
+    -re "$gdb_prompt $" {
+	fail "clear current line has no breakpoint disallowed"
+    }
+    timeout {
+	fail "(timeout) clear current line has no breakpoint disallowed"
+    }
+}
+delete_breakpoints
+
+# Verify that a breakpoint can be set via a convenience variable.
+#
+send_gdb "set \$foo=$bp_location11\n"
+gdb_expect {
+    -re "$gdb_prompt $" {
+	pass "set convenience variable \$foo to bp_location11"
+    }
+    timeout {
+	fail "(timeout) set convenience variable \$foo to bp_location11"
+    }
+}
+send_gdb "hbreak \$foo\n"
+gdb_expect {
+    -re "Hardware assisted breakpoint (\[0-9\]*) at .*, line $bp_location11.*$gdb_prompt $" {
+	pass "set hardware breakpoint via convenience variable"
+    }
+    -re "$gdb_prompt $" {
+	fail "set hardware breakpoint via convenience variable"
+    }
+    timeout {
+	fail "(timeout) set hardware breakpoint via convenience variable"
+    }
+}
+delete_breakpoints
+
+# Verify that GDB responds gracefully to an attempt to set a
+# breakpoint via a convenience variable whose type is not integer.
+#
+send_gdb "set \$foo=81.5\n"
+gdb_expect {
+    -re "$gdb_prompt $" {
+	pass "set convenience variable \$foo to 81.5"
+    }
+    timeout {
+	fail "(timeout) set convenience variable \$foo to 81.5"
+    }
+}
+send_gdb "hbreak \$foo\n"
+gdb_expect {
+    -re "Convenience variables used in line specs must have integer values..*$gdb_prompt $" {
+	pass "set hardware breakpoint via non-integer convenience variable disallowed"
+    }
+    -re "$gdb_prompt $" {
+	fail "set hardware breakpoint via non-integer convenience variable disallowed"
+    }
+    timeout {
+	fail "(timeout) set hardware breakpoint via non-integer convenience variable disallowed"
+    }
+}
+
+# Verify that we can set and trigger a breakpoint in a user-called function.
+#
+send_gdb "hbreak marker2\n"
+gdb_expect {
+    -re "Hardware assisted breakpoint (\[0-9\]*) at .*, line ($bp_location8|$bp_location9).*$gdb_prompt $" {
+	pass "set hardware breakpoint on to-be-called function"
+    }
+    -re "$gdb_prompt $" {
+	fail "set hardware breakpoint on to-be-called function"
+    }
+    timeout {
+	fail "(timeout) set hardware breakpoint on to-be-called function"
+    }
+}
+send_gdb "print marker2(99)\n"
+gdb_expect {
+    -re "The program being debugged stopped while in a function called from GDB.\r\nWhen the function .marker2$proto. is done executing, GDB will silently\r\nstop .instead of continuing to evaluate the expression containing\r\nthe function call...*$gdb_prompt $" {
+	pass "hit hardware breakpoint on called function"
+    }
+    -re "$gdb_prompt $" {
+	fail "hit hardware breakpoint on called function"
+    }
+    timeout {
+	fail "(timeout) hit hardware breakpoint on called function"
+    }
+}
+
+# As long as we're stopped (breakpointed) in a called function,
+# verify that we can successfully backtrace & such from here.
+#
+send_gdb "bt\n"
+gdb_expect {
+    -re "#0\[ \t\]*($hex in )?marker2.*:($bp_location8|$bp_location9)\r\n#1.*_sr4export.*$gdb_prompt $" {
+	pass "backtrace while in called function"
+    }
+    -re "#0\[ \t\]*($hex in )?marker2.*:($bp_location8|$bp_location9)\r\n#1.*function called from gdb.*$gdb_prompt $" {
+	pass "backtrace while in called function"
+    }
+    -re "$gdb_prompt $" {
+	fail "backtrace while in called function"
+    }
+    timeout {
+	fail "(timeout) backtrace while in called function"
+    }
+}
+
+# Return from the called function.  For remote targets, it's important to do
+# this before runto_main, which otherwise may silently stop on the dummy
+# breakpoint inserted by GDB at the program's entry point.
+#
+send_gdb "finish\n"
+gdb_expect {
+    -re "Run till exit from .*marker2.* at .*($bp_location8|$bp_location9)\r\n.* in _sr4export.*$gdb_prompt $" {
+	pass "finish from called function"
+    }
+    -re "Run till exit from .*marker2.* at .*($bp_location8|$bp_location9)\r\n.*function called from gdb.*$gdb_prompt $" {
+	pass "finish from called function"
+    }
+    -re "Run till exit from .*marker2.* at .*($bp_location8|$bp_location9)\r\n.*Value returned.*$gdb_prompt $" {
+	pass "finish from called function"
+    }
+    -re "$gdb_prompt $" {
+	fail "finish from called function"
+    }
+    timeout {
+	fail "(timeout) finish from called function"
+    }
+}
+
+#********
+
+
+#
+# Test "next" over recursive function call.
+#
+
+proc test_next_with_recursion {} { 
+    global gdb_prompt
+    global decimal
+    global binfile
+
+    if [target_info exists use_gdb_stub] {
+	# Reload the program.
+	delete_breakpoints
+	gdb_load ${binfile};
+    } else {
+	# FIXME: should be using runto
+	gdb_test "kill" "" "kill program" "Kill the program being debugged.*y or n. $" "y"
+
+	delete_breakpoints
+    }
+
+    gdb_test "hbreak factorial" \
+	"Hardware assisted breakpoint $decimal at .*" \
+	"hardware break at factorial"
+
+    # Run until we call factorial with 6
+
+    if [istarget "*-*-vxworks*"] then {
+	send_gdb "run vxmain \"6\"\n"
+    } else {
+	gdb_run_cmd
+    }
+    gdb_expect {
+	-re "Break.* factorial .value=6. .*$gdb_prompt $" {}
+	-re ".*$gdb_prompt $" {
+	    fail "run to factorial(6)";
+	    gdb_suppress_tests;
+	}
+	timeout {
+	    fail "run to factorial(6) (timeout)";
+	    gdb_suppress_tests;
+	}
+    }
+
+    # Continue until we call factorial recursively with 5.
+
+    if [gdb_test "continue" \
+	"Continuing.*Break.* factorial .value=5. .*" \
+	"continue to factorial(5)"] then { gdb_suppress_tests }
+
+    # Do a backtrace just to confirm how many levels deep we are.
+
+    if [gdb_test "backtrace" \
+	"#0\[ \t\]+ factorial .value=5..*" \
+	"backtrace from factorial(5)"] then { gdb_suppress_tests }
+
+    # Now a "next" should position us at the recursive call, which
+    # we will be performing with 4.
+
+    if [gdb_test "next" \
+	".* factorial .value - 1.;.*" \
+	"next to recursive call"] then { gdb_suppress_tests }
+
+    # Disable the breakpoint at the entry to factorial by deleting them all.
+    # The "next" should run until we return to the next line from this
+    # recursive call to factorial with 4.
+    # Buggy versions of gdb will stop instead at the innermost frame on
+    # the line where we are trying to "next" to.
+
+    delete_breakpoints
+
+    if [istarget "mips*tx39-*"] {
+	set timeout 60
+    }
+    # We used to set timeout here for all other targets as well.  This
+    # is almost certainly wrong.  The proper timeout depends on the
+    # target system in use, and how we communicate with it, so there
+    # is no single value appropriate for all targets.  The timeout
+    # should be established by the Dejagnu config file(s) for the
+    # board, and respected by the test suite.
+    #
+    # For example, if I'm running GDB over an SSH tunnel talking to a
+    # portmaster in California talking to an ancient 68k board running
+    # a crummy ROM monitor (a situation I can only wish were
+    # hypothetical), then I need a large timeout.  But that's not the
+    # kind of knowledge that belongs in this file.
+
+    gdb_test next "\[0-9\]*\[\t \]+return \\(value\\);.*" \
+	    "next over recursive call"
+
+    # OK, we should be back in the same stack frame we started from.
+    # Do a backtrace just to confirm.
+
+    set result [gdb_test "backtrace" \
+	    "#0\[ \t\]+ factorial .value=120.*\r\n#1\[ \t\]+ \[0-9a-fx\]+ in factorial .value=6..*" \
+	    "backtrace from factorial(5.1)"]
+    if { $result != 0 } { gdb_suppress_tests }
+
+    if [target_info exists gdb,noresults] { gdb_suppress_tests }
+    gdb_continue_to_end "recursive next test"
+    gdb_stop_suppressing_tests;
+}
+
+test_next_with_recursion
+
+
+#********
+
+# build a new file with optimization enabled so that we can try breakpoints
+# on targets with optimized prologues
+
+set binfileo2 ${objdir}/${subdir}/${testfile}o2
+
+if  { [gdb_compile "${srcdir}/${subdir}/${srcfile}" "${binfile}O0.o" object {debug "additional_flags=-w -O2"}] != "" } {
+     gdb_suppress_entire_file "Testcase compile failed, so all tests in this file will automatically fail."
+}
+
+if  { [gdb_compile "${srcdir}/${subdir}/${srcfile1}" "${binfile}O1.o" object {debug "additional_flags=-w -O2"}] != "" } {
+     gdb_suppress_entire_file "Testcase compile failed, so all tests in this file will automatically fail."
+}
+
+if  { [gdb_compile "${binfile}O0.o ${binfile}O1.o" "${binfileo2}" executable {debug additional_flags=-w}] != "" } {
+     gdb_suppress_entire_file "Testcase compile failed, so all tests in this file will automatically fail."
+}
+
+if [get_compiler_info ${binfileo2}] {
+    return -1
+}
+
+gdb_exit
+gdb_start
+gdb_reinitialize_dir $srcdir/$subdir
+gdb_load ${binfileo2}
+
+if [target_info exists gdb_stub] {
+    gdb_step_for_stub;
+}
+
+#
+# test break at function
+#
+gdb_test "hbreak main" \
+    "Hardware assisted breakpoint.*at.* file .*$srcfile, line.*" \
+    "hardware breakpoint function, optimized file"
+
+#
+# run until the breakpoint at main is hit. For non-stubs-using targets.
+#
+if ![target_info exists use_gdb_stub] {
+    if [istarget "*-*-vxworks*"] then {
+	send_gdb "run vxmain \"2\"\n"
+	set timeout 120
+	verbose "Timeout is now $timeout seconds" 2
+    } else {
+	send_gdb "run\n"
+    }
+    gdb_expect {
+	-re "The program .* has been started already.*y or n. $" {
+	    send_gdb "y\n"
+	    exp_continue
+	}
+	-re "Starting program.*Breakpoint \[0-9\]+,.*main .*argc.*argv.* at .*$srcfile:$bp_location6.*$bp_location6\[\t \]+if .argc.* \{.*$gdb_prompt $" {
+	    pass "run until function breakpoint, optimized file"
+	}
+	-re "Starting program.*Breakpoint \[0-9\]+,.*main .*argc.*argv.* at .*$gdb_prompt $" {
+	    pass "run until function breakpoint, optimized file (code motion)"
+	}
+	-re ".*$gdb_prompt $" {
+	    fail "run until function breakpoint, optimized file"
+	}
+	timeout {
+	    fail "run until function breakpoint, optimized file (timeout)"
+	}
+    }
+} else {
+    if ![target_info exists gdb_stub] {
+	gdb_test continue \
+	    ".*Continuing\\..*Breakpoint \[0-9\]+, main \\(argc=.*, argv=.*, envp=.*\\) at .*$srcfile:$bp_location6.*$bp_location6\[\t \]+if .argc.*\{.*" \
+	    "stub continue, optimized file"
+    }
+}
+delete_breakpoints
+
+#
+# test break at function
+#
+gdb_test "hbreak marker4" \
+    "Hardware assisted breakpoint.*at.* file .*$srcfile1, line.*" \
+    "hardware breakpoint small function, optimized file"
+
+#
+# run until the breakpoint at a small function
+#
+
+#
+# Add a second pass pattern.  The behavior differs here between stabs
+# and dwarf for one-line functions.  Stabs preserves two line symbols
+# (one before the prologue and one after) with the same line number, 
+# but dwarf regards these as duplicates and discards one of them.
+# Therefore the address after the prologue (where the breakpoint is)
+# has no exactly matching line symbol, and GDB reports the breakpoint
+# as if it were in the middle of a line rather than at the beginning.
+
+set bp_location13 [gdb_get_line_number "set breakpoint 13 here" $srcfile1]
+set bp_location14 [gdb_get_line_number "set breakpoint 14 here" $srcfile1]
+send_gdb "continue\n"
+gdb_expect {
+    -re "Breakpoint $decimal, marker4 \\(d=177601976\\) at .*$srcfile1:$bp_location13\[\r\n\]+$bp_location13\[\t \]+void marker4.*" {
+	pass "run until breakpoint set at small function, optimized file"
+    }
+    -re "Breakpoint $decimal, $hex in marker4 \\(d=177601976\\) at .*$srcfile1:$bp_location13\[\r\n\]+$bp_location13\[\t \]+void marker4.*" {
+	pass "run until breakpoint set at small function, optimized file"
+    }
+    -re "Breakpoint $decimal, marker4 \\(d=177601976\\) at .*$srcfile1:$bp_location14\[\r\n\]+$bp_location14\[\t \]+void marker4.*" {
+        # marker4() is defined at line 46 when compiled with -DPROTOTYPES
+	pass "run until breakpoint set at small function, optimized file (line bp_location14)"
+    }
+    -re ".*$gdb_prompt " {
+	fail "run until breakpoint set at small function, optimized file"
+    }
+    timeout {
+	fail "run until breakpoint set at small function, optimized file (timeout)"
+    }
+}
+
+
+# Reset the default arguments for VxWorks
+if [istarget "*-*-vxworks*"] {
+    set timeout 10
+    verbose "Timeout is now $timeout seconds" 2
+    send_gdb "set args main\n"
+    gdb_expect -re ".*$gdb_prompt $" {}
+}

@@ -1,0 +1,8 @@
+# We default to building libraries optimised (for size), basic debug only, and without gp addressing
+
+# -mno-gpopt doesn't work right yet
+#CFLAGS_FOR_TARGET = -g1 -Os -mno-gpopt -fno-optimize-sibling-calls
+#CXXFLAGS_FOR_TARGET = -g1 -Os -mno-gpopt -fno-optimize-sibling-calls
+
+CFLAGS_FOR_TARGET = -g1 -Os -G0 -fno-optimize-sibling-calls
+CXXFLAGS_FOR_TARGET = -g1 -Os -G0 -fno-optimize-sibling-calls

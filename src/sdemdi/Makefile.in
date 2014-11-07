@@ -1,0 +1,178 @@
+#
+# Makefile
+#   Copyright (C) 1990, 91, 92, 93, 94, 95, 96, 1997 Free Software Foundation
+#
+# This file is part of the sdemdi library.
+# Sdemdi is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Library General Public
+# License as published by the Free Software Foundation; either
+# version 2 of the License, or (at your option) any later version.
+#
+# Sdemdi is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Library General Public License for more details.
+#
+# You should have received a copy of the GNU Library General Public
+# License along with sdemdi; see the file COPYING.LIB.  If not,
+# write to the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+# Boston, MA 02111-1307, USA.
+
+#
+# Makefile for sdemdi directory
+#
+
+srcdir = @srcdir@
+VPATH = @srcdir@
+
+prefix = @prefix@
+
+exec_prefix = @exec_prefix@
+bindir = @bindir@
+libdir = @libdir@
+includedir = @includedir@
+
+SHELL = @SHELL@
+
+# Multilib support variables.
+MULTISRCTOP =
+MULTIBUILDTOP =
+MULTIDIRS =
+MULTISUBDIR =
+MULTIDO = true
+MULTICLEAN = true
+
+INSTALL = @INSTALL@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
+INSTALL_DATA = @INSTALL_DATA@
+
+AR = @AR@
+AR_FLAGS = rc
+
+CC = @CC@
+CFLAGS = @CFLAGS@
+LIBCFLAGS = $(CFLAGS)
+RANLIB = @RANLIB@
+
+PICFLAG =
+
+MAKEOVERRIDES =
+
+TARGETLIB = libmdi.a
+
+LIBOBJS = @LIBOBJS@
+
+# Flags to pass to a recursive make.
+FLAGS_TO_PASS = \
+	"AR=$(AR)" \
+	"AR_FLAGS=$(AR_FLAGS)" \
+	"CC=$(CC)" \
+	"CFLAGS=$(CFLAGS)" \
+	"DESTDIR=$(DESTDIR)" \
+	"LIBCFLAGS=$(LIBCFLAGS)" \
+	"EXTRA_OFILES=$(EXTRA_OFILES)" \
+	"HDEFINES=$(HDEFINES)" \
+	"INSTALL=$(INSTALL)" \
+	"INSTALL_DATA=$(INSTALL_DATA)" \
+	"INSTALL_PROGRAM=$(INSTALL_PROGRAM)" \
+	"LDFLAGS=$(LDFLAGS)" \
+	"LOADLIBES=$(LOADLIBES)" \
+	"RANLIB=$(RANLIB)" \
+	"SHELL=$(SHELL)" \
+	"prefix=$(prefix)" \
+	"exec_prefix=$(exec_prefix)" \
+	"libdir=$(libdir)" \
+	"libsubdir=$(libsubdir)" \
+	"tooldir=$(tooldir)"
+
+all: $(TARGETLIB) crt0.o stamp-scripts all-subdir 
+	@: $(MAKE) ; exec $(MULTIDO) $(FLAGS_TO_PASS) multi-do DO=all
+
+.PHONY: check installcheck
+check: check-subdir
+installcheck: installcheck-subdir
+
+#@host_makefile_frag@
+#@target_makefile_frag@
+
+INCDIR=$(srcdir)/$(MULTISRCTOP)../include
+
+COMPILE.c = $(CC) -c @DEFS@ $(LIBCFLAGS) -I. -I$(INCDIR) $(HDEFINES)
+.c.o:
+	$(COMPILE.c) $< $(OUTPUT_OPTION)
+
+COMPILE.S = $(CC) -c @DEFS@ $(LIBCFLAGS) -I. -I$(INCDIR) $(HDEFINES)
+.S.o:
+	$(COMPILE.S) $< $(OUTPUT_OPTION)
+
+# The default target just invokes make recursively.
+# However, the automatic configuration (in config/mh_default).
+# first causes it to figure out the objects missing in libc.
+info install-info clean-info dvi:
+
+CFILES = fileio.c rtpxlite.c rtpxstub.c
+
+SFILES = mdilow.S mdisyscall.S m32cache.S rtpxliteasm.S
+
+OFILES = fileio.o mdilow.o mdisyscall.o m32cache.o rtpxlite.o rtpxliteasm.o \
+	 rtpxstub.o
+
+SCRIPTS = $(srcdir)/sdemdi32.ld $(srcdir)/sdemdi32hi.ld \
+	  $(srcdir)/sdemdi64.ld $(srcdir)/sdemdi64hi.ld 
+
+install:
+
+$(TARGETLIB): $(OFILES) 
+	-rm -f $(TARGETLIB)
+	$(AR) $(AR_FLAGS) $(TARGETLIB) $(OFILES) 
+	$(RANLIB) $(TARGETLIB)
+
+stamp-scripts: $(SCRIPTS)
+	for i in $(SCRIPTS); do \
+	  cp $$i ./; \
+	done
+	echo timestamp >stamp-scripts
+
+.PHONY: all etags tags ls clean stage1 stage2 .always.
+
+etags tags: TAGS
+
+TAGS: $(CFILES) $(HFILES)
+	etags `for i in $(HFILES) $(CFILES); do echo $(srcdir)/$$i ; done`
+
+ls:
+	@echo Makefile $(HFILES) $(CFILES) $(SFILES)
+
+mostlyclean:
+	rm -rf *.o core errs \#* *.E a.out
+	rm -f stamp-*
+	@$(MULTICLEAN) multi-clean DO=mostlyclean
+clean: mostlyclean
+	rm -f *.a tmpmulti.out
+	@$(MULTICLEAN) multi-clean DO=clean
+distclean: clean
+	@$(MULTICLEAN) multi-clean DO=distclean
+	rm -f *~ Makefile config.status TAGS multilib.out
+maintainer-clean realclean: distclean
+
+force:
+
+Makefile: $(srcdir)/Makefile.in #@host_makefile_frag@ @target_makefile_frag@
+	CONFIG_FILES=Makefile CONFIG_HEADERS= $(SHELL) ./config.status
+
+config.status: $(srcdir)/configure
+	$(SHELL) ./config.status --recheck
+
+# Depending on config.h makes sure that config.status has been re-run
+# if needed.  This prevents problems with parallel builds, in case
+# subdirectories need to run config.status also.
+
+all-subdir check-subdir installcheck-subdir info-subdir	\
+install-info-subdir clean-info-subdir dvi-subdir install-subdir	\
+etags-subdir mostlyclean-subdir clean-subdir distclean-subdir \
+maintainer-clean-subdir: #config.h
+	@subdirs='$(SUBDIRS)'; \
+	target=`echo $@ | sed -e 's/-subdir//'`; \
+	for dir in $$subdirs ; do \
+	  cd $$dir && $(MAKE) $(FLAGS_TO_PASS) $$target; \
+	done

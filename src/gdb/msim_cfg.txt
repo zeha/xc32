@@ -1,0 +1,1381 @@
+# MIPSsim config file template for GDB
+
+{common}
+# Entries common to all MIPSsim targets
+
+{EB}
+# CPU endianness
+#    	1 = Big Endian
+set BIG_ENDIAN 1
+
+{EL}
+# CPU endianness
+#    	0 = Little Endian
+set BIG_ENDIAN 0
+
+{!4}
+# Trace file
+#    Name of the trace file to be generated.  Can be
+#	a full path or a relative path to the file.
+#	'stdout' will point the output to standard
+#	output.
+set TRACE_FILE mipssim.trace 
+
+# Tracing: Generate trace files
+#    	0 = none
+#    	1 = cycle counting on
+#    	2 = instruction trace on
+#    	3 = cycle counting and instruction trace
+set TRACE_LEVEL 0
+
+# Trace Format
+#    	0 = x(X) prints in hexadecimal
+#    	1 = h(H) prints in hexadecimal
+#    	2 = d(D) prints in decimal
+#    	3 = b(B) prints in binary
+#    	4 = r(R) prints in 8 byte hex value
+set TRACE_FORMAT 4
+
+# Dumpmem file
+#    Name of the dumpmem file.  Can be a full path
+#	or a relative path
+#set DUMP_FILE test.dumpmem
+
+{3\..*;20Kc}
+# Processor to System (Exernal) clock ratio
+#	1 = 2:1
+#	2 = 3:1
+#	3 = 4:1
+set EXTERNAL_CLOCK_RATIO 1
+
+# Indicates a bus configuration if low packaging cost
+#	0 = 64-bit bus
+#	1 = 32-bit bus
+set LOW_PACKAGING 0
+
+# set core to 20K NOT optional but needs to be set for GUI
+set CPU_CORE 30
+
+{3\..*;25Kf}
+# Processor to L2 clock divisor (L2 domain)
+#    L2 clock domain is synchronous to the processor clock,
+#    but may be devided-down in frequency.
+#	1 = 2:1
+#	2 = 3:1
+#	3 = 4:1
+#	4 = 5:1
+#	5 = 6:1
+#	6 = 7:1
+#	7 = 8:1
+#	8 = 9:1 (TBD)
+#	9 = 10:1 (TBD)
+set EXTERNAL_CLOCK_RATIO 1
+
+
+# L2 clock domain to System Controller clock domain ratio
+#    System Controller domain is synchronous to the L2 domain,
+#    but may be divided in frequency.  In bypass mode, the
+#    System Controller domain is exactly the same as the L2
+#    domain (choice 0 below).
+#	0 = 1:1
+#	1 = 2:1
+#	2 = 3:1
+#	3 = 4:1
+#	4 = 5:1 (TBD)
+set L2_CLOCK_RATIO 1
+
+
+# Primary Cache size:
+#    	0 = 16KB
+#    	1 = 32KB
+set CACHE_SIZE 1
+
+
+# Floating point coprocessor enable
+#    	0 = No FPU present
+#    	1 = FPU present
+set FLOATING_POINT 0
+
+
+# Level 2 Cache line size
+#    	0 = No level 2 cache present
+#    	1 = 4 bytes
+#    	2 = 8 bytes
+#    	3 = 16 bytes
+#    	4 = 32 bytes
+#    	5 = 64 bytes
+#    	6 = 128 bytes
+#    	7 = 256 bytes
+set SCACHE_LINE_SIZE 4
+
+
+# Level 2 Cache sets per way
+#        0 = 64 sets
+#        1 = 128 sets
+#        2 = 256 sets
+#        3 = 512 sets
+#        4 = 1024 sets
+#        5 = 2048 sets
+#        6 = 4096 sets
+#        7 = 8192 sets
+set SCACHE_SETS_PER_WAY 5
+
+
+# Level 2 Cache Associativity
+#        0 = Direct Mapped
+#        1 = 2-way
+#        2 = 3-way
+#        3 = 4-way
+#	 4 = 5-way
+#	 5 = 6-way
+#	 6 = 7-way
+#	 7 = 8-way
+set SCACHE_ASSOC 3
+
+
+# set core to 25Kf NOT optional but needs to be set for GUI
+set CPU_CORE 40
+
+{3\..*;4Kc}
+set CPU_CORE 0
+
+{3\..*;4Km}
+set CPU_CORE 1
+
+{3\..*;4Kp}
+set CPU_CORE 2
+
+{3\..*;4K[cmp]}
+# Merge Mode: 32-byte collapsing Write-thru buffer merge mode
+#    	0 = None
+#    	1 = SysAD valid
+#    	2 = Full
+set MERGE_MODE 1
+
+# Burst order
+#    	0 = Sequential
+#    	1 = Sub-block
+set BURST_MODE 1
+
+
+# Processor Instruction Cache
+#    Sets per Way
+#        0 = 64 sets
+#        1 = 128 sets
+#        2 = 256 sets
+set ICACHE_SETS_PER_WAY 2
+
+
+# Processor Instruction Cache
+#    Line Size
+#    	0 = No Icache present
+#	1 = 16 bytes
+set ICACHE_LINE_SIZE 1
+
+
+# Processor Instruction Cache
+#    Associativity
+#        0 = Direct Mapped
+#        1 = 2-way
+#        2 = 3-way
+#        3 = 4-way
+set ICACHE_ASSOC 3
+
+
+# Processor Data Cache
+#    Sets per Way
+#        0 = 64 sets
+#        1 = 128 sets
+#        2 = 256 sets
+set DCACHE_SETS_PER_WAY 2
+
+
+# Processor Data Cache
+#    Line Size
+#    	0 = No Dcache present
+#	1 = 16 bytes
+set DCACHE_LINE_SIZE 1
+
+
+# Processor Data Cache
+#    Associativity
+#        0 = Direct Mapped
+#        1 = 2-way
+#        2 = 3-way
+#        3 = 4-way
+set DCACHE_ASSOC 3
+
+{3\..*;4KEc}
+set CPU_CORE 60
+
+{3\..*;4KEm}
+set CPU_CORE 61
+
+{3\..*;4KEp}
+set CPU_CORE 62
+
+{3\..*;4KE[cmp]}
+
+# User Defined Instruction(UDI) implemented
+#	0 = not implemented
+#	1 = implemented
+set UDI_ENABLE 0
+
+
+# Indicates whether SimpleBE bus mode is enabled
+#	0 = no reserved byte enables on EC interface
+#	1 = Only simple byte enables allowed on EC interface
+set SIMPLE_BE 0
+
+
+# Merge Mode: 32-byte collapsing Write-thru buffer merge mode
+#    	0 = None
+#    	1 = Merging allowed
+set MERGE_MODE 1
+
+
+# Burst order
+#    	0 = Sequential
+#    	1 = Sub-block
+set BURST_MODE 1
+
+
+# Processor Instruction Cache
+#    Sets per Way
+#        0 = 64 sets
+#        1 = 128 sets
+#        2 = 256 sets
+#        3 = 512 sets
+#        4 = 1024 sets
+set ICACHE_SETS_PER_WAY 2
+
+
+# Processor Instruction Cache
+#    Line Size
+#    	0 = No Icache present
+#	1 = 16 bytes
+set ICACHE_LINE_SIZE 1
+
+
+# Processor Instruction Cache
+#    Associativity
+#        0 = Direct Mapped
+#        1 = 2-way
+#        2 = 3-way
+#        3 = 4-way
+set ICACHE_ASSOC 1
+
+
+# Processor Data Cache
+#    Sets per Way
+#        0 = 64 sets
+#        1 = 128 sets
+#        2 = 256 sets
+#        3 = 512 sets
+#        4 = 1024 sets
+set DCACHE_SETS_PER_WAY 2
+
+
+# Processor Data Cache
+#    Line Size
+#    	0 = No Dcache present
+#	1 = 16 bytes
+set DCACHE_LINE_SIZE 1
+
+
+# Processor Data Cache
+#    Associativity
+#        0 = Direct Mapped
+#        1 = 2-way
+#        2 = 3-way
+#        3 = 4-way
+set DCACHE_ASSOC 1
+
+
+# Coprocessor 2
+#	0 = not present
+#	1 = A coprocessor is attached to the cop2 interface
+set COP2_ENABLE 0
+
+
+# Code compression (MIPS16TM) implemented
+#	0 = no MIPS16 is present
+#	1 = MIPS16 implemented
+set CODE_COMPRESSION 1
+
+
+# ISPram present
+#	0 = not present
+#	1 = present
+set ISPRAM_ENABLE 0
+
+
+# DSPram present
+#	0 = not present
+#	1 = present
+set DSPRAM_ENABLE 0
+
+
+# IP number to which the Timer Interrupt request is merged
+#     and allow software to determine whether to consider
+#     Cause(TI) for potential interrupt.
+#	2 = HW0
+#       3 = HW1
+#       4 = HW2
+#       5 = HW3
+#       6 = HW4
+#       7 = HW5
+set INTCTL_IPTI 7
+
+
+# The number of CPU in a multi-processor system.  In
+#     a single processor system, this value should be set
+#     to zero. (Maximum value = 1023)
+set EBASE_CPUNUM 0
+
+
+# Shadow Register Sets
+#	0 = not implemented
+#	1 = One set of shadow registers
+#	3 = Three sets of shadow registers
+set SHADOW_REGISTER_SETS 0
+
+
+# Small (1K Byte) page support
+#	0 = not implemented
+#       1 = implemented
+set SMALL_PAGE_SUPPORT 0
+
+{3\..*;4KEc-R1}
+set CPU_CORE 10
+
+{3\..*;4KEm-R1}
+set CPU_CORE 11
+
+{3\..*;4KEp-R1}
+set CPU_CORE 12
+
+{3\..*;4KE[cmp]-R1}
+# User Defined Instruction(UDI) implemented
+#	0 = not implemented
+#	1 = implemented
+set UDI_ENABLE 0
+
+
+# Indicates whether SimpleBE bus mode is enabled
+#	0 = no reserved byte enables on EC interface
+#	1 = Only simple byte enables allowed on EC interface
+set SIMPLE_BE 0
+
+
+# Merge Mode: 32-byte collapsing Write-thru buffer merge mode
+#    	0 = None
+#    	1 = Merging allowed
+set MERGE_MODE 1
+
+
+# Burst order
+#    	0 = Sequential
+#    	1 = Sub-block
+set BURST_MODE 1
+
+
+# Processor Instruction Cache
+#    Sets per Way
+#        0 = 64 sets
+#        1 = 128 sets
+#        2 = 256 sets
+#        3 = 512 sets
+#        4 = 1024 sets
+set ICACHE_SETS_PER_WAY 2
+
+
+# Processor Instruction Cache
+#    Line Size
+#    	0 = No Icache present
+#	1 = 16 bytes
+set ICACHE_LINE_SIZE 1
+
+
+# Processor Instruction Cache
+#    Associativity
+#        0 = Direct Mapped
+#        1 = 2-way
+#        2 = 3-way
+#        3 = 4-way
+set ICACHE_ASSOC 1
+
+
+# Processor Data Cache
+#    Sets per Way
+#        0 = 64 sets
+#        1 = 128 sets
+#        2 = 256 sets
+#        3 = 512 sets
+#        4 = 1024 sets
+set DCACHE_SETS_PER_WAY 2
+
+
+# Processor Data Cache
+#    Line Size
+#    	0 = No Dcache present
+#	1 = 16 bytes
+set DCACHE_LINE_SIZE 1
+
+
+# Processor Data Cache
+#    Associativity
+#        0 = Direct Mapped
+#        1 = 2-way
+#        2 = 3-way
+#        3 = 4-way
+set DCACHE_ASSOC 1
+
+
+# Coprocessor 2
+#	0 = not present
+#	1 = A coprocessor is attached to the cop2 interface
+set COP2_ENABLE 0
+
+
+# Code compression (MIPS16TM) implemented
+#	0 = no MIPS16 is present
+#	1 = MIPS16 implemented
+set CODE_COMPRESSION 1
+
+
+# ISPram present
+#	0 = not present
+#	1 = present
+set ISPRAM_ENABLE 0
+
+
+# DSPram present
+#	0 = not present
+#	1 = present
+set DSPRAM_ENABLE 0
+
+{3\..*;4KSc}
+# User Defined Instruction(UDI) implemented
+#	0 = not implemented
+#	1 = implemented
+set UDI_ENABLE 0
+
+
+# Indicates whether SimpleBE bus mode is enabled
+#	0 = no reserved byte enables on EC interface
+#	1 = Only simple byte enables allowed on EC interface
+set SIMPLE_BE 0
+
+
+# Merge Mode: 32-byte collapsing Write-thru buffer merge mode
+#    	0 = None
+#    	1 = Merging allowed
+set MERGE_MODE 1
+
+
+# Burst order
+#    	0 = Sequential
+#    	1 = Sub-block
+set BURST_MODE 1
+
+
+# Processor Instruction Cache
+#    Sets per Way
+#        0 = 64 sets
+#        1 = 128 sets
+#        2 = 256 sets
+#        3 = 512 sets
+#        4 = 1024 sets
+set ICACHE_SETS_PER_WAY 2
+
+
+# Processor Instruction Cache
+#    Line Size
+#    	0 = No Icache present
+#	1 = 16 bytes
+set ICACHE_LINE_SIZE 1
+
+
+# Processor Instruction Cache
+#    Associativity
+#        0 = Direct Mapped
+#        1 = 2-way
+#        2 = 3-way
+#        3 = 4-way
+set ICACHE_ASSOC 1
+
+
+# Processor Data Cache
+#    Sets per Way
+#        0 = 64 sets
+#        1 = 128 sets
+#        2 = 256 sets
+#        3 = 512 sets
+#        4 = 1024 sets
+set DCACHE_SETS_PER_WAY 2
+
+
+# Processor Data Cache
+#    Line Size
+#    	0 = No Dcache present
+#	1 = 16 bytes
+set DCACHE_LINE_SIZE 1
+
+
+# Processor Data Cache
+#    Associativity
+#        0 = Direct Mapped
+#        1 = 2-way
+#        2 = 3-way
+#        3 = 4-way
+set DCACHE_ASSOC 1
+
+
+# Coprocessor 2
+#	0 = not present
+#	1 = A coprocessor is attached to the cop2 interface
+set COP2_ENABLE 0
+
+
+# CPU_CORE
+#       default to 4KSc Not needed for configuration but needed by GUI
+set CPU_CORE 13
+
+
+# ISPram present
+#	0 = not present
+#	1 = present
+set ISPRAM_ENABLE 0
+
+
+# DSPram present
+#	0 = not present
+#	1 = present
+set DSPRAM_ENABLE 0
+
+{3\..*;4KSd}
+# User Defined Instruction(UDI) implemented
+#	0 = not implemented
+#	1 = implemented
+set UDI_ENABLE 0
+
+
+# Indicates whether SimpleBE bus mode is enabled
+#	0 = no reserved byte enables on EC interface
+#	1 = Only simple byte enables allowed on EC interface
+set SIMPLE_BE 0
+
+
+# Merge Mode: 32-byte collapsing Write-thru buffer merge mode
+#    	0 = None
+#    	1 = Merging allowed
+set MERGE_MODE 1
+
+
+# Burst order
+#    	0 = Sequential
+#    	1 = Sub-block
+set BURST_MODE 1
+
+
+# Processor Instruction Cache
+#    Sets per Way
+#        0 = 64 sets
+#        1 = 128 sets
+#        2 = 256 sets
+#        3 = 512 sets
+#        4 = 1024 sets
+set ICACHE_SETS_PER_WAY 2
+
+
+# Processor Instruction Cache
+#    Line Size
+#    	0 = No Icache present
+#	1 = 16 bytes
+set ICACHE_LINE_SIZE 1
+
+
+# Processor Instruction Cache
+#    Associativity
+#        0 = Direct Mapped
+#        1 = 2-way
+#        2 = 3-way
+#        3 = 4-way
+set ICACHE_ASSOC 1
+
+
+# Processor Data Cache
+#    Sets per Way
+#        0 = 64 sets
+#        1 = 128 sets
+#        2 = 256 sets
+#        3 = 512 sets
+#        4 = 1024 sets
+set DCACHE_SETS_PER_WAY 2
+
+
+# Processor Data Cache
+#    Line Size
+#    	0 = No Dcache present
+#	1 = 16 bytes
+set DCACHE_LINE_SIZE 1
+
+
+# Processor Data Cache
+#    Associativity
+#        0 = Direct Mapped
+#        1 = 2-way
+#        2 = 3-way
+#        3 = 4-way
+set DCACHE_ASSOC 1
+
+
+# Coprocessor 2
+#	0 = not present
+#	1 = A coprocessor is attached to the cop2 interface
+set COP2_ENABLE 0
+
+
+# CPU_CORE
+#       default to 4KSd Not needed for configuration but needed by GUI
+set CPU_CORE 63
+
+
+# ISPram present
+#	0 = not present
+#	1 = present
+set ISPRAM_ENABLE 0
+
+
+# DSPram present
+#	0 = not present
+#	1 = present
+set DSPRAM_ENABLE 0
+
+
+# *** THIS IS MIPS RELEASE 2 ARCHITECTURE EXTENSIONS ***
+# IP number to which the Timer Interrupt request is merged
+#     and allow software to determine whether to consider
+#     Cause(TI) for potential interrupt.
+#	2 = HW0
+#       3 = HW1
+#       4 = HW2
+#       5 = HW3
+#       6 = HW4
+#       7 = HW5
+set INTCTL_IPTI 7
+
+
+# *** THIS IS MIPS RELEASE 2 ARCHITECTURE EXTENSIONS ***
+# The number of CPU in a multi-processor system.  In
+#     a single processor system, this value should be set
+#     to zero. (Maximum value = 1023)
+set EBASE_CPUNUM 0
+
+
+# *** THIS IS MIPS RELEASE 2 ARCHITECTURE EXTENSIONS ***
+# Shadow Register Sets
+#	0 = not implemented
+#	1 = One set of shadow registers
+#	3 = Three sets of shadow registers
+set SHADOW_REGISTER_SETS 0
+
+{3\..*;5Kc}
+set CPU_CORE 20
+
+{3\..*;5Kf}
+set CPU_CORE 21
+
+{3\..*;5K[cf]}
+# Indicates whether SimpleBE bus mode is enabled
+#	0 = no reserved byte enables on EC interface
+#	1 = Only simple byte enables allowed on EC interface
+set SIMPLE_BE 0
+
+# Burst order
+#    	0 = Sequential
+#    	1 = Sub-block
+set BURST_MODE 1
+
+
+# Type of MMU implemented
+#	0 = Standard TLB
+#	1 = Standard FMT
+set MMU_TYPE 0
+
+# Size of MMU (number of entries in TLB minus one)
+#	0 = Value used when the MMU is not TLB-based
+#	1 = 16-entry TLB MMU
+#	2 = 32-entry TLB MMU
+#	3 = 48-entry TLB MMU
+set MMU_SIZE 3
+
+# Processor Instruction Cache
+#    Sets per Way
+#        1 = 128 sets
+#        2 = 256 sets
+#	 3 = 512 sets
+set ICACHE_SETS_PER_WAY 3
+
+
+# Processor Instruction Cache
+#    Line Size
+#    	0 = No Icache present
+#	1 = 32 bytes
+set ICACHE_LINE_SIZE 1
+
+
+# Processor Instruction Cache
+#    Associativity
+#        0 = Direct Mapped
+#        1 = 2-way
+#        2 = 3-way
+#        3 = 4-way
+set ICACHE_ASSOC 3
+
+
+# Processor Data Cache
+#    Sets per Way
+#        1 = 128 sets
+#        2 = 256 sets
+#	 3 = 512 sets
+set DCACHE_SETS_PER_WAY 3
+
+
+# Processor Data Cache
+#    Line Size
+#    	0 = No Dcache present
+#	1 = 32 bytes
+set DCACHE_LINE_SIZE 1
+
+
+# Processor Data Cache
+#    Associativity
+#        0 = Direct Mapped
+#        1 = 2-way
+#        2 = 3-way
+#        3 = 4-way
+set DCACHE_ASSOC 3
+
+
+# Coprocessor 2
+#	0 = not present
+#	1 = A coprocessor is attached to the cop2 interface
+set COP2_ENABLE 0
+
+{3\..*;M4K}
+# User Defined Instruction(UDI) implemented
+#	0 = not implemented
+#	1 = implemented
+set UDI_ENABLE 0
+
+
+# Indicates whether SimpleBE bus mode is enabled
+#	0 = no reserved byte enables on EC interface
+#	1 = Only simple byte enables allowed on EC interface
+set SIMPLE_BE 0
+
+
+# Indicates whether Multiply/Divide Unit present
+#	0 = Fast, high performance MDU
+#	1 = Interative, area-efficient MDU
+set MDU 1
+
+
+# Dual SRAM Interface
+#	0 = Unified instruction/data SRAM interface
+#	1 = Dual instruction/data SRAM interfaces
+set DUAL_SRAM 0
+
+
+# Coprocessor 2
+#	0 = not present
+#	1 = A coprocessor is attached to the cop2 interface
+set COP2_ENABLE 0
+
+
+# CPU_CORE
+#       default to M4K Not needed for configuration but needed by GUI
+set CPU_CORE 50
+
+
+# Shadow Register Sets
+#	0 = not implemented
+#	1 = One set of shadow registers
+#	3 = Three sets of shadow registers
+set SHADOW_REGISTER_SETS 0
+
+
+# IP number to which the Timer Interrupt request is merged
+#     and allow software to determine whether to consider
+#     Cause(TI) for potential interrupt.
+#	2 = HW0
+#       3 = HW1
+#       4 = HW2
+#       5 = HW3
+#       6 = HW4
+#       7 = HW5
+set INTCTL_IPTI 7
+
+
+# The number of CPU in a multi-processor system.  In
+#     a single processor system, this value should be set
+#     to zero. (Maximum value = 1023)
+set EBASE_CPUNUM 0
+
+
+# Code compression (MIPS16TM) implemented
+#	0 = no MIPS16 is present
+#	1 = MIPS16 implemented
+set CODE_COMPRESSION 1
+
+{4}
+############################################################
+# ENVIRONMENT
+#
+
+# Trace file
+#    Name of the trace file to be generated.  Can be
+#	a full path or a relative path to the file.
+#	'stdout' will point the output to standard
+#	output.
+#set TRACE_FILE mipssim.trace 
+
+# Error Limit
+# When ERROR_LIMIT errors have been reached the simulation will exit
+# 0 - infinite
+set ERROR_LIMIT 0
+
+# Warn Limit
+# When WARN_LIMIT errors have been reached the simulation will exit
+# 0 - infinite
+set WARN_LIMIT 0
+
+# Console level
+# Set the console output level.  As you go down the list of possible values
+# each successive value includes all values before it (e.g. a level of MIPS_C_CONSOLEFATAL
+# will show all fatal messages and all panic messages).
+# NONE   - no output
+# PANIC  - only show panic message
+# FATAL  - show fatal messages
+# ERROR  - show error messages
+# WARN   - show warning messages
+# INFO   - show info messages
+# COMMON - show common messages
+# ALL    - show all messages
+set CONSOLE_LEVEL INFO
+
+# STRICT_CONSISTENCY_CHECKS
+# 0 - false
+# 1 - true
+set STRICT_CONSISTENCY_CHECKS 1
+
+############################################################
+# SIMULATION
+#
+
+# CPU CORE
+{4\..*;24K}
+# Only one value allowed for 24K
+set CPU_CORE 70
+
+{4\..*;24KE}
+# Only one value allowed for 24KE
+set CPU_CORE 71
+
+{4\..*;34K}
+# Only one value allowed for 34K
+set CPU_CORE 80
+
+{4\..*;(24K|24KE|34K)}
+# Run time out.
+# Max cycles or instructions to run.  This parameter is included
+# for the purposes of bring up only.  This will not remain.
+#set TIMEOUT 1000000
+
+# TIMER_INT_ENABLE
+# 0 - disabled
+# 1 - enabled
+# (SDE kit uses timer)
+set TIMER_INT_ENABLE 1
+
+# LWR_SIGN_EXTEND
+#
+set LWR_SIGN_EXTEND 0
+
+# TODO: FPU_REV
+#
+# set C1FIR_REV 0
+
+# VALID_COUNT_REGISTER
+# 0 - Count register valid bits disabled
+# 1 - Count register valid bits enabled
+#
+set CNT_REG_VALIDITY 0
+
+# VALID_ACX_REGISTER
+# 0 - ACX register valid bits disabled
+# 1 - ACX register valid bits enabled
+#
+set ACX_REG_VALIDITY 0
+
+# XOR_OPTION - give it a better name?
+# 0 - off
+# 1 - on
+set XOR_OPTION 0
+
+############################################################
+# CORE PERSONALITY
+#
+
+# Udi enabled for the core?
+# 0 - no
+# 1 - yes
+set UDI_ENABLE           0
+
+# Simple Burst Enabled for the core?
+# 0 - no
+# 1 - yes
+set SIMPLE_BE            0
+
+# Burst order
+# 0 - sequential
+# 1 - sub-block
+set BURST_MODE           1
+
+# Instruction Cache Sets per Way
+# 1 - 128 sets
+# 2 - 256 sets
+# 3 - 512 sets
+set ICACHE_SETS_PER_WAY  3
+
+# Data Cache Sets per Way
+# 1 - 128 sets
+# 2 - 256 sets
+# 3 - 512 sets
+set DCACHE_SETS_PER_WAY  3
+
+# FPU Present
+# 0 - no
+# 1 - yes
+set FPU_PRESENT          1
+
+# Number of tlb entries
+# 0  - none (FMT)
+# 32 - 32 entries
+# 64 - 64 entries
+set MMU_SIZE            64
+
+# Secondary Cache Sets per Way
+# 0 - 64 sets
+# 1 - 128 sets
+# 2 - 256 sets
+# 3 - 512 sets
+# 4 - 1024 sets
+# 5 - 2048 sets
+# 6 - 4096 sets
+# 7 - 8192 sets
+set SCACHE_SETS_PER_WAY  0
+
+# Secondary Cache Line size
+# 0 - No cache present
+# 1 - 4 bytes
+# 2 - 8 bytes
+# 3 - 16 bytes
+# 4 - 32 bytes
+# 5 - 64 bytes
+# 6 - 128 bytes
+# 7 - 256 bytes
+set SCACHE_LINE_SIZE     0
+
+# Secondary Cache number of sets
+# 0 - direct mapped
+# 1 - 2 sets
+# 2 - 3 sets
+# 3 - 4 sets
+# 4 - 5 sets
+# 5 - 6 sets
+# 6 - 7 sets
+# 7 - 8 sets
+set SCACHE_ASSOC         0
+
+# External interrupt controller present.
+# This represents the static input SI_EICPresent
+# 0 - no
+# 1 - yes
+set EIC_PRESENT          0
+
+# Number of shadow register sets
+# 0 - One shadow set (normal GPR set) is present
+# 1 - Two shadow sets are present
+# 3 - Four shadow sets are present
+set SHADOW_REGISTER_SETS 3
+
+# Cpu Number used to distinguish this processor from others in
+# a multi-processor system.
+# This may take any value from 0 to 511
+set EBASE_CPUNUM         0
+
+# Timer Interrupt IP number
+# 2 - Hardware interrupt source HW0
+# 3 - Hardware interrupt source HW1
+# 4 - Hardware interrupt source HW2
+# 5 - Hardware interrupt source HW3
+# 6 - Hardware interrupt source HW4
+# 7 - Hardware interrupt source HW5
+set INTCTL_IPTI          7
+
+# Performance Counter Interrupt IP number
+# 2 - Hardware interrupt source HW0
+# 3 - Hardware interrupt source HW1
+# 4 - Hardware interrupt source HW2
+# 5 - Hardware interrupt source HW3
+# 6 - Hardware interrupt source HW4
+# 7 - Hardware interrupt source HW5
+set INTCTL_IPPCI          7
+
+# Processor Id Revision Number
+# Major - 0-7
+# Minor - 0-7
+# Patch - 0-3
+# Revision - Major<<5 | Minor << 2 | Patch
+set PRID_REV             0
+
+# Number of EJTAG Data Breakpoints implemented
+# 0 - No data breakpoints
+# 2 - 2 data breakpoints
+set EJTAG_NDB       0
+
+# Number of EJTAG Instruction Breakpoints implemented
+# 0 - No instruction breakpoints
+# 4 - 4 instruction breakpoints
+set EJTAG_NIB      0
+
+# Cache Parity Error Register
+set PARITY_ENABLE 0
+
+# EIC interrupt mode default shadow set.
+#
+set EIC_DEFAULT_SHADOW_SET 0
+
+# 32K Data Cache Aliasing Hardware Fix
+# 0 - no hardware fix for aliasing, must be fixed in software
+# 1 - hardware fix for alias is enabled, slight performance
+#     penalty
+set DCACHE_ALIAS_HW_FIX 0
+
+# Clock ratio between integer core and floating point unit
+# 0 - FP clock frequency is the same as the integer clock
+# 1 - FP clock frequency is one-half the integer clock
+set FPU_CLOCK_RATIO 0
+
+{4\..*;34K}
+# Total processor complement of VPE contexts
+# 1 - One VPE
+# 2 - Two VPEs
+set VPE_COUNT 2
+
+# Total processor complement of Thread Contexts (TC)
+# 1 - 1 Thread Context
+# 2 - 2 Thread Contexts
+# 3 - 3 Thread Contexts
+# 4 - 4 Thread Contexts
+# 5 - 5 Thread Contexts
+# 6 - 6 Thread Contexts
+# 7 - 7 Thread Contexts
+# 8 - 8 Thread Contexts
+# 9 - 9 Thread Contexts
+set TC_COUNT 9
+
+# Maximum Thread Contexts allowed for VPE 0
+# 1 - 1 Thread Context
+# 2 - 2 Thread Contexts
+# 3 - 3 Thread Contexts
+# 4 - 4 Thread Contexts
+# 5 - 5 Thread Contexts
+# 6 - 6 Thread Contexts
+# 7 - 7 Thread Contexts
+# 8 - 8 Thread Contexts
+# 9 - 9 Thread Contexts ( Only valid if VPE_COUNT is 1 )
+set VPE0_TC_COUNT 8
+
+# VPE that owns CorExt on reset if only one context
+# is implemented
+# 0 - VPE0
+# 1 - VPE1
+set VPE_CX 0
+
+# VPE that owns FPU on reset if only one context is implemented
+# 0 - VPE0
+# 1 - VPE1
+set VPE_CP1 0
+
+# Total processor complement of integrated and allocatable
+# Coprocessor 2 contexts
+# 0 - Cop 2 not supported
+# 1 - 1 context available
+set COP2_ENABLE 0
+
+# VPE that owns Coprocessor 2 on reset if only one context
+# is implemented
+# 0 - VPE0
+# 1 - VPE1
+set VPE_CP2 0
+
+# Parameters for VPE 1
+#set MMU_SIZE_1  64
+#set EIC_PRESENT_1  1
+#set EBASE_CPUNUM_1  1
+
+{4\..*;4KEc}
+set CPU_CORE 60
+{4\..*;4KEm}
+set CPU_CORE 61
+{4\..*;4KEp}
+set CPU_CORE 62
+{4\..*;4KSd}
+set CPU_CORE 63
+
+{4\..*;(4KE[cmp]|4KSd)}
+# TIMER_INT_ENABLE
+# 0 - disabled
+# 1 - enabled
+set TIMER_INT_ENABLE 1
+
+############################################################
+# CORE PERSONALITY
+#
+
+# Udi enabled for the core?
+# 0 - no
+# 1 - yes
+set UDI_ENABLE           0
+
+# Simple Burst Enabled for the core?
+# Indicates whether SimpleBE bus mode is enabled
+#	0 = no reserved byte enables on EC interface
+#	1 = Only simple byte enables allowed on EC interface
+set SIMPLE_BE 0
+
+# Merge Mode: 32-byte collapsing Write-thru buffer merge mode
+#    	0 = None
+#    	2 = Full Merging allowed
+set MERGE_MODE 2
+
+# Burst order
+#    	0 = Sequential
+#    	1 = Sub-block
+set BURST_MODE 1
+
+#  Processor Instruction Cache
+#    Sets per Way
+#        0 = 64 sets
+#        1 = 128 sets
+#        2 = 256 sets
+#        3 = 512 sets
+#        4 = 1024 sets
+set ICACHE_SETS_PER_WAY 2
+
+
+# Processor Instruction Cache
+#    Line Size
+#    	0 = No Icache present
+#	3 = 16 bytes
+set ICACHE_LINE_SIZE 3
+
+
+# Processor Instruction Cache
+#    Associativity
+#        0 = Direct Mapped
+#        1 = 2-way
+#        2 = 3-way
+#        3 = 4-way
+set ICACHE_ASSOC 1
+
+
+# Processor Data Cache
+#    Sets per Way
+#        0 = 64 sets
+#        1 = 128 sets
+#        2 = 256 sets
+#        3 = 512 sets
+#        4 = 1024 sets
+set DCACHE_SETS_PER_WAY 2
+
+
+# Processor Data Cache
+#    Line Size
+#    	0 = No Dcache present
+#	3 = 16 bytes
+set DCACHE_LINE_SIZE 3
+
+
+# Processor Data Cache
+#    Associativity
+#        0 = Direct Mapped
+#        1 = 2-way
+#        2 = 3-way
+#        3 = 4-way
+set DCACHE_ASSOC 1
+
+
+# Coprocessor 2
+#	0 = not present
+#	1 = A coprocessor is attached to the cop2 interface
+set COP2_ENABLE 0
+
+
+# Code compression (MIPS16TM) implemented
+#	0 = no MIPS16 is present
+#	1 = MIPS16 implemented
+set CODE_COMPRESSION 1
+
+
+# ISPram present
+#	0 = not present
+#	1 = present
+set ISPRAM_ENABLE 0
+
+
+# DSPram present
+#	0 = not present
+#	1 = present
+set DSPRAM_ENABLE 0
+
+
+# IP number to which the Timer Interrupt request is merged
+#     and allow software to determine whether to consider
+#     Cause(TI) for potential interrupt.
+#		2 = HW0
+#       3 = HW1
+#       4 = HW2
+#       5 = HW3
+#       6 = HW4
+#       7 = HW5
+set INTCTL_IPTI 7
+
+
+# The number of CPU in a multi-processor system.  In
+#     a single processor system, this value should be set
+#     to zero. (Maximum value = 1023)
+set EBASE_CPUNUM 0
+
+# External interrupt controller present.
+# This represents the static input SI_EICPresent
+# 0 - no
+# 1 - yes
+set EIC_PRESENT          0
+
+# Shadow Register Sets
+#	0 = not implemented
+#	1 = One set of shadow registers
+#	3 = Three sets of shadow registers
+set SHADOW_REGISTER_SETS 0
+
+# Processor Id Revision Number
+# Major - 0-7
+# Minor - 0-7
+# Patch - 0-3
+# Revision - Major<<5 | Minor << 2 | Patch
+set PRID_REV             0
+
+
+# EIC interrupt mode default shadow set.
+#
+set EIC_DEFAULT_SHADOW_SET 0
+
+# Num Watch Regs
+# 0 = No WatchRegs
+# 1 = 1 Watch Register Pair Present
+# 2 = 2 Watch Register Pairs Present
+# 3 = 1 Watch Register Pairs Present
+# 4 = 2 Watch Register Pairs Present
+# 5 = 1 Watch Register Pairs Present
+# 6 = 2 Watch Register Pairs Present
+# 7 = 1 Watch Register Pairs Present
+# 8 = 8 Watch Register Pairs Present
+set WATCH_NUM 1
+
+{4\..*;M4K}
+
+# CPU CORE
+# Processor Core with Release 2 Architecture
+#   	50 = M4K
+set CPU_CORE 50
+
+# The number of CPU in a multi-processor system.  In
+#     a single processor system, this value should be set
+#     to zero. (Maximum value = 1023)
+set EBASE_CPUNUM 0
+
+# Processor Id Revision Number
+# Major - 0-7
+# Minor - 0-7
+# Patch - 0-3
+# Revision - Major<<5 | Minor << 2 | Patch
+set PRID_REV             0
+
+# Dual SRAM
+#       0 = Unified SRAM
+#       1 = Separate I and D SRAM
+set DUAL_SRAM 0
+
+# Simple Burst Enabled for the core?
+# Indicates whether SimpleBE bus mode is enabled
+#	0 = no reserved byte enables on EC interface
+#	1 = Only simple byte enables allowed on EC interface
+set SIMPLE_BE 0
+
+# Multiply/Divide Unit
+#       0 = Fast MDU
+#       1 = Iterative MDU (fewer transistors)
+set MDU 0
+
+# UDI enabled for the core?
+#       0 = Disabled
+#       1 = Enabled
+#
+set UDI_ENABLE 0
+
+# Coprocessor 2
+#	0 = not present
+#	1 = A coprocessor is attached to the cop2 interface
+set COP2_ENABLE 0
+
+# Code compression (MIPS16TM) implemented
+#	0 = no MIPS16 is present
+#	1 = MIPS16 implemented
+set CODE_COMPRESSION 1
+
+# IP number to which the Timer Interrupt request is merged
+#     and allow software to determine whether to consider
+#     Cause(TI) for potential interrupt.
+#		2 = HW0
+#       3 = HW1
+#       4 = HW2
+#       5 = HW3
+#       6 = HW4
+#       7 = HW5
+set INTCTL_IPTI 7
+
+# TIMER_INT_ENABLE
+# 0 - disabled
+# 1 - enabled (needed by SDE kit)
+set TIMER_INT_ENABLE 1
+
+# External interrupt controller present.
+# This represents the static input SI_EICPresent
+# 0 - no
+# 1 - yes
+set EIC_PRESENT          0
+
+# EIC interrupt mode default shadow set.
+set EIC_DEFAULT_SHADOW_SET 0
+
+# Shadow Register Sets
+#	0 = not implemented
+#	1 = One set of shadow registers
+#	3 = Three sets of shadow registers
+set SHADOW_REGISTER_SETS 0
+

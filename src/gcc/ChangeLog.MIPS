@@ -1,0 +1,45 @@
+2003-12-17  David Ung  <davidu@mips.com>
+
+	* config/mips/mips.c (mips16_gp_pseudo_reg): Disabled forcing copy
+	of $gp into pseudo register.
+
+2003-12-10  David Ung  <davidu@mips.com>
+
+	* config.gcc: Changed mips*-sde-elf* pattern to use ABI_EABI 
+	for MIPS_ABI_DEFAULT.
+	
+2003-11-23  David Ung  <davidu@mips.com>
+
+	* config/mips/mips.c (mips_gp_pseudo_reg): Force copy of $gp
+	everytime it is used for mips16 code, CSE pass will optimise
+	duplications.  This fixes failure for execute/bcp-1.c
+	Also add a REG_EQUAL note for copy of $gp, so that reload will
+	know it can reload from $gp without spilling to stack.
+	
+2003-11-01  Nigel Stephens  <nigel@mips.com>
+
+	* Makefile.in (check-gcc//%): Pass RUNTEST and EXPECT to sub-make.
+
+	* config/mips/t-sde (CROSS_SYSTEM_HEADER_DIR): Remove for now,
+	while we're using newlib and not SDE libraries.
+
+2003-11-01  Nigel Stephens  <nigel@mips.com>
+
+	* Makefile.in (check-gcc//%): Pass RUNTEST and EXPECT to sub-make.
+
+	* config/mips/t-sde (CROSS_SYSTEM_HEADER_DIR): Remove for now,
+	while we're using newlib and not SDE libraries.
+
+2003-10-28  David Ung  <davidu@mips.com>
+
+	* config.gcc (mips*-sde-elf*): changed ABI_O32 to ABI_32.
+
+2003-10-27  Nigel Stephens  <nigel@mips.com>
+
+	* config/mips/t-sde: New mips*-sde-elf* makefile tmake_file.
+	* config/mips/sde.h: New mips*-sde-elf* definitions.
+	* config.gcc: Add mips*-sde-elf*.
+
+Local Variables:
+mode: change-log	
+End:
