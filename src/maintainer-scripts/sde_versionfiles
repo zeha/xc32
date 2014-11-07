@@ -4,6 +4,7 @@
 # to allow them to be patched by the "sde_stampversion" Perl script.
 
 # FILE			START						END
-bfd/version.h		#define\s+BFD_VERSION_DATE\s+			
+bfd/version.h		#define\s+BFD_VERSION_DATE\s+
+binutils-new/bfd/version.h		#define\s+BFD_VERSION_DATE\s+
 gcc/version.c		const char version_string\[] = "[0-9.]+\s*	";
 gdb/version.in								

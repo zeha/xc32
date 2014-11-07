@@ -343,6 +343,13 @@ static rtx mips_expand_4s_compare_builtin (enum mips_cmp_choice, rtx,
 static rtx mips_expand_ps_cond_move_builtin (enum mips_cmp_choice, rtx,
     unsigned int, tree);
 static rtx mips_expand_bposge (rtx, int);
+static rtx mips_expand_nop (void);
+static rtx mips_expand_mfc0 (rtx, unsigned int, tree);
+static rtx mips_expand_mtc0 (unsigned int, tree);
+static rtx mips_expand_mxc0 (rtx, unsigned int, tree);
+static rtx mips_expand_bcc0 (rtx, unsigned int, tree);
+static rtx mips_expand_bsc0 (rtx, unsigned int, tree);
+static rtx mips_expand_bcsc0 (rtx, unsigned int, tree);
 static rtx mips_expand_two_operands_with_immediate (rtx, unsigned int, tree,
     int, int);
 static tree mchp_function_interrupt_p (tree decl);
@@ -6711,7 +6718,7 @@ override_options (void)
 #define PIC32_EXPIRED_LICENSE -243
   /* Lite Edition uses PIC32_ACADEMIC_LICENSE */
 #define PIC32_ACADEMIC_LICENSE -100
-#ifdef __MINGW32__
+#define PIC32_VALID_LICENSE 0x20
 #ifndef SKIP_LICENSE_MANAGER
   {
     char *path;
@@ -6722,34 +6729,55 @@ override_options (void)
     int pid;
     int status;
     extern char **save_argv;
+    struct stat filestat;
 
     pic32_license_valid = 0;
+
     /* pic32-lm.exe must reside in the same directory as cc1.exe */
     path = make_relative_prefix(save_argv[0], "/pic32mx/bin/gcc/pic32mx/3.4.4",
                                 "/bin");
 
     if (!path) fatal_error("Could not locate `%s`\n", save_argv[0]);
+#ifdef __MINGW32__
     exec = alloca(strlen(path)+sizeof("pic32-lm.exe") + 1);
     sprintf(exec, "%s/pic32-lm.exe", path);
-    args[0] = exec;
-    pid = pexecute(exec, args, "MPLAB C Compiler for PIC32", 0, &err_msg, &err_arg,
-                   PEXECUTE_FIRST | PEXECUTE_LAST);
-    pid = pwait(pid, &status, 0);
-    if (pid < 0)
+#else /* Linux and Mac */
+    exec = alloca(strlen(path)+sizeof("pic32-lm") + 1);
+    sprintf(exec, "%s/pic32-lm", path);
+#endif
+    if (-1 == stat (exec, &filestat))
       {
-        /* Set academic/lite edition if the license manager isn't available. */
-        /* The lite edition disables optimization options without an eval period. */
-        pic32_license_valid=PIC32_ACADEMIC_LICENSE;
+        sprintf (exec, "./pic32-lm");
+        if (-1 == stat (exec, &filestat))
+          {
+            /* Set academic/lite edition if the license manager isn't available. */
+            /* The lite edition disables optimization options without an eval period. */
+            pic32_license_valid=PIC32_ACADEMIC_LICENSE;
+          }
       }
     else
       {
-        if (WIFEXITED(status) && (WEXITSTATUS(status) == 0))
+        args[0] = exec;
+        pid = pexecute(exec, args, "MPLAB C Compiler for PIC32", 0, &err_msg, &err_arg,
+                       PEXECUTE_FIRST | PEXECUTE_LAST);
+        pid = pwait(pid, &status, 0);
+
+        if (pid < 0)
           {
-            pic32_license_valid=1;
+            /* Set academic/lite edition if the license manager isn't available. */
+            /* The lite edition disables optimization options without an eval period. */
+            pic32_license_valid=PIC32_ACADEMIC_LICENSE;
           }
-        else if (WIFEXITED(status))
+        else
           {
-            pic32_license_valid=WEXITSTATUS(status) - 256;
+            if (WIFEXITED(status) && (WEXITSTATUS(status) == PIC32_VALID_LICENSE))
+              {
+                pic32_license_valid=1;
+              }
+            else if (WIFEXITED(status))
+              {
+                pic32_license_valid=WEXITSTATUS(status) - 256;
+              }
           }
       }
   }
@@ -6777,7 +6805,7 @@ override_options (void)
         }
       else if (pic32_license_valid == PIC32_ACADEMIC_LICENSE)
         {
-          invalid = "lite-edition limitations";
+          invalid = "lite-mode limitations";
           /* Suppress the purchase suggestion for the academic version / lite edition. */
           message_purchase_displayed++;
         }
@@ -6817,15 +6845,16 @@ override_options (void)
       if (mips_base_mips16 != 0)
         {
           /* Disable -mips16 and -mips16e */
-           NULLIFY(mips_base_mips16) = 0;
-           NULLIFY(flag_section_relative_addressing) = 0;
+          NULLIFY(mips_base_mips16) = 0;
+          NULLIFY(flag_section_relative_addressing) = 0;
         }
 
 #undef NULLIFY
     }
-#endif /* __MINGW32__ */
+
 #undef PIC32_EXPIRED_LICENSE
 #undef PIC32_ACADEMIC_LICENSE
+#undef PIC32_VALID_LICENSE
 #endif /* TARGET_MCHP_PIC32MX */
 
   /* Now select the mips16 or 32-bit instruction set, as requested. */
@@ -8250,8 +8279,9 @@ mips_save_reg_p (unsigned int regno)
          the call used registers, so we need to save those regardless. */
       if (current_function_is_leaf)
         {
-          return (regs_ever_live [regno] && (!call_used_regs [regno]
-                                             || mchp_register_interrupt_context_p (regno)));
+          return ((regs_ever_live [regno] 
+                 && (!call_used_regs [regno] || mchp_register_interrupt_context_p (regno)))
+                 || (regno == 31));
         }
       else
         {
@@ -8397,6 +8427,7 @@ compute_frame_size (HOST_WIDE_INT size)
   HOST_WIDE_INT gp_reg_size;    /* # bytes needed to store gp regs */
   HOST_WIDE_INT fp_reg_size;    /* # bytes needed to store fp regs */
   HOST_WIDE_INT int_reg_size;   /* # bytes needed for interrupt context regs */
+  HOST_WIDE_INT int_reg_rounded;   /* # bytes needed to store ISR context after rounding */
   unsigned int mask;            /* mask of saved gp registers */
   unsigned int fmask;           /* mask of saved fp registers */
   bool has_interrupt_context;   /* true if interrupt context is saved */
@@ -8507,9 +8538,6 @@ compute_frame_size (HOST_WIDE_INT size)
         }
     }
 
-  gp_reg_rounded = MIPS_STACK_ALIGN (gp_reg_size);
-  total_size += gp_reg_rounded + MIPS_STACK_ALIGN (fp_reg_size);
-
   /* add in space for the interrupt context information */
   if (has_interrupt_context)
     {
@@ -8526,15 +8554,10 @@ compute_frame_size (HOST_WIDE_INT size)
         {
           int_reg_size += GET_MODE_SIZE (SImode);
         }
-      else if ((current_function_type == SRS_CONTEXT_SAVE) ||
-               (current_function_type == SOFTWARE_CONTEXT_SAVE))
-        {
-          if ((mchp_interrupt_priority < 7) && (0 == mchp_isr_backcompat))
-            {
-              /* If we are in Daytona compatibility mode, don't save SRSCTL. */
-              int_reg_size += GET_MODE_SIZE (SImode);
-            }
-        }
+
+      /* Save SRSCTL. */
+      int_reg_size += GET_MODE_SIZE (SImode);
+
       /* If HI/LO is defined in this function, we need to save them too.
          If the function is not a leaf function, we assume that the
          called function uses them. */
@@ -8557,20 +8580,35 @@ compute_frame_size (HOST_WIDE_INT size)
 
           if (regs_ever_live [V0_REGNUM])
             {
+              gp_reg_size += (GET_MODE_SIZE (SImode));
               int_reg_size += (GET_MODE_SIZE (SImode));
             }
           if (regs_ever_live [V1_REGNUM])
             {
+              gp_reg_size += (GET_MODE_SIZE (SImode));
               int_reg_size += (GET_MODE_SIZE (SImode));
             }
+
+          /* Save RA because we might get a nested interrupt or exception */
+          gp_reg_size += (GET_MODE_SIZE (SImode));
+          regs_ever_live [RA_REGNUM] = 1;
+
+          /* Save FP because we might get a nested interrupt or exception */
+          gp_reg_size += (GET_MODE_SIZE (SImode));
         }
     }
-  total_size += int_reg_size;
+  gp_reg_rounded = MIPS_STACK_ALIGN (gp_reg_size);
+  total_size += gp_reg_rounded + MIPS_STACK_ALIGN (fp_reg_size);
+
+  int_reg_rounded = MIPS_STACK_ALIGN (int_reg_size);
+  total_size += int_reg_rounded;
 
   /* Add in space reserved on the stack by the callee for storing arguments
      passed in registers.  */
   if (mips_abi != ABI_32 && mips_abi != ABI_O64)
     total_size += MIPS_STACK_ALIGN (current_function_pretend_args_size);
+    
+  total_size = MIPS_STACK_ALIGN (total_size);
 
   /* Save other computed information.  */
   cfun->machine->frame.total_size = total_size;
@@ -8629,7 +8667,7 @@ compute_frame_size (HOST_WIDE_INT size)
 
       offset = (args_size + cprestore_size + var_size
                 + gp_reg_rounded + fp_reg_size
-                + int_reg_size - GET_MODE_SIZE (SImode));
+                + int_reg_rounded - GET_MODE_SIZE (SImode));
       cfun->machine->frame.int_sp_offset = offset;
       cfun->machine->frame.int_save_offset = offset - total_size;
     }
@@ -8884,6 +8922,10 @@ mips_output_function_prologue (FILE *file, HOST_WIDE_INT size ATTRIBUTE_UNUSED)
       HOST_WIDE_INT mchp_save_srsctl = ((mchp_interrupt_priority < 7) && (0 == mchp_isr_backcompat));
 
       step1 = MIN (tsize, MIPS_MAX_FIRST_STACK_STEP);
+      if ((step1 % 8) != 0)
+        {
+          fprintf (file, "# WARNING: stack not aligned by 8\n");
+        }
 
       /* if this interrupt is using a shadow register set, we need to
          get the stack pointer from the previous register set */
@@ -9039,7 +9081,7 @@ mips_output_function_prologue (FILE *file, HOST_WIDE_INT size ATTRIBUTE_UNUSED)
           /* Only if the IPL value wasn't specified */
           if (mchp_interrupt_priority < 0)
             {
-              fprintf (file, "\tmfc0\t$k0, $13 # Single vector mode - Load Cause \n");
+              fprintf (file, "\tmfc0\t$k0, $13 # Single vector or RIPL mode - Load Cause \n");
             }
 
           /* Save Status */
@@ -9051,7 +9093,7 @@ mips_output_function_prologue (FILE *file, HOST_WIDE_INT size ATTRIBUTE_UNUSED)
           /* Only if the IPL value wasn't specified */
           if (mchp_interrupt_priority < 0)
             {
-              fprintf (file, "\tsrl\t$k0, $k0, %d  # Single vector mode \n", CAUSE_IPL);
+              fprintf (file, "\tsrl\t$k0, $k0, %d  # Single vector or RIPL mode \n", CAUSE_IPL);
             }
 
           /* Maybe we should do something here? */
@@ -9181,11 +9223,11 @@ mips_output_function_prologue (FILE *file, HOST_WIDE_INT size ATTRIBUTE_UNUSED)
 #ifdef TARGET_MCHP_PIC32MX
       if (current_function_type == AUTO_CONTEXT_SAVE)
         {
-          /* Save v0 because we it them for SRSCTL checking */
+          /* Save v0 because we use it for SRSCTL checking */
           fprintf (file, "\tsw\t$v0, " HOST_WIDE_INT_PRINT_DEC "($sp)\n",
                    mchp_offset_v0);
 
-          if (cfun->machine->frame.gp_reg_size > (4 * GET_MODE_SIZE (SImode)))
+          if (cfun->machine->frame.gp_reg_size > (6 * GET_MODE_SIZE (SImode)))
             {
               /* Check for shadow register saving, but only if we need to save
                  more than 5 registers. Otherwise, the check costs just as much as
@@ -9350,7 +9392,15 @@ mips_expand_prologue (void)
          treat it as a software context save handler. */
       assert (ipl_tree != NULL);
 
-      if (strcmp (IDENTIFIER_POINTER (TREE_VALUE (ipl_tree)), "single") == 0)
+      if ((strcmp (IDENTIFIER_POINTER (TREE_VALUE (ipl_tree)), "single") == 0)
+          || (strcmp (IDENTIFIER_POINTER (TREE_VALUE (ipl_tree)), "SINGLE") == 0))
+        {
+          current_function_type = AUTO_CONTEXT_SAVE;
+          mchp_interrupt_priority = -1; /* Need to set IPL from RIPL */
+          mchp_isr_backcompat = 1; /* No need to save SRSCTL */
+        }
+      else if ((strcmp (IDENTIFIER_POINTER (TREE_VALUE (ipl_tree)), "ripl") == 0)
+               || (strcmp (IDENTIFIER_POINTER (TREE_VALUE (ipl_tree)), "RIPL") == 0))
         {
           current_function_type = AUTO_CONTEXT_SAVE;
           mchp_interrupt_priority = -1; /* Need to set IPL from RIPL */
@@ -9675,9 +9725,9 @@ mips_expand_prologue (void)
 
   /* If we are profiling, make sure no instructions are scheduled before
      the call to mcount.  */
-  if (current_function_profile || 
-    ((current_function_type != NON_INTERRUPT) && cfun->machine->frame.has_hilo_context) ||
-     (current_function_type == AUTO_CONTEXT_SAVE))
+  if (current_function_profile ||
+      ((current_function_type != NON_INTERRUPT) && cfun->machine->frame.has_hilo_context) ||
+      (current_function_type == AUTO_CONTEXT_SAVE))
     {
       emit_insn (gen_blockage ());
     }
@@ -9703,7 +9753,7 @@ mips_output_function_begin_epilogue (FILE *file)
           if (cfun->machine->frame.has_hilo_context)
             {
 
-              if (cfun->machine->frame.gp_reg_size > (4 * GET_MODE_SIZE (SImode)))
+              if (cfun->machine->frame.gp_reg_size > (6 * GET_MODE_SIZE (SImode)))
                 {
                   fprintf (file, "\tlw\t$v0, " HOST_WIDE_INT_PRINT_DEC "($sp)\n",
                            mchp_offset_lo);
@@ -9717,9 +9767,11 @@ mips_output_function_begin_epilogue (FILE *file)
                   fprintf (file, "\tmthi\t$v1\n");
 
                   fprintf (file, "\tandi\t$v0, $v0, 0x0000000F\n"); /* SRSCTL.css */
-                  fprintf (file, "\tbne\t$v0, $0, .LAUTOISRE%d\n",
-                           CODE_LABEL_NUMBER(mchp_autocontext_epilogue_target));
-
+                  if (mchp_autocontext_epilogue_target)
+                    {
+                      fprintf (file, "\tbne\t$v0, $0, .LAUTOISRE%d\n",
+                               CODE_LABEL_NUMBER(mchp_autocontext_epilogue_target));
+                    }
                   /* no 'nop' here because the next instruction
                      may be frame related */
                 }
@@ -9738,14 +9790,17 @@ mips_output_function_begin_epilogue (FILE *file)
           else /* if (!(cfun->machine->frame.has_hilo_context)) */
             {
 
-              if (cfun->machine->frame.gp_reg_size > (4 * GET_MODE_SIZE (SImode)))
+              if (cfun->machine->frame.gp_reg_size > (5 * GET_MODE_SIZE (SImode)))
                 {
                   fprintf (file, "\tlw\t$v0, " HOST_WIDE_INT_PRINT_DEC "($sp)\n",
                            mchp_offset_srsctl);
                   regs_ever_live[V0_REGNUM] = 1;
                   fprintf (file, "\tandi\t$v0, $v0, 0x0000000F\n"); /* SRSCTL.css */
-                  fprintf (file, "\tbne\t$v0, $0, .LAUTOISRE%d\n",
-                           CODE_LABEL_NUMBER(mchp_autocontext_epilogue_target));
+                  if (mchp_autocontext_epilogue_target)
+                    {
+                      fprintf (file, "\tbne\t$v0, $0, .LAUTOISRE%d\n",
+                               CODE_LABEL_NUMBER(mchp_autocontext_epilogue_target));
+                    }
                   /* no 'nop' here because the next instruction
                      may be frame related */
                 }
@@ -9799,7 +9854,7 @@ mips_output_function_epilogue (FILE *file ATTRIBUTE_UNUSED,
           if (mchp_autocontext_epilogue_target)
             {
               fprintf (file, ".LAUTOISRE%d:\n",
-                   CODE_LABEL_NUMBER(mchp_autocontext_epilogue_target));
+                       CODE_LABEL_NUMBER(mchp_autocontext_epilogue_target));
             }
         }
       else if (current_function_type == SOFTWARE_CONTEXT_SAVE)
@@ -9984,13 +10039,13 @@ mips_output_function_epilogue (FILE *file ATTRIBUTE_UNUSED,
             }
         }
 
+      fprintf (file, "\taddiu\t$sp, $sp, " HOST_WIDE_INT_PRINT_DEC "\n",
+               step1);
+
       /* Deallocate the stack space */
       if (current_function_type == SOFTWARE_CONTEXT_SAVE ||
           current_function_type == AUTO_CONTEXT_SAVE)
         {
-          fprintf (file, "\taddiu\t$sp, $sp, " HOST_WIDE_INT_PRINT_DEC "\n",
-                   step1);
-
           if (mchp_save_srsctl)
             {
               /* Already done for SRS */
@@ -10000,6 +10055,9 @@ mips_output_function_epilogue (FILE *file ATTRIBUTE_UNUSED,
             }
           /* Save Status later */
         }
+
+      /* return */
+      fprintf (file, "\twrpgpr\t$sp, $sp\n");
 
       /* Restore the original status */
       fprintf (file, "\tmtc0\t$k1, $12, 0   # STATUS\n");
@@ -10275,8 +10333,8 @@ mips_expand_epilogue (int sibcall_p)
         }
       /* Deallocate the final bit of the frame for non-interrupts.  */
 
-      if (!(cfun->machine->frame.has_interrupt_context && step2 > 0)
-          && !(mchp_function_naked_p (current_function_decl)))
+      if ((!cfun->machine->frame.has_interrupt_context) && (step2 > 0)
+          && !mchp_function_naked_p (current_function_decl))
         {
           emit_insn (gen_add3_insn (stack_pointer_rtx,
                                     stack_pointer_rtx,
@@ -14143,6 +14201,16 @@ static const struct builtin_description mips_bdesc[] =
     { CODE_FOR_mips_dpsqx_s_w_ph_64, "__builtin_mips_dpsqx_s_w_ph_64", MIPS_BUILTIN_DPSQX_S_W_PH_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSPR2|MASK_64BIT },
     { CODE_FOR_mips_dpsqx_sa_w_ph_64, "__builtin_mips_dpsqx_sa_w_ph_64", MIPS_BUILTIN_DPSQX_SA_W_PH_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSPR2|MASK_64BIT },
 
+    /* NOP for MIPS32 and MIPS16 */
+    { CODE_FOR_nop, "__builtin_nop", MIPS_BUILTIN_NOP, MIPS_VOID_FTYPE_VOID, 0 },
+
+    /* COP0 access for MIPS32 and MIPS16 */
+    { CODE_FOR_mips_mfc0, "__builtin_mfc0", MIPS_BUILTIN_MFC0, MIPS_USI_FTYPE_USI_USI, 0 },
+    { CODE_FOR_mips_mtc0, "__builtin_mtc0", MIPS_BUILTIN_MTC0, MIPS_VOID_FTYPE_USI_USI_USI, 0 },
+    { CODE_FOR_mips_mxc0, "__builtin_mxc0", MIPS_BUILTIN_MXC0, MIPS_USI_FTYPE_USI_USI_USI, 0 },
+    { CODE_FOR_mips_bcc0, "__builtin_bcc0", MIPS_BUILTIN_BCC0, MIPS_USI_FTYPE_USI_USI_USI, 0 },
+    { CODE_FOR_mips_bsc0, "__builtin_bsc0", MIPS_BUILTIN_BSC0, MIPS_USI_FTYPE_USI_USI_USI, 0 },
+    { CODE_FOR_mips_bcsc0, "__builtin_bcsc0", MIPS_BUILTIN_BCSC0, MIPS_USI_FTYPE_USI_USI_USI_USI, 0 },
   };
 
 /* Expand conditional move builtin functions */
@@ -14613,6 +14681,790 @@ mips_expand_bposge (rtx target, int compare_value)
   return target;
 }
 
+/* mips_expand_nop for __builtin_nop */
+rtx
+mips_expand_nop (void)
+{
+  if (TARGET_MIPS16 || TARGET_MIPS16E)
+    emit_insn (gen_bifnop16());
+  else
+    emit_insn (gen_bifnop32());
+
+  return NULL_RTX;
+}
+
+const char *
+mchp_output_switch_ISAbase (void)
+{
+#define BUFSIZE 120
+  static char retval[BUFSIZE] = {0};
+  rtx label32;
+
+  label32 = gen_label_rtx();
+
+  snprintf (retval, BUFSIZE-1,
+            "%%(jal _ISA32M%d\n\tnop\n\t.align 2\n\t.set\tnomips16\n"
+            "_ISA32M%d: %%)",
+            CODE_LABEL_NUMBER(label32),
+            CODE_LABEL_NUMBER(label32)
+           );
+
+  return retval;
+#undef BUFSIZE
+}
+const char *
+mchp_output_switch_ISA16 (void)
+{
+
+#define BUFSIZE 120
+  static char retval[BUFSIZE] = {0};
+  rtx label16;
+
+  label16 = gen_label_rtx();
+
+  snprintf (retval, BUFSIZE-1,
+            "%%(jal _ISA16M%d\n\tnop\n\t.align 2\n\t"
+            ".set\tmips16\n_ISA16M%d:\tnop%%)",
+            CODE_LABEL_NUMBER(label16),
+            CODE_LABEL_NUMBER(label16)
+           );
+
+  return retval;
+#undef BUFSIZE
+}
+
+/* mips_expand_mfc0 for __builtin_mfc0(reg,sel) */
+rtx
+mips_expand_mfc0 (rtx target, unsigned int fcode,
+                  tree arglist)
+{
+  rtx pat;
+  enum insn_code icode;
+  tree arg0;
+  tree arg1;
+  enum machine_mode tmode;
+  enum machine_mode mode0;
+  enum machine_mode mode1;
+  rtx op0;
+  rtx op1;
+
+  icode = mips_bdesc[fcode].icode;
+  arg0 = TREE_VALUE (arglist);
+  arg1 = TREE_VALUE (TREE_CHAIN (arglist));
+  op0 = expand_expr (arg0, NULL_RTX, VOIDmode, 0);
+  op1 = expand_expr (arg1, NULL_RTX, VOIDmode, 0);
+  tmode = insn_data[icode].operand[0].mode;
+  mode0 = insn_data[icode].operand[1].mode;
+  mode1 = insn_data[icode].operand[2].mode;
+
+  if (TREE_CODE (arg0) == INTEGER_CST)
+    {
+      if (TREE_INT_CST_LOW (arg0) >
+          (unsigned HOST_WIDE_INT) ((1 << 5) - 1))
+        {
+          warning ("argument 1 of `%s' not in the range 0 to %d.",
+                   mips_bdesc[fcode].name, (1 << 5) - 1);
+          op0 = GEN_INT (INTVAL (op0) & ((1 << 5) - 1));
+        }
+    }
+  else
+    {
+      error ("argument 1 of '%s' must be an immediate integer.",
+             mips_bdesc[fcode].name);
+    }
+
+  if (TREE_CODE (arg1) == INTEGER_CST)
+    {
+      if (TREE_INT_CST_LOW (arg1) >
+          (unsigned HOST_WIDE_INT) ((1 << 3) - 1))
+        {
+          warning ("argument 2 of `%s' not in the range 0 to %d.",
+                   mips_bdesc[fcode].name, (1 << 3) - 1);
+          op1 = GEN_INT (INTVAL (op1) & ((1 << 3) - 1));
+        }
+    }
+  else
+    {
+      error ("argument 2 of '%s' must be an immediate integer.",
+             mips_bdesc[fcode].name);
+    }
+
+  if (target == 0
+      || GET_MODE (target) != tmode
+      || ! (*insn_data[icode].operand[0].predicate) (target, tmode))
+    target = gen_reg_rtx (tmode);
+
+  if (! (*insn_data[icode].operand[1].predicate) (op0, mode0))
+    op0 = copy_to_mode_reg (mode0, op0);
+  if (! (*insn_data[icode].operand[2].predicate) (op1, mode1))
+    op1 = copy_to_mode_reg (mode1, op1);
+
+  if (TARGET_MIPS16 || TARGET_MIPS16E)
+    {
+      emit_insn (gen_mips_switch_isabase());
+    }
+
+  pat = gen_mips_mfc0 (target, op0, op1);
+  if (! pat)
+    return 0;
+  emit_insn (pat);
+
+  if (TARGET_MIPS16 || TARGET_MIPS16E)
+    {
+      emit_insn (gen_mips_switch_isabase());
+    }
+
+  return target;
+}
+
+/* For the __builtin_mfc0(reg,sel) function */
+const char *
+mchp_output_mfc0_32 (rtx dest, int srcreg, int srcsel)
+{
+  static char retval[20] = {0};
+  assert (srcreg >= 0);
+  assert (srcreg < 32);
+  assert (srcsel >= 0);
+  assert (srcsel < 10);
+
+  assert (!TARGET_MIPS16);
+  assert (!TARGET_MIPS16E);
+
+  snprintf(retval, sizeof(retval)-1, "mfc0\t$%c%c,$%d, %d",
+           mips_sw_reg_names[REGNO (dest)][1],
+           mips_sw_reg_names[REGNO (dest)][2],
+           srcreg, srcsel);
+
+  return retval;
+}
+
+
+/* mips_expand_mtc0 for __builtin_mtc0(reg,sel,val) */
+rtx
+mips_expand_mtc0 (unsigned int fcode,
+                  tree arglist)
+{
+  rtx pat;
+  enum insn_code icode;
+  tree arg0;
+  tree arg1;
+  tree arg2;
+  enum machine_mode mode0;
+  enum machine_mode mode1;
+  enum machine_mode mode2;
+  rtx op0;
+  rtx op1;
+  rtx op2;
+  rtx op3;
+  unsigned HOST_WIDE_INT value;
+
+  icode = mips_bdesc[fcode].icode;
+  arg0 = TREE_VALUE (arglist);
+  arg1 = TREE_VALUE (TREE_CHAIN (arglist));
+  arg2 = TREE_VALUE (TREE_CHAIN (TREE_CHAIN (arglist)));
+  op0 = expand_expr (arg0, NULL_RTX, VOIDmode, 0);
+  op1 = expand_expr (arg1, NULL_RTX, VOIDmode, 0);
+  op2 = expand_expr (arg2, NULL_RTX, SImode, EXPAND_NORMAL);
+  mode0 = insn_data[icode].operand[0].mode;
+  mode1 = insn_data[icode].operand[1].mode;
+  mode2 = insn_data[icode].operand[2].mode;
+
+  if (TREE_CODE (arg0) == INTEGER_CST)
+    {
+      if (TREE_INT_CST_LOW (arg0) >
+          (unsigned HOST_WIDE_INT) ((1 << 5) - 1))
+        {
+          warning ("argument 1 of `%s' not in the range 0 to %d.",
+                   mips_bdesc[fcode].name, (1 << 5) - 1);
+          op0 = GEN_INT (INTVAL (op0) & ((1 << 5) - 1));
+        }
+    }
+  else
+    {
+      error ("argument 1 of '%s' must be an immediate integer.",
+             mips_bdesc[fcode].name);
+    }
+
+  if (TREE_CODE (arg1) == INTEGER_CST)
+    {
+      if (TREE_INT_CST_LOW (arg1) >
+          (unsigned HOST_WIDE_INT) ((1 << 3) - 1))
+        {
+          warning ("argument 2 of `%s' not in the range 0 to %d.",
+                   mips_bdesc[fcode].name, (1 << 3) - 1);
+          op1 = GEN_INT (INTVAL (op1) & ((1 << 3) - 1));
+        }
+    }
+  else
+    {
+      error ("argument 2 of '%s' must be an immediate integer.",
+             mips_bdesc[fcode].name);
+    }
+
+  op2 = protect_from_queue (op2,0);
+  if (!register_operand (op2,SImode))
+    {
+      op3 = op2;
+      op2 = gen_reg_rtx(SImode);
+      emit_move_insn (op2, op3);
+    }
+
+  if (! (*insn_data[icode].operand[0].predicate) (op0, mode0))
+    op0 = copy_to_mode_reg (mode0, op0);
+  if (! (*insn_data[icode].operand[1].predicate) (op1, mode1))
+    op1 = copy_to_mode_reg (mode1, op1);
+  if (! (*insn_data[icode].operand[2].predicate) (op2, mode2))
+    op2 = copy_to_mode_reg (mode2, op2);
+
+  if (TARGET_MIPS16 || TARGET_MIPS16E)
+    {
+      emit_insn (gen_mips_switch_isabase());
+    }
+
+  pat = gen_mips_mtc0 (op0, op1, op2);
+  emit_insn (pat);
+
+  if (TARGET_MIPS16 || TARGET_MIPS16E)
+    {
+      emit_insn (gen_mips_switch_isabase());
+    }
+
+  return NULL_RTX;
+}
+
+/* For the __builtin_mtc0(reg,sel,val) function */
+const char *
+mchp_output_mtc0_32 (int srcreg, int srcsel, rtx value)
+{
+  static char retval[30] = {0};
+  assert (srcreg >= 0);
+  assert (srcreg < 32);
+  assert (srcsel >= 0);
+  assert (srcsel < 10);
+
+  assert (!TARGET_MIPS16);
+  assert (!TARGET_MIPS16E);
+
+  assert(0 < REGNO (value));
+  assert(32 > REGNO (value));
+  assert ('$' == mips_sw_reg_names[REGNO (value)][0]);
+
+  snprintf(retval, sizeof(retval)-1, "mtc0\t$%c%c, $%d, %d \n\tehb",
+           mips_sw_reg_names[REGNO (value)][1],
+           mips_sw_reg_names[REGNO (value)][2],
+           srcreg, srcsel);
+
+  return retval;
+}
+
+/* Expand MXC0 */
+
+/* mips_expand_mxc0 for __builtin_mxc0(reg,sel,val) */
+rtx
+mips_expand_mxc0 (rtx target,
+                  unsigned int fcode,
+                  tree arglist)
+{
+  rtx pat;
+  enum insn_code icode;
+  tree arg0;
+  tree arg1;
+  tree arg2;
+  enum machine_mode tmode;
+  enum machine_mode mode0;
+  enum machine_mode mode1;
+  enum machine_mode mode2;
+  rtx op0;
+  rtx op1;
+  rtx op2;
+  rtx op3;
+  rtx scratch;
+
+  unsigned HOST_WIDE_INT value;
+
+  icode = mips_bdesc[fcode].icode;
+  arg0 = TREE_VALUE (arglist);
+  arg1 = TREE_VALUE (TREE_CHAIN (arglist));
+  arg2 = TREE_VALUE (TREE_CHAIN (TREE_CHAIN (arglist)));
+
+  op0 = expand_expr (arg0, NULL_RTX, VOIDmode, 0);
+  op1 = expand_expr (arg1, NULL_RTX, VOIDmode, 0);
+  op2 = expand_expr (arg2, NULL_RTX, SImode, EXPAND_NORMAL);
+  tmode = insn_data[icode].operand[0].mode;
+  mode0 = insn_data[icode].operand[1].mode;
+  mode1 = insn_data[icode].operand[2].mode;
+  mode2 = insn_data[icode].operand[3].mode;
+
+  if (TREE_CODE (arg0) == INTEGER_CST)
+    {
+      if (TREE_INT_CST_LOW (arg0) >
+          (unsigned HOST_WIDE_INT) ((1 << 5) - 1))
+        {
+          warning ("argument 1 of `%s' not in the range 0 to %d.",
+                   mips_bdesc[fcode].name, (1 << 5) - 1);
+          op0 = GEN_INT (INTVAL (op0) & ((1 << 5) - 1));
+        }
+    }
+  else
+    {
+      error ("argument 1 of '%s' must be an immediate integer.",
+             mips_bdesc[fcode].name);
+    }
+
+  if (TREE_CODE (arg1) == INTEGER_CST)
+    {
+      if (TREE_INT_CST_LOW (arg1) >
+          (unsigned HOST_WIDE_INT) ((1 << 3) - 1))
+        {
+          warning ("argument 2 of `%s' not in the range 0 to %d.",
+                   mips_bdesc[fcode].name, (1 << 3) - 1);
+          op1 = GEN_INT (INTVAL (op1) & ((1 << 3) - 1));
+        }
+    }
+  else
+    {
+      error ("argument 2 of '%s' must be an immediate integer.",
+             mips_bdesc[fcode].name);
+    }
+
+  op2 = protect_from_queue (op2,0);
+  if (!register_operand (op2,SImode))
+    {
+      op3 = op2;
+      op2 = gen_reg_rtx(SImode);
+      emit_move_insn (op2, op3);
+    }
+
+  if (target == 0
+      || GET_MODE (target) != tmode
+      || ! (*insn_data[icode].operand[0].predicate) (target, tmode))
+    target = gen_reg_rtx (tmode);
+
+  if (! (*insn_data[icode].operand[1].predicate) (op0, mode0))
+    op0 = copy_to_mode_reg (mode0, op0);
+  if (! (*insn_data[icode].operand[2].predicate) (op1, mode1))
+    op1 = copy_to_mode_reg (mode1, op1);
+  if (! (*insn_data[icode].operand[3].predicate) (op2, mode2))
+    op2 = copy_to_mode_reg (mode2, op2);
+
+  if (TARGET_MIPS16 || TARGET_MIPS16E)
+    {
+      emit_insn (gen_mips_switch_isabase());
+    }
+
+  pat = gen_mips_mfc0 (target, op0, op1);
+  if (! pat)
+    return 0;
+  emit_insn (pat);
+
+  pat = gen_nop ();
+  if (! pat)
+    return 0;
+  emit_insn (pat);
+
+  pat = gen_mips_mtc0 (op0, op1,op2);
+  if (! pat)
+    return 0;
+  emit_insn (pat);
+
+  if (TARGET_MIPS16 || TARGET_MIPS16E)
+    {
+      emit_insn (gen_mips_switch_isabase());
+    }
+
+  return target;
+}
+
+/* Expand BCC0 */
+/* mips_expand_bcc0 for __builtin_bcc0(reg,sel,val) */
+rtx
+mips_expand_bcc0 (rtx target,
+                  unsigned int fcode,
+                  tree arglist)
+{
+  rtx pat;
+  enum insn_code icode;
+  tree arg0;
+  tree arg1;
+  tree arg2;
+  enum machine_mode tmode;
+  enum machine_mode mode0;
+  enum machine_mode mode1;
+  enum machine_mode mode2;
+  rtx op0;
+  rtx op1;
+  rtx op2;
+  rtx op3;
+  rtx scratch;
+
+  unsigned HOST_WIDE_INT value;
+
+  icode = mips_bdesc[fcode].icode;
+  arg0 = TREE_VALUE (arglist);
+  arg1 = TREE_VALUE (TREE_CHAIN (arglist));
+  arg2 = TREE_VALUE (TREE_CHAIN (TREE_CHAIN (arglist)));
+
+  op0 = expand_expr (arg0, NULL_RTX, VOIDmode, 0);
+  op1 = expand_expr (arg1, NULL_RTX, VOIDmode, 0);
+  op2 = expand_expr (arg2, NULL_RTX, SImode, EXPAND_NORMAL);
+  tmode = insn_data[icode].operand[0].mode;
+  mode0 = insn_data[icode].operand[1].mode;
+  mode1 = insn_data[icode].operand[2].mode;
+  mode2 = insn_data[icode].operand[3].mode;
+
+  if (TREE_CODE (arg0) == INTEGER_CST)
+    {
+      if (TREE_INT_CST_LOW (arg0) >
+          (unsigned HOST_WIDE_INT) ((1 << 5) - 1))
+        {
+          warning ("argument 1 of `%s' not in the range 0 to %d.",
+                   mips_bdesc[fcode].name, (1 << 5) - 1);
+          op0 = GEN_INT (INTVAL (op0) & ((1 << 5) - 1));
+        }
+    }
+  else
+    {
+      error ("argument 1 of '%s' must be an immediate integer.",
+             mips_bdesc[fcode].name);
+    }
+
+  if (TREE_CODE (arg1) == INTEGER_CST)
+    {
+      if (TREE_INT_CST_LOW (arg1) >
+          (unsigned HOST_WIDE_INT) ((1 << 3) - 1))
+        {
+          warning ("argument 2 of `%s' not in the range 0 to %d.",
+                   mips_bdesc[fcode].name, (1 << 3) - 1);
+          op1 = GEN_INT (INTVAL (op1) & ((1 << 3) - 1));
+        }
+    }
+  else
+    {
+      error ("argument 2 of '%s' must be an immediate integer.",
+             mips_bdesc[fcode].name);
+    }
+
+  op2 = protect_from_queue (op2,0);
+  if (!register_operand (op2,SImode))
+    {
+      op3 = op2;
+      op2 = gen_reg_rtx(SImode);
+      emit_move_insn (op2, op3);
+    }
+
+  if (target == 0
+      || GET_MODE (target) != tmode
+      || ! (*insn_data[icode].operand[0].predicate) (target, tmode))
+    target = gen_reg_rtx (tmode);
+
+  if (! (*insn_data[icode].operand[1].predicate) (op0, mode0))
+    op0 = copy_to_mode_reg (mode0, op0);
+  if (! (*insn_data[icode].operand[2].predicate) (op1, mode1))
+    op1 = copy_to_mode_reg (mode1, op1);
+  if (! (*insn_data[icode].operand[3].predicate) (op2, mode2))
+    op2 = copy_to_mode_reg (mode2, op2);
+
+  if (TARGET_MIPS16 || TARGET_MIPS16E)
+    {
+      emit_insn (gen_mips_switch_isabase());
+    }
+
+  pat = gen_mips_mfc0 (target, op0, op1);
+  if (! pat)
+    return 0;
+  emit_insn (pat);
+  emit_insn (gen_hazard_nop());
+
+  pat = gen_one_cmplsi2(op2, op2);
+  if (! pat)
+    return 0;
+  emit_insn (pat);
+
+  pat = gen_andsi3(op2,target,op2);
+  if (! pat)
+    return 0;
+  emit_insn (pat);
+
+  pat = gen_mips_mtc0 (op0, op1, op2);
+  if (! pat)
+    return 0;
+  emit_insn (pat);
+
+  if (TARGET_MIPS16 || TARGET_MIPS16E)
+    {
+      emit_insn (gen_mips_switch_isabase());
+    }
+
+  return target;
+}
+
+/* Expand BSC0 */
+/* mips_expand_bsc0 for __builtin_bsc0(reg,sel,val) */
+rtx
+mips_expand_bsc0 (rtx target,
+                  unsigned int fcode,
+                  tree arglist)
+{
+  rtx pat;
+  enum insn_code icode;
+  tree arg0;
+  tree arg1;
+  tree arg2;
+  enum machine_mode tmode;
+  enum machine_mode mode0;
+  enum machine_mode mode1;
+  enum machine_mode mode2;
+  rtx op0;
+  rtx op1;
+  rtx op2;
+  rtx op3;
+
+  unsigned HOST_WIDE_INT value;
+
+  icode = mips_bdesc[fcode].icode;
+  arg0 = TREE_VALUE (arglist);
+  arg1 = TREE_VALUE (TREE_CHAIN (arglist));
+  arg2 = TREE_VALUE (TREE_CHAIN (TREE_CHAIN (arglist)));
+
+  op0 = expand_expr (arg0, NULL_RTX, VOIDmode, 0);
+  op1 = expand_expr (arg1, NULL_RTX, VOIDmode, 0);
+  op2 = expand_expr (arg2, NULL_RTX, SImode, EXPAND_NORMAL);
+  tmode = insn_data[icode].operand[0].mode;
+  mode0 = insn_data[icode].operand[1].mode;
+  mode1 = insn_data[icode].operand[2].mode;
+  mode2 = insn_data[icode].operand[3].mode;
+
+  if (TREE_CODE (arg0) == INTEGER_CST)
+    {
+      if (TREE_INT_CST_LOW (arg0) >
+          (unsigned HOST_WIDE_INT) ((1 << 5) - 1))
+        {
+          warning ("argument 1 of `%s' not in the range 0 to %d.",
+                   mips_bdesc[fcode].name, (1 << 5) - 1);
+          op0 = GEN_INT (INTVAL (op0) & ((1 << 5) - 1));
+        }
+    }
+  else
+    {
+      error ("argument 1 of '%s' must be an immediate integer.",
+             mips_bdesc[fcode].name);
+    }
+
+  if (TREE_CODE (arg1) == INTEGER_CST)
+    {
+      if (TREE_INT_CST_LOW (arg1) >
+          (unsigned HOST_WIDE_INT) ((1 << 3) - 1))
+        {
+          warning ("argument 2 of `%s' not in the range 0 to %d.",
+                   mips_bdesc[fcode].name, (1 << 3) - 1);
+          op1 = GEN_INT (INTVAL (op1) & ((1 << 3) - 1));
+        }
+    }
+  else
+    {
+      error ("argument 2 of '%s' must be an immediate integer.",
+             mips_bdesc[fcode].name);
+    }
+
+  op2 = protect_from_queue (op2,0);
+  if (!register_operand (op2,SImode))
+    {
+      op3 = op2;
+      op2 = gen_reg_rtx(SImode);
+      emit_move_insn (op2, op3);
+    }
+
+  if (target == 0
+      || GET_MODE (target) != tmode
+      || ! (*insn_data[icode].operand[0].predicate) (target, tmode))
+    target = gen_reg_rtx (tmode);
+
+  if (! (*insn_data[icode].operand[1].predicate) (op0, mode0))
+    op0 = copy_to_mode_reg (mode0, op0);
+  if (! (*insn_data[icode].operand[2].predicate) (op1, mode1))
+    op1 = copy_to_mode_reg (mode1, op1);
+  if (! (*insn_data[icode].operand[3].predicate) (op2, mode2))
+    op2 = copy_to_mode_reg (mode2, op2);
+
+  if (TARGET_MIPS16 || TARGET_MIPS16E)
+    {
+      emit_insn (gen_mips_switch_isabase());
+    }
+
+  pat = gen_mips_mfc0 (target, op0, op1);
+  if (! pat)
+    return 0;
+  emit_insn (pat);
+  emit_insn (gen_nop());
+
+  pat = gen_iorsi3(op2,target,op2);
+  if (! pat)
+    return 0;
+  emit_insn (pat);
+
+  pat = gen_mips_mtc0 (op0, op1, op2);
+  if (! pat)
+    return 0;
+  emit_insn (pat);
+
+  if (TARGET_MIPS16 || TARGET_MIPS16E)
+    {
+      emit_insn (gen_mips_switch_isabase());
+    }
+
+  return target;
+}
+
+
+
+/* Expand BCSC0 */
+/* mips_expand_bcsc0 for __builtin_bcsc0(reg,sel,val) */
+rtx
+mips_expand_bcsc0 (rtx target,
+                   unsigned int fcode,
+                   tree arglist)
+{
+  rtx pat;
+  enum insn_code icode;
+  tree arg0;
+  tree arg1;
+  tree arg2;
+  tree arg3;
+  enum machine_mode tmode;
+  enum machine_mode mode0;
+  enum machine_mode mode1;
+  enum machine_mode mode2;
+  enum machine_mode mode3;
+  rtx op0;
+  rtx op1;
+  rtx op2;
+  rtx op2a;
+  rtx op3;
+  rtx op3a;
+
+  unsigned HOST_WIDE_INT value;
+
+  icode   = mips_bdesc[fcode].icode;
+  arg0    = TREE_VALUE (arglist);
+  arglist = TREE_CHAIN (arglist);
+  arg1    = TREE_VALUE (arglist);
+  arglist = TREE_CHAIN (arglist);
+  arg2    = TREE_VALUE (arglist);
+  arglist = TREE_CHAIN (arglist);
+  arg3    = TREE_VALUE (arglist);
+  arglist = TREE_CHAIN (arglist);
+
+  op0 = expand_expr (arg0, NULL_RTX, VOIDmode, 0);
+  op1 = expand_expr (arg1, NULL_RTX, VOIDmode, 0);
+  op2 = expand_expr (arg2, NULL_RTX, SImode, EXPAND_NORMAL);
+  op3 = expand_expr (arg3, NULL_RTX, SImode, EXPAND_NORMAL);
+  tmode = insn_data[icode].operand[0].mode;
+  mode0 = insn_data[icode].operand[1].mode;
+  mode1 = insn_data[icode].operand[2].mode;
+  mode2 = insn_data[icode].operand[3].mode;
+  mode3 = insn_data[icode].operand[4].mode;
+
+  if (TREE_CODE (arg0) == INTEGER_CST)
+    {
+      if (TREE_INT_CST_LOW (arg0) >
+          (unsigned HOST_WIDE_INT) ((1 << 5) - 1))
+        {
+          warning ("argument 1 of `%s' not in the range 0 to %d.",
+                   mips_bdesc[fcode].name, (1 << 5) - 1);
+          op0 = GEN_INT (INTVAL (op0) & ((1 << 5) - 1));
+        }
+    }
+  else
+    {
+      error ("argument 1 of '%s' must be an immediate integer.",
+             mips_bdesc[fcode].name);
+    }
+
+  if (TREE_CODE (arg1) == INTEGER_CST)
+    {
+      if (TREE_INT_CST_LOW (arg1) >
+          (unsigned HOST_WIDE_INT) ((1 << 3) - 1))
+        {
+          warning ("argument 2 of `%s' not in the range 0 to %d.",
+                   mips_bdesc[fcode].name, (1 << 3) - 1);
+          op1 = GEN_INT (INTVAL (op1) & ((1 << 3) - 1));
+        }
+    }
+  else
+    {
+      error ("argument 2 of '%s' must be an immediate integer.",
+             mips_bdesc[fcode].name);
+    }
+
+  op2 = protect_from_queue (op2,0);
+  if (!register_operand (op2,SImode))
+    {
+      op2a = op2;
+      op2 = gen_reg_rtx(SImode);
+      emit_move_insn (op2, op2a);
+    }
+
+  op3 = protect_from_queue (op3,0);
+  if (!register_operand (op3,SImode))
+    {
+      op3a = op3;
+      op3 = gen_reg_rtx(SImode);
+      emit_move_insn (op3, op3a);
+    }
+
+  if (target == 0
+      || GET_MODE (target) != tmode
+      || ! (*insn_data[icode].operand[0].predicate) (target, tmode))
+    target = gen_reg_rtx (tmode);
+
+  if (! (*insn_data[icode].operand[1].predicate) (op0, mode0))
+    op0 = copy_to_mode_reg (mode0, op0);
+  if (! (*insn_data[icode].operand[2].predicate) (op1, mode1))
+    op1 = copy_to_mode_reg (mode1, op1);
+  if (! (*insn_data[icode].operand[3].predicate) (op2, mode2))
+    op2 = copy_to_mode_reg (mode2, op2);
+  if (! (*insn_data[icode].operand[4].predicate) (op3, mode3))
+    op3 = copy_to_mode_reg (mode3, op3);
+
+  if (TARGET_MIPS16 || TARGET_MIPS16E)
+    {
+      emit_insn (gen_mips_switch_isabase());
+    }
+
+  pat = gen_mips_mfc0 (target, op0, op1);
+  if (! pat)
+    return 0;
+  emit_insn (pat);
+  emit_insn (gen_nop());
+
+  pat = gen_one_cmplsi2(op2, op2);
+  if (! pat)
+    return 0;
+  emit_insn (pat);
+
+  pat = gen_andsi3(op2,target,op2);
+  if (! pat)
+    return 0;
+  emit_insn (pat);
+
+  pat = gen_iorsi3(op2,op2,op3);
+  if (! pat)
+    return 0;
+  emit_insn (pat);
+
+  pat = gen_mips_mtc0 (op0, op1, op2);
+  if (! pat)
+    return 0;
+  emit_insn (pat);
+
+  if (TARGET_MIPS16 || TARGET_MIPS16E)
+    {
+      emit_insn (gen_mips_switch_isabase());
+    }
+  return target;
+
+} /* End BCSC0 */
+
 /* The second operand may be (signed/unsigned) immediate with the number
    of bits.  */
 
@@ -14702,6 +15554,7 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
   tree fndecl = TREE_OPERAND (TREE_OPERAND (exp, 0), 0);
   tree arglist = TREE_OPERAND (exp, 1);
   unsigned int fcode = DECL_FUNCTION_CODE (fndecl);
+  tree attrlist = TYPE_ATTRIBUTES(TREE_TYPE(fndecl));
   tree arg0;
   tree arg1;
   tree arg2;
@@ -14712,6 +15565,41 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
   rtx op0;
   rtx op1;
   rtx op2;
+
+  switch (fcode)
+    {
+      /* NOP */
+    case MIPS_BUILTIN_NOP:
+      mips_expand_nop ();
+      return NULL_RTX;
+
+      /* MFC0 */
+    case MIPS_BUILTIN_MFC0:
+      return mips_expand_mfc0 (target, fcode, arglist);
+
+      /* MTC0 */
+    case MIPS_BUILTIN_MTC0:
+      return mips_expand_mtc0 (fcode, arglist);
+
+      /* MXC0 */
+    case MIPS_BUILTIN_MXC0:
+      return mips_expand_mxc0 (target, fcode, arglist);
+
+      /* BCC0 */
+    case MIPS_BUILTIN_BCC0:
+      return mips_expand_bcc0 (target, fcode, arglist);
+
+      /* BSC0 */
+    case MIPS_BUILTIN_BSC0:
+      return mips_expand_bsc0 (target, fcode, arglist);
+
+      /* BCSC0 */
+    case MIPS_BUILTIN_BCSC0:
+      return mips_expand_bcsc0 (target, fcode, arglist);
+
+    default:
+      break;
+    }
 
   if (TARGET_MIPS16)
     {
@@ -15907,6 +16795,38 @@ mips_init_builtins (void)
   tree di_ftype_di_usi_usi;
   tree di_ftype_usi_usi;
 
+  tree void_ftype_void;
+  tree usi_ftype_usi_usi;
+  tree void_ftype_usi_usi_usi;
+  tree usi_ftype_usi_usi_usi;
+  tree usi_ftype_usi_usi_usi_usi;
+
+  void_ftype_void
+  = build_function_type (void_type_node, void_list_node);
+
+  usi_ftype_usi_usi
+  = build_function_type_list (unsigned_intSI_type_node,
+                              unsigned_intSI_type_node, unsigned_intSI_type_node,
+                              NULL_TREE);
+
+  void_ftype_usi_usi_usi
+  = build_function_type_list (void_type_node,
+                              unsigned_intSI_type_node, unsigned_intSI_type_node,
+                              unsigned_intSI_type_node,
+                              NULL_TREE);
+
+  usi_ftype_usi_usi_usi
+  = build_function_type_list (unsigned_intSI_type_node,
+                              unsigned_intSI_type_node, unsigned_intSI_type_node,
+                              unsigned_intSI_type_node,
+                              NULL_TREE);
+
+  usi_ftype_usi_usi_usi_usi
+  = build_function_type_list (unsigned_intSI_type_node,
+                              unsigned_intSI_type_node, unsigned_intSI_type_node,
+                              unsigned_intSI_type_node, unsigned_intSI_type_node,
+                              NULL_TREE);
+
   if (TARGET_PAIRED_SINGLE_FLOAT)
     {
       int_ftype_sf_sf
@@ -16760,6 +17680,31 @@ mips_init_builtins (void)
                             d->code, BUILT_IN_MD, NULL, NULL_TREE);
           break;
 
+        case MIPS_VOID_FTYPE_VOID:
+          builtin_function (d->name, void_ftype_void,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_USI_FTYPE_USI_USI:
+          builtin_function (d->name, usi_ftype_usi_usi,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_VOID_FTYPE_USI_USI_USI:
+          builtin_function (d->name, void_ftype_usi_usi_usi,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_USI_FTYPE_USI_USI_USI:
+          builtin_function (d->name, usi_ftype_usi_usi_usi,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_USI_FTYPE_USI_USI_USI_USI:
+          builtin_function (d->name, usi_ftype_usi_usi_usi_usi,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
         default:
           break;
         }
@@ -17387,8 +18332,11 @@ mchp_handle_interrupt_pragma (struct cpp_reader *pfile ATTRIBUTE_UNUSED)
   /* syntax:
      interrupt-pragma: # pragma interrupt function-name ipl-specifier [ vector [[@]irq-num [ , irq-num ]... ] ]
 
-     ipl-specifier: ipl0 ... ipl7 |
-                    single
+     ipl-specifier: IPL0AUTO ... IPL7AUTO |
+                    IPL0SOFT ... IPL7SOFT |
+                    IPL0SRS  ... IPL7SRS  |
+                    single                |
+                    ripl
      */
 
   /* Recognize the syntax. */
@@ -17402,13 +18350,17 @@ mchp_handle_interrupt_pragma (struct cpp_reader *pfile ATTRIBUTE_UNUSED)
   fname = IDENTIFIER_POINTER (tok_value);
   assert (fname);
   /* Second we have the IPL */
+
   tok = c_lex (&tok_value);
   if (tok != CPP_NAME
-      || (strcmp ("single", IDENTIFIER_POINTER (tok_value)) != 0
-          && ((strncmp ("ipl", IDENTIFIER_POINTER (tok_value), 3) != 0
-               && strncmp ("IPL", IDENTIFIER_POINTER (tok_value), 3) != 0)
-              || IDENTIFIER_POINTER (tok_value)[3] > '7'
-              || IDENTIFIER_POINTER (tok_value)[3] < '0')))
+      || ((strcmp ("single", IDENTIFIER_POINTER (tok_value)) != 0)
+          && (strcmp ("SINGLE", IDENTIFIER_POINTER (tok_value)) != 0)
+          && (strcmp ("ripl", IDENTIFIER_POINTER (tok_value)) != 0)
+          && (strcmp ("RIPL", IDENTIFIER_POINTER (tok_value)) != 0)
+          && (((strncmp ("ipl", IDENTIFIER_POINTER (tok_value), 3) != 0)
+               && (strncmp ("IPL", IDENTIFIER_POINTER (tok_value), 3) != 0))
+              || (IDENTIFIER_POINTER (tok_value)[3] > '7')
+              || (IDENTIFIER_POINTER (tok_value)[3] < '0'))))
     {
       error ("priority level specifier not found for interrupt #pragma %s",
              fname);
@@ -17463,10 +18415,11 @@ mchp_handle_interrupt_pragma (struct cpp_reader *pfile ATTRIBUTE_UNUSED)
           return;
         }
       /* if this is a "single" handler, the only valid vector is zero */
-      if (strcmp ("single", IDENTIFIER_POINTER (ipl)) == 0
-          && (int)TREE_INT_CST_LOW (tok_value) != 0)
+      if (((strcmp ("single", IDENTIFIER_POINTER (ipl)) == 0)
+           || (strcmp ("SINGLE", IDENTIFIER_POINTER (ipl)) == 0))
+          && ((int)TREE_INT_CST_LOW (tok_value) != 0))
         {
-          error ("'single' interrupt handlers only work with vector 0");
+          error ("'single' interrupt handlers work with only vector 0");
           return;
         }
 
@@ -17488,7 +18441,8 @@ mchp_handle_interrupt_pragma (struct cpp_reader *pfile ATTRIBUTE_UNUSED)
           return;
         }
       /* if this is a "single" handler, the only valid vector is zero */
-      if (strcmp ("single", IDENTIFIER_POINTER (ipl)) == 0
+      if (((strcmp ("single", IDENTIFIER_POINTER (ipl)) == 0)
+           || (strcmp ("SINGLE", IDENTIFIER_POINTER (ipl)) == 0))
           && (int)TREE_INT_CST_LOW (tok_value) != 0)
         {
           error ("'single' interrupt handlers require vector 0");
@@ -17606,13 +18560,18 @@ mchp_interrupt_attribute (tree *node ATTRIBUTE_UNUSED,
 
   assert (TREE_CHAIN (args) == NULL);
   if (TREE_CODE (TREE_VALUE (args)) != IDENTIFIER_NODE
-      || (strcmp ("single", IDENTIFIER_POINTER (TREE_VALUE (args))) != 0
-          && ((strncmp ("ipl", IDENTIFIER_POINTER (TREE_VALUE (args)), 3) != 0
-               && strncmp ("IPL", IDENTIFIER_POINTER (TREE_VALUE(args)),3)!= 0)
-              || IDENTIFIER_POINTER (TREE_VALUE (args))[3] > '7'
-              || IDENTIFIER_POINTER (TREE_VALUE (args))[3] < '0')))
+      || (((strcmp ("single", IDENTIFIER_POINTER (TREE_VALUE (args))) != 0)
+           && (strcmp ("SINGLE", IDENTIFIER_POINTER (TREE_VALUE (args))) != 0)
+           && (strcmp ("ripl", IDENTIFIER_POINTER (TREE_VALUE (args))) != 0)
+           && (strcmp ("RIPL", IDENTIFIER_POINTER (TREE_VALUE (args))) != 0))
+          && (((strncmp ("ipl", IDENTIFIER_POINTER (TREE_VALUE (args)),3) != 0)
+               && (strncmp ("IPL", IDENTIFIER_POINTER (TREE_VALUE(args)),3)!= 0))
+              || (IDENTIFIER_POINTER (TREE_VALUE (args))[3] > '7')
+              || (IDENTIFIER_POINTER (TREE_VALUE (args))[3] < '0'))))
     {
-      error ("Interrupt priority must be specified as 'ipl0' - 'ipl7'");
+      error ("Interrupt priority must be specified as RIPL, SINGLE, IPLnAUTO, "
+             "IPLnSOFT, or IPLnSRS, where n is in the range of 0..7, "
+             "inclusive.");
       *no_add_attrs = 1;
       return NULL_TREE;
     }

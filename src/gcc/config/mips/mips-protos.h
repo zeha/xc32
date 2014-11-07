@@ -61,6 +61,10 @@ extern rtx mips_subword (rtx, int);
 extern bool mips_split_64bit_move_p (rtx, rtx);
 extern void mips_split_64bit_move (rtx, rtx);
 extern const char *mips_output_move (rtx, rtx);
+extern const char *mchp_output_switch_ISAbase (void);
+extern const char *mchp_output_mfc0_32 (rtx, int, int);
+extern const char *mchp_output_mtc0_32 (int, int, rtx);
+
 extern void mips_restore_gp (void);
 #ifdef RTX_CODE
 extern rtx gen_int_relational (enum rtx_code, rtx, rtx, rtx, int *);
@@ -75,15 +79,15 @@ extern bool mips_expand_block_move (rtx, rtx, rtx);
 
 extern void init_cumulative_args (CUMULATIVE_ARGS *, tree, rtx);
 extern void function_arg_advance (CUMULATIVE_ARGS *, enum machine_mode,
-				  tree, int);
+                                    tree, int);
 extern struct rtx_def *function_arg (const CUMULATIVE_ARGS *,
-				     enum machine_mode, tree, int);
+                                             enum machine_mode, tree, int);
 extern int function_arg_partial_nregs (const CUMULATIVE_ARGS *,
-				       enum machine_mode, tree, int);
+                                         enum machine_mode, tree, int);
 extern bool mips_pad_arg_upward (enum machine_mode, tree);
 extern bool mips_pad_reg_upward (enum machine_mode, tree);
 extern int mips_setup_incoming_varargs (const CUMULATIVE_ARGS *,
-					enum machine_mode, tree, int);
+                                          enum machine_mode, tree, int);
 extern void mips_va_start (tree, rtx);
 extern struct rtx_def *mips_va_arg (tree, tree);
 
@@ -104,18 +108,18 @@ extern void mips_output_filename (FILE *, const char *);
 extern void mips_output_lineno (FILE *, int);
 extern void mips_output_ascii (FILE *, const char *, size_t, const char *);
 extern void mips_output_aligned_bss (FILE *, tree, const char *,
-				     unsigned HOST_WIDE_INT, int);
+                                       unsigned HOST_WIDE_INT, int);
 extern void mips_output_aligned_decl_common (FILE *, tree, const char *,
-					     unsigned HOST_WIDE_INT,
-					     unsigned int);
+      unsigned HOST_WIDE_INT,
+      unsigned int);
 extern void mips_output_aligned_decl_local (FILE *, tree, const char *,
-					     unsigned HOST_WIDE_INT,
-					     unsigned int);
+      unsigned HOST_WIDE_INT,
+      unsigned int);
 extern void mips_declare_common_object (FILE *, const char *,
-					const char *, unsigned HOST_WIDE_INT,
-					unsigned int, bool);
+                                          const char *, unsigned HOST_WIDE_INT,
+                                          unsigned int, bool);
 extern void mips_declare_object (FILE *, const char *, const char *,
-				 const char *, ...);
+                                   const char *, ...);
 extern void mips_declare_object_name (FILE *, const char *, tree);
 extern void mips_finish_declare_object (FILE *, tree, int, int);
 
@@ -128,25 +132,25 @@ extern void mips_expand_epilogue (int);
 extern int mips_can_use_return_insn (void);
 extern struct rtx_def *mips_function_value (tree, tree, enum machine_mode);
 extern int function_arg_pass_by_reference (const CUMULATIVE_ARGS *,
-					   enum machine_mode, tree, int);
+      enum machine_mode, tree, int);
 
 extern bool mips_cannot_change_mode_class (enum machine_mode,
-					   enum machine_mode, enum reg_class);
+      enum machine_mode, enum reg_class);
 extern bool mips_dangerous_for_la25_p (rtx);
 extern enum reg_class mips_preferred_reload_class (rtx, enum reg_class);
 extern enum reg_class mips_secondary_reload_class (enum reg_class,
-						   enum machine_mode,
-						   rtx, int);
+      enum machine_mode,
+      rtx, int);
 extern int mips_class_max_nregs (enum reg_class, enum machine_mode);
 extern bool mips_valid_pointer_mode (enum machine_mode);
 extern int build_mips16_call_stub (rtx, rtx, rtx, int);
 extern int mips_register_move_cost (enum machine_mode, enum reg_class,
-				    enum reg_class);
+                                      enum reg_class);
 
 extern int mips_adjust_insn_length (rtx, int);
 extern const char *mips_output_load_label (void);
 extern const char *mips_output_conditional_branch (rtx, rtx *, int, int,
-						   int, int);
+      int, int);
 extern const char *mips_output_division (const char *, rtx *);
 extern unsigned int mips_hard_regno_nregs (int, enum machine_mode);
 extern int mips_return_in_memory (tree);

@@ -472,7 +472,19 @@
    (UNSPEC_DPSQX_S_W_PH_64      756)
    (UNSPEC_DPSQX_SA_W_PH_64     757)
 
+   (UNSPECV_NOP_32	                800) ; '__builtin_nop' instruction
+   (UNSPECV_NOP_16	                801) ; '__builtin_nop' instruction
+   (UNSPECV_MFC0_32	                802) ; '__builtin_mfc0' instruction
+   (UNSPECV_MTC0_32	                803) ; '__builtin_mtc0' instruction
+   (UNSPECV_MXC0_32	                804) ; '__builtin_mxc0' instruction
+   (UNSPECV_BCC0_32	                805) ; '__builtin_bcc0' instruction
+   (UNSPECV_BSC0_32                 806) ; '__builtin_bsc0' instruction
+   (UNSPECV_BCSC0_32                806) ; '__builtin_bcsc0' instruction
+   (UNSPECV_SWITCH_ISA1632          807) 
+
 ])
+
+
 
 ;; ....................
 ;;
@@ -548,7 +560,7 @@
 ;; multi	multiword sequence (or user asm statements)
 ;; nop		no operation
 (define_attr "type"
-  "unknown,branch,jump,call,load,fpload,store,fpstore,prefetch,prefetchx,move,condmove,xfer,mthilo,mfhilo,const,arith,darith,logical,,shift,vshift,signext,slt,imul,imul3,imadd,idiv,icmp,fadd,fmul,fmadd,fdiv,fabs,fneg,fcmp,fcvt,fsqrt,frsqrt,dspmac,dspmacsat,accext,accmod,dspalu,dspalusat,multi,nop"
+  "unknown,branch,jump,call,load,fpload,store,fpstore,prefetch,prefetchx,move,condmove,xfer,mthilo,mfhilo,const,arith,darith,logical,,shift,vshift,signext,slt,imul,imul3,imadd,idiv,icmp,fadd,fmul,fmadd,fdiv,fabs,fneg,fcmp,fcvt,fsqrt,frsqrt,dspmac,dspmacsat,accext,accmod,dspalu,dspalusat,multi,nop,mtc,mfc"
   (cond [(eq_attr "jal" "!unset") (const_string "call")
 	 (eq_attr "got" "load") (const_string "load")]
 	(const_string "unknown")))
@@ -9831,6 +9843,20 @@ ld\\t%2,%1-%S1(%2)\;daddu\\t%2,%2,$31\\n\\t%*j\\t%2%/"
   [(set_attr "type"	"nop")
    (set_attr "mode"	"none")])
 
+(define_insn "bifnop32"
+  [(unspec_volatile [(const_int 0)] UNSPECV_NOP_32)]
+  ""
+  "%(ssnop%)"
+  [(set_attr "type"	"nop")
+   (set_attr "mode"	"none")])
+   
+(define_insn "bifnop16"
+  [(unspec_volatile [(const_int 0)] UNSPECV_NOP_16)]
+  ""
+  "%(nop%)"
+  [(set_attr "type"	"nop")
+   (set_attr "mode"	"none")])
+
 ;; Like nop, but commented out when outside a .set noreorder block.
 (define_insn "hazard_nop"
   [(const_int 1)]
@@ -9842,6 +9868,118 @@ ld\\t%2,%1-%S1(%2)\;daddu\\t%2,%2,$31\\n\\t%*j\\t%2%/"
       return "#nop";
   }
   [(set_attr "type"	"arith")])
+
+(define_insn "mips_switch_isabase"
+  [(unspec_volatile [(const_int 0)] UNSPECV_SWITCH_ISA1632)]
+  ""
+  {
+   static __typeof__(target_flags) saved_target_flags;
+   if (TARGET_MIPS16 || TARGET_MIPS16E)
+   {
+     saved_target_flags = target_flags;
+     target_flags &= ~(MASK_MIPS16 | MASK_MIPS16E);
+     return mchp_output_switch_ISAbase();
+   }
+   else
+   {
+     target_flags = saved_target_flags;
+     return mchp_output_switch_ISA16();
+   }
+  }
+  [(set_attr "type"	"multi")
+   (set_attr "length"	"12")])
+
+;; Move involving COP0 registers.
+(define_insn "mips_mfc0"
+  [(set (match_operand:SI 0 "register_operand" "=d")
+   (unspec_volatile [(match_operand:SI 1 "immediate_operand" "JK")
+                     (match_operand:SI 2 "immediate_operand" "JK")]
+			    UNSPECV_MFC0_32))]
+  ""
+{
+  return mchp_output_mfc0_32 (operands[0], 
+                              INTVAL(operands[1]), 
+                              INTVAL(operands[2])); 
+}
+  [(set_attr "type"	"multi")
+   (set_attr "mode"	"SI")
+   (set_attr "length"	"4")])
+
+(define_insn "mips_mtc0"
+  [
+   (unspec_volatile [(match_operand:SI 0 "immediate_operand" "JK")
+                     (match_operand:SI 1 "immediate_operand" "JK")
+                     (match_operand:SI 2 "register_operand" "d")]
+			    UNSPECV_MTC0_32)]
+  ""
+{ return mchp_output_mtc0_32 (
+                              INTVAL(operands[0]), 
+                              INTVAL(operands[1]),
+                              operands[2]); 
+}
+  [(set_attr "type"	"multi")
+   (set_attr "mode"	"none")
+   (set_attr "length"	"4")])
+
+   
+;; MXC0
+(define_insn "mips_mxc0"
+  [(set (match_operand:SI 0 "register_operand" "=&d")
+   (unspec_volatile [(match_operand:SI 1 "immediate_operand" "JK")
+                     (match_operand:SI 2 "immediate_operand" "JK")
+                     (match_operand:SI 3 "register_operand" "d")]
+			    UNSPECV_MXC0_32))]
+  ""
+{ return  "";
+}
+  [(set_attr "type"	"multi")
+   (set_attr "mode"	"none")
+   (set_attr "length"	"8")])
+
+;; BCC0
+(define_insn "mips_bcc0"
+  [(set (match_operand:SI 0 "register_operand" "=&d")
+   (unspec_volatile [(match_operand:SI 1 "immediate_operand" "JK")
+                     (match_operand:SI 2 "immediate_operand" "JK")
+                     (match_operand:SI 3 "register_operand" "d")]
+			    UNSPECV_BCC0_32))]
+  ""
+{ return  "";
+}
+  [(set_attr "type"	"multi")
+   (set_attr "mode"	"none")
+   (set_attr "length"	"8")])
+   
+;; BSC0
+(define_insn "mips_bsc0"
+  [(set (match_operand:SI 0 "register_operand" "=&d")
+   (unspec_volatile [(match_operand:SI 1 "immediate_operand" "JK")
+                     (match_operand:SI 2 "immediate_operand" "JK")
+                     (match_operand:SI 3 "register_operand" "d")]
+			    UNSPECV_BSC0_32))]
+  ""
+{ return  "";
+}
+  [(set_attr "type"	"multi")
+   (set_attr "mode"	"none")
+   (set_attr "length"	"8")])
+
+;; BCSC0
+(define_insn "mips_bcsc0"
+  [(set (match_operand:SI 0 "register_operand" "=&d")
+   (unspec_volatile [(match_operand:SI 1 "immediate_operand" "JK")
+                     (match_operand:SI 2 "immediate_operand" "JK")
+                     (match_operand:SI 3 "register_operand" "d")
+                     (match_operand:SI 4 "register_operand" "d")]
+			    UNSPECV_BCSC0_32))]
+  ""
+{ return  "";
+}
+  [(set_attr "type"	"multi")
+   (set_attr "mode"	"none")
+   (set_attr "length"	"8")])
+
+
 
 ;; MIPS4 Conditional move instructions.
 

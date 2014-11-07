@@ -564,6 +564,13 @@ BSS_END_SYMBOLS="
 # Other output sections to include in the linker script before the DEBUG
 # sections
 OTHER_SECTIONS="
+  /* Persistent data */
+  .persist ALIGN(4) :
+  {
+    *(.persist)
+    . = ALIGN(32 / 8) ;
+  } >${DATA_MEMORY_REGION}
+
   /* Heap allocating takes a chunk of memory following BSS */
   .heap ALIGN(4) :
   {
@@ -572,7 +579,7 @@ OTHER_SECTIONS="
   } >${DATA_MEMORY_REGION}
 
   /* Stack allocation follows the heap */
-  .stack ALIGN(4) :
+  .stack ALIGN(8) :
   {
     _splim = . ;
     _SPLIM = . ;
