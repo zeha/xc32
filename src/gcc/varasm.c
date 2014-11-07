@@ -3378,6 +3378,7 @@ mark_constant (rtx *current_rtx, void *data ATTRIBUTE_UNUSED)
     }
   return 0;
 }
+
 
 /* Determine what kind of relocations EXP may need.  */
 

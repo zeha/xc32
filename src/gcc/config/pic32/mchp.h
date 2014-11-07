@@ -1,4 +1,4 @@
-/* Definitions of target machine Daytona for GNU compiler.
+/* Definitions of target machine PIC32 for GNU compiler.
    Copyright (C) 1994, 1997, 1999, 2000, 2002, 2003, 2004
    Free Software Foundation, Inc.
 
@@ -20,11 +20,28 @@ the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
 
-/* Macro for conditional compilation of C32 only stuff */
+/* Macro for conditional compilation of PIC32 only stuff */
 #define TARGET_MCHP_PIC32MX 1
+#define MCHP_DEBUG 1
+extern const char *mchp_io_size;
+extern       int   mchp_io_size_val;
 
 #undef DEFAULT_SIGNED_CHAR
 #define DEFAULT_SIGNED_CHAR 1
+
+/*
+** This is how to output a reference to a user-level label named NAME.
+** `assemble_name' uses this.
+*/
+#if 0
+#undef ASM_OUTPUT_LABELREF
+#define ASM_OUTPUT_LABELREF(FILE, NAME) \
+do {                     \
+  char * real_name;               \
+  real_name = mchp_strip_name_encoding ((NAME));   \
+  asm_fprintf (FILE, "%U%s", real_name);      \
+} while (0)           
+#endif
 
 /* Put at the end of the command given to the linker if -nodefaultlibs or
  * -nostdlib is not specified on the command line. This includes all the
@@ -34,7 +51,7 @@ Boston, MA 02111-1307, USA.  */
  * the -mprocessor option is specified.
  */
 #undef  LIB_SPEC
-#define LIB_SPEC "--start-group -lc -lm -le -ldsp %{!mno-peripheral-libs:-lmchp_peripheral %{mprocessor=*:-lmchp_peripheral_%*}} --end-group"
+#define LIB_SPEC "--start-group -ldebug -lc -lm -le -ldsp %{!mno-peripheral-libs:-lmchp_peripheral %{mprocessor=*:-lmchp_peripheral_%*}} --end-group"
 
 /* Don't set.  This defaults to crt0.o if not specified. */
 #undef  STARTFILE_SPEC
@@ -72,7 +89,8 @@ Boston, MA 02111-1307, USA.  */
  */
 #undef LINK_SPEC
 #define LINK_SPEC "\
-%{G*} %{bestGnum} %{shared} %{non_shared}"
+%{G*} %{bestGnum} %{shared} %{non_shared} \
+%{mno-smart-io:--no-smart-io} %{msmart-io=0:--no-smart-io}"
 
 /* Override the GAS_ASM_SPEC specified in mips.h since we removed the mtune
  * option utilized in that spec.
@@ -112,7 +130,22 @@ Boston, MA 02111-1307, USA.  */
 %{G*} \
 -mconfig-data-dir= %J%s%{mprocessor=*:./proc/%*; :./proc/32MXGENERIC} \
 %{mno-float:-fno-builtin-fabs -fno-builtin-fabsf} \
+%{mno-smart-io:-msmart-io=0} \
+%{msmart-io:-msmart-io=1} \
 %(subtarget_cc1_spec)"
+
+/* Preprocessor specs.  */
+
+/* SUBTARGET_CPP_SPEC is passed to the preprocessor.  It may be
+   overridden by subtargets.  */
+#ifndef SUBTARGET_CPP_SPEC
+#define SUBTARGET_CPP_SPEC ""
+#endif
+
+#undef CPP_SPEC
+#define CPP_SPEC "%(subtarget_cpp_spec)\
+%{mappio-debug:-D__APPIO_DEBUG} \
+"
 
 /* None of the OPTIONS specified in MULTILIB_OPTIONS are set by default. */
 #undef MULTILIB_DEFAULTS
@@ -126,6 +159,7 @@ extern const char *mchp_config_data_dir;
  */
 #define MASK_LINK_PERIPHERAL_LIBS 0
 #define MASK_DEBUG_EXEC           0
+#define MASK_APPIO_DEBUG          0
 
 /* Put small constants in .rodata, not .sdata. */
 #undef TARGET_DEFAULT
@@ -145,6 +179,8 @@ extern const char *mchp_config_data_dir;
   SUBTARGET_TARGET_SWITCHES                                             \
   { "debugger",           MASK_DEBUG_EXEC,                              \
       N_("Allocate room for debugger executive") },                     \
+  { "appio-debug",        MASK_APPIO_DEBUG,                             \
+      N_("Enable APPIO debug-support library functions") },             \
   { "no-peripheral-libs", MASK_LINK_PERIPHERAL_LIBS,                    \
       N_("Do not link peripheral libraries") },                         \
   {"int64",		  MASK_INT64 | MASK_LONG64,			\
@@ -191,6 +227,10 @@ extern const char *mchp_config_data_dir;
      N_("Lift restrictions on GOT size") },				\
   {"no-xgot",		 -MASK_XGOT,					\
      N_("Do not lift restrictions on GOT size") },			\
+  {"smart-io",   0,			\
+     N_("Enable smart-IO library call forwarding level 1") }, \
+  {"no-smart-io",   0,			\
+     N_("Disable smart-IO library call forwarding") }, \
   {"",			  (TARGET_DEFAULT				\
 			   | TARGET_CPU_DEFAULT				\
 			   | TARGET_ENDIAN_DEFAULT),			\
@@ -229,6 +269,8 @@ extern const char *mchp_config_data_dir;
       N_("Specify processor"), 0},                                      \
   { "config-data-dir=", &mchp_config_data_dir,                          \
       0, 0},                                                            \
+  {"smart-io=", &mchp_io_size,                                         \
+      N_("Set smart IO library call forwarding level"), 0},             \
 }
 
 /* We want to change the default pre-defined macros. Many of these
@@ -291,11 +333,29 @@ extern const char *mchp_config_data_dir;
     if (mchp_processor_string && *mchp_processor_string)    \
       {                                                     \
         char *proc, *p;                                     \
+        int setnum, memsize;                                \
+        char *pinset;                                       \
+        pinset = alloca(2);                                 \
+        pinset[1] = NULL;                                   \
         proc = alloca (strlen (mchp_processor_string) + 5); \
         sprintf (proc, "__%s__", mchp_processor_string);    \
         for (p = proc ; *p ; p++)                           \
           *p = toupper (*p);                                \
         builtin_define (proc);                              \
+                                                            \
+        if (strchr(proc,'F') != NULL) {                     \
+          sscanf (proc, "__32MX%6dF%6d%1c__", &setnum,      \
+                  &memsize, &pinset[0]);                    \
+          builtin_define_with_int_value                     \
+             ("__PIC32_FEATURE_SET__",                      \
+              setnum);                                      \
+          builtin_define_with_int_value                     \
+             ("__PIC32_MEMORY_SIZE__",                      \
+              memsize);                                     \
+          builtin_define_with_value                         \
+             ("__PIC32_PIN_SET__",                          \
+              pinset, 1);                                   \
+        }                                                   \
       }                                                     \
     else                                                    \
       {                                                     \
@@ -345,4 +405,8 @@ extern const char *mchp_config_data_dir;
 
 /* There are no additional prefixes to try after STANDARD_STARTFILE_PREFIX. */
 #undef MD_STARTFILE_PREFIX
+#if 0
+#undef TARGET_STRIP_NAME_ENCODING
+#define TARGET_STRIP_NAME_ENCODING mchp_strip_name_encoding
+#endif
 

@@ -49,6 +49,7 @@ static void hoist_update_store (rtx, rtx *, rtx, rtx);
    and set by `-m...' switches.  Must be defined in rtlanal.c.  */
 
 int target_flags;
+
 
 /* Return 1 if the value of X is unstable
    (would be different at a different point in the program).

@@ -26,3 +26,4 @@ Boston, MA 02111-1307, USA.  */
 extern void mchp_handle_config_pragma(struct cpp_reader *);
 
 #endif
+

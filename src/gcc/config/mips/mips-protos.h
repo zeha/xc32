@@ -165,4 +165,9 @@ extern bool dspalu_bypass_p (rtx, rtx);
 
 extern void mchp_handle_vector_pragma(struct cpp_reader *);
 extern void mchp_handle_interrupt_pragma(struct cpp_reader *);
+
+extern int mchp_check_for_conversion(rtx call_insn);
+extern const char *mchp_strip_name_encoding(const char *symbol_name);
+
 #endif /* ! GCC_MIPS_PROTOS_H */
+

@@ -15,7 +15,7 @@ any later version.
 
 GCC is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURePOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
@@ -23,11 +23,6 @@ along with GCC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-#ifdef __MINGW32__
-void *alloca(size_t);
-#else
-#include <alloca.h>
-#endif
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
@@ -40,6 +35,7 @@ void *alloca(size_t);
 #include "insn-config.h"
 #include "conditions.h"
 #include "insn-attr.h"
+#include "output.h"
 #include "recog.h"
 #include "toplev.h"
 #include "output.h"
@@ -63,12 +59,18 @@ void *alloca(size_t);
 #include "cpplib.h"
 #include "c-pragma.h"
 #include <assert.h>
+#ifdef __MINGW32__
+void *alloca(size_t);
+#else
+#include <alloca.h>
+#endif
 
 /* Enumeration for all of the relational tests, so that we can build
    arrays indexed by the test type, and not worry about the order
    of EQ, NE, etc.  */
 
-enum internal_test {
+enum internal_test
+{
   ITEST_EQ,
   ITEST_NE,
   ITEST_GT,
@@ -158,7 +160,8 @@ enum internal_test {
    SYMBOL_GOTOFF_LOADGP
        An UNSPEC wrapper around a function's address.  It represents the
        offset of _gp from the start of the function.  */
-enum mips_symbol_type {
+enum mips_symbol_type
+{
   SYMBOL_GENERAL,
   SYMBOL_LONGCALL,
   SYMBOL_SMALL_DATA,
@@ -189,7 +192,8 @@ enum mips_symbol_type {
 
    ADDRESS_SYMBOLIC:
        A constant symbolic address (equivalent to CONSTANT_SYMBOLIC).  */
-enum mips_address_type {
+enum mips_address_type
+{
   ADDRESS_REG,
   ADDRESS_LO_SUM,
   ADDRESS_CONST_INT,
@@ -261,10 +265,13 @@ static void mips_for_each_saved_reg (HOST_WIDE_INT, mips_save_restore_fn);
 static void mips_output_cplocal (void);
 static void mips_emit_loadgp (void);
 static void mips_output_function_prologue (FILE *, HOST_WIDE_INT);
+static void mips_output_function_end_prologue (FILE *);
 static void mips_set_frame_expr (rtx);
 static rtx mips_frame_set (rtx, rtx);
 static void mips_save_reg (rtx, rtx);
 static void mips_output_function_epilogue (FILE *, HOST_WIDE_INT);
+static void mips_output_function_begin_epilogue (FILE *);
+
 static void mips_restore_reg (rtx, rtx);
 static void mips_output_mi_thunk (FILE *, tree, HOST_WIDE_INT,
                                   HOST_WIDE_INT, tree);
@@ -274,7 +281,7 @@ static int mips_comp_type_attributes (tree, tree);
 static void mips_select_rtx_section (enum machine_mode, rtx,
                                      unsigned HOST_WIDE_INT);
 static void mips_select_section (tree, int, unsigned HOST_WIDE_INT)
-                                  ATTRIBUTE_UNUSED;
+ATTRIBUTE_UNUSED;
 static bool mips_in_small_data_p (tree);
 static bool mips_cannot_force_const_mem (rtx);
 static void mips_encode_section_info (tree, rtx, int);
@@ -330,130 +337,132 @@ static void mips_init_builtins (void);
 static rtx mips_expand_builtin (tree, rtx, rtx, enum machine_mode, int);
 static rtx mips_expand_compare_builtin (rtx, unsigned int, tree);
 static rtx mips_expand_ps_compare_builtin (enum mips_cmp_choice, rtx,
-                                           unsigned int, tree);
+    unsigned int, tree);
 static rtx mips_expand_4s_compare_builtin (enum mips_cmp_choice, rtx,
-                                           unsigned int, tree);
+    unsigned int, tree);
 static rtx mips_expand_ps_cond_move_builtin (enum mips_cmp_choice, rtx,
-                                             unsigned int, tree);
+    unsigned int, tree);
 static rtx mips_expand_bposge (rtx, int);
 static rtx mips_expand_two_operands_with_immediate (rtx, unsigned int, tree,
-                                                   int, int);
+    int, int);
 static tree mchp_function_interrupt_p (tree decl);
 static int mchp_function_naked_p (tree func);
 static void mchp_target_insert_attributes (tree node, tree *attr_ptr);
 static tree mchp_interrupt_attribute (tree *decl, tree identifier, tree args,
-    int flags, bool *no_add_attrs);
+                                      int flags, bool *no_add_attrs);
 static void mchp_add_vector_dispatch_entry (const char *target_name,
     int vector_number);
 static tree mchp_at_vector_attribute (tree *decl, tree identifier,
-    tree args, int flags, bool *no_add_attrs);
+                                      tree args, int flags, bool *no_add_attrs);
 static tree mchp_vector_attribute (tree *decl, tree identifier, tree args,
-    int flags, bool *no_add_attrs);
-static int mchp_vector_attribute_compound_expr (tree *node, tree expr, 
+                                   int flags, bool *no_add_attrs);
+static int mchp_vector_attribute_compound_expr (tree *node, tree expr,
     bool *no_add_attrs);
 static int mchp_register_interrupt_context_p (unsigned regno);
+int mchp_epilogue_uses (unsigned regno);
 
 /* Structure to be filled in by compute_frame_size with register
    save masks, and offsets for the current function.  */
 
 struct mips_frame_info GTY(())
-{
-  HOST_WIDE_INT total_size;     /* # bytes that the entire frame takes up */
-  HOST_WIDE_INT var_size;       /* # bytes that variables take up */
-  HOST_WIDE_INT args_size;      /* # bytes that outgoing arguments take up */
-  HOST_WIDE_INT cprestore_size; /* # bytes that the .cprestore slot takes up */
-  HOST_WIDE_INT gp_reg_size;    /* # bytes needed to store gp regs */
-  HOST_WIDE_INT fp_reg_size;    /* # bytes needed to store fp regs */
-  HOST_WIDE_INT int_reg_size;   /* # bytes needed to store interrupt regs */
-  unsigned int mask;            /* mask of saved gp registers */
-  unsigned int fmask;           /* mask of saved fp registers */
-  HOST_WIDE_INT gp_save_offset; /* offset from vfp to store gp registers */
-  HOST_WIDE_INT fp_save_offset; /* offset from vfp to store fp registers */
-  HOST_WIDE_INT int_save_offset;/* offset from vfp to store interrupt regs */
-  HOST_WIDE_INT gp_sp_offset;   /* offset from new sp to store gp registers */
-  HOST_WIDE_INT fp_sp_offset;   /* offset from new sp to store fp registers */
-  HOST_WIDE_INT int_sp_offset;  /* offset from new sp to store interrupt regs */
-  bool initialized;             /* true if frame size already calculated */
-  int num_gp;                   /* number of gp registers saved */
-  int num_fp;                   /* number of fp registers saved */
-  bool has_interrupt_context;   /* true if interrupt context is saved */
-  bool has_hilo_context;        /* true if hi and lo registers are saved */
-                                /*   will only be true for interrupts */
-};
+  {
+    HOST_WIDE_INT total_size;     /* # bytes that the entire frame takes up */
+    HOST_WIDE_INT var_size;       /* # bytes that variables take up */
+    HOST_WIDE_INT args_size;      /* # bytes that outgoing arguments take up */
+    HOST_WIDE_INT cprestore_size; /* # bytes that the .cprestore slot takes up */
+    HOST_WIDE_INT gp_reg_size;    /* # bytes needed to store gp regs */
+    HOST_WIDE_INT fp_reg_size;    /* # bytes needed to store fp regs */
+    HOST_WIDE_INT int_reg_size;   /* # bytes needed to store interrupt regs */
+    unsigned int mask;            /* mask of saved gp registers */
+    unsigned int fmask;           /* mask of saved fp registers */
+    HOST_WIDE_INT gp_save_offset; /* offset from vfp to store gp registers */
+    HOST_WIDE_INT fp_save_offset; /* offset from vfp to store fp registers */
+    HOST_WIDE_INT int_save_offset;/* offset from vfp to store interrupt regs */
+    HOST_WIDE_INT gp_sp_offset;   /* offset from new sp to store gp registers */
+    HOST_WIDE_INT fp_sp_offset;   /* offset from new sp to store fp registers */
+    HOST_WIDE_INT int_sp_offset;  /* offset from new sp to store interrupt regs */
+    bool initialized;             /* true if frame size already calculated */
+    int num_gp;                   /* number of gp registers saved */
+    int num_fp;                   /* number of fp registers saved */
+    bool has_interrupt_context;   /* true if interrupt context is saved */
+    bool has_hilo_context;        /* true if hi and lo registers are saved */
+    /*   will only be true for interrupts */
+  };
 
-struct machine_function GTY(()) {
-  /* Pseudo-reg holding the address of the current function when
-     generating embedded PIC code.  */
-  rtx embedded_pic_fnaddr_rtx;
+struct machine_function GTY(())
+  {
+    /* Pseudo-reg holding the address of the current function when
+       generating embedded PIC code.  */
+    rtx embedded_pic_fnaddr_rtx;
 
-  /* Pseudo-reg holding the value of $28 in a mips16 function which
-     refers to GP relative global variables.  */
-  rtx mips16_gp_pseudo_rtx;
+    /* Pseudo-reg holding the value of $28 in a mips16 function which
+       refers to GP relative global variables.  */
+    rtx mips16_gp_pseudo_rtx;
 
-  /* Current frame information, calculated by compute_frame_size.  */
-  struct mips_frame_info frame;
+    /* Current frame information, calculated by compute_frame_size.  */
+    struct mips_frame_info frame;
 
-  /* Length of instructions in function; mips16 only.  */
-  long insns_len;
+    /* Length of instructions in function; mips16 only.  */
+    long insns_len;
 
-  /* The register to use as the global pointer within this function.  */
-  unsigned int global_pointer;
+    /* The register to use as the global pointer within this function.  */
+    unsigned int global_pointer;
 
-  /* True if mips_adjust_insn_length should ignore an instruction's
-     hazard attribute.  */
-  bool ignore_hazard_length_p;
+    /* True if mips_adjust_insn_length should ignore an instruction's
+       hazard attribute.  */
+    bool ignore_hazard_length_p;
 
-  /* True if the whole function is suitable for .set noreorder and
-     .set nomacro.  */
-  bool all_noreorder_p;
+    /* True if the whole function is suitable for .set noreorder and
+       .set nomacro.  */
+    bool all_noreorder_p;
 
-  /* True if the function is known to have an instruction that needs $gp.  */
-  bool has_gp_insn_p;
+    /* True if the function is known to have an instruction that needs $gp.  */
+    bool has_gp_insn_p;
 
-  /* When doing section relative addressing, it holds the rtx of the label
-     if there are accesses to symbols in the .data section.  */
-  rtx sectrel_base_data_rtx;
+    /* When doing section relative addressing, it holds the rtx of the label
+       if there are accesses to symbols in the .data section.  */
+    rtx sectrel_base_data_rtx;
 
-  /* When doing section relative addressing, it holds the rtx of the label
-     if there are accesses to symbols in the .bss section.  */
-  rtx sectrel_base_bss_rtx;
+    /* When doing section relative addressing, it holds the rtx of the label
+       if there are accesses to symbols in the .bss section.  */
+    rtx sectrel_base_bss_rtx;
 
-  /* The length of all strings seen when compiling for the mips16.  This
-     is used to tell how many strings are in the constant pool, so that
-     we can see if we may have an overflow.  This is reset each time the
-     constant pool is output.  */
-  int mips_string_length;
+    /* The length of all strings seen when compiling for the mips16.  This
+       is used to tell how many strings are in the constant pool, so that
+       we can see if we may have an overflow.  This is reset each time the
+       constant pool is output.  */
+    int mips_string_length;
 
-  /* When generating mips16 code, a list of all strings that are to be
-     output after the current function.  */
-  rtx mips16_strings;
-};
+    /* When generating mips16 code, a list of all strings that are to be
+       output after the current function.  */
+    rtx mips16_strings;
+  };
 
 /* Information about a single argument.  */
 struct mips_arg_info
-{
-  /* True if the argument is passed in a floating-point register, or
-     would have been if we hadn't run out of registers.  */
-  bool fpr_p;
+  {
+    /* True if the argument is passed in a floating-point register, or
+       would have been if we hadn't run out of registers.  */
+    bool fpr_p;
 
-  /* The argument's size, in bytes.  */
-  unsigned int num_bytes;
+    /* The argument's size, in bytes.  */
+    unsigned int num_bytes;
 
-  /* The number of words passed in registers, rounded up.  */
-  unsigned int reg_words;
+    /* The number of words passed in registers, rounded up.  */
+    unsigned int reg_words;
 
-  /* The offset of the first register from GP_ARG_FIRST or FP_ARG_FIRST,
-     or MAX_ARGS_IN_REGISTERS if the argument is passed entirely
-     on the stack.  */
-  unsigned int reg_offset;
+    /* The offset of the first register from GP_ARG_FIRST or FP_ARG_FIRST,
+       or MAX_ARGS_IN_REGISTERS if the argument is passed entirely
+       on the stack.  */
+    unsigned int reg_offset;
 
-  /* The number of words that must be passed on the stack, rounded up.  */
-  unsigned int stack_words;
+    /* The number of words that must be passed on the stack, rounded up.  */
+    unsigned int stack_words;
 
-  /* The offset from the start of the stack overflow area of the argument's
-     first stack word.  Only meaningful when STACK_WORDS is nonzero.  */
-  unsigned int stack_offset;
-};
+    /* The offset from the start of the stack overflow area of the argument's
+       first stack word.  Only meaningful when STACK_WORDS is nonzero.  */
+    unsigned int stack_offset;
+  };
 
 
 /* Information about an address described by mips_address_type.
@@ -473,12 +482,12 @@ struct mips_arg_info
        SYMBOL_TYPE is the type of symbol being referenced.  */
 
 struct mips_address_info
-{
-  enum mips_address_type type;
-  rtx reg;
-  rtx offset;
-  enum mips_symbol_type symbol_type;
-};
+  {
+    enum mips_address_type type;
+    rtx reg;
+    rtx offset;
+    enum mips_symbol_type symbol_type;
+  };
 
 
 /* One stage in a constant building sequence.  These sequences have
@@ -491,10 +500,11 @@ struct mips_address_info
 
    where A is an accumulator, each CODE[i] is a binary rtl operation
    and each VALUE[i] is a constant integer.  */
-struct mips_integer_op {
-  enum rtx_code code;
-  unsigned HOST_WIDE_INT value;
-};
+struct mips_integer_op
+  {
+    enum rtx_code code;
+    unsigned HOST_WIDE_INT value;
+  };
 
 
 /* The largest number of operations needed to load an integer constant.
@@ -525,11 +535,11 @@ int sym_lineno = 0;
    the program with an appropriate .comm or initialization.  */
 
 struct extern_list GTY (())
-{
-  struct extern_list *next;     /* next external */
-  const char *name;             /* name of the external */
-  int size;                     /* size in bytes */
-};
+  {
+    struct extern_list *next;     /* next external */
+    const char *name;             /* name of the external */
+    int size;                     /* size in bytes */
+  };
 
 static GTY (()) struct extern_list *extern_head = 0;
 
@@ -607,6 +617,19 @@ int mips16_hard_float;
 
 /* Remember the ambient target flags, excluding mips16. */
 static int mips_base_target_flags;
+#ifdef TARGET_MCHP_PIC32MX
+static HOST_WIDE_INT mchp_interrupt_priority;
+static HOST_WIDE_INT mchp_isr_backcompat = 0;
+static rtx mchp_autocontext_prologue_target;
+static rtx mchp_autocontext_epilogue_target;
+static HOST_WIDE_INT mchp_offset_lo;
+static HOST_WIDE_INT mchp_offset_hi;
+static HOST_WIDE_INT mchp_offset_v0;
+static HOST_WIDE_INT mchp_offset_v1;
+static HOST_WIDE_INT mchp_offset_status;
+static HOST_WIDE_INT mchp_offset_epc;
+static HOST_WIDE_INT mchp_offset_srsctl;
+#endif
 
 /* The mips16 command-line target flags only. */
 static int mips_base_mips16;
@@ -683,30 +706,30 @@ static const char *mips_hi_relocs[NUM_SYMBOL_TYPES];
 
 char mips_reg_names[][8] =
 {
- "$0",   "$1",   "$2",   "$3",   "$4",   "$5",   "$6",   "$7",
- "$8",   "$9",   "$10",  "$11",  "$12",  "$13",  "$14",  "$15",
- "$16",  "$17",  "$18",  "$19",  "$20",  "$21",  "$22",  "$23",
- "$24",  "$25",  "$26",  "$27",  "$28",  "$sp",  "$fp",  "$31",
- "$f0",  "$f1",  "$f2",  "$f3",  "$f4",  "$f5",  "$f6",  "$f7",
- "$f8",  "$f9",  "$f10", "$f11", "$f12", "$f13", "$f14", "$f15",
- "$f16", "$f17", "$f18", "$f19", "$f20", "$f21", "$f22", "$f23",
- "$f24", "$f25", "$f26", "$f27", "$f28", "$f29", "$f30", "$f31",
- "hi",   "lo",   "",     "$fcc0","$fcc1","$fcc2","$fcc3","$fcc4",
- "$fcc5","$fcc6","$fcc7","", "", "$arg", "$frame", "$fakec",
- "$c0r0", "$c0r1", "$c0r2", "$c0r3", "$c0r4", "$c0r5", "$c0r6", "$c0r7",
- "$c0r8", "$c0r9", "$c0r10","$c0r11","$c0r12","$c0r13","$c0r14","$c0r15",
- "$c0r16","$c0r17","$c0r18","$c0r19","$c0r20","$c0r21","$c0r22","$c0r23",
- "$c0r24","$c0r25","$c0r26","$c0r27","$c0r28","$c0r29","$c0r30","$c0r31",
- "$c2r0", "$c2r1", "$c2r2", "$c2r3", "$c2r4", "$c2r5", "$c2r6", "$c2r7",
- "$c2r8", "$c2r9", "$c2r10","$c2r11","$c2r12","$c2r13","$c2r14","$c2r15",
- "$c2r16","$c2r17","$c2r18","$c2r19","$c2r20","$c2r21","$c2r22","$c2r23",
- "$c2r24","$c2r25","$c2r26","$c2r27","$c2r28","$c2r29","$c2r30","$c2r31",
- "$c3r0", "$c3r1", "$c3r2", "$c3r3", "$c3r4", "$c3r5", "$c3r6", "$c3r7",
- "$c3r8", "$c3r9", "$c3r10","$c3r11","$c3r12","$c3r13","$c3r14","$c3r15",
- "$c3r16","$c3r17","$c3r18","$c3r19","$c3r20","$c3r21","$c3r22","$c3r23",
- "$c3r24","$c3r25","$c3r26","$c3r27","$c3r28","$c3r29","$c3r30","$c3r31",
- "$ac1hi", "$ac1lo", "$ac2hi", "$ac2lo", "$ac3hi", "$ac3lo", "$dsp_po",
- "$dsp_sc", "$dsp_ca", "$dsp_ou", "$dsp_cc", "$dsp_ef"
+  "$0",   "$1",   "$2",   "$3",   "$4",   "$5",   "$6",   "$7",
+  "$8",   "$9",   "$10",  "$11",  "$12",  "$13",  "$14",  "$15",
+  "$16",  "$17",  "$18",  "$19",  "$20",  "$21",  "$22",  "$23",
+  "$24",  "$25",  "$26",  "$27",  "$28",  "$sp",  "$fp",  "$31",
+  "$f0",  "$f1",  "$f2",  "$f3",  "$f4",  "$f5",  "$f6",  "$f7",
+  "$f8",  "$f9",  "$f10", "$f11", "$f12", "$f13", "$f14", "$f15",
+  "$f16", "$f17", "$f18", "$f19", "$f20", "$f21", "$f22", "$f23",
+  "$f24", "$f25", "$f26", "$f27", "$f28", "$f29", "$f30", "$f31",
+  "hi",   "lo",   "",     "$fcc0","$fcc1","$fcc2","$fcc3","$fcc4",
+  "$fcc5","$fcc6","$fcc7","", "", "$arg", "$frame", "$fakec",
+  "$c0r0", "$c0r1", "$c0r2", "$c0r3", "$c0r4", "$c0r5", "$c0r6", "$c0r7",
+  "$c0r8", "$c0r9", "$c0r10","$c0r11","$c0r12","$c0r13","$c0r14","$c0r15",
+  "$c0r16","$c0r17","$c0r18","$c0r19","$c0r20","$c0r21","$c0r22","$c0r23",
+  "$c0r24","$c0r25","$c0r26","$c0r27","$c0r28","$c0r29","$c0r30","$c0r31",
+  "$c2r0", "$c2r1", "$c2r2", "$c2r3", "$c2r4", "$c2r5", "$c2r6", "$c2r7",
+  "$c2r8", "$c2r9", "$c2r10","$c2r11","$c2r12","$c2r13","$c2r14","$c2r15",
+  "$c2r16","$c2r17","$c2r18","$c2r19","$c2r20","$c2r21","$c2r22","$c2r23",
+  "$c2r24","$c2r25","$c2r26","$c2r27","$c2r28","$c2r29","$c2r30","$c2r31",
+  "$c3r0", "$c3r1", "$c3r2", "$c3r3", "$c3r4", "$c3r5", "$c3r6", "$c3r7",
+  "$c3r8", "$c3r9", "$c3r10","$c3r11","$c3r12","$c3r13","$c3r14","$c3r15",
+  "$c3r16","$c3r17","$c3r18","$c3r19","$c3r20","$c3r21","$c3r22","$c3r23",
+  "$c3r24","$c3r25","$c3r26","$c3r27","$c3r28","$c3r29","$c3r30","$c3r31",
+  "$ac1hi", "$ac1lo", "$ac2hi", "$ac2lo", "$ac3hi", "$ac3lo", "$dsp_po",
+  "$dsp_sc", "$dsp_ca", "$dsp_ou", "$dsp_cc", "$dsp_ef"
 };
 
 /* Mips software names for the registers, used to overwrite the
@@ -801,302 +824,377 @@ enum reg_class mips_char_to_class[256];
 
    To ease comparison, please keep this table in the same order as
    gas's mips_cpu_info_table[].  */
-const struct mips_cpu_info mips_cpu_info_table[] = {
-  /* Entries for generic ISAs */
-  { "mips1", PROCESSOR_R3000, 1,
-    0,
-    12, 0, 4, 0 },
-  { "mips2", PROCESSOR_R6000, 2,
-    0,
-    17, 0, 0, 0 },
-  { "mips3", PROCESSOR_R4000, 3,
-    0,
-    10, 20, 0, 0 },
-  { "mips4", PROCESSOR_R8000, 4,
-    0,
-    17, 0, 0, 0 },
-  { "mips32", PROCESSOR_4KC, 32,
-    0,
-    4, 0, 0, 0 },
-  { "mips32r2", PROCESSOR_24K, 33,
-    MIPS_OPT_FETCH64,
-    5, 0, 8, 10 },
-  { "mips64", PROCESSOR_5KC, 64,
-    0,
-    4, 11, 4, 5 },
-  { "mips64r2", PROCESSOR_20KC, 65,
-    0,
-    4, 7, 4, 5 },
+const struct mips_cpu_info mips_cpu_info_table[] =
+  {
+    /* Entries for generic ISAs */
+    { "mips1", PROCESSOR_R3000, 1,
+      0,
+      12, 0, 4, 0
+    },
+    { "mips2", PROCESSOR_R6000, 2,
+      0,
+      17, 0, 0, 0
+    },
+    { "mips3", PROCESSOR_R4000, 3,
+      0,
+      10, 20, 0, 0
+    },
+    { "mips4", PROCESSOR_R8000, 4,
+      0,
+      17, 0, 0, 0
+    },
+    { "mips32", PROCESSOR_4KC, 32,
+      0,
+      4, 0, 0, 0
+    },
+    { "mips32r2", PROCESSOR_24K, 33,
+      MIPS_OPT_FETCH64,
+      5, 0, 8, 10
+    },
+    { "mips64", PROCESSOR_5KC, 64,
+      0,
+      4, 11, 4, 5
+    },
+    { "mips64r2", PROCESSOR_20KC, 65,
+      0,
+      4, 7, 4, 5
+    },
 
-  /* MIPS I */
-  { "r3000", PROCESSOR_R3000, 1,
-    0,
-    12, 0, 4, 5 },
-  { "r2000", PROCESSOR_R3000, 1, /* = r3000 */
-    0,
-    12, 0, 4, 5 },
-  { "r3900", PROCESSOR_R3900, 1,
-    0,
-    12, 0, 4, 5 },
+    /* MIPS I */
+    { "r3000", PROCESSOR_R3000, 1,
+      0,
+      12, 0, 4, 5
+    },
+    { "r2000", PROCESSOR_R3000, 1, /* = r3000 */
+      0,
+      12, 0, 4, 5
+    },
+    { "r3900", PROCESSOR_R3900, 1,
+      0,
+      12, 0, 4, 5
+    },
 
-  /* MIPS II */
-  { "r6000", PROCESSOR_R6000, 2,
-    0,
-    17, 0, 5, 6 },
+    /* MIPS II */
+    { "r6000", PROCESSOR_R6000, 2,
+      0,
+      17, 0, 5, 6
+    },
 
-  /* MIPS III */
-  { "r4000", PROCESSOR_R4000, 3,
-    0,
-    10, 20, 0, 0 },
-  { "vr4100", PROCESSOR_R4100, 3,
-    0,
-    1, 4, 0, 0 },
-  { "vr4111", PROCESSOR_R4111, 3,
-    0,
-    1, 4, 0, 0 },
-  { "vr4120", PROCESSOR_R4120, 3,
-    0,
-    1, 4, 0, 0 },
-  { "vr4300", PROCESSOR_R4300, 3,
-    0,
-    5, 8, 0, 0 },
-  { "r4400", PROCESSOR_R4000, 3, /* = r4000 */
-    0,
-    10, 20, 0, 0 },
-  { "r4600", PROCESSOR_R4600, 3,
-    0,
-    10, 12, 0, 0 },
-  { "orion", PROCESSOR_R4600, 3, /* = r4600 */
-    0,
-    10, 12, 0, 0 },
-  { "r4650", PROCESSOR_R4650, 3,
-    0,
-    4, 6, 0, 0 },
+    /* MIPS III */
+    { "r4000", PROCESSOR_R4000, 3,
+      0,
+      10, 20, 0, 0
+    },
+    { "vr4100", PROCESSOR_R4100, 3,
+      0,
+      1, 4, 0, 0
+    },
+    { "vr4111", PROCESSOR_R4111, 3,
+      0,
+      1, 4, 0, 0
+    },
+    { "vr4120", PROCESSOR_R4120, 3,
+      0,
+      1, 4, 0, 0
+    },
+    { "vr4300", PROCESSOR_R4300, 3,
+      0,
+      5, 8, 0, 0
+    },
+    { "r4400", PROCESSOR_R4000, 3, /* = r4000 */
+      0,
+      10, 20, 0, 0
+    },
+    { "r4600", PROCESSOR_R4600, 3,
+      0,
+      10, 12, 0, 0
+    },
+    { "orion", PROCESSOR_R4600, 3, /* = r4600 */
+      0,
+      10, 12, 0, 0
+    },
+    { "r4650", PROCESSOR_R4650, 3,
+      0,
+      4, 6, 0, 0
+    },
 
-  /* MIPS IV */
-  { "r8000", PROCESSOR_R8000, 4,
-    0,
-    17, 0, 0, 0 },
-  { "vr5000", PROCESSOR_R5000, 4,
-    0,
-    5, 6, 4, 5 },
-  { "vr5400", PROCESSOR_R5400, 4,
-    0,
-    3, 4, 5, 6 },
-  { "vr5500", PROCESSOR_R5500, 4,
-    0,
-    3, 4, 5, 6 },
-  { "rm7000", PROCESSOR_R7000, 4,
-    0,
-    5, 9, 6, 9 },
-  { "rm9000", PROCESSOR_R9000, 4,
-    0,
-    3, 8, 6, 9 },
+    /* MIPS IV */
+    { "r8000", PROCESSOR_R8000, 4,
+      0,
+      17, 0, 0, 0
+    },
+    { "vr5000", PROCESSOR_R5000, 4,
+      0,
+      5, 6, 4, 5
+    },
+    { "vr5400", PROCESSOR_R5400, 4,
+      0,
+      3, 4, 5, 6
+    },
+    { "vr5500", PROCESSOR_R5500, 4,
+      0,
+      3, 4, 5, 6
+    },
+    { "rm7000", PROCESSOR_R7000, 4,
+      0,
+      5, 9, 6, 9
+    },
+    { "rm9000", PROCESSOR_R9000, 4,
+      0,
+      3, 8, 6, 9
+    },
 
-  /* MIPS32 */
+    /* MIPS32 */
 
-  /* 4K family */
-  { "4kc", PROCESSOR_4KC, 32,
-    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_SOFTFLOAT,
-    4, 0, 0, 0 },
-  { "4km", PROCESSOR_4KC, 32,
-    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_SOFTFLOAT,
-    4, 0, 0, 0 },
-  { "4kp", PROCESSOR_4KP, 32,		/* 4K + slow multiplier */
-    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_SOFTFLOAT,
-    32, 0, 0, 0 },
+    /* 4K family */
+    { "4kc", PROCESSOR_4KC, 32,
+      MIPS_OPT_BRANCHLIKELY | MIPS_OPT_SOFTFLOAT,
+      4, 0, 0, 0
+    },
+    { "4km", PROCESSOR_4KC, 32,
+      MIPS_OPT_BRANCHLIKELY | MIPS_OPT_SOFTFLOAT,
+      4, 0, 0, 0
+    },
+    { "4kp", PROCESSOR_4KP, 32,  /* 4K + slow multiplier */
+      MIPS_OPT_BRANCHLIKELY | MIPS_OPT_SOFTFLOAT,
+      32, 0, 0, 0
+    },
 
-  { "4ksc", PROCESSOR_4KC, 32,
-    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_SOFTFLOAT | MIPS_OPT_SMARTMIPS,
-    4, 0, 0, 0 },
+    { "4ksc", PROCESSOR_4KC, 32,
+      MIPS_OPT_BRANCHLIKELY | MIPS_OPT_SOFTFLOAT | MIPS_OPT_SMARTMIPS,
+      4, 0, 0, 0
+    },
 
-  /* MIPS32 Release 2 */
+    /* MIPS32 Release 2 */
 
-  /* M4K family */
-  { "m4k", PROCESSOR_4KC, 33,
-    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_SOFTFLOAT,
-    4, 0, 0, 0 },
-  { "m4kp", PROCESSOR_4KP, 33,		/* M4K with slow multiplier */
-    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_SOFTFLOAT,
-    32, 0, 0, 0 },
+    /* M4K family */
+    { "m4k", PROCESSOR_4KC, 33,
+      MIPS_OPT_BRANCHLIKELY | MIPS_OPT_SOFTFLOAT,
+      4, 0, 0, 0
+    },
+    { "m4kp", PROCESSOR_4KP, 33,  /* M4K with slow multiplier */
+      MIPS_OPT_BRANCHLIKELY | MIPS_OPT_SOFTFLOAT,
+      32, 0, 0, 0
+    },
 
-  /* 4KE family */
-  { "4kec", PROCESSOR_4KC, 33,
-    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_SOFTFLOAT,
-    4, 0, 0, 0 },
-  { "4kem", PROCESSOR_4KC, 33,
-    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_SOFTFLOAT,
-    4, 0, 0, 0 },
-  { "4kep", PROCESSOR_4KP, 33,		/* 4KE with slow multiplier */
-    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_SOFTFLOAT,
-    32, 0, 0, 0 },
+    /* 4KE family */
+    { "4kec", PROCESSOR_4KC, 33,
+      MIPS_OPT_BRANCHLIKELY | MIPS_OPT_SOFTFLOAT,
+      4, 0, 0, 0
+    },
+    { "4kem", PROCESSOR_4KC, 33,
+      MIPS_OPT_BRANCHLIKELY | MIPS_OPT_SOFTFLOAT,
+      4, 0, 0, 0
+    },
+    { "4kep", PROCESSOR_4KP, 33,  /* 4KE with slow multiplier */
+      MIPS_OPT_BRANCHLIKELY | MIPS_OPT_SOFTFLOAT,
+      32, 0, 0, 0
+    },
 
-  { "4ksd", PROCESSOR_4KC, 33,
-    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_SOFTFLOAT | MIPS_OPT_SMARTMIPS,
-    4, 0, 0, 0 },
+    { "4ksd", PROCESSOR_4KC, 33,
+      MIPS_OPT_BRANCHLIKELY | MIPS_OPT_SOFTFLOAT | MIPS_OPT_SMARTMIPS,
+      4, 0, 0, 0
+    },
 
-  /* 24K family */
-  { "24k", PROCESSOR_24K, 33, 		/* Alias to 24kf2_1 */
-    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64,
-    5, 0, 8, 10 },
-  { "24kc", PROCESSOR_24K, 33, 		/* 24K no FPU */
-    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_SOFTFLOAT,
-    5, 0, 8, 10 },
-  { "24kf2_1", PROCESSOR_24K, 33,	/* 24K 2:1 core/fpu ratio */
-    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64,
-    5, 0, 8, 10 },
-  { "24kf", PROCESSOR_24K, 33, 		/* Alias to 24kf2_1 */
-    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64,
-    5, 0, 8, 10 },
-  { "24kf1_1", PROCESSOR_24KX, 33,	/* 24K 1:1 core/fpu ratio */
-    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64,
-    5, 0, 4, 5 },
-  { "24kfx", PROCESSOR_24KX, 33, 	/* Alias to 24kf1_1 */
-    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64,
-    5, 0, 4, 5 },
-  { "24kx", PROCESSOR_24KX, 33, 	/* Alias to 24kf1_1 */
-    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64,
-    5, 0, 4, 5 },
+    /* 24K family */
+    { "24k", PROCESSOR_24K, 33,   /* Alias to 24kf2_1 */
+      MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64,
+      5, 0, 8, 10
+    },
+    { "24kc", PROCESSOR_24K, 33,   /* 24K no FPU */
+      MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_SOFTFLOAT,
+      5, 0, 8, 10
+    },
+    { "24kf2_1", PROCESSOR_24K, 33, /* 24K 2:1 core/fpu ratio */
+      MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64,
+      5, 0, 8, 10
+    },
+    { "24kf", PROCESSOR_24K, 33,   /* Alias to 24kf2_1 */
+      MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64,
+      5, 0, 8, 10
+    },
+    { "24kf1_1", PROCESSOR_24KX, 33, /* 24K 1:1 core/fpu ratio */
+      MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64,
+      5, 0, 4, 5
+    },
+    { "24kfx", PROCESSOR_24KX, 33,  /* Alias to 24kf1_1 */
+      MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64,
+      5, 0, 4, 5
+    },
+    { "24kx", PROCESSOR_24KX, 33,  /* Alias to 24kf1_1 */
+      MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64,
+      5, 0, 4, 5
+    },
 
-  /* 24ke family - identical to 24k for the compiler */
-  { "24ke", PROCESSOR_24K, 33,		/* Alias to 24kef2_1 */
-    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
-    5, 0, 8, 10 },
-  { "24kec", PROCESSOR_24K, 33, 	/* 24KE no FPU */
-    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_SOFTFLOAT | MIPS_OPT_DSP,
-    5, 0, 8, 10 },
-  { "24kef2_1", PROCESSOR_24K, 33,	/* 24KE 2:1 core/fpu ratio */
-    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
-    5, 0, 8, 10 },
-  { "24kef", PROCESSOR_24K, 33,		/* Alias to 24kef2_1 */
-    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
-    5, 0, 8, 10 },
-  { "24kef1_1", PROCESSOR_24KX, 33,	/* 24KE 1:1 FPU */
-    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
-    5, 0, 4, 5 },
-  { "24kefx", PROCESSOR_24KX, 33,	/* Alias to 24kef1_1 */
-    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
-    5, 0, 4, 5 },
-  { "24kex", PROCESSOR_24KX, 33,	/* Alias to 24kef1_1 */
-    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
-    5, 0, 4, 5 },
+    /* 24ke family - identical to 24k for the compiler */
+    { "24ke", PROCESSOR_24K, 33,  /* Alias to 24kef2_1 */
+      MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
+      5, 0, 8, 10
+    },
+    { "24kec", PROCESSOR_24K, 33,  /* 24KE no FPU */
+      MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_SOFTFLOAT | MIPS_OPT_DSP,
+      5, 0, 8, 10
+    },
+    { "24kef2_1", PROCESSOR_24K, 33, /* 24KE 2:1 core/fpu ratio */
+      MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
+      5, 0, 8, 10
+    },
+    { "24kef", PROCESSOR_24K, 33,  /* Alias to 24kef2_1 */
+      MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
+      5, 0, 8, 10
+    },
+    { "24kef1_1", PROCESSOR_24KX, 33, /* 24KE 1:1 FPU */
+      MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
+      5, 0, 4, 5
+    },
+    { "24kefx", PROCESSOR_24KX, 33, /* Alias to 24kef1_1 */
+      MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
+      5, 0, 4, 5
+    },
+    { "24kex", PROCESSOR_24KX, 33, /* Alias to 24kef1_1 */
+      MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
+      5, 0, 4, 5
+    },
 
-  /* 34K family - identical pipeline to 24ke, currently. */
-  { "34k", PROCESSOR_24K, 33,		/* Alias to 34kf2_1 */
-    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
-    5, 0, 8, 10 },
-  { "34kc", PROCESSOR_24K, 33,		/* 34K no FPU */
-    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_SOFTFLOAT | MIPS_OPT_DSP,
-    5, 0, 8, 10 },
-  { "34kf2_1", PROCESSOR_24K, 33,	/* 34K 2:1 core/fpu ratio */
-    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
-    5, 0, 8, 10 },
-  { "34kf", PROCESSOR_24K, 33,		/* Alias to 34kf2_1 */
-    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
-    5, 0, 8, 10 },
-  { "34kf1_1", PROCESSOR_24KX, 33,	/* 34K 1:1 core/fpu ratio */
-    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
-    5, 0, 4, 5 },
-  { "34kfx", PROCESSOR_24KX, 33,	/* Alias to 34kf1_1 */
-    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
-    5, 0, 4, 5 },
-  { "34kx", PROCESSOR_24KX, 33,	        /* Alias to 34kf1_1 */
-    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
-    5, 0, 4, 5 },
+    /* 34K family - identical pipeline to 24ke, currently. */
+    { "34k", PROCESSOR_24K, 33,  /* Alias to 34kf2_1 */
+      MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
+      5, 0, 8, 10
+    },
+    { "34kc", PROCESSOR_24K, 33,  /* 34K no FPU */
+      MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_SOFTFLOAT | MIPS_OPT_DSP,
+      5, 0, 8, 10
+    },
+    { "34kf2_1", PROCESSOR_24K, 33, /* 34K 2:1 core/fpu ratio */
+      MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
+      5, 0, 8, 10
+    },
+    { "34kf", PROCESSOR_24K, 33,  /* Alias to 34kf2_1 */
+      MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
+      5, 0, 8, 10
+    },
+    { "34kf1_1", PROCESSOR_24KX, 33, /* 34K 1:1 core/fpu ratio */
+      MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
+      5, 0, 4, 5
+    },
+    { "34kfx", PROCESSOR_24KX, 33, /* Alias to 34kf1_1 */
+      MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
+      5, 0, 4, 5
+    },
+    { "34kx", PROCESSOR_24KX, 33,         /* Alias to 34kf1_1 */
+      MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
+      5, 0, 4, 5
+    },
 
-  /* 74K family */
-  { "74kc", PROCESSOR_74K, 33,          /* 74K no FPU */
-    MIPS_OPT_FETCH64 | MIPS_OPT_DSP | MIPS_OPT_SOFTFLOAT,
-    4, 0, 0, 0 },
-  { "74kf2_1", PROCESSOR_74K, 33,	/* 74K 2:1 core/fpu ratio */
-    MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
-    4, 0, 10, 10 },
-  { "74kf", PROCESSOR_74K, 33,		/* Alias to 74kf2_1 */
-    MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
-    4, 0, 10, 10 },
-  { "74kf1_1", PROCESSOR_74KX, 33,	/* 74K 1:1 core/fpu ratio */
-    MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
-    4, 0, 5, 5 },
-  { "74kfx", PROCESSOR_74KX, 33,	/* Alias to 74kf1_1 */
-    MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
-    4, 0, 5, 5 },
-  { "74kx", PROCESSOR_74KX, 33,	        /* Alias to 74kf1_1 */
-    MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
-    4, 0, 5, 5 },
-  { "74kf3_2", PROCESSOR_74KZ, 33,      /* 74k 3:2 core/fpu ratio */
-    MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
-    4, 0, 7, 7 },
+    /* 74K family */
+    { "74kc", PROCESSOR_74K, 33,          /* 74K no FPU */
+      MIPS_OPT_FETCH64 | MIPS_OPT_DSP | MIPS_OPT_SOFTFLOAT,
+      4, 0, 0, 0
+    },
+    { "74kf2_1", PROCESSOR_74K, 33, /* 74K 2:1 core/fpu ratio */
+      MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
+      4, 0, 10, 10
+    },
+    { "74kf", PROCESSOR_74K, 33,  /* Alias to 74kf2_1 */
+      MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
+      4, 0, 10, 10
+    },
+    { "74kf1_1", PROCESSOR_74KX, 33, /* 74K 1:1 core/fpu ratio */
+      MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
+      4, 0, 5, 5
+    },
+    { "74kfx", PROCESSOR_74KX, 33, /* Alias to 74kf1_1 */
+      MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
+      4, 0, 5, 5
+    },
+    { "74kx", PROCESSOR_74KX, 33,         /* Alias to 74kf1_1 */
+      MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
+      4, 0, 5, 5
+    },
+    { "74kf3_2", PROCESSOR_74KZ, 33,      /* 74k 3:2 core/fpu ratio */
+      MIPS_OPT_FETCH64 | MIPS_OPT_DSP,
+      4, 0, 7, 7
+    },
 
-  /* MIPS64 */
+    /* MIPS64 */
 
-  /* 5K family */
-  { "5kc", PROCESSOR_5KC, 64,		/* 5K no FPU */
-    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_SOFTFLOAT,
-    4, 11, 4, 5 },
-  { "5kf", PROCESSOR_5KC, 64,		/* 5K + FPU */
-    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64,
-    4, 11, 4, 5 },
+    /* 5K family */
+    { "5kc", PROCESSOR_5KC, 64,  /* 5K no FPU */
+      MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64 | MIPS_OPT_SOFTFLOAT,
+      4, 11, 4, 5
+    },
+    { "5kf", PROCESSOR_5KC, 64,  /* 5K + FPU */
+      MIPS_OPT_BRANCHLIKELY | MIPS_OPT_FETCH64,
+      4, 11, 4, 5
+    },
 
-  /* 20Kc family */
-  { "20kc", PROCESSOR_20KC, 64, 	/* 20Kc + FPU */
-    MIPS_OPT_PREDICTLIKELY | MIPS_OPT_FETCH64,
-    4, 7, 4, 5 },
-  { "25kf", PROCESSOR_20KC, 64, 	/* 25Kf + FPU */
-    MIPS_OPT_PREDICTLIKELY | MIPS_OPT_FETCH64,
-    4, 7, 4, 5 },
+    /* 20Kc family */
+    { "20kc", PROCESSOR_20KC, 64,  /* 20Kc + FPU */
+      MIPS_OPT_PREDICTLIKELY | MIPS_OPT_FETCH64,
+      4, 7, 4, 5
+    },
+    { "25kf", PROCESSOR_20KC, 64,  /* 25Kf + FPU */
+      MIPS_OPT_PREDICTLIKELY | MIPS_OPT_FETCH64,
+      4, 7, 4, 5
+    },
 
-  { "sb1", PROCESSOR_SB1, 64,
-    0,
-    4, 7, 0, 0 },		/* guess! */
+    { "sb1", PROCESSOR_SB1, 64,
+      0,
+      4, 7, 0, 0
+    },  /* guess! */
 
-  /* Microchip PIC32MX - Copy of m4k */
-  { "pic32mx", PROCESSOR_4KC, 33,
-    MIPS_OPT_BRANCHLIKELY | MIPS_OPT_SOFTFLOAT,
-    4, 0, 0, 0 },
+    /* Microchip PIC32MX - Copy of m4k */
+    { "pic32mx", PROCESSOR_4KC, 33,
+      MIPS_OPT_BRANCHLIKELY | MIPS_OPT_SOFTFLOAT,
+      4, 0, 0, 0
+    },
 
-  { "sr71000", PROCESSOR_SR71000, 64,
-    0,
-    4, 6, 8, 16 },
+    { "sr71000", PROCESSOR_SR71000, 64,
+      0,
+      4, 6, 8, 16
+    },
 
-  /* End marker */
-  { 0, 0, 0,
-    0,
-    0, 0, 0, 0 }
-};
+    /* End marker */
+    { 0, 0, 0,
+      0,
+      0, 0, 0, 0
+    }
+  };
 
 static const struct attribute_spec mips_attribute_table[] =
-{
-  /* { name, min_len, max_len, decl_req, type_req, fn_type_req, handler } */
-  /* Function calls made to this symbol must be done indirectly, because
-     it may lie outside of the 28 bit addressing range of a normal function
-     call.  */
-  { "longcall",         0, 0, false, true, true, NULL },
-  { "far",              0, 0, false, true, true,  NULL },
-  { "near",             0, 0, false, true, true,  NULL },
-  /* Switch MIPS16 ASE on and off per-function. */
-  { "mips16",           0, 0, false, true, true, NULL },
-  { "nomips16",         0, 0, false, true, true, NULL },
-  /* Microchip: allow functions to be specified as interrupt handlers */
-  { "interrupt",        1, 1, true, true, true, mchp_interrupt_attribute },
-  { "vector",           1, 64, true, false, false, mchp_vector_attribute },
-  { "at_vector",        1, 1, true, false, false, mchp_at_vector_attribute },
-  /* also allow functions to be created without prologue/epilogue code */
-  { "naked",            0, 0, true, false, false, NULL },
-  { NULL,               0, 0, false, false, false, NULL }
-};
+  {
+    /* { name, min_len, max_len, decl_req, type_req, fn_type_req, handler } */
+    /* Function calls made to this symbol must be done indirectly, because
+       it may lie outside of the 28 bit addressing range of a normal function
+       call.  */
+    { "longcall",         0, 0, false, true, true, NULL
+    },
+    { "far",              0, 0, false, true, true,  NULL },
+    { "near",             0, 0, false, true, true,  NULL },
+    /* Switch MIPS16 ASE on and off per-function. */
+    { "mips16",           0, 0, false, true, true, NULL },
+    { "nomips16",         0, 0, false, true, true, NULL },
+    /* Microchip: allow functions to be specified as interrupt handlers */
+    { "interrupt",        0, 1, true, true, true, mchp_interrupt_attribute },
+    { "vector",           1, 64, true, false, false, mchp_vector_attribute },
+    { "at_vector",        1, 1, true, false, false, mchp_at_vector_attribute },
+    /* also allow functions to be created without prologue/epilogue code */
+    { "naked",            0, 0, true, false, false, NULL },
+    { NULL,               0, 0, false, false, false, NULL }
+  };
 
 /* Microchip devices allow an interrupt specification via pragma.
    We keep a list of the functions specified via pragma and apply the
    interrupt attribute to them when we see a declaration later. */
 struct interrupt_pragma_spec
-{
-  const char *name;     /* name of the interrupt function */
-  tree ipl;             /* IPL */
-  unsigned irq_number;  /* If placing the interrup at the actual
+  {
+    const char *name;     /* name of the interrupt function */
+    tree ipl;             /* IPL */
+    unsigned irq_number;  /* If placing the interrup at the actual
                            vector, which one? Zero means don't place the
                            handler at the vector. */
-  struct interrupt_pragma_spec *next;
-};
+    struct interrupt_pragma_spec *next;
+  };
 struct interrupt_pragma_spec *interrupt_pragma_list_head;
 
 /* Microchip devices also allow interrupt vector dispactch functions
@@ -1104,15 +1202,17 @@ struct interrupt_pragma_spec *interrupt_pragma_list_head;
    We keep a list of the dispatch functions needed and emit them at
    the end of processing the translation unit. */
 struct vector_dispatch_spec
-{
-  const char *target; /* target function name */
-  int vector_number;  /* exception vector table number */
-  struct vector_dispatch_spec *next;
-};
+  {
+    const char *target; /* target function name */
+    int vector_number;  /* exception vector table number */
+    struct vector_dispatch_spec *next;
+  };
 struct vector_dispatch_spec *vector_dispatch_list_head;
 
 /* Is the current function an interrupt? If so, how is context handled? */
-enum function_type_tag { NON_INTERRUPT, SOFTWARE_CONTEXT_SAVE, SRS_CONTEXT_SAVE};
+enum function_type_tag { NON_INTERRUPT, SOFTWARE_CONTEXT_SAVE, SRS_CONTEXT_SAVE,
+                         AUTO_CONTEXT_SAVE, UNKNOWN_CONTEXT_SAVE
+                       };
 enum function_type_tag current_function_type;
 
 /* Nonzero if -march should decide the default value of MASK_SOFT_FLOAT.  */
@@ -1130,6 +1230,12 @@ enum function_type_tag current_function_type;
 
 #undef TARGET_ASM_FUNCTION_PROLOGUE
 #define TARGET_ASM_FUNCTION_PROLOGUE mips_output_function_prologue
+#undef TARGET_ASM_FUNCTION_END_PROLOGUE
+#define TARGET_ASM_FUNCTION_END_PROLOGUE mips_output_function_end_prologue
+
+#undef TARGET_ASM_FUNCTION_BEGIN_EPILOGUE
+#define TARGET_ASM_FUNCTION_BEGIN_EPILOGUE mips_output_function_begin_epilogue
+
 #undef TARGET_ASM_FUNCTION_EPILOGUE
 #define TARGET_ASM_FUNCTION_EPILOGUE mips_output_function_epilogue
 #undef TARGET_ASM_SELECT_RTX_SECTION
@@ -1137,7 +1243,7 @@ enum function_type_tag current_function_type;
 
 #undef TARGET_SCHED_ADJUST_COST
 #define TARGET_SCHED_ADJUST_COST mips_adjust_cost
-#undef TARGET_SCHED_IS_COSTLY_DEPENDENCE      
+#undef TARGET_SCHED_IS_COSTLY_DEPENDENCE
 #define TARGET_SCHED_IS_COSTLY_DEPENDENCE mips_is_costly_dependence
 #undef TARGET_SCHED_VARIABLE_ISSUE
 #define TARGET_SCHED_VARIABLE_ISSUE mips_variable_issue
@@ -1236,8 +1342,12 @@ enum function_type_tag current_function_type;
 struct gcc_target targetm = TARGET_INITIALIZER;
 
 #ifdef TARGET_MCHP_PIC32MX
-static int pic32_license_valid = 1;
-#endif
+
+static int       pic32_license_valid = 1;
+static int       mchp_smart_io_warning = 0;
+const  char *    mchp_io_size = NULL;       /* -msmart-io= cmd-line option  */
+int       mchp_io_size_val = 1;
+#endif /* TARGET_MCHP_PIC32MX */
 
 /* Return 0 if the attributes for two types are incompatible, 1 if they
    are compatible, and 2 if they are nearly compatible (which causes a
@@ -1304,14 +1414,14 @@ mips_classify_symbol (rtx x)
     {
       if (TARGET_MIPS16)
         {
-	  /* Use gp-relative addressing if allowed, otherwise return 
-	     SYMBOL_CONSTANT_POOL which will be put into .rodata if
-	     TARGET_EMBEDDED_DATA, access is split into hi/lo pair.  */
-	  if (TARGET_NO_DATA_IN_CODE
-	      && GET_MODE_SIZE (get_pool_mode (x)) <= mips_section_threshold)
-	    return SYMBOL_SMALL_DATA;
-	  else
-	    return SYMBOL_CONSTANT_POOL;
+          /* Use gp-relative addressing if allowed, otherwise return
+             SYMBOL_CONSTANT_POOL which will be put into .rodata if
+             TARGET_EMBEDDED_DATA, access is split into hi/lo pair.  */
+          if (TARGET_NO_DATA_IN_CODE
+              && GET_MODE_SIZE (get_pool_mode (x)) <= mips_section_threshold)
+            return SYMBOL_SMALL_DATA;
+          else
+            return SYMBOL_CONSTANT_POOL;
         }
 
       if (TARGET_ABICALLS)
@@ -1331,7 +1441,7 @@ mips_classify_symbol (rtx x)
       && !TREE_CONSTANT_POOL_ADDRESS_P (x))
     {
       struct cgraph_varpool_node *node =
-        cgraph_varpool_node_for_identifier (DECL_ASSEMBLER_NAME (SYMBOL_REF_DECL (x)));
+              cgraph_varpool_node_for_identifier (DECL_ASSEMBLER_NAME (SYMBOL_REF_DECL (x)));
       if (node && node->needed && node->sectrel_node)
         return SYMBOL_SECTION_RELATIVE;
     }
@@ -1345,7 +1455,7 @@ mips_classify_symbol (rtx x)
     return SYMBOL_CONSTANT_POOL;
 
   if (TARGET_ABICALLS)
-    {
+{
       if (SYMBOL_REF_DECL (x) == 0)
         return SYMBOL_REF_LOCAL_P (x) ? SYMBOL_GOT_LOCAL : SYMBOL_GOT_GLOBAL;
 
@@ -1417,7 +1527,7 @@ mips_offset_within_object_p (rtx symbol, HOST_WIDE_INT offset)
        assume that the offset is still valid - at this late stage in
        the compile process it should have been checked before. */
     return TARGET_MIPS16 && MIPS16_INLINE_CONSTANT_TABLE_LABEL_P (symbol)
-      && offset >= 0 && offset < MAX_FIXED_MODE_SIZE / BITS_PER_UNIT;
+           && offset >= 0 && offset < MAX_FIXED_MODE_SIZE / BITS_PER_UNIT;
 
   if (GET_CODE (symbol) != SYMBOL_REF)
     return false;
@@ -1845,8 +1955,8 @@ mips_const_insns (rtx x)
                 : SMALL_OPERAND_UNSIGNED (-INTVAL (x)) ? 3
                 /* For this case, we will build a 32-bit integer.  */
                 : TARGET_NO_DATA_IN_CODE && !TARGET_GP_OPT &&
-                  (BIG_OPERAND_UNSIGNED (INTVAL (x)) ||
-                   BIG_OPERAND (INTVAL (x))) ? 10
+                (BIG_OPERAND_UNSIGNED (INTVAL (x)) ||
+                 BIG_OPERAND (INTVAL (x))) ? 10
                 /* XXX This is a kludge when reloading an out-of-range
                    address offset -- forcing the offset into the const
                    pool causes another reload to be required, which
@@ -2160,13 +2270,13 @@ move_operand (rtx op, enum machine_mode mode)
 
     case LABEL_REF:
       if (TARGET_MIPS16 && (TARGET_NO_DATA_IN_CODE || TARGET_CODE_XONLY)
-	  && LABEL_REF_JUMP_TABLE_P (op))
-	return false;
+          && LABEL_REF_JUMP_TABLE_P (op))
+        return false;
       /* fall through..  */
     case SYMBOL_REF:
-      if (TARGET_MIPS16 && TARGET_NO_DATA_IN_CODE 
-	  && CONSTANT_POOL_ADDRESS_P (op))
-	return false;
+      if (TARGET_MIPS16 && TARGET_NO_DATA_IN_CODE
+          && CONSTANT_POOL_ADDRESS_P (op))
+        return false;
       /* fall through..  */
     case CONST:
       if (CONST_GP_P (op))
@@ -2303,7 +2413,7 @@ mips_split_symbol (rtx temp, rtx addr, enum mips_symbol_type symbol_type)
           rtx unspec;
           if (temp == 0 ||
               (! no_new_pseudos && ! reload_in_progress && ! reload_completed))
-             temp = gen_reg_rtx (Pmode);
+            temp = gen_reg_rtx (Pmode);
 
           /* We avoid using mips16_gp_pseudo_reg (), because it may not be
              ready yet.  (The fix for debug info moves the initialization
@@ -2506,7 +2616,7 @@ mips_legitimize_address (rtx *xloc, enum machine_mode mode)
           mips_split_const (src, &base, &offset);
           sectrel_addr =
             mips_legitimize_section_relative_address (0, *xloc,
-						      SYMBOL_REF_DECL (base));
+                SYMBOL_REF_DECL (base));
           if (sectrel_addr)
             {
               *xloc = mips_add_offset (0, sectrel_addr, offset);
@@ -2677,7 +2787,7 @@ mips_legitimize_const_move (enum machine_mode mode, rtx dest, rtx src)
         hireg = no_new_pseudos ? dest : gen_reg_rtx (SImode);
       else
         hireg = no_new_pseudos ? gen_lowpart (SImode, dest)
-                               : gen_reg_rtx (SImode);
+                : gen_reg_rtx (SImode);
 
       if (no_new_pseudos)
         emit_move_insn (temp = hireg, GEN_INT (hi16));
@@ -2772,7 +2882,7 @@ mips_legitimize_const_move (enum machine_mode mode, rtx dest, rtx src)
      not legitimate addresses.  */
   if (!memory_operand (src, VOIDmode))
     src = replace_equiv_address (src, mips_split_symbol (dest, XEXP (src, 0),
-                                                         SYMBOL_GENERAL));
+                                 SYMBOL_GENERAL));
   emit_move_insn (dest, src);
 }
 
@@ -3010,16 +3120,16 @@ mips_rtx_costs (rtx x, int code, int outer_code, int *total)
         case LSHIFTRT:
           /* A number between 1 and 8 inclusive is efficient for a shift.
              Otherwise, we will need an extended instruction.  */
-          {
-            if (INTVAL (x) >= 1 && INTVAL (x) <= 8)
-              *total = 0;
-            else
-              *total = COSTS_N_INSNS (1);
-            return true;
-          }
-          break;
+        {
+          if (INTVAL (x) >= 1 && INTVAL (x) <= 8)
+            *total = 0;
+          else
+            *total = COSTS_N_INSNS (1);
+          return true;
+        }
+        break;
 
-          /* We can use cmpi for an xor with an unsigned 16 bit value.  */
+        /* We can use cmpi for an xor with an unsigned 16 bit value.  */
         case XOR:
           if (INTVAL (x) >= 0 && INTVAL (x) < 0x10000)
             {
@@ -3118,22 +3228,22 @@ mips_rtx_costs (rtx x, int code, int outer_code, int *total)
         }
 
     case MEM:
-      {
-        /* If the address is legitimate, return the number of
-           instructions it needs, otherwise use the default handling.  */
-        int n = mips_address_insns (XEXP (x, 0), GET_MODE (x));
-        if (n > 0)
-          {
-            if (TARGET_MIPS16 && !mips_section_threshold)
-              /* Take into account the cost of storing into the constant
-                 pool. */
-              *total = COSTS_N_INSNS (2 + n);
-            else
-              *total = COSTS_N_INSNS (1 + n);
-            return true;
-          }
-        return false;
-      }
+    {
+      /* If the address is legitimate, return the number of
+         instructions it needs, otherwise use the default handling.  */
+      int n = mips_address_insns (XEXP (x, 0), GET_MODE (x));
+      if (n > 0)
+        {
+          if (TARGET_MIPS16 && !mips_section_threshold)
+            /* Take into account the cost of storing into the constant
+               pool. */
+            *total = COSTS_N_INSNS (2 + n);
+          else
+            *total = COSTS_N_INSNS (1 + n);
+          return true;
+        }
+      return false;
+    }
 
     case CTZ:
     case FFS:
@@ -3216,57 +3326,57 @@ mips_rtx_costs (rtx x, int code, int outer_code, int *total)
       return false;
 
     case MULT:
-      {
-        int mult3_p;
-        if (mode == SImode)
-          mult3_p = GENERATE_MULT3_SI || TARGET_MAD;
-        else
-          mult3_p = GENERATE_MULT3_DI;
-        if (optimize_size && SCALAR_INT_MODE_P (mode))
-          {
-            /* Reflect number of insns, not the execution time. */
-            if (mode == DImode && ! TARGET_64BIT)
-              /* Synthesized muldi. */
-              *total = COSTS_N_INSNS (9);
-            else
-              *total = COSTS_N_INSNS (mult3_p ? 1 : 2);
-          }
-        else
-          {
-            *total = 0;
-            if (mips_tune_info)
-              {
-                if (mode == SImode)
-                  *total = COSTS_N_INSNS (mips_tune_info->mulsi_cost
-                                          + (mult3_p ? 0 : 1));
-                else if (mode == DImode)
-                  {
-                    if (TARGET_64BIT)
-                      *total = COSTS_N_INSNS (mips_tune_info->muldi_cost
-                                              + (mult3_p ? 0 : 1));
-                    else
-                      /* Synthesized muldi. */
-                      *total = COSTS_N_INSNS (mips_tune_info->mulsi_cost
-                                              * 3 + 6);
-                  }
-                else if (mode == SFmode && mips_tune_info->mulsf_cost)
-                  *total = COSTS_N_INSNS (mips_tune_info->mulsf_cost);
-                else if (mode == DFmode && mips_tune_info->mulsf_cost)
-                  *total = COSTS_N_INSNS (mips_tune_info->muldf_cost);
-              }
-            if (*total == 0)
-              {
-                /* Old defaults. */
-                if (mode == SFmode)
-                  *total = COSTS_N_INSNS (7);
-                else if (mode == DFmode)
-                  *total = COSTS_N_INSNS (8);
-                else
-                  *total = COSTS_N_INSNS (10);
-              }
-          }
-      }
-      return false;
+    {
+      int mult3_p;
+      if (mode == SImode)
+        mult3_p = GENERATE_MULT3_SI || TARGET_MAD;
+      else
+        mult3_p = GENERATE_MULT3_DI;
+      if (optimize_size && SCALAR_INT_MODE_P (mode))
+        {
+          /* Reflect number of insns, not the execution time. */
+          if (mode == DImode && ! TARGET_64BIT)
+            /* Synthesized muldi. */
+            *total = COSTS_N_INSNS (9);
+          else
+            *total = COSTS_N_INSNS (mult3_p ? 1 : 2);
+        }
+      else
+        {
+          *total = 0;
+          if (mips_tune_info)
+            {
+              if (mode == SImode)
+                *total = COSTS_N_INSNS (mips_tune_info->mulsi_cost
+                                        + (mult3_p ? 0 : 1));
+              else if (mode == DImode)
+                {
+                  if (TARGET_64BIT)
+                    *total = COSTS_N_INSNS (mips_tune_info->muldi_cost
+                                            + (mult3_p ? 0 : 1));
+                  else
+                    /* Synthesized muldi. */
+                    *total = COSTS_N_INSNS (mips_tune_info->mulsi_cost
+                                            * 3 + 6);
+                }
+              else if (mode == SFmode && mips_tune_info->mulsf_cost)
+                *total = COSTS_N_INSNS (mips_tune_info->mulsf_cost);
+              else if (mode == DFmode && mips_tune_info->mulsf_cost)
+                *total = COSTS_N_INSNS (mips_tune_info->muldf_cost);
+            }
+          if (*total == 0)
+            {
+              /* Old defaults. */
+              if (mode == SFmode)
+                *total = COSTS_N_INSNS (7);
+              else if (mode == DFmode)
+                *total = COSTS_N_INSNS (8);
+              else
+                *total = COSTS_N_INSNS (10);
+            }
+        }
+    }
+    return false;
 
     case DIV:
     case MOD:
@@ -3703,17 +3813,38 @@ map_test_to_internal_test (enum rtx_code test_code)
 
   switch (test_code)
     {
-    case EQ:  test = ITEST_EQ;  break;
-    case NE:  test = ITEST_NE;  break;
-    case GT:  test = ITEST_GT;  break;
-    case GE:  test = ITEST_GE;  break;
-    case LT:  test = ITEST_LT;  break;
-    case LE:  test = ITEST_LE;  break;
-    case GTU: test = ITEST_GTU; break;
-    case GEU: test = ITEST_GEU; break;
-    case LTU: test = ITEST_LTU; break;
-    case LEU: test = ITEST_LEU; break;
-    default:                    break;
+    case EQ:
+      test = ITEST_EQ;
+      break;
+    case NE:
+      test = ITEST_NE;
+      break;
+    case GT:
+      test = ITEST_GT;
+      break;
+    case GE:
+      test = ITEST_GE;
+      break;
+    case LT:
+      test = ITEST_LT;
+      break;
+    case LE:
+      test = ITEST_LE;
+      break;
+    case GTU:
+      test = ITEST_GTU;
+      break;
+    case GEU:
+      test = ITEST_GEU;
+      break;
+    case LTU:
+      test = ITEST_LTU;
+      break;
+    case LEU:
+      test = ITEST_LEU;
+      break;
+    default:
+      break;
     }
 
   return test;
@@ -3751,30 +3882,33 @@ gen_int_relational (enum rtx_code test_code, rtx result, rtx cmp0,
                     rtx cmp1, int *p_invert)
 {
   struct cmp_info
-  {
-    enum rtx_code test_code;    /* code to use in instruction (LT vs. LTU) */
-    int const_low;              /* low bound of constant we can accept */
-    int const_high;             /* high bound of constant we can accept */
-    int const_add;              /* constant to add (convert LE -> LT) */
-    int reverse_regs;           /* reverse registers in test */
-    int invert_const;           /* != 0 if invert value if cmp1 is constant */
-    int invert_reg;             /* != 0 if invert value if cmp1 is register */
-    int unsignedp;              /* != 0 for unsigned comparisons.  */
-  };
+    {
+      enum rtx_code test_code;    /* code to use in instruction (LT vs. LTU) */
+      int const_low;              /* low bound of constant we can accept */
+      int const_high;             /* high bound of constant we can accept */
+      int const_add;              /* constant to add (convert LE -> LT) */
+      int reverse_regs;           /* reverse registers in test */
+      int invert_const;           /* != 0 if invert value if cmp1 is constant */
+      int invert_reg;             /* != 0 if invert value if cmp1 is register */
+      int unsignedp;              /* != 0 for unsigned comparisons.  */
+    };
 
-  static const struct cmp_info info[ (int)ITEST_MAX ] = {
+  static const struct cmp_info info[ (int)ITEST_MAX ] =
+    {
 
-    { XOR,       0,  65535,  0,  0,  0,  0, 0 },        /* EQ  */
-    { XOR,       0,  65535,  0,  0,  1,  1, 0 },        /* NE  */
-    { LT,   -32769,  32766,  1,  1,  1,  0, 0 },        /* GT  */
-    { LT,   -32768,  32767,  0,  0,  1,  1, 0 },        /* GE  */
-    { LT,   -32768,  32767,  0,  0,  0,  0, 0 },        /* LT  */
-    { LT,   -32769,  32766,  1,  1,  0,  1, 0 },        /* LE  */
-    { LTU,  -32769,  32766,  1,  1,  1,  0, 1 },        /* GTU */
-    { LTU,  -32768,  32767,  0,  0,  1,  1, 1 },        /* GEU */
-    { LTU,  -32768,  32767,  0,  0,  0,  0, 1 },        /* LTU */
-    { LTU,  -32769,  32766,  1,  1,  0,  1, 1 },        /* LEU */
-  };
+      {
+        XOR,       0,  65535,  0,  0,  0,  0, 0
+      },        /* EQ  */
+      { XOR,       0,  65535,  0,  0,  1,  1, 0 },        /* NE  */
+      { LT,   -32769,  32766,  1,  1,  1,  0, 0 },        /* GT  */
+      { LT,   -32768,  32767,  0,  0,  1,  1, 0 },        /* GE  */
+      { LT,   -32768,  32767,  0,  0,  0,  0, 0 },        /* LT  */
+      { LT,   -32769,  32766,  1,  1,  0,  1, 0 },        /* LE  */
+      { LTU,  -32769,  32766,  1,  1,  1,  0, 1 },        /* GTU */
+      { LTU,  -32768,  32767,  0,  0,  1,  1, 1 },        /* GEU */
+      { LTU,  -32768,  32767,  0,  0,  0,  0, 1 },        /* LTU */
+      { LTU,  -32769,  32766,  1,  1,  0,  1, 1 },        /* LEU */
+    };
 
   enum internal_test test;
   enum machine_mode mode;
@@ -4154,11 +4288,20 @@ mips_gen_conditional_trap (rtx *operands)
      GE, respectively.  */
   switch (cmp_code)
     {
-    case GT: cmp_code = LT; break;
-    case LE: cmp_code = GE; break;
-    case GTU: cmp_code = LTU; break;
-    case LEU: cmp_code = GEU; break;
-    default: break;
+    case GT:
+      cmp_code = LT;
+      break;
+    case LE:
+      cmp_code = GE;
+      break;
+    case GTU:
+      cmp_code = LTU;
+      break;
+    case LEU:
+      cmp_code = GEU;
+      break;
+    default:
+      break;
     }
   if (cmp_code == GET_CODE (operands[0]))
     {
@@ -4221,7 +4364,6 @@ mips_load_call_address (rtx dest, rtx addr, int sibcall_p)
    the value passed to us by mips_function_arg.  SIBCALL_P is true
    if we are expanding a sibling call, false if we're expanding
    a normal call.  */
-
 void
 mips_expand_call (rtx result, rtx addr, rtx args_size, rtx aux, int sibcall_p)
 {
@@ -4261,7 +4403,6 @@ mips_expand_call (rtx result, rtx addr, rtx args_size, rtx aux, int sibcall_p)
   else if (GET_CODE (result) == PARALLEL && XVECLEN (result, 0) == 2)
     {
       rtx reg1, reg2;
-
       reg1 = XEXP (XVECEXP (result, 0, 0), 0);
       reg2 = XEXP (XVECEXP (result, 0, 1), 0);
       pattern =
@@ -4270,9 +4411,11 @@ mips_expand_call (rtx result, rtx addr, rtx args_size, rtx aux, int sibcall_p)
          : gen_call_value_multiple_internal (reg1, addr, args_size, reg2));
     }
   else
-    pattern = (sibcall_p
-               ? gen_sibcall_value_internal (result, addr, args_size)
-               : gen_call_value_internal (result, addr, args_size));
+    {
+      pattern = (sibcall_p
+                 ? gen_sibcall_value_internal (result, addr, args_size)
+                 : gen_call_value_internal (result, addr, args_size));
+    }
 
   insn = emit_call_insn (pattern);
 
@@ -4286,7 +4429,7 @@ mips_expand_call (rtx result, rtx addr, rtx args_size, rtx aux, int sibcall_p)
    when the called function is a MIPS16 function, since there is no
    direct "jx" instruction equivalent to "jalx" to switch the ISA
    mode.
-   
+
    MCHP: cannot handle sibcalls from interrupt handler functions since
    we need extra epilogue code.  */
 
@@ -4298,7 +4441,8 @@ mips_function_ok_for_sibcall (tree decl,
     return 0;
   if (decl && SYMBOL_REF_MIPS16_P (XEXP (DECL_RTL (decl), 0)))
     return 0;
-  if (mchp_function_interrupt_p (current_function_decl))
+  mchp_function_interrupt_p (current_function_decl);
+  if (current_function_type != NON_INTERRUPT)
     return 0;
   return 1;
 }
@@ -4583,7 +4727,7 @@ mips_arg_info (const CUMULATIVE_ARGS *cum, enum machine_mode mode,
   info->fpr_p = ((GET_MODE_CLASS (mode) == MODE_FLOAT
                   || (GET_MODE_CLASS (mode) == MODE_VECTOR_FLOAT
                       && TARGET_PAIRED_SINGLE_FLOAT))
-                  && GET_MODE_SIZE (mode) <= UNITS_PER_FPVALUE);
+                 && GET_MODE_SIZE (mode) <= UNITS_PER_FPVALUE);
 
   if (info->fpr_p)
     switch (mips_abi)
@@ -4680,105 +4824,105 @@ function_arg_advance (CUMULATIVE_ARGS *cum, enum machine_mode mode,
 /* Implement FUNCTION_ARG.  */
 
 struct rtx_def *
-function_arg (const CUMULATIVE_ARGS *cum, enum machine_mode mode,
-              tree type, int named)
-{
-  struct mips_arg_info info;
+      function_arg (const CUMULATIVE_ARGS *cum, enum machine_mode mode,
+                    tree type, int named)
+  {
+    struct mips_arg_info info;
 
-  /* We will be called with a mode of VOIDmode after the last argument
-     has been seen.  Whatever we return will be passed to the call
-     insn.  If we need a mips16 fp_code, return a REG with the code
-     stored as the mode.  */
-  if (mode == VOIDmode)
-    {
-      if ((TARGET_MIPS16
-           || (!TARGET_MIPS16 && mips_base_mips16 && mips16_hard_float))
-          && cum->fp_code != 0)
-        return gen_rtx_REG ((enum machine_mode) cum->fp_code, 0);
+    /* We will be called with a mode of VOIDmode after the last argument
+       has been seen.  Whatever we return will be passed to the call
+       insn.  If we need a mips16 fp_code, return a REG with the code
+       stored as the mode.  */
+    if (mode == VOIDmode)
+      {
+        if ((TARGET_MIPS16
+             || (!TARGET_MIPS16 && mips_base_mips16 && mips16_hard_float))
+            && cum->fp_code != 0)
+          return gen_rtx_REG ((enum machine_mode) cum->fp_code, 0);
 
-      else
-        return 0;
-    }
+        else
+          return 0;
+      }
 
-  mips_arg_info (cum, mode, type, named, &info);
+    mips_arg_info (cum, mode, type, named, &info);
 
-  /* Return straight away if the whole argument is passed on the stack.  */
-  if (info.reg_offset == MAX_ARGS_IN_REGISTERS)
-    return 0;
+    /* Return straight away if the whole argument is passed on the stack.  */
+    if (info.reg_offset == MAX_ARGS_IN_REGISTERS)
+      return 0;
 
-  if (type != 0
-      && TREE_CODE (type) == RECORD_TYPE
-      && (mips_abi == ABI_N32 || mips_abi == ABI_64)
-      && TYPE_SIZE_UNIT (type)
-      && host_integerp (TYPE_SIZE_UNIT (type), 1)
-      && named)
-    {
-      /* The Irix 6 n32/n64 ABIs say that if any 64 bit chunk of the
-         structure contains a double in its entirety, then that 64 bit
-         chunk is passed in a floating point register.  */
-      tree field;
+    if (type != 0
+        && TREE_CODE (type) == RECORD_TYPE
+        && (mips_abi == ABI_N32 || mips_abi == ABI_64)
+        && TYPE_SIZE_UNIT (type)
+        && host_integerp (TYPE_SIZE_UNIT (type), 1)
+        && named)
+      {
+        /* The Irix 6 n32/n64 ABIs say that if any 64 bit chunk of the
+           structure contains a double in its entirety, then that 64 bit
+           chunk is passed in a floating point register.  */
+        tree field;
 
-      /* First check to see if there is any such field.  */
-      for (field = TYPE_FIELDS (type); field; field = TREE_CHAIN (field))
-        if (TREE_CODE (field) == FIELD_DECL
-            && TREE_CODE (TREE_TYPE (field)) == REAL_TYPE
-            && TYPE_PRECISION (TREE_TYPE (field)) == BITS_PER_WORD
-            && host_integerp (bit_position (field), 0)
-            && int_bit_position (field) % BITS_PER_WORD == 0)
-          break;
+        /* First check to see if there is any such field.  */
+        for (field = TYPE_FIELDS (type); field; field = TREE_CHAIN (field))
+          if (TREE_CODE (field) == FIELD_DECL
+              && TREE_CODE (TREE_TYPE (field)) == REAL_TYPE
+              && TYPE_PRECISION (TREE_TYPE (field)) == BITS_PER_WORD
+              && host_integerp (bit_position (field), 0)
+              && int_bit_position (field) % BITS_PER_WORD == 0)
+            break;
 
-      if (field != 0)
-        {
-          /* Now handle the special case by returning a PARALLEL
-             indicating where each 64 bit chunk goes.  INFO.REG_WORDS
-             chunks are passed in registers.  */
-          unsigned int i;
-          HOST_WIDE_INT bitpos;
-          rtx ret;
+        if (field != 0)
+          {
+            /* Now handle the special case by returning a PARALLEL
+               indicating where each 64 bit chunk goes.  INFO.REG_WORDS
+               chunks are passed in registers.  */
+            unsigned int i;
+            HOST_WIDE_INT bitpos;
+            rtx ret;
 
-          /* assign_parms checks the mode of ENTRY_PARM, so we must
-             use the actual mode here.  */
-          ret = gen_rtx_PARALLEL (mode, rtvec_alloc (info.reg_words));
+            /* assign_parms checks the mode of ENTRY_PARM, so we must
+               use the actual mode here.  */
+            ret = gen_rtx_PARALLEL (mode, rtvec_alloc (info.reg_words));
 
-          bitpos = 0;
-          field = TYPE_FIELDS (type);
-          for (i = 0; i < info.reg_words; i++)
-            {
-              rtx reg;
+            bitpos = 0;
+            field = TYPE_FIELDS (type);
+            for (i = 0; i < info.reg_words; i++)
+              {
+                rtx reg;
 
-              for (; field; field = TREE_CHAIN (field))
-                if (TREE_CODE (field) == FIELD_DECL
-                    && int_bit_position (field) >= bitpos)
-                  break;
+                for (; field; field = TREE_CHAIN (field))
+                  if (TREE_CODE (field) == FIELD_DECL
+                      && int_bit_position (field) >= bitpos)
+                    break;
 
-              if (field
-                  && int_bit_position (field) == bitpos
-                  && TREE_CODE (TREE_TYPE (field)) == REAL_TYPE
-                  && !TARGET_SOFT_FLOAT
-                  && TYPE_PRECISION (TREE_TYPE (field)) == BITS_PER_WORD)
-                reg = gen_rtx_REG (DFmode, FP_ARG_FIRST + info.reg_offset + i);
-              else
-                reg = gen_rtx_REG (DImode, GP_ARG_FIRST + info.reg_offset + i);
+                if (field
+                    && int_bit_position (field) == bitpos
+                    && TREE_CODE (TREE_TYPE (field)) == REAL_TYPE
+                    && !TARGET_SOFT_FLOAT
+                    && TYPE_PRECISION (TREE_TYPE (field)) == BITS_PER_WORD)
+                  reg = gen_rtx_REG (DFmode, FP_ARG_FIRST + info.reg_offset + i);
+                else
+                  reg = gen_rtx_REG (DImode, GP_ARG_FIRST + info.reg_offset + i);
 
-              XVECEXP (ret, 0, i)
+                XVECEXP (ret, 0, i)
                 = gen_rtx_EXPR_LIST (VOIDmode, reg,
                                      GEN_INT (bitpos / BITS_PER_UNIT));
 
-              bitpos += BITS_PER_WORD;
-            }
-          return ret;
-        }
-    }
+                bitpos += BITS_PER_WORD;
+              }
+            return ret;
+          }
+      }
 
-  if (!info.fpr_p || TARGET_MIPS16)
-    return gen_rtx_REG (mode, GP_ARG_FIRST + info.reg_offset);
-  else if (info.reg_offset == 1 && mips_abi == ABI_32)
-    /* This code handles the special o32 case in which the second word
-       of the argument structure is passed in floating-point registers.  */
-    return gen_rtx_REG (mode, FP_ARG_FIRST + 2);
-  else
-    return gen_rtx_REG (mode, FP_ARG_FIRST + info.reg_offset);
-}
+    if (!info.fpr_p || TARGET_MIPS16)
+      return gen_rtx_REG (mode, GP_ARG_FIRST + info.reg_offset);
+    else if (info.reg_offset == 1 && mips_abi == ABI_32)
+      /* This code handles the special o32 case in which the second word
+         of the argument structure is passed in floating-point registers.  */
+      return gen_rtx_REG (mode, FP_ARG_FIRST + 2);
+    else
+      return gen_rtx_REG (mode, FP_ARG_FIRST + info.reg_offset);
+  }
 
 
 /* Implement FUNCTION_ARG_PARTIAL_NREGS.  */
@@ -4957,15 +5101,15 @@ mips_build_builtin_va_list (void)
       record = (*lang_hooks.types.make_type) (RECORD_TYPE);
 
       f_ovfl = build_decl (FIELD_DECL, get_identifier ("__overflow_argptr"),
-                          ptr_type_node);
+                           ptr_type_node);
       f_gtop = build_decl (FIELD_DECL, get_identifier ("__gpr_top"),
-                          ptr_type_node);
+                           ptr_type_node);
       f_ftop = build_decl (FIELD_DECL, get_identifier ("__fpr_top"),
-                          ptr_type_node);
+                           ptr_type_node);
       f_goff = build_decl (FIELD_DECL, get_identifier ("__gpr_offset"),
-                          unsigned_char_type_node);
+                           unsigned_char_type_node);
       f_foff = build_decl (FIELD_DECL, get_identifier ("__fpr_offset"),
-                          unsigned_char_type_node);
+                           unsigned_char_type_node);
       /* Explicitly pad to the size of a pointer, so that -Wpadded won't
          warn on every user file.  */
       index = build_int_2 (GET_MODE_SIZE (ptr_mode) - 2 - 1, 0);
@@ -5019,7 +5163,7 @@ mips_va_start (tree valist, rtx nextarg)
       int gpr_save_area_size;
 
       gpr_save_area_size
-        = (MAX_ARGS_IN_REGISTERS - cum->num_gprs) * UNITS_PER_WORD;
+      = (MAX_ARGS_IN_REGISTERS - cum->num_gprs) * UNITS_PER_WORD;
 
       if (EABI_FLOAT_VARARGS_P)
         {
@@ -5077,7 +5221,7 @@ mips_va_start (tree valist, rtx nextarg)
           /* Likewise emit code to initialize FOFF, the offset from FTOP
              of the next FPR argument.  */
           fpr_save_area_size
-            = (MAX_ARGS_IN_REGISTERS - cum->num_fprs) * UNITS_PER_FPREG;
+          = (MAX_ARGS_IN_REGISTERS - cum->num_fprs) * UNITS_PER_FPREG;
           t = build (MODIFY_EXPR, TREE_TYPE (foff), foff,
                      build_int_2 (fpr_save_area_size, 0));
           expand_expr (t, const0_rtx, VOIDmode, EXPAND_NORMAL);
@@ -5112,7 +5256,7 @@ mips_va_arg (tree valist, tree type)
       rtx r;
 
       indirect
-        = function_arg_pass_by_reference (NULL, TYPE_MODE (type), type, 0);
+      = function_arg_pass_by_reference (NULL, TYPE_MODE (type), type, 0);
 
       if (indirect)
         {
@@ -5571,19 +5715,19 @@ mips_init_tables (void)
 
           else if (FP_REG_P (regno))
             temp = (((regno % FP_INC) == 0)
-                     /* MIPS32 allows SFmode in odd registers */
+                    /* MIPS32 allows SFmode in odd registers */
                     || (ISA_HAS_ODD_SF_REG && size <= 4))
-                    && TARGET_HARD_FLOAT
-                    && (((class == MODE_FLOAT || class == MODE_COMPLEX_FLOAT
-                          || (class == MODE_VECTOR_FLOAT
-                              && TARGET_PAIRED_SINGLE_FLOAT))
-                         && size <= UNITS_PER_FPVALUE)
-                        /* Allow integer modes that fit into a single
-                           register.  We need to put integers into FPRs
-                           when using instructions like cvt and trunc.  */
-                        || (class == MODE_INT && size <= UNITS_PER_FPREG)
-                        /* Allow TFmode for CCmode reloads.  */
-                        || (ISA_HAS_8CC && mode == TFmode));
+                   && TARGET_HARD_FLOAT
+                   && (((class == MODE_FLOAT || class == MODE_COMPLEX_FLOAT
+                         || (class == MODE_VECTOR_FLOAT
+                             && TARGET_PAIRED_SINGLE_FLOAT))
+                        && size <= UNITS_PER_FPVALUE)
+                       /* Allow integer modes that fit into a single
+                          register.  We need to put integers into FPRs
+                          when using instructions like cvt and trunc.  */
+                       || (class == MODE_INT && size <= UNITS_PER_FPREG)
+                       /* Allow TFmode for CCmode reloads.  */
+                       || (ISA_HAS_8CC && mode == TFmode));
 
           else if (MD_REG_P (regno))
             temp = (class == MODE_INT
@@ -5781,7 +5925,7 @@ mips_set_mips16_mode (int mips16_p)
   if (hard_frame_pointer_rtx)
     REG_POINTER (hard_frame_pointer_rtx) = 0;
   hard_frame_pointer_rtx
-    = gen_rtx_raw_REG (Pmode, HARD_FRAME_POINTER_REGNUM);
+  = gen_rtx_raw_REG (Pmode, HARD_FRAME_POINTER_REGNUM);
 
   /* (Re)initialise mips target internals for new ISA. */
   mips_init_tables ();
@@ -5796,7 +5940,7 @@ mips_set_mips16_mode (int mips16_p)
 
 static void
 mips_prepare_function_start (fndecl)
-     tree fndecl;
+tree fndecl;
 {
   tree x;
 
@@ -5812,7 +5956,8 @@ mips_prepare_function_start (fndecl)
 
 #ifdef TARGET_MCHP_PIC32MX
   /* If we're in MIPS16[e] mode for an interrupt function, that's an error */
-  if (mchp_function_interrupt_p (fndecl) && TARGET_MIPS16)
+  mchp_function_interrupt_p (fndecl);
+  if ((current_function_type != NON_INTERRUPT) && TARGET_MIPS16)
     {
       warning ("interrupt handler functions cannot be mips16, "
                "assuming nomips16 attribute");
@@ -5830,19 +5975,47 @@ override_options (void)
   int i, start;
 
 #ifdef TARGET_MCHP_PIC32MX
-  if (profile_flag == 1) 
+  if (profile_flag == 1)
     {
       warning ("-p not supported, ignored");
       profile_flag = 0;
+    }
+  if (mchp_io_size)
+    {
+      mchp_io_size_val = -1;
+      if (*mchp_io_size == '0')
+        {
+          mchp_io_size_val = 0;
+        }
+      else if (*mchp_io_size == '1')
+        {
+          mchp_io_size_val = 1;
+        }
+      else if (*mchp_io_size == '2')
+        {
+          mchp_io_size_val = 2;
+        }
+      if (mchp_io_size_val > 0) mchp_smart_io_warning=1;
+      if ((mchp_io_size_val == -1) || (mchp_io_size[1] != 0))
+        {
+          warning("-msmart-io=%s invalid; defaulting to -msmart-io=1",
+                  mchp_io_size);
+          mchp_io_size_val = 1;
+        }
+    }
+  else
+    {
+      /* set the default smartness level */
+      mchp_io_size_val = 1;
     }
 
   /* PIC32MX cannot use Position Independent Code yet.  */
   if (flag_pie || flag_pic || TARGET_ABICALLS)
     {
       error ("%s is not supported on PIC32 targets",
-               (flag_pic > 1 ? "-fPIC" :
-                flag_pic ? "-fpic" :
-                "-mabicalls"));
+             (flag_pic > 1 ? "-fPIC" :
+              flag_pic ? "-fpic" :
+              "-mabicalls"));
       target_flags &= ~MASK_ABICALLS;
       flag_pic = flag_pie = flag_shlib = 0;
     }
@@ -5879,8 +6052,8 @@ override_options (void)
     target_flags |= MASK_PAIRED_SINGLE;
 
   mips_section_threshold = g_switch_set ?
-                             g_switch_value :
-                             MIPS_DEFAULT_GVALUE;
+                           g_switch_value :
+                           MIPS_DEFAULT_GVALUE;
   /* Interpret -mabi.  */
   mips_abi = MIPS_ABI_DEFAULT;
   if (mips_abi_string != 0)
@@ -5908,9 +6081,9 @@ override_options (void)
      available. */
 
 #ifdef TARGET_MCHP_PIC32MX
-    mips_set_architecture (mips_parse_cpu ("default CPU",
-                                           MIPS_CPU_STRING_DEFAULT));
-    mips_set_tune (mips_arch_info);
+  mips_set_architecture (mips_parse_cpu ("default CPU",
+                                         MIPS_CPU_STRING_DEFAULT));
+  mips_set_tune (mips_arch_info);
 #else
   if (mips_arch_string != 0)
     mips_set_architecture (mips_parse_cpu ("-march", mips_arch_string));
@@ -5925,12 +6098,12 @@ override_options (void)
       free (whole_isa_str);
 
       /* -march takes precedence over -mipsN, since it is more descriptive.
-         There's no harm in specifying both as long as the ISA levels
-         are the same.  */
+      There's no harm in specifying both as long as the ISA levels
+      are the same.  */
       if (mips_arch_info != 0 && mips_isa != isa_info->isa)
-	error ("-mips%s conflicts with the other architecture options, "
-	       "which specify a %s processor",
-	       mips_isa_string, mips_cpu_info_from_isa (mips_isa)->name);
+        error ("-mips%s conflicts with the other architecture options, "
+               "which specify a %s processor",
+               mips_isa_string, mips_cpu_info_from_isa (mips_isa)->name);
 
       /* Set architecture based on the given option.  */
       mips_set_architecture (isa_info);
@@ -5955,7 +6128,7 @@ override_options (void)
       mips_set_architecture (mips_parse_cpu ("default CPU",
                                              MIPS_CPU_STRING_DEFAULT));
 #else
-      mips_set_architecture (mips_cpu_info_from_isa (MIPS_ISA_DEFAULT));
+  mips_set_architecture (mips_cpu_info_from_isa (MIPS_ISA_DEFAULT));
 #endif
     }
 
@@ -6163,7 +6336,7 @@ override_options (void)
     {
       if (mips_no_data_in_code_string[0] != '\0')
         error ("Invalid option `-mno-data-in-code%s'",
-                mips_no_data_in_code_string);
+               mips_no_data_in_code_string);
 
       if (TARGET_EMBEDDED_DATA)
         {
@@ -6187,35 +6360,35 @@ override_options (void)
   if (! mips_branch_cost_string)
     {
       /* Branch is very expensive on super-scalar cpus, and on most of
-	 these we can use conditional move.  Branch is also more
-	 expensive on the super- or long-pipelined cpus (r4000,
-	 r6000), but branch cost 2 seems to generate best code for
-	 simple short pipeline, single-issue cpus. */
+      these we can use conditional move.  Branch is also more
+      expensive on the super- or long-pipelined cpus (r4000,
+      r6000), but branch cost 2 seems to generate best code for
+      simple short pipeline, single-issue cpus. */
       switch (mips_tune)
-	{
-	case PROCESSOR_R4000:
-	case PROCESSOR_R6000:
-	case PROCESSOR_5KC:
-	  mips_branch_cost = 3;
-	  break;
-	case PROCESSOR_20KC:
-	case PROCESSOR_R5400:
-	case PROCESSOR_R7000:
-	case PROCESSOR_R9000:
-	  mips_branch_cost = 4;
-	  break;
-	case PROCESSOR_74K:
-	case PROCESSOR_74KX:
-	case PROCESSOR_74KZ:
-	  /* Although the 74k has a fairly long pipe and is dual-issued.
-	     It ALU & AGEN are relatively short overall and a cost of 2 seem
-	     to generate good code.  */
-	  mips_branch_cost = 2;
-	  break;
-	default:
-	  mips_branch_cost = 2;
-	  break;
-	}
+        {
+        case PROCESSOR_R4000:
+        case PROCESSOR_R6000:
+        case PROCESSOR_5KC:
+          mips_branch_cost = 3;
+          break;
+        case PROCESSOR_20KC:
+        case PROCESSOR_R5400:
+        case PROCESSOR_R7000:
+        case PROCESSOR_R9000:
+          mips_branch_cost = 4;
+          break;
+        case PROCESSOR_74K:
+        case PROCESSOR_74KX:
+        case PROCESSOR_74KZ:
+          /* Although the 74k has a fairly long pipe and is dual-issued.
+             It ALU & AGEN are relatively short overall and a cost of 2 seem
+             to generate good code.  */
+          mips_branch_cost = 2;
+          break;
+        default:
+          mips_branch_cost = 2;
+          break;
+        }
     }
   else
     {
@@ -6394,7 +6567,7 @@ override_options (void)
      mips_reorg.  */
   mips_flag_delayed_branch = flag_delayed_branch;
   if (TARGET_EXPLICIT_RELOCS)
-      flag_delayed_branch = 0;
+    flag_delayed_branch = 0;
 
   /* Prefer a call to memcpy over inline code when optimizing for size,
      though see MOVE_RATIO in mips.h. */
@@ -6423,7 +6596,7 @@ override_options (void)
   if (TARGET_MIPS_DSP32 && TARGET_MIPS74K)
     target_flags |= MASK_DSPR2;
 
-  /* Enable SmartMIPS ASE by default if architecture supports it. */ 
+  /* Enable SmartMIPS ASE by default if architecture supports it. */
   if ((mips_arch_info->options & MIPS_OPT_SMARTMIPS)
       && (target_flags_explicit & MASK_SMARTMIPS) == 0)
     target_flags |= MASK_SMARTMIPS;
@@ -6449,7 +6622,7 @@ override_options (void)
        unless -mno-data-in-code also used, in which case use the
        MIPS_DEFAULT_GVALUE set above. */
     mips_section_threshold = 0;
-      
+
   if (TARGET_NO_DATA_IN_CODE
       || mips_section_threshold != 0)
     /* When forced to use gp-relative addressing, disable
@@ -6536,10 +6709,12 @@ override_options (void)
    */
 #ifdef TARGET_MCHP_PIC32MX
 #define PIC32_EXPIRED_LICENSE -243
+  /* Lite Edition uses PIC32_ACADEMIC_LICENSE */
 #define PIC32_ACADEMIC_LICENSE -100
 #ifdef __MINGW32__
 #ifndef SKIP_LICENSE_MANAGER
-  { char *path;
+  {
+    char *path;
     char *exec;
     char *args[] = { 0, "-k", 0 };
     char *c;
@@ -6551,7 +6726,7 @@ override_options (void)
     pic32_license_valid = 0;
     /* pic32-lm.exe must reside in the same directory as cc1.exe */
     path = make_relative_prefix(save_argv[0], "/pic32mx/bin/gcc/pic32mx/3.4.4",
-                                              "/bin");
+                                "/bin");
 
     if (!path) fatal_error("Could not locate `%s`\n", save_argv[0]);
     exec = alloca(strlen(path)+sizeof("pic32-lm.exe") + 1);
@@ -6560,80 +6735,94 @@ override_options (void)
     pid = pexecute(exec, args, "MPLAB C Compiler for PIC32", 0, &err_msg, &err_arg,
                    PEXECUTE_FIRST | PEXECUTE_LAST);
     pid = pwait(pid, &status, 0);
-    if (pid < 0) {
-      /* Set academic edition if the license manager isn't available. */
-      /* The academic edition disables optimization options without an eval period. */
-      pic32_license_valid=PIC32_ACADEMIC_LICENSE;
-    }
-    else {
-       if (WIFEXITED(status) && (WEXITSTATUS(status) == 0)) {
-         pic32_license_valid=1;
-       } else if (WIFEXITED(status)) {
-         pic32_license_valid=WEXITSTATUS(status) - 256;
-       }
-    }
+    if (pid < 0)
+      {
+        /* Set academic/lite edition if the license manager isn't available. */
+        /* The lite edition disables optimization options without an eval period. */
+        pic32_license_valid=PIC32_ACADEMIC_LICENSE;
+      }
+    else
+      {
+        if (WIFEXITED(status) && (WEXITSTATUS(status) == 0))
+          {
+            pic32_license_valid=1;
+          }
+        else if (WIFEXITED(status))
+          {
+            pic32_license_valid=WEXITSTATUS(status) - 256;
+          }
+      }
   }
 #endif /* SKIP_LICENSE_MANAGER */
 
-  if (pic32_license_valid != 1) {
-    static int message_displayed = 0;
-    static int message_purchase_displayed = 0;
-    char *invalid = (char*) "an invalid license";
+  if (pic32_license_valid != 1)
+    {
+      static int message_displayed = 0;
+      static int message_purchase_displayed = 0;
+      char *invalid = (char*) "an invalid license";
 
-    #define NULLIFY(X) \
+#define NULLIFY(X) \
     if ((X) && (message_displayed++ == 0)) {\
       warning("Compiler option ignored due to %s", invalid); \
       if (message_purchase_displayed++ == 0) { \
         warning ("Disable the option or visit http://www.microchip.com/c32 " \
-                 "to purchase a full license."); \
+                 "to purchase a full standard-edition license."); \
       } \
     } \
     X
 
-    if (pic32_license_valid == PIC32_EXPIRED_LICENSE) {
-      invalid = "an expired evaluation period";
-    } else if (pic32_license_valid == PIC32_ACADEMIC_LICENSE) {
-      invalid = "academic-edition limitations";
-      /* Suppress the purchase suggestion for the academic edition. */
-      message_purchase_displayed++;
+      if (pic32_license_valid == PIC32_EXPIRED_LICENSE)
+        {
+          invalid = "an expired standard-evaluation period";
+        }
+      else if (pic32_license_valid == PIC32_ACADEMIC_LICENSE)
+        {
+          invalid = "lite-edition limitations";
+          /* Suppress the purchase suggestion for the academic version / lite edition. */
+          message_purchase_displayed++;
+        }
+
+      /* Disable -O2 optimizations */
+      NULLIFY(flag_crossjumping) = 0;
+      NULLIFY(flag_optimize_sibling_calls) = 0;
+      NULLIFY(flag_cse_follow_jumps) = 0;
+      NULLIFY(flag_cse_skip_blocks) = 0;
+      NULLIFY(flag_gcse) = 0;
+      NULLIFY(flag_expensive_optimizations) = 0;
+      NULLIFY(flag_strength_reduce) = 0;
+      NULLIFY(flag_rerun_cse_after_loop) = 0;
+      NULLIFY(flag_rerun_loop_opt) = 0;
+      NULLIFY(flag_caller_saves) = 0;
+      NULLIFY(flag_force_mem) = 0;
+      NULLIFY(flag_peephole2) = 0;
+      NULLIFY(flag_schedule_insns) = 0;
+      NULLIFY(flag_schedule_insns_after_reload) = 0;
+      NULLIFY(flag_regmove) = 0;
+      NULLIFY(flag_strict_aliasing) = 0;
+      NULLIFY(flag_delete_null_pointer_checks) = 0;
+      NULLIFY(flag_reorder_blocks) = 0;
+      NULLIFY(flag_reorder_functions) = 0;
+      NULLIFY(flag_unit_at_a_time) = 0;
+      NULLIFY(flag_web) = 0;
+      NULLIFY(flag_rename_registers) = 0;
+
+      /* Disable -O3 optimizations */
+      NULLIFY(flag_inline_functions) = 0;
+      NULLIFY(flag_unswitch_loops) = 0;
+
+      /* Disable -Os optimization(s) */
+      /* flag_web and flag_inline_functions already disabled */
+
+      /* Disable -mips16 and -mips16e */
+      if (mips_base_mips16 != 0)
+        {
+          /* Disable -mips16 and -mips16e */
+           NULLIFY(mips_base_mips16) = 0;
+           NULLIFY(flag_section_relative_addressing) = 0;
+        }
+
+#undef NULLIFY
     }
-
-    /* Disable -O2 optimizations */
-    NULLIFY(flag_crossjumping) = 0;
-    NULLIFY(flag_optimize_sibling_calls) = 0;
-    NULLIFY(flag_cse_follow_jumps) = 0;
-    NULLIFY(flag_cse_skip_blocks) = 0;
-    NULLIFY(flag_gcse) = 0;
-    NULLIFY(flag_expensive_optimizations) = 0;
-    NULLIFY(flag_strength_reduce) = 0;
-    NULLIFY(flag_rerun_cse_after_loop) = 0;
-    NULLIFY(flag_rerun_loop_opt) = 0;
-    NULLIFY(flag_caller_saves) = 0;
-    NULLIFY(flag_force_mem) = 0;
-    NULLIFY(flag_peephole2) = 0;
-    NULLIFY(flag_schedule_insns) = 0;
-    NULLIFY(flag_schedule_insns_after_reload) = 0;
-    NULLIFY(flag_regmove) = 0;
-    NULLIFY(flag_strict_aliasing) = 0;
-    NULLIFY(flag_delete_null_pointer_checks) = 0;
-    NULLIFY(flag_reorder_blocks) = 0;
-    NULLIFY(flag_reorder_functions) = 0;
-    NULLIFY(flag_unit_at_a_time) = 0;
-    NULLIFY(flag_web) = 0;
-    NULLIFY(flag_rename_registers) = 0;
-
-    /* Disable -O3 optimizations */
-    NULLIFY(flag_inline_functions) = 0;
-    NULLIFY(flag_unswitch_loops) = 0;
-
-    /* Disable -Os optimization(s) */
-    /* flag_web and flag_inline_functions already disabled */
-
-    /* Disable -mips16 and -mips16e */
-    NULLIFY(mips_base_mips16) = 0;
-
-    #undef NULLIFY
-  }
 #endif /* __MINGW32__ */
 #undef PIC32_EXPIRED_LICENSE
 #undef PIC32_ACADEMIC_LICENSE
@@ -6724,11 +6913,11 @@ mips_conditional_register_usage (void)
 
 /* Allocate a chunk of memory for per-function machine-dependent data.  */
 static struct machine_function *
-mips_init_machine_status (void)
-{
-  return ((struct machine_function *)
-          ggc_alloc_cleared (sizeof (struct machine_function)));
-}
+      mips_init_machine_status (void)
+  {
+    return ((struct machine_function *)
+            ggc_alloc_cleared (sizeof (struct machine_function)));
+  }
 
 /* On the mips16, we want to allocate $24 (T_REG) before other
    registers for instructions for which it is possible.  This helps
@@ -6775,8 +6964,8 @@ mips_debugger_offset (rtx addr, HOST_WIDE_INT offset)
       || reg == hard_frame_pointer_rtx)
     {
       HOST_WIDE_INT frame_size = (!cfun->machine->frame.initialized)
-                                  ? compute_frame_size (get_frame_size ())
-                                  : cfun->machine->frame.total_size;
+                                 ? compute_frame_size (get_frame_size ())
+                                 : cfun->machine->frame.total_size;
 
       /* MIPS16 frame is smaller */
       if (frame_pointer_needed && TARGET_MIPS16)
@@ -6968,10 +7157,10 @@ print_operand (FILE *file, rtx op, int letter)
           break;
 
         case '~':
-          {
-            if (align_labels_log > 0)
-              ASM_OUTPUT_ALIGN (file, align_labels_log);
-          }
+        {
+          if (align_labels_log > 0)
+            ASM_OUTPUT_ALIGN (file, align_labels_log);
+        }
         break;
 
         default:
@@ -6993,16 +7182,36 @@ print_operand (FILE *file, rtx op, int letter)
   if (letter == 'C')
     switch (code)
       {
-      case EQ:  fputs ("eq",  file); break;
-      case NE:  fputs ("ne",  file); break;
-      case GT:  fputs ("gt",  file); break;
-      case GE:  fputs ("ge",  file); break;
-      case LT:  fputs ("lt",  file); break;
-      case LE:  fputs ("le",  file); break;
-      case GTU: fputs ("gtu", file); break;
-      case GEU: fputs ("geu", file); break;
-      case LTU: fputs ("ltu", file); break;
-      case LEU: fputs ("leu", file); break;
+      case EQ:
+        fputs ("eq",  file);
+        break;
+      case NE:
+        fputs ("ne",  file);
+        break;
+      case GT:
+        fputs ("gt",  file);
+        break;
+      case GE:
+        fputs ("ge",  file);
+        break;
+      case LT:
+        fputs ("lt",  file);
+        break;
+      case LE:
+        fputs ("le",  file);
+        break;
+      case GTU:
+        fputs ("gtu", file);
+        break;
+      case GEU:
+        fputs ("geu", file);
+        break;
+      case LTU:
+        fputs ("ltu", file);
+        break;
+      case LEU:
+        fputs ("leu", file);
+        break;
       default:
         fatal_insn ("PRINT_OPERAND, invalid insn for %%C", op);
       }
@@ -7010,16 +7219,36 @@ print_operand (FILE *file, rtx op, int letter)
   else if (letter == 'N')
     switch (code)
       {
-      case EQ:  fputs ("ne",  file); break;
-      case NE:  fputs ("eq",  file); break;
-      case GT:  fputs ("le",  file); break;
-      case GE:  fputs ("lt",  file); break;
-      case LT:  fputs ("ge",  file); break;
-      case LE:  fputs ("gt",  file); break;
-      case GTU: fputs ("leu", file); break;
-      case GEU: fputs ("ltu", file); break;
-      case LTU: fputs ("geu", file); break;
-      case LEU: fputs ("gtu", file); break;
+      case EQ:
+        fputs ("ne",  file);
+        break;
+      case NE:
+        fputs ("eq",  file);
+        break;
+      case GT:
+        fputs ("le",  file);
+        break;
+      case GE:
+        fputs ("lt",  file);
+        break;
+      case LT:
+        fputs ("ge",  file);
+        break;
+      case LE:
+        fputs ("gt",  file);
+        break;
+      case GTU:
+        fputs ("leu", file);
+        break;
+      case GEU:
+        fputs ("ltu", file);
+        break;
+      case LTU:
+        fputs ("geu", file);
+        break;
+      case LEU:
+        fputs ("gtu", file);
+        break;
       default:
         fatal_insn ("PRINT_OPERAND, invalid insn for %%N", op);
       }
@@ -7027,8 +7256,12 @@ print_operand (FILE *file, rtx op, int letter)
   else if (letter == 'F')
     switch (code)
       {
-      case EQ: fputs ("c1f", file); break;
-      case NE: fputs ("c1t", file); break;
+      case EQ:
+        fputs ("c1f", file);
+        break;
+      case NE:
+        fputs ("c1t", file);
+        break;
       default:
         fatal_insn ("PRINT_OPERAND, invalid insn for %%F", op);
       }
@@ -7036,8 +7269,12 @@ print_operand (FILE *file, rtx op, int letter)
   else if (letter == 'W')
     switch (code)
       {
-      case EQ: fputs ("c1t", file); break;
-      case NE: fputs ("c1f", file); break;
+      case EQ:
+        fputs ("c1t", file);
+        break;
+      case NE:
+        fputs ("c1f", file);
+        break;
       default:
         fatal_insn ("PRINT_OPERAND, invalid insn for %%W", op);
       }
@@ -7518,11 +7755,21 @@ mips_file_start (void)
 
       switch (mips_abi)
         {
-        case ABI_32:   abi_string = "abi32"; break;
-        case ABI_N32:  abi_string = "abiN32"; break;
-        case ABI_64:   abi_string = "abi64"; break;
-        case ABI_O64:  abi_string = "abiO64"; break;
-        case ABI_EABI: abi_string = TARGET_64BIT ? "eabi64" : "eabi32"; break;
+        case ABI_32:
+          abi_string = "abi32";
+          break;
+        case ABI_N32:
+          abi_string = "abiN32";
+          break;
+        case ABI_64:
+          abi_string = "abi64";
+          break;
+        case ABI_O64:
+          abi_string = "abiO64";
+          break;
+        case ABI_EABI:
+          abi_string = TARGET_64BIT ? "eabi64" : "eabi32";
+          break;
         default:
           abort ();
         }
@@ -7606,24 +7853,24 @@ mips_file_end (void)
   /* output the vector dispatch functions specified in this translation
      unit, if any */
   for (dispatch_entry = vector_dispatch_list_head ;
-      dispatch_entry ;
-      dispatch_entry = dispatch_entry->next)
+       dispatch_entry ;
+       dispatch_entry = dispatch_entry->next)
     {
       fprintf (asm_out_file, "\t.section\t.vector_%d,\"ax\",@progbits\n",
-          dispatch_entry->vector_number);
+               dispatch_entry->vector_number);
       fprintf (asm_out_file, "\t.align\t2\n");
       fprintf (asm_out_file, "\t.set\tnomips16\n");
       fprintf (asm_out_file, "\t.ent\t__vector_dispatch_%d\n",
-          dispatch_entry->vector_number);
+               dispatch_entry->vector_number);
       fprintf (asm_out_file, "__vector_dispatch_%d:\n",
-          dispatch_entry->vector_number);
+               dispatch_entry->vector_number);
       fprintf (asm_out_file, "\tj\t%s\n", dispatch_entry->target);
       fprintf (asm_out_file, "\t.end\t__vector_dispatch_%d\n",
-          dispatch_entry->vector_number);
+               dispatch_entry->vector_number);
       fprintf (asm_out_file, "\t.size\t__vector_dispatch_%d, .-"
-          "__vector_dispatch_%d\n",
-          dispatch_entry->vector_number,
-          dispatch_entry->vector_number);
+               "__vector_dispatch_%d\n",
+               dispatch_entry->vector_number,
+               dispatch_entry->vector_number);
     }
 
   fputs ("# MCHP configuration words\n", asm_out_file);
@@ -7993,7 +8240,8 @@ mips_save_reg_p (unsigned int regno)
             && cfun->machine->global_pointer == regno);
 
   /* Check call-saved registers. */
-  if (current_function_type == SOFTWARE_CONTEXT_SAVE)
+  if (current_function_type == SOFTWARE_CONTEXT_SAVE ||
+      current_function_type == AUTO_CONTEXT_SAVE)
     {
       /* If this is a leaf function, we can use our analysis of the code
          to determine which registers are necessary to save and restore.
@@ -8003,18 +8251,14 @@ mips_save_reg_p (unsigned int regno)
       if (current_function_is_leaf)
         {
           return (regs_ever_live [regno] && (!call_used_regs [regno]
-                || mchp_register_interrupt_context_p (regno)));
-//    /* FIXME: do more saving than we really need to so that we can test
-//       things out with lots of active save/restore */
-//      return ((regs_ever_live[regno] && !call_used_regs[regno])
-//            || mchp_register_interrupt_context_p (regno));
+                                             || mchp_register_interrupt_context_p (regno)));
         }
       else
         {
           /* for non-leaf functions, we save everything we do for normal
              functions plus all of the interrupt context. */
           return ((regs_ever_live[regno] && !call_used_regs[regno])
-            || mchp_register_interrupt_context_p (regno));
+                  || mchp_register_interrupt_context_p (regno));
         }
     }
   else if (current_function_type == SRS_CONTEXT_SAVE)
@@ -8157,7 +8401,7 @@ compute_frame_size (HOST_WIDE_INT size)
   unsigned int fmask;           /* mask of saved fp registers */
   bool has_interrupt_context;   /* true if interrupt context is saved */
   bool has_hilo_context;        /* true if hi and lo registers are saved */
-                                /*   will only be true for interrupts */
+  /*   will only be true for interrupts */
 
   cfun->machine->global_pointer = mips_global_pointer ();
 
@@ -8272,18 +8516,53 @@ compute_frame_size (HOST_WIDE_INT size)
       /* all interrupt context functions need space
          to preserve STATUS */
       int_reg_size += GET_MODE_SIZE (SImode);
-      /* all software interrupt context functions need space
+
+      /* all interrupt context functions need space
          to preserve EPC also */
-      if (current_function_type == SOFTWARE_CONTEXT_SAVE)
-        int_reg_size += GET_MODE_SIZE (SImode);
+      int_reg_size += GET_MODE_SIZE (SImode);
+      /* all AUTO and SRS interrupt context functions need space
+         to preserve SRSCTL. */
+      if (current_function_type == AUTO_CONTEXT_SAVE)
+        {
+          int_reg_size += GET_MODE_SIZE (SImode);
+        }
+      else if ((current_function_type == SRS_CONTEXT_SAVE) ||
+               (current_function_type == SOFTWARE_CONTEXT_SAVE))
+        {
+          if ((mchp_interrupt_priority < 7) && (0 == mchp_isr_backcompat))
+            {
+              /* If we are in Daytona compatibility mode, don't save SRSCTL. */
+              int_reg_size += GET_MODE_SIZE (SImode);
+            }
+        }
       /* If HI/LO is defined in this function, we need to save them too.
          If the function is not a leaf function, we assume that the
          called function uses them. */
       if (regs_ever_live [LO_REGNUM] || regs_ever_live [HI_REGNUM]
           || !current_function_is_leaf)
         {
-          int_reg_size += GET_MODE_SIZE (SImode) * 2;
+          int_reg_size += (GET_MODE_SIZE (SImode) * 2);
           has_hilo_context = 1;
+        }
+      /* Both AUTO and SOFTWARE reserve space to save v0/v1 if necessary */
+      if ((current_function_type == SOFTWARE_CONTEXT_SAVE) ||
+          (current_function_type == AUTO_CONTEXT_SAVE))
+        {
+          /* AUTO and SOFTWARE use v0/v1 to save hi/lo */
+          if (has_hilo_context)
+            {
+              regs_ever_live [V0_REGNUM] = 1;
+              regs_ever_live [V1_REGNUM] = 1;
+            }
+
+          if (regs_ever_live [V0_REGNUM])
+            {
+              int_reg_size += (GET_MODE_SIZE (SImode));
+            }
+          if (regs_ever_live [V1_REGNUM])
+            {
+              int_reg_size += (GET_MODE_SIZE (SImode));
+            }
         }
     }
   total_size += int_reg_size;
@@ -8602,6 +8881,7 @@ mips_output_function_prologue (FILE *file, HOST_WIDE_INT size ATTRIBUTE_UNUSED)
     {
       HOST_WIDE_INT step1;
       HOST_WIDE_INT offset;
+      HOST_WIDE_INT mchp_save_srsctl = ((mchp_interrupt_priority < 7) && (0 == mchp_isr_backcompat));
 
       step1 = MIN (tsize, MIPS_MAX_FIRST_STACK_STEP);
 
@@ -8611,10 +8891,14 @@ mips_output_function_prologue (FILE *file, HOST_WIDE_INT size ATTRIBUTE_UNUSED)
          want the first four instructions of the interrupt handler to be
          the same for all handler functions. This lets there be cache lines
          locked to those instructions, lowering the latency. */
-//      if (current_function_type == SRS_CONTEXT_SAVE)
-//        {
-          fprintf (file, "\trdpgpr\t$sp, $sp\n");
-//        }
+      /*
+      //      if (current_function_type == SRS_CONTEXT_SAVE)
+      //        {
+      */
+      fprintf (file, "\trdpgpr\t$sp, $sp\n");
+      /*
+      //        }
+      */
 
       /* Start at the uppermost location for saving */
       offset = cfun->machine->frame.int_sp_offset;
@@ -8633,78 +8917,347 @@ mips_output_function_prologue (FILE *file, HOST_WIDE_INT size ATTRIBUTE_UNUSED)
              case (see below loading of SR), so the IPL value in SR is not
              relevent. */
 
-          /* Load the Cause RIPL into k0 */
-          fprintf (file, "\tmfc0\t$k0, $13\n");
+          mchp_offset_epc = offset;
+          offset -= GET_MODE_SIZE (SImode);
+          mchp_offset_status = offset;
+          offset -= GET_MODE_SIZE (SImode);
+          if (cfun->machine->frame.has_hilo_context)
+            {
+              mchp_offset_lo = offset;
+              offset -= GET_MODE_SIZE (SImode);
+              mchp_offset_hi = offset;
+              offset -= GET_MODE_SIZE (SImode);
+            }
+          if (mchp_save_srsctl)
+            {
+              mchp_offset_srsctl = offset;
+              offset -= GET_MODE_SIZE (SImode);
+            }
+          if (regs_ever_live[V0_REGNUM] || cfun->machine->frame.has_hilo_context)
+            {
+              mchp_offset_v0 = offset;
+              offset -= GET_MODE_SIZE (SImode);
+            }
+          if (regs_ever_live[V1_REGNUM] || cfun->machine->frame.has_hilo_context)
+            {
+              mchp_offset_v1 = offset;
+              offset -= GET_MODE_SIZE (SImode);
+            }
+
+          if (mchp_interrupt_priority < 7 || 1) /* Leave for cache purposes */
+            {
+              /* Load EPC into k0 */
+              fprintf (file, "\tmfc0\t$k0, $14\t # Load EPC\n");
+            }
+
+          /* Load Status into k1 */
+          fprintf (file, "\tmfc0\t$k1, $12\t # Load Status\n");
+
+          /* allocate the stack space to save the registers. If more space
+             needs to be allocated, the expand_prologue() function handled
+             it. */
+          fprintf (file, "\taddiu\t$sp, $sp, " HOST_WIDE_INT_PRINT_DEC "\n",
+                   -step1);
+          /* Don't save EPC if we know we won't get a nested interrupt */
+          if (mchp_interrupt_priority < 7)
+            {
+              /* Push EPC into its stack slot */
+              fprintf (file, "\tsw\t$k0, " HOST_WIDE_INT_PRINT_DEC "($sp)\n",
+                       mchp_offset_epc);
+            }
+          if (mchp_save_srsctl)
+            {
+              /* Load SRSCtl */
+              fprintf (file, "\tmfc0\t$k0, $12, 2\t # Load SRSCtl\n");
+            }
+
+          /* Save Status */
+          fprintf (file, "\tsw\t$k1, " HOST_WIDE_INT_PRINT_DEC "($sp)\n", mchp_offset_status);
+
+          if (mchp_save_srsctl)
+            {
+              /* Push SRSCtl into its stack slot */
+              fprintf (file, "\tsw\t$k0, " HOST_WIDE_INT_PRINT_DEC "($sp)\n",
+                       mchp_offset_srsctl);
+            }
+          /* k1 still holds the status */
+        } /* End of Software context save */
+      else if (current_function_type == AUTO_CONTEXT_SAVE)
+        {
+          /* Auto context saving uses predetermined offsets */
+          mchp_offset_epc = offset;
+          offset -= GET_MODE_SIZE (gpr_mode);
+          mchp_offset_status = offset;
+          offset -= GET_MODE_SIZE (gpr_mode);
+          if (cfun->machine->frame.has_hilo_context)
+            {
+              mchp_offset_lo = offset;
+              offset -= GET_MODE_SIZE (gpr_mode);
+              mchp_offset_hi = offset;
+              offset -= GET_MODE_SIZE (gpr_mode);
+            }
+
+          mchp_offset_srsctl = offset;
+          offset -= GET_MODE_SIZE (gpr_mode);
+
+          mchp_offset_v0 = offset;
+          offset -= GET_MODE_SIZE (gpr_mode);
+
+          if (regs_ever_live[V1_REGNUM] || cfun->machine->frame.has_hilo_context)
+            {
+              mchp_offset_v1 = offset;
+              offset -= GET_MODE_SIZE (gpr_mode);
+            }
 
           /* Load EPC into k1 */
           fprintf (file, "\tmfc0\t$k1, $14\n");
 
-        }
+          /* Load SRSCtl in k0 */
+          fprintf (file, "\tmfc0\t$k0, $12, 2\n");
 
+          /* allocate the stack space to save the registers. If more space
+             needs to be allocated, the expand_prologue() function handled
+             it. */
+          fprintf (file, "\taddiu\t$sp, $sp, " HOST_WIDE_INT_PRINT_DEC "\n",
+                   -step1);
 
-      /* allocate the stack space to save the registers. If more space
-         needs to be allocated, the expand_prologue() function handled
-         it. */
-      fprintf (file, "\taddiu\t$sp, $sp, " HOST_WIDE_INT_PRINT_DEC "\n",
-          -step1);
+          /* Don't save EPC if we know we won't get a nested interrupt */
+          if (mchp_interrupt_priority < 7)
+            {
+              /* Push EPC into its stack slot */
+              fprintf (file, "\tsw\t$k1, " HOST_WIDE_INT_PRINT_DEC "($sp)\n",
+                       mchp_offset_epc);
+            }
+          /* Load Status in k1 */
+          fprintf (file, "\tmfc0\t$k1, $12\t # Load Status\n");
 
-      if (current_function_type == SOFTWARE_CONTEXT_SAVE)
-        {
-          /* Push EPC into its stack slot */
-          fprintf (file, "\tsw\t$k1, " HOST_WIDE_INT_PRINT_DEC "($sp)\n", offset);
-          offset -= GET_MODE_SIZE (SImode);
-        }
+          /* Push SRSCtl into its stack slot */
+          fprintf (file, "\tsw\t$k0, " HOST_WIDE_INT_PRINT_DEC "($sp)\n",
+                   mchp_offset_srsctl);
 
-      /* Push status into its stack slot */
-      fprintf (file, "\tmfc0\t$k1, $12\n");
-      if (current_function_type == SOFTWARE_CONTEXT_SAVE) {
+          /* Load the Cause RIPL into k0 */
+          /* Only if the IPL value wasn't specified */
+          if (mchp_interrupt_priority < 0)
+            {
+              fprintf (file, "\tmfc0\t$k0, $13 # Single vector mode - Load Cause \n");
+            }
+
+          /* Save Status */
+          fprintf (file, "\tsw\t$k1, " HOST_WIDE_INT_PRINT_DEC "($sp)\n",
+                   mchp_offset_status);
+
           /* right justify the RIPL in k0               */
-	  /* and avoid Read after Write interlock on k1 */ 
-          /* C32-119                                    */
-          fprintf (file, "\tsrl\t$k0, $k0, %d\n", CAUSE_IPL);
-      }
-      fprintf (file, "\tsw\t$k1, " HOST_WIDE_INT_PRINT_DEC "($sp)\n", offset);
-      offset -= GET_MODE_SIZE (SImode);
+          /* and avoid Read after Write interlock on k1 */
+          /* Only if the IPL value wasn't specified */
+          if (mchp_interrupt_priority < 0)
+            {
+              fprintf (file, "\tsrl\t$k0, $k0, %d  # Single vector mode \n", CAUSE_IPL);
+            }
 
-      if (current_function_type == SOFTWARE_CONTEXT_SAVE)
-        {
+          /* Maybe we should do something here? */
+
           /* Insert the RIPL into our copy of SR (k1) as the new IPL */
-          fprintf (file, "\tins\t$k1, $k0, %d, 6\n", SR_IPL);
-        }
-
-      /* we may need to also preserve HI/LO. We want to do this as late
-         as possible in the prologue sequence so that if we interrupted
-         during a mul/div operation, we give it as much time to complete
-         as we can before accessing HI/LO and potentially stalling the
-         pipeline. */
-      if (cfun->machine->frame.has_hilo_context)
+          /* Only if the IPL value wasn't specified */
+          if (mchp_interrupt_priority < 0)
+            {
+              fprintf (file, "\tins\t$k1, $k0, %d, 6\t # Insert RIPL as new IPL\n",
+                       SR_IPL);
+            }
+          /* k1 still holds the new status */
+        } /* End of Auto context save */
+      else if (current_function_type == SRS_CONTEXT_SAVE)
         {
-          fprintf (file, "\tmflo\t$k0\n");
-          fprintf (file, "\tsw\t$k0, " HOST_WIDE_INT_PRINT_DEC "($sp)\n",
-              offset);
+          mchp_offset_epc = offset;
+          offset -= GET_MODE_SIZE (gpr_mode);
+          mchp_offset_status = offset;
+          offset -= GET_MODE_SIZE (gpr_mode);
+
+          if (cfun->machine->frame.has_hilo_context)
+            {
+              mchp_offset_lo  = offset;
+              offset         -= GET_MODE_SIZE (SImode);
+              mchp_offset_hi  = offset;
+              offset         -= GET_MODE_SIZE (SImode);
+            }
+          mchp_offset_srsctl = offset;
           offset -= GET_MODE_SIZE (SImode);
-          fprintf (file, "\tmfhi\t$k0\n");
-          fprintf (file, "\tsw\t$k0, " HOST_WIDE_INT_PRINT_DEC "($sp)\n",
-              offset);
-          offset -= GET_MODE_SIZE (SImode);
+
+          /* For SRS_CONTEXT_SAVE, we need to save SRSCTL only for [IPL0,IPL6] */
+          if (mchp_save_srsctl)
+            {
+              if ((mchp_interrupt_priority < 7) || 1) /* Leave for cache purposes */
+                {
+                  /* Load EPC */
+                  fprintf (file, "\tmfc0\t$k0, $14\t # EPC\n");
+                }
+
+              /* Push status into its stack slot */
+              fprintf (file, "\tmfc0\t$k1, $12\t # Status\n");
+
+              /* allocate the stack space to save the registers. If more space
+                 needs to be allocated, the expand_prologue() function handled
+                 it. */
+              fprintf (file, "\taddiu\t$sp, $sp, " HOST_WIDE_INT_PRINT_DEC "\n",
+                       -step1);
+              /* Don't save EPC if we know we won't get a nested interrupt */
+              if (mchp_interrupt_priority < 7)
+                {
+                  /* EPC */
+                  fprintf (file, "\tsw\t$k0, " HOST_WIDE_INT_PRINT_DEC "($sp)\n", mchp_offset_epc);
+                }
+
+              /* Load SRSCtl */
+              fprintf (file, "\tmfc0\t$k0, $12, 2\n");
+
+              /* Status */
+              fprintf (file, "\tsw\t$k1, " HOST_WIDE_INT_PRINT_DEC "($sp)\n", mchp_offset_status);
+
+              /* SRSCTL */
+              fprintf (file, "\tsw\t$k0, " HOST_WIDE_INT_PRINT_DEC "($sp)\n",
+                       mchp_offset_srsctl);
+
+            }
+          else
+            {
+              if ((mchp_interrupt_priority < 7) || 1) /* leave for cache purposes */
+                {
+                  /* Load EPC */
+                  fprintf (file, "\tmfc0\t$k0, $14\t # EPC\n");
+                }
+
+              /* Push status into its stack slot */
+              fprintf (file, "\tmfc0\t$k1, $12\t # Status\n");
+
+              /* allocate the stack space to save the registers. If more space
+                 needs to be allocated, the expand_prologue() function handled
+                 it. */
+              fprintf (file, "\taddiu\t$sp, $sp, " HOST_WIDE_INT_PRINT_DEC "\n",
+                       -step1);
+              /* Don't save EPC if we know we won't get a nested interrupt */
+              if (mchp_interrupt_priority < 7)
+                {
+                  /* EPC */
+                  fprintf (file, "\tsw\t$k0, " HOST_WIDE_INT_PRINT_DEC "($sp)\n", mchp_offset_epc);
+                }
+              /* Status */
+              fprintf (file, "\tsw\t$k1, " HOST_WIDE_INT_PRINT_DEC "($sp)\n", mchp_offset_status);
+            }
+
+          /* k1 still holds the status */
+        } /* End SRS_CONTEXT_SAVE */
+      else
+        {
+          assert (NON_INTERRUPT == current_function_type);
         }
 
+#ifdef TARGET_MCHP_PIC32MX
       /* Enable interrupts and clear the UM, ERL and EXL bits.
          IE is already the correct value, so we don't have to do
          anything explicit there for software context save. For SRS,
-         we're in the highest priority alreadys, so we don't want
+         we're in the highest priority already, so we don't want
          to reenable interrupts at all, and should thus also clear IE. */
-      if (current_function_type == SOFTWARE_CONTEXT_SAVE)
-        fprintf (file, "\tins\t$k1, $0, %d, %d\n", SR_EXL, 4);
-      else {
-        fprintf (file, "\tins\t$k1, $0, %d, %d\n", SR_IE, 5);
-        /*
-         In current PIC32 IPL7 is the ONLY one with a SRS
-         so we can set the IPL in Status directly IPL=bits 15-10
-         */
-          fprintf (file, "\tori\t$k1, $k1, 0x1c00\n");  
+      if ((current_function_type != NON_INTERRUPT) &&
+          (mchp_interrupt_priority >= 0))
+        {
+          /* Must have had IPLn value specified */
+          assert (mchp_interrupt_priority <= 7);
+          fprintf (file, "\tins\t$k1, $0, %d, %d\t "
+                   "# Clear UM, ERL, EXL, IPL in STATUS\n", SR_EXL, 15);
+          /* Set the IPL */
+          fprintf (file, "\tori\t$k1, $k1, 0x%x\n", (unsigned)mchp_interrupt_priority << SR_IPL);
+          /* */
         }
-      fprintf (file, "\tmtc0\t$k1, $12\n");
+      else if (current_function_type == AUTO_CONTEXT_SAVE)
+        {
+          /* Use pre-loaded IPL since none was specified */
+          /* k1 already holds STATUS */
+          fprintf (file, "\tins\t$k1, $0, %d, %d\t "
+                   "# Clear UM, ERL, EXL in STATUS\n", SR_EXL, 4);
+        }
+#endif
+
+      fprintf (file, "\tmtc0\t$k1, $12, 0\n");
+
+#ifdef TARGET_MCHP_PIC32MX
+      if (current_function_type == AUTO_CONTEXT_SAVE)
+        {
+          /* Save v0 because we it them for SRSCTL checking */
+          fprintf (file, "\tsw\t$v0, " HOST_WIDE_INT_PRINT_DEC "($sp)\n",
+                   mchp_offset_v0);
+
+          if (cfun->machine->frame.gp_reg_size > (4 * GET_MODE_SIZE (SImode)))
+            {
+              /* Check for shadow register saving, but only if we need to save
+                 more than 5 registers. Otherwise, the check costs just as much as
+                 software saving. */
+
+              fprintf (file, "\tlw\t$v0, " HOST_WIDE_INT_PRINT_DEC "($sp)\t "
+                       "# Load SRSCTL\n", mchp_offset_srsctl);
+
+              if (regs_ever_live[V1_REGNUM] ||
+                  cfun->machine->frame.has_hilo_context)
+                {
+                  fprintf (file, "\tsw\t$v1, " HOST_WIDE_INT_PRINT_DEC "($sp)\n",
+                           mchp_offset_v1);
+                }
+
+              fprintf (file, "\tandi\t$v0, $v0, 0x0000000F\n"); /* SRSCTL.css */
+              fprintf (file, "\tbne\t$v0, $0, .L%d\n",
+                       CODE_LABEL_NUMBER(mchp_autocontext_prologue_target));
+            }
+          else
+            {
+              if (regs_ever_live[V1_REGNUM] ||
+                  cfun->machine->frame.has_hilo_context)
+                {
+                  fprintf (file, "\tsw\t$v1, " HOST_WIDE_INT_PRINT_DEC "($sp)\n",
+                           mchp_offset_v1);
+                }
+            }
+        }
+      else if (current_function_type == SOFTWARE_CONTEXT_SAVE)
+        {
+          /* Save v0/v1 if necessary */
+          if (regs_ever_live[V0_REGNUM] || cfun->machine->frame.has_hilo_context)
+            {
+              fprintf (file, "\tsw\t$v0, " HOST_WIDE_INT_PRINT_DEC "($sp)\n",
+                       mchp_offset_v0);
+            }
+
+          if (regs_ever_live[V1_REGNUM] || cfun->machine->frame.has_hilo_context)
+            {
+              fprintf (file, "\tsw\t$v1, " HOST_WIDE_INT_PRINT_DEC "($sp)\n",
+                       mchp_offset_v1);
+            }
+        }
+#endif
+    }
+}
+static void
+mips_output_function_end_prologue (FILE *file)
+{
+  if (AUTO_CONTEXT_SAVE == current_function_type)
+    {
+      /* Make sure that we have a target even if the frame pointer is removed */
+      if (!frame_pointer_needed)
+        {
+          fprintf (file, ".L%d:\n",
+                   CODE_LABEL_NUMBER (mchp_autocontext_prologue_target));
+        }
+    }
+  /* we may need to also preserve HI/LO. We want to do this as late
+     as possible in the prologue sequence so that if we interrupted
+     during a mul/div operation, we give it as much time to complete
+     as we can before accessing HI/LO and potentially stalling the
+     pipeline. */
+  if (cfun->machine->frame.has_hilo_context)
+    {
+      fprintf (file, "\tmflo\t$v0\n");
+      fprintf (file, "\tmfhi\t$v1\n");
+      fprintf (file, "\tsw\t$v0, " HOST_WIDE_INT_PRINT_DEC "($sp)\n",
+               mchp_offset_lo);
+      fprintf (file, "\tsw\t$v1, " HOST_WIDE_INT_PRINT_DEC "($sp)\n\n",
+               mchp_offset_hi);
     }
 }
 
@@ -8750,7 +9303,7 @@ mips_save_reg (rtx reg, rtx mem)
       else
         {
           emit_move_insn (mem, reg);
-        }            
+        }
 
       x1 = mips_frame_set (mips_subword (mem, 0), mips_subword (reg, 0));
       x2 = mips_frame_set (mips_subword (mem, 1), mips_subword (reg, 1));
@@ -8770,7 +9323,7 @@ mips_save_reg (rtx reg, rtx mem)
         }
       else
         {
-            emit_move_insn (mem, reg);
+          emit_move_insn (mem, reg);
         }
 
       mips_set_frame_expr (mips_frame_set (mem, reg));
@@ -8786,26 +9339,99 @@ mips_expand_prologue (void)
   HOST_WIDE_INT size;
   bool mips16e_save_frame = false;
   tree ipl_tree;
-  unsigned interrupt_priority;
+  unsigned ipl_len;
 
-  if ((ipl_tree = mchp_function_interrupt_p (current_function_decl)) != NULL)
+#ifdef TARGET_MCHP_PIC32MX
+  ipl_tree = mchp_function_interrupt_p (current_function_decl);
+  if (current_function_type == UNKNOWN_CONTEXT_SAVE)
     {
       /* the priority can be either "single" or "ipl[0..7]"
          When the interrupt handler is for single interrupt mode, we
          treat it as a software context save handler. */
+      assert (ipl_tree != NULL);
+
       if (strcmp (IDENTIFIER_POINTER (TREE_VALUE (ipl_tree)), "single") == 0)
-        interrupt_priority = 0;
+        {
+          current_function_type = AUTO_CONTEXT_SAVE;
+          mchp_interrupt_priority = -1; /* Need to set IPL from RIPL */
+          mchp_isr_backcompat = 1; /* No need to save SRSCTL */
+        }
       else
-        interrupt_priority = IDENTIFIER_POINTER (TREE_VALUE (ipl_tree))[3] - '0';
-      if (interrupt_priority == 7)
-        current_function_type = SRS_CONTEXT_SAVE;
-      else
-        current_function_type = SOFTWARE_CONTEXT_SAVE;
+        {
+          mchp_interrupt_priority = IDENTIFIER_POINTER (TREE_VALUE (ipl_tree))[3] - '0';
+
+          /* When the context-saving mode is not specified, assume that IPL7 uses
+             SRS and other IPL levels use software. This assumption comes from the
+             original Daytona family. The Talladega family introduces configurable
+             shadow registers. You can map your shadow registers to an IPL level
+             using configuration fuses. */
+          ipl_len = strlen(IDENTIFIER_POINTER (TREE_VALUE (ipl_tree)));
+          if (ipl_len == (sizeof("ipl7")-1))
+            {
+              if (mchp_interrupt_priority == 7)
+                {
+                  current_function_type = SRS_CONTEXT_SAVE;
+                  mchp_isr_backcompat = 1; /* No need to save SRSCTL */
+                }
+              else
+                {
+                  current_function_type = SOFTWARE_CONTEXT_SAVE;
+                  mchp_isr_backcompat = 1; /* No need to save SRSCTL */
+                }
+            }
+          else if ((ipl_len > sizeof("ipl7")) && (ipl_len < (sizeof("ipl7software"))))
+            {
+              mchp_isr_backcompat = 0; /* Might need to save SRSCTL */
+              if ((NULL != strstr(IDENTIFIER_POINTER (TREE_VALUE (ipl_tree)),"SRS")) ||
+                  (NULL != strstr(IDENTIFIER_POINTER (TREE_VALUE (ipl_tree)),"srs")))
+                {
+                  current_function_type = SRS_CONTEXT_SAVE;
+                  if (ipl_len > 7)
+                    {
+                      warning("Invalid ISR context-saving mode, assuming IPL%dSRS ",
+                              mchp_interrupt_priority);
+                    }
+                }
+              else if ((NULL != strstr(IDENTIFIER_POINTER
+                                       (TREE_VALUE (ipl_tree)),"SOFT")) ||
+                       (NULL != strstr(IDENTIFIER_POINTER
+                                       (TREE_VALUE (ipl_tree)),"soft")) ||
+                       (NULL != strstr(IDENTIFIER_POINTER
+                                       (TREE_VALUE (ipl_tree)),"STACK")) ||
+                       (NULL != strstr(IDENTIFIER_POINTER
+                                       (TREE_VALUE (ipl_tree)),"stack"))
+                      )
+                {
+                  current_function_type = SOFTWARE_CONTEXT_SAVE;
+                }
+              else if ((NULL != strstr(IDENTIFIER_POINTER
+                                       (TREE_VALUE (ipl_tree)),"AUTO")) ||
+                       (NULL != strstr(IDENTIFIER_POINTER
+                                       (TREE_VALUE (ipl_tree)),"auto"))
+                      )
+                {
+                  /* Determine shadow or SRS context save at runtime. */
+                  current_function_type = AUTO_CONTEXT_SAVE;
+                }
+              else
+                {
+                  warning("Invalid ISR context-saving mode, assuming IPL%dAUTO",
+                          mchp_interrupt_priority);
+                  current_function_type = AUTO_CONTEXT_SAVE;
+                }
+            }
+          else
+            {
+              warning("Invalid ISR context-saving mode, assuming IPL%dAUTO",
+                      mchp_interrupt_priority);
+              current_function_type = AUTO_CONTEXT_SAVE;
+            }
+        }
+
       if (mchp_function_naked_p (current_function_decl))
         error ("interrupt handler functions cannot also be naked functions");
     }
-  else
-    current_function_type = NON_INTERRUPT;
+#endif /* TARGET_MCHP_PIC32MX */
 
   if (cfun->machine->global_pointer > 0)
     REGNO (pic_offset_table_rtx) = cfun->machine->global_pointer;
@@ -8815,7 +9441,9 @@ mips_expand_prologue (void)
   /* if this function is specified as a naked function, just return without
      expanding any code */
   if (mchp_function_naked_p (current_function_decl))
-    return;
+    {
+      return;
+    }
 
   /* Save the registers.  Allocate up to MIPS_MXA_FIRST_STACK_STEP
      bytes beforehand; this is enough to cover the register save area
@@ -8834,7 +9462,8 @@ mips_expand_prologue (void)
           HOST_WIDE_INT offset;
           rtx dwarf;
           static const char reglist_save[] = {31, 30, 23, 22, 21, 20, 19,
-                                              18, 17, 16, 7, 6, 5, 4, 0};
+                                              18, 17, 16, 7, 6, 5, 4, 0
+                                             };
           unsigned int mask = cfun->machine->frame.mask;
 
           if (frame_pointer_needed && size > MIPS_MAX_FIRST_STACK_STEP
@@ -8875,10 +9504,9 @@ mips_expand_prologue (void)
                   {
                     tmp = gen_rtx_SET (VOIDmode,
                                        gen_rtx_MEM (SImode,
-                                                    gen_rtx_PRE_DEC (BLKmode,
-                                                      stack_pointer_rtx)),
-                                                    gen_rtx_REG (SImode,
-                                                      GP_REG_FIRST + regno));
+                                                    gen_rtx_PRE_DEC (BLKmode, stack_pointer_rtx)),
+                                       gen_rtx_REG (SImode,
+                                                    GP_REG_FIRST + regno));
                     RTX_FRAME_RELATED_P (tmp) = 1;
                     XVECEXP (dwarf, 0, nreg) = tmp;
                     nreg++;
@@ -8903,8 +9531,8 @@ mips_expand_prologue (void)
 
           if (mips16e_save_frame)
             RTX_FRAME_RELATED_P
-              (emit_move_insn (hard_frame_pointer_rtx,
-                               stack_pointer_rtx)) = 1;
+            (emit_move_insn (hard_frame_pointer_rtx,
+                             stack_pointer_rtx)) = 1;
 
           size -= step1;
 
@@ -8924,24 +9552,33 @@ mips_expand_prologue (void)
              to be done here. */
           if (current_function_type == NON_INTERRUPT)
             RTX_FRAME_RELATED_P (emit_insn (gen_add3_insn (stack_pointer_rtx,
-                    stack_pointer_rtx,
-                    GEN_INT (-step1)))) = 1;
+                                            stack_pointer_rtx,
+                                            GEN_INT (-step1)))) = 1;
 
           size -= step1;
-
           /* save the general purpose registers which need to be preserved */
-          mips_for_each_saved_reg (size, mips_save_reg);
+          mips_for_each_saved_reg (size, mips_save_reg) ;
         }
-
     }
+
+#ifdef TARGET_MCHP_PIC32MX
+  mchp_autocontext_prologue_target = gen_label_rtx();
+  if (current_function_type == AUTO_CONTEXT_SAVE)
+    {
+      /* Don't allow instructions from the function to be moved into the
+         software context saving code. */
+      emit_insn (gen_blockage ());
+      emit_label(mchp_autocontext_prologue_target);
+    }
+#endif
 
   /* Allocate the rest of the frame.  */
   if (size > 0)
     {
       if (SMALL_OPERAND (-size))
         RTX_FRAME_RELATED_P (emit_insn (gen_add3_insn (stack_pointer_rtx,
-                                                       stack_pointer_rtx,
-                                                       GEN_INT (-size)))) = 1;
+                                        stack_pointer_rtx,
+                                        GEN_INT (-size)))) = 1;
       else
         {
           if (TARGET_MIPS16 && TARGET_NO_DATA_IN_CODE)
@@ -8979,8 +9616,8 @@ mips_expand_prologue (void)
 
           /* Describe the combined effect of the previous instructions.  */
           mips_set_frame_expr
-            (gen_rtx_SET (VOIDmode, stack_pointer_rtx,
-                          plus_constant (stack_pointer_rtx, -size)));
+          (gen_rtx_SET (VOIDmode, stack_pointer_rtx,
+                        plus_constant (stack_pointer_rtx, -size)));
         }
     }
 
@@ -8995,9 +9632,9 @@ mips_expand_prologue (void)
           rtx offset = GEN_INT (cfun->machine->frame.args_size);
           if (SMALL_OPERAND (cfun->machine->frame.args_size))
             RTX_FRAME_RELATED_P
-              (emit_insn (gen_add3_insn (hard_frame_pointer_rtx,
-                                         stack_pointer_rtx,
-                                         offset))) = 1;
+            (emit_insn (gen_add3_insn (hard_frame_pointer_rtx,
+                                       stack_pointer_rtx,
+                                       offset))) = 1;
           else
             {
               if (TARGET_NO_DATA_IN_CODE)
@@ -9020,9 +9657,9 @@ mips_expand_prologue (void)
                                         hard_frame_pointer_rtx,
                                         MIPS_PROLOGUE_TEMP (Pmode)));
               mips_set_frame_expr
-                (gen_rtx_SET (VOIDmode, hard_frame_pointer_rtx,
-                              plus_constant (stack_pointer_rtx,
-                                             cfun->machine->frame.args_size)));
+              (gen_rtx_SET (VOIDmode, hard_frame_pointer_rtx,
+                            plus_constant (stack_pointer_rtx,
+                                           cfun->machine->frame.args_size)));
             }
         }
       else
@@ -9038,12 +9675,86 @@ mips_expand_prologue (void)
 
   /* If we are profiling, make sure no instructions are scheduled before
      the call to mcount.  */
-
-  if (current_function_profile)
-    emit_insn (gen_blockage ());
-    
+  if (current_function_profile || 
+    ((current_function_type != NON_INTERRUPT) && cfun->machine->frame.has_hilo_context) ||
+     (current_function_type == AUTO_CONTEXT_SAVE))
+    {
+      emit_insn (gen_blockage ());
+    }
 }
 
+void
+mips_output_function_begin_epilogue (FILE *file)
+{
+#ifdef TARGET_MCHP_PIC32MX
+  mchp_autocontext_epilogue_target = gen_label_rtx();
+  if (cfun->machine->frame.has_interrupt_context)
+    {
+      HOST_WIDE_INT offset;
+      HOST_WIDE_INT offset_srsctl;
+
+      offset = cfun->machine->frame.int_sp_offset;
+
+      if (current_function_type == AUTO_CONTEXT_SAVE)
+        {
+          offset_srsctl = offset;
+
+          /* Restore the original HI/LO if required */
+          if (cfun->machine->frame.has_hilo_context)
+            {
+
+              if (cfun->machine->frame.gp_reg_size > (4 * GET_MODE_SIZE (SImode)))
+                {
+                  fprintf (file, "\tlw\t$v0, " HOST_WIDE_INT_PRINT_DEC "($sp)\n",
+                           mchp_offset_lo);
+                  regs_ever_live[V0_REGNUM] = 1;
+                  fprintf (file, "\tlw\t$v1, " HOST_WIDE_INT_PRINT_DEC "($sp)\n",
+                           mchp_offset_hi);
+                  regs_ever_live[V1_REGNUM] = 1;
+                  fprintf (file, "\tmtlo\t$v0\n");
+                  fprintf (file, "\tlw\t$v0, " HOST_WIDE_INT_PRINT_DEC "($sp)\t "
+                           "# Load SRSCTL\n",  mchp_offset_srsctl);
+                  fprintf (file, "\tmthi\t$v1\n");
+
+                  fprintf (file, "\tandi\t$v0, $v0, 0x0000000F\n"); /* SRSCTL.css */
+                  fprintf (file, "\tbne\t$v0, $0, .LAUTOISRE%d\n",
+                           CODE_LABEL_NUMBER(mchp_autocontext_epilogue_target));
+
+                  /* no 'nop' here because the next instruction
+                     may be frame related */
+                }
+              else /* if (cfun->machine->frame.gp_reg_size <= ((5 * GET_MODE_SIZE (SImode)))) */
+                {
+                  fprintf (file, "\tlw\t$v0, " HOST_WIDE_INT_PRINT_DEC "($sp)\n",
+                           mchp_offset_lo);
+                  regs_ever_live[V0_REGNUM] = 1;
+                  fprintf (file, "\tlw\t$v1, " HOST_WIDE_INT_PRINT_DEC "($sp)\n",
+                           mchp_offset_hi);
+                  regs_ever_live[V1_REGNUM] = 1;
+                  fprintf (file, "\tmtlo\t$v0\n");
+                  fprintf (file, "\tmthi\t$v1\n");
+                }
+            }
+          else /* if (!(cfun->machine->frame.has_hilo_context)) */
+            {
+
+              if (cfun->machine->frame.gp_reg_size > (4 * GET_MODE_SIZE (SImode)))
+                {
+                  fprintf (file, "\tlw\t$v0, " HOST_WIDE_INT_PRINT_DEC "($sp)\n",
+                           mchp_offset_srsctl);
+                  regs_ever_live[V0_REGNUM] = 1;
+                  fprintf (file, "\tandi\t$v0, $v0, 0x0000000F\n"); /* SRSCTL.css */
+                  fprintf (file, "\tbne\t$v0, $0, .LAUTOISRE%d\n",
+                           CODE_LABEL_NUMBER(mchp_autocontext_epilogue_target));
+                  /* no 'nop' here because the next instruction
+                     may be frame related */
+                }
+            }
+        }
+    }
+#endif
+}
+
 /* Do any necessary cleanup after a function to restore stack, frame,
    and regs.  */
 
@@ -9054,6 +9765,11 @@ static void
 mips_output_function_epilogue (FILE *file ATTRIBUTE_UNUSED,
                                HOST_WIDE_INT size ATTRIBUTE_UNUSED)
 {
+  HOST_WIDE_INT mchp_save_srsctl =
+    (((current_function_type != NON_INTERRUPT) &&
+      (mchp_interrupt_priority < 7) && (0 == mchp_isr_backcompat)) ||
+     (current_function_type == AUTO_CONTEXT_SAVE));
+
   /* If this is an interrupt handler function, we need to process
      the additional interrupt context as well */
   if (cfun->machine->frame.has_interrupt_context)
@@ -9062,51 +9778,235 @@ mips_output_function_epilogue (FILE *file ATTRIBUTE_UNUSED,
       HOST_WIDE_INT tsize = cfun->machine->frame.total_size;
       HOST_WIDE_INT step1 = MIN (tsize, MIPS_MAX_FIRST_STACK_STEP);
 
-      /* Disable interrupts */
-      if (current_function_type == SOFTWARE_CONTEXT_SAVE){
-        fprintf (file, "\tdi\n");
-        fprintf (file, "\tehb\n");
-      }
-      /* Restore the original HI/LO if required */
-      if (cfun->machine->frame.has_hilo_context)
+      offset = cfun->machine->frame.int_sp_offset;
+
+#ifdef TARGET_MCHP_PIC32MX
+      if (AUTO_CONTEXT_SAVE == current_function_type)
         {
-          offset = cfun->machine->frame.int_sp_offset -
-            GET_MODE_SIZE (gpr_mode);
-          if (current_function_type == SOFTWARE_CONTEXT_SAVE)
-            offset -= GET_MODE_SIZE (gpr_mode);
-          fprintf (file, "\tlw\t$k0, " HOST_WIDE_INT_PRINT_DEC "($sp)\n",
-              offset);
-          fprintf (file, "\tmtlo\t$k0\n");
-          offset -= GET_MODE_SIZE (gpr_mode);
-          fprintf (file, "\tlw\t$k0, " HOST_WIDE_INT_PRINT_DEC "($sp)\n",
-              offset);
-          fprintf (file, "\tmthi\t$k0\n");
+          /* Restore v0/v1 when software saving is required. */
+          fprintf (file, "\tlw\t$v0, " HOST_WIDE_INT_PRINT_DEC "($sp)\n",
+                   mchp_offset_v0);
+          regs_ever_live[V0_REGNUM] = 1;
+          if (regs_ever_live[V1_REGNUM] ||
+              cfun->machine->frame.has_hilo_context)
+            {
+              fprintf (file, "\tlw\t$v1, " HOST_WIDE_INT_PRINT_DEC "($sp)\n",
+                       mchp_offset_v1);
+              regs_ever_live[V1_REGNUM] = 1;
+            }
+
+          /* For AUTO, we've already restored lo/hi */
+          if (mchp_autocontext_epilogue_target)
+            {
+              fprintf (file, ".LAUTOISRE%d:\n",
+                   CODE_LABEL_NUMBER(mchp_autocontext_epilogue_target));
+            }
+        }
+      else if (current_function_type == SOFTWARE_CONTEXT_SAVE)
+        {
+          /* Restore the original HI/LO if required */
+          if (cfun->machine->frame.has_hilo_context)
+            {
+              fprintf (file, "\tlw\t$v0, " HOST_WIDE_INT_PRINT_DEC "($sp)\n",
+                       mchp_offset_lo);
+              fprintf (file, "\tlw\t$v1, " HOST_WIDE_INT_PRINT_DEC "($sp)\n",
+                       mchp_offset_hi);
+              fprintf (file, "\tmtlo\t$v0\n");
+              fprintf (file, "\tmthi\t$v1\n");
+              regs_ever_live[V0_REGNUM] = 1;
+              regs_ever_live[V1_REGNUM] = 1;
+            }
+          /* Save v0/v1 when required */
+          if (regs_ever_live[V0_REGNUM])
+            {
+              fprintf (file, "\tlw\t$v0, " HOST_WIDE_INT_PRINT_DEC "($sp)\n",
+                       mchp_offset_v0);
+            }
+          if (regs_ever_live[V1_REGNUM])
+            {
+              fprintf (file, "\tlw\t$v1, " HOST_WIDE_INT_PRINT_DEC "($sp)\n",
+                       mchp_offset_v1);
+            }
+        }
+      else if (current_function_type == SRS_CONTEXT_SAVE)
+        {
+          /* Restore the original HI/LO if required */
+          if (cfun->machine->frame.has_hilo_context)
+            {
+              fprintf (file, "\tlw\t$v0, " HOST_WIDE_INT_PRINT_DEC "($sp)\n",
+                       mchp_offset_lo);
+              offset -= (GET_MODE_SIZE (gpr_mode));
+              fprintf (file, "\tlw\t$v1, " HOST_WIDE_INT_PRINT_DEC "($sp)\n",
+                       mchp_offset_hi);
+              offset -= (GET_MODE_SIZE (gpr_mode));
+              fprintf (file, "\tmtlo\t$v0\n");
+            }
+          /* If IPL7SRS, load the Status value here to avoid an interlock. */
+          if (7 == mchp_interrupt_priority)
+            {
+              /* Since we're in IPL7, we can use k0/k1 without executing
+                 a di first */
+              if (mchp_save_srsctl)
+                {
+                  /* Get the SRSCTL into K0 */
+                  fprintf (file, "\tlw\t$k0, " HOST_WIDE_INT_PRINT_DEC "($sp)\n",
+                           mchp_offset_srsctl);
+                  offset -= (GET_MODE_SIZE (gpr_mode));
+                }
+
+              /* Get the original Status into K1 */
+              fprintf (file, "\tlw\t$k1, " HOST_WIDE_INT_PRINT_DEC "($sp)\n",
+                       mchp_offset_status);
+              offset -= (GET_MODE_SIZE (gpr_mode));
+            }
+          if (cfun->machine->frame.has_hilo_context)
+            {
+              /* Move this instruction down here to prevent an interlock later */
+              fprintf (file, "\tmthi\t$v1\n");
+            }
+          /* No need to restore v0/v1 in software */
+
+        }
+#endif
+      /* Disable interrupts only when we're in a lower IPL */
+      if (mchp_interrupt_priority < 7)
+        {
+          fprintf (file, "\tdi\n");
+          fprintf (file, "\tehb\n");
         }
 
-      offset = cfun->machine->frame.int_sp_offset;
       if (current_function_type == SOFTWARE_CONTEXT_SAVE)
         {
-          /* Restore the original EPC */
-          fprintf (file, "\tlw\t$k0, " HOST_WIDE_INT_PRINT_DEC "($sp)\n", offset);
-          fprintf (file, "\tmtc0\t$k0, $14\n");
+          if (mchp_interrupt_priority < 7)
+            {
+              /* Restore the original EPC */
+              fprintf (file, "\tlw\t$k0, " HOST_WIDE_INT_PRINT_DEC
+                       "($sp) # EPC Restore\n", mchp_offset_epc);
+              offset -= (GET_MODE_SIZE (gpr_mode));
+            }
+          /* skip over v0-v1, which may have already been restored */
+          if (regs_ever_live[V0_REGNUM] ||
+              cfun->machine->frame.has_hilo_context)
+            {
+              offset -= (GET_MODE_SIZE (gpr_mode));
+            }
+          if (regs_ever_live[V1_REGNUM] ||
+              cfun->machine->frame.has_hilo_context)
+            {
+              offset -= (GET_MODE_SIZE (gpr_mode));
+            }
+
+          /* Get the original Status into K1 */
+          fprintf (file, "\tlw\t$k1, " HOST_WIDE_INT_PRINT_DEC "($sp)\n",
+                   mchp_offset_status);
           offset -= GET_MODE_SIZE (gpr_mode);
 
+          if (mchp_interrupt_priority < 7)
+            {
+              /* Restore EPC */
+              fprintf (file, "\tmtc0\t$k0, $14\n");
+            }
+          if (mchp_save_srsctl)
+            {
+              /* Get the SRSCTL into K0 */
+              fprintf (file, "\tlw\t$k0, " HOST_WIDE_INT_PRINT_DEC "($sp)\n",
+                       mchp_offset_srsctl);
+            }
         }
+      else if (current_function_type == AUTO_CONTEXT_SAVE)
+        {
+          /* Don't need to preserve EPC for IPL7 */
+          if (mchp_interrupt_priority < 7)
+            {
+              /* Restore the original EPC */
+              fprintf (file, "\tlw\t$k0, " HOST_WIDE_INT_PRINT_DEC
+                       "($sp)\t # EPC Restore\n",
+                       mchp_offset_epc);
+            }
+          /* Get the original Status into K1 */
+          fprintf (file, "\tlw\t$k1, " HOST_WIDE_INT_PRINT_DEC "($sp)\n",
+                   mchp_offset_status);
+          if (mchp_interrupt_priority < 7)
+            {
+              fprintf (file, "\tmtc0\t$k0, $14\t # EPC Restore\n");
+            }
+          if (mchp_save_srsctl)
+            {
+              /* Get the SRSCTL into K0 */
+              fprintf (file, "\tlw\t$k0, " HOST_WIDE_INT_PRINT_DEC "($sp)\n",
+                       mchp_offset_srsctl);
+            }
+        }
+      else if (current_function_type == SRS_CONTEXT_SAVE)
+        {
+          /* If IPL7SRS, then we've already loaded the Status value */
+          if (mchp_interrupt_priority < 7)
+            {
+              if (mchp_save_srsctl)
+                {
+                  /* Get the SRSCTL into K1 */
+                  fprintf (file, "\tlw\t$k1, " HOST_WIDE_INT_PRINT_DEC "($sp)\n",
+                           mchp_offset_srsctl);
+                }
 
-      /* Get the original Status into K0 */
-      fprintf (file, "\tlw\t$k0, " HOST_WIDE_INT_PRINT_DEC "($sp)\n", offset);
+              /* Restore the original EPC since IPL < 7 */
+              fprintf (file, "\tlw\t$k0, " HOST_WIDE_INT_PRINT_DEC
+                       "($sp) # EPC Restore\n", mchp_offset_epc);
+
+              if (mchp_save_srsctl)
+                {
+                  /* Restore the original SRSCTL,
+                     which was loaded into $k1 above. */
+                  fprintf (file, "\tmtc0\t$k1, $12, 2   # SRSCTL \n");
+                }
+
+              /* We need to load Status here because we are IPL<7 */
+              /* Get the original Status into K1 */
+              fprintf (file, "\tlw\t$k1, " HOST_WIDE_INT_PRINT_DEC "($sp)\n",
+                       mchp_offset_status);
+
+              /* Restore EPC */
+              fprintf (file, "\tmtc0\t$k0, $14\n");
+              /* Save Status later */
+            }
+          else /* (mchp_interrupt_priority == 7) */
+            {
+              /* Do not preserve EPC for IPL7 */
+              /* k1 already holds STATUS */
+              /* k0 already holds SRSCTL */
+              if (mchp_save_srsctl)
+                {
+                  /* Restore the original SRSCTL,
+                     which was loaded into $k0 above. */
+                  fprintf (file, "\tmtc0\t$k0, $12, 2   # SRSCTL \n");
+                }
+              /* Save Status later */
+            }
+        }
 
       /* Deallocate the stack space */
-      if (current_function_type == SOFTWARE_CONTEXT_SAVE)
-        fprintf (file, "\taddiu\t$sp, $sp, " HOST_WIDE_INT_PRINT_DEC "\n",
-            step1);
+      if (current_function_type == SOFTWARE_CONTEXT_SAVE ||
+          current_function_type == AUTO_CONTEXT_SAVE)
+        {
+          fprintf (file, "\taddiu\t$sp, $sp, " HOST_WIDE_INT_PRINT_DEC "\n",
+                   step1);
+
+          if (mchp_save_srsctl)
+            {
+              /* Already done for SRS */
+              /* Restore the original SRSCTL,
+                 which was loaded into $k0 above. */
+              fprintf (file, "\tmtc0\t$k0, $12, 2   # SRSCTL \n");
+            }
+          /* Save Status later */
+        }
 
       /* Restore the original status */
-      fprintf (file, "\tmtc0\t$k0, $12\n");
+      fprintf (file, "\tmtc0\t$k1, $12, 0   # STATUS\n");
 
       /* return */
       fprintf (file, "\teret\n");
-   }
+    }
   /* Reinstate the normal $gp.  */
   REGNO (pic_offset_table_rtx) = GLOBAL_POINTER_REGNUM;
   mips_output_cplocal ();
@@ -9119,11 +10019,11 @@ mips_output_function_epilogue (FILE *file ATTRIBUTE_UNUSED,
       set_noreorder = set_nomacro = 0;
     }
   while (set_noat > 0)
-  {
-    output_asm_insn (".set\tat", 0);
-    set_noat--;
-  }
-      
+    {
+      output_asm_insn (".set\tat", 0);
+      set_noat--;
+    }
+
   if (!FUNCTION_NAME_ALREADY_DECLARED && !flag_inhibit_size_directive)
     {
       const char *fnname;
@@ -9146,7 +10046,7 @@ mips_output_function_epilogue (FILE *file ATTRIBUTE_UNUSED,
     build_mips16_function_stub (file, current_function_decl,
                                 current_function_args_info.fp_code);
 
-    current_function_type = NON_INTERRUPT;
+  current_function_type = NON_INTERRUPT;
 }
 
 void
@@ -9213,21 +10113,19 @@ mips_expand_epilogue (int sibcall_p)
      any actual epilogue code. We still need to have something for
      the "return" statement branches to target. */
   if (mchp_function_naked_p (current_function_decl))
-    {
-      emit_jump_insn (gen_return_from_epilogue ());
-      return;
-    }
-
+    {}
 
   /* In mips16 mode, if the return value should go into a floating
      point register, we need to call a helper routine to copy it
      over. */
   return_type = DECL_RESULT (current_function_decl);
   return_mode = DECL_MODE (return_type);
+
   if (TARGET_MIPS16
       && mips16_hard_float
       && !aggregate_value_p (return_type, current_function_decl)
-      && MIPS_RETURN_FP_REG_P (return_mode))
+      && MIPS_RETURN_FP_REG_P (return_mode)
+      && !(mchp_function_naked_p (current_function_decl)))
     {
       char name[17];
       rtx func;
@@ -9274,7 +10172,7 @@ mips_expand_epilogue (int sibcall_p)
 
   /* Set TARGET to BASE + STEP1.  */
   target = base;
-  if (step1 > 0)
+  if ((step1 > 0) && !(mchp_function_naked_p (current_function_decl)))
     {
       rtx adjust;
 
@@ -9293,7 +10191,9 @@ mips_expand_epilogue (int sibcall_p)
                               gen_rtx_MEM (Pmode, MIPS_EPILOGUE_TEMP (Pmode)));
             }
           else
-            emit_move_insn (MIPS_EPILOGUE_TEMP (Pmode), adjust);
+            {
+              emit_move_insn (MIPS_EPILOGUE_TEMP (Pmode), adjust);
+            }
           adjust = MIPS_EPILOGUE_TEMP (Pmode);
         }
 
@@ -9305,8 +10205,12 @@ mips_expand_epilogue (int sibcall_p)
     }
 
   /* Copy TARGET into the stack pointer.  */
-  if (target != stack_pointer_rtx)
-    emit_move_insn (stack_pointer_rtx, target);
+  if ((target != stack_pointer_rtx)
+      && !(mchp_function_naked_p (current_function_decl)))
+    {
+      /* auto context save jump to here */
+      emit_move_insn (stack_pointer_rtx, target);
+    }
 
   /* If we're using addressing macros for n32/n64 abicalls, $gp is
      implicitly used by all SYMBOL_REFs.  We must emit a blockage
@@ -9320,7 +10224,8 @@ mips_expand_epilogue (int sibcall_p)
       int nreg;
       HOST_WIDE_INT offset;
       static const char reglist_save[] = {31, 30, 23, 22, 21, 20, 19,
-                                          18, 17, 16, 7, 6, 5, 4, 0};
+                                          18, 17, 16, 7, 6, 5, 4, 0
+                                         };
       unsigned int mask = cfun->machine->frame.mask;
 
       /* Clear the bits in mask which will be handled by the restore insn. */
@@ -9336,33 +10241,52 @@ mips_expand_epilogue (int sibcall_p)
       for (regno = GP_REG_LAST; regno >= GP_REG_FIRST; regno--)
         if (BITSET_P (mask, regno - GP_REG_FIRST))
           {
-            mips_save_restore_reg (gpr_mode, regno, offset, mips_restore_reg);
+            if (!(mchp_function_naked_p (current_function_decl)))
+              {
+                mips_save_restore_reg (gpr_mode, regno, offset, mips_restore_reg);
+              }
             offset -= GET_MODE_SIZE (gpr_mode);
           }
 
       /* Restore registers and deallocate final bit of frame. */
-      emit_insn (gen_restore_mips16e (GEN_INT (step2)));
+      if (!(mchp_function_naked_p (current_function_decl)))
+        {
+          emit_insn (gen_restore_mips16e (GEN_INT (step2)));
+        }
     }
   else
     {
-      /* Restore the registers.  */
-      mips_for_each_saved_reg (cfun->machine->frame.total_size - step2,
-                               mips_restore_reg);
+      /* Don't allow optimizations to move instructions to the code that
+         we may branch over */
+      if (current_function_type == AUTO_CONTEXT_SAVE)
+        {
+          emit_insn (gen_blockage());
+        }
 
-
-
+      if (!(mchp_function_naked_p (current_function_decl)))
+        {
+          /* Restore the registers.  */
+          mips_for_each_saved_reg (cfun->machine->frame.total_size - step2,
+                                   mips_restore_reg);
+        }
+      if (current_function_type == AUTO_CONTEXT_SAVE)
+        {
+          emit_insn (gen_blockage());
+        }
       /* Deallocate the final bit of the frame for non-interrupts.  */
-      if (!cfun->machine->frame.has_interrupt_context && step2 > 0)
+
+      if (!(cfun->machine->frame.has_interrupt_context && step2 > 0)
+          && !(mchp_function_naked_p (current_function_decl)))
         {
           emit_insn (gen_add3_insn (stack_pointer_rtx,
-                stack_pointer_rtx,
-                GEN_INT (step2)));
+                                    stack_pointer_rtx,
+                                    GEN_INT (step2)));
         }
     }
 
   /* Add in the __builtin_eh_return stack adjustment.   We need to
      use a temporary in mips16 code.  */
-  if (current_function_calls_eh_return)
+  if (current_function_calls_eh_return && !(mchp_function_naked_p (current_function_decl)))
     {
       if (TARGET_MIPS16)
         {
@@ -9385,13 +10309,13 @@ mips_expand_epilogue (int sibcall_p)
       if (TARGET_MIPS16 && (cfun->machine->frame.mask & RA_MASK) != 0
           && !TARGET_M16E_SAVE)
         emit_jump_insn (gen_return_internal (gen_rtx (REG, Pmode,
-                                                      GP_REG_FIRST + 7)));
+                                             GP_REG_FIRST + 7)));
       else
         {
           /* non-interrupt functions generate a return instruction here */
           if (current_function_type == NON_INTERRUPT)
             emit_jump_insn (gen_return_internal (gen_rtx (REG, Pmode,
-                    GP_REG_FIRST + 31)));
+                                                 GP_REG_FIRST + 31)));
           /* interrupt functions need to emit a placeholder instruction
              so that this pattern will return a non-empty expansion.
              we don't want anything below this (there shouldn't be any
@@ -9463,7 +10387,7 @@ mips_output_mi_thunk (FILE *file, tree thunk_fndecl ATTRIBUTE_UNUSED,
      for TARGET_NEWABI since the latter is a call-saved register.  */
   if (TARGET_ABICALLS)
     cfun->machine->global_pointer
-      = REGNO (pic_offset_table_rtx)
+    = REGNO (pic_offset_table_rtx)
       = TARGET_NEWABI ? 15 : GLOBAL_POINTER_REGNUM;
 
   /* Set up the global pointer for n32 or n64 abicalls.  */
@@ -9707,9 +10631,9 @@ mips_in_small_data_p (tree decl)
 
   if (DECL_ARTIFICIAL (decl)
       || (TREE_CODE (decl) == VAR_DECL
-	  && DECL_CONTEXT (decl)
-	  && TREE_CODE (DECL_CONTEXT (decl)) == NAMESPACE_DECL
-	  && strcmp (DECL_SOURCE_FILE (DECL_CONTEXT (decl)), "<internal>") == 0))
+          && DECL_CONTEXT (decl)
+          && TREE_CODE (DECL_CONTEXT (decl)) == NAMESPACE_DECL
+          && strcmp (DECL_SOURCE_FILE (DECL_CONTEXT (decl)), "<internal>") == 0))
     return false;
 
   if (TARGET_MIPS16 && TARGET_NO_DATA_IN_CODE)
@@ -9851,15 +10775,18 @@ mips_encode_section_info (tree decl, rtx rtl, int first)
          license. */
       if (is_mips16 && (pic32_license_valid < 0))
         {
-          if (-100 == pic32_license_valid) {
-            warning ("The academic edition does not support the mips16"
-                     " attribute on  '%F', attribute ignored",
-                     decl);
-          } else {
-            warning ("The current limited compiler license does not support the mips16"
-                     " attribute on '%F', attribute ignored",
-                     decl);
-          }
+          if (-100 == pic32_license_valid)
+            {
+              warning ("The lite edition does not support the mips16"
+                       " attribute on  '%F', attribute ignored",
+                       decl);
+            }
+          else
+            {
+              warning ("The current limited compiler license does not support the mips16"
+                       " attribute on '%F', attribute ignored",
+                       decl);
+            }
           is_mips16 = 0;
         }
 #endif /* TARGET_MCHP_PIC32MX */
@@ -9947,14 +10874,14 @@ mips_return_fpr_pair (enum machine_mode mode,
 
   inc = (TARGET_NEWABI || ABI_32 || ABI_O64 ? 2 : FP_INC);
   return gen_rtx_PARALLEL
-    (mode,
-     gen_rtvec (2,
-                gen_rtx_EXPR_LIST (VOIDmode,
-                                   gen_rtx_REG (mode1, FP_RETURN),
-                                   GEN_INT (offset1)),
-                gen_rtx_EXPR_LIST (VOIDmode,
-                                   gen_rtx_REG (mode2, FP_RETURN + inc),
-                                   GEN_INT (offset2))));
+         (mode,
+          gen_rtvec (2,
+                     gen_rtx_EXPR_LIST (VOIDmode,
+                                        gen_rtx_REG (mode1, FP_RETURN),
+                                        GEN_INT (offset1)),
+                     gen_rtx_EXPR_LIST (VOIDmode,
+                                        gen_rtx_REG (mode2, FP_RETURN + inc),
+                                        GEN_INT (offset2))));
 
 }
 
@@ -10387,7 +11314,7 @@ mips16_fp_args (FILE *file, int fp_code, int from_fp_p)
                            dir,
                            reg_names[gparg + (WORDS_BIG_ENDIAN ? 0 : 1)],
                            reg_names[fparg]);
-;
+                  ;
                 }
               else if (TARGET_BIG_ENDIAN)
                 fprintf (file, "\tm%cc1\t%s,%s\n\tm%cc1\t%s,%s\n", dir,
@@ -10411,11 +11338,11 @@ mips16_fp_args (FILE *file, int fp_code, int from_fp_p)
    and call_stubs.  */
 
 struct mips16_stub
-{
-  struct mips16_stub *next;
-  char *name;
-  int fpret;
-};
+  {
+    struct mips16_stub *next;
+    char *name;
+    int fpret;
+  };
 
 static struct mips16_stub *mips16_fn_stubs;
 static struct mips16_stub *mips16_call_stubs;
@@ -10740,11 +11667,11 @@ build_mips16_call_stub (rtx retval, rtx fn, rtx arg_size, int fp_code)
       fprintf (asm_out_file, "\t# Stub function to call %s%s (",
                (fpret
                 ? (GET_MODE (retval) == SFmode ? "float " : "double ")
-                : ""),
-               fnname);
+                    : ""),
+                   fnname);
       need_comma = 0;
       for (f = (unsigned int) fp_code; f != 0; f >>= 2)
-        {
+    {
           fprintf (asm_out_file, "%s%s",
                    need_comma ? ", " : "",
                    (f & 3) == 1 ? "float" : "double");
@@ -10887,12 +11814,12 @@ build_mips16_call_stub (rtx retval, rtx fn, rtx arg_size, int fp_code)
    constant tables in the middle of large functions.  */
 
 struct constant
-{
-  struct constant *next;
-  rtx value;
-  rtx label;
-  enum machine_mode mode;
-};
+  {
+    struct constant *next;
+    rtx value;
+    rtx label;
+    enum machine_mode mode;
+  };
 
 /* Add a constant to the list in *PCONSTANTS.  */
 
@@ -11086,7 +12013,7 @@ mips16_lay_out_constants (void)
           rtx val, *srcp, src;
           enum machine_mode mode = VOIDmode;
 
-          if (srcp = mips_find_symbol (&SET_SRC (PATTERN (insn))))
+          if ((srcp = mips_find_symbol (&SET_SRC (PATTERN (insn)))))
             {
               src = *srcp;
               val = NULL_RTX;
@@ -11163,7 +12090,7 @@ mips16_lay_out_constants (void)
           body = PATTERN (insn);
           if (GET_CODE (body) == ADDR_VEC || GET_CODE (body) == ADDR_DIFF_VEC)
             addr += (XVECLEN (body, GET_CODE (body) == ADDR_DIFF_VEC)
-                          * GET_MODE_SIZE (GET_MODE (body)));
+                     * GET_MODE_SIZE (GET_MODE (body)));
           addr += GET_MODE_SIZE (GET_MODE (body)) - 1;
         }
 
@@ -11183,13 +12110,13 @@ mips16_lay_out_constants (void)
         }
 
       if (constants != NULL
-               && (NEXT_INSN (insn) == NULL
-                   || (first_constant_ref >= 0
-                       && (((addr - first_constant_ref)
-                            + 2 /* for alignment */
-                            + 2 /* for a short jump insn */
-                            + pool_size)
-                           >= 0x8000))))
+          && (NEXT_INSN (insn) == NULL
+              || (first_constant_ref >= 0
+                  && (((addr - first_constant_ref)
+                       + 2 /* for alignment */
+                       + 2 /* for a short jump insn */
+                       + pool_size)
+                      >= 0x8000))))
         {
           /* If we haven't had a barrier within 0x8000 bytes of a
              constant reference or we are at the end of the function,
@@ -11205,7 +12132,7 @@ mips16_lay_out_constants (void)
           emit_label_after (label, barrier);
           first_constant_ref = -1;
         }
-     }
+    }
 
   /* Instruction length information is no longer valid due to the new
      instructions that have been generated.  */
@@ -11390,7 +12317,7 @@ mips_init_libfuncs (void)
           set_optab_libfunc (ge_optab, DFmode, "__mips16_gedf2");
           set_optab_libfunc (lt_optab, DFmode, "__mips16_ltdf2");
           set_optab_libfunc (le_optab, DFmode, "__mips16_ledf2");
-	  set_optab_libfunc (unord_optab, DFmode, "__mips16_unorddf2");
+          set_optab_libfunc (unord_optab, DFmode, "__mips16_unorddf2");
 
           set_conv_libfunc (sext_optab, DFmode, SFmode, "__mips16_extendsfdf2");
           set_conv_libfunc (trunc_optab, SFmode, DFmode, "__mips16_truncdfsf2");
@@ -11682,98 +12609,98 @@ mips_output_conditional_branch (rtx insn, rtx *operands, int two_operands_p,
     case 16:
     case 24:
     case 28:
-      {
-        /* Generate a reversed conditional branch around ` j'
-           instruction:
+    {
+      /* Generate a reversed conditional branch around ` j'
+         instruction:
 
-                .set noreorder
-                .set nomacro
-                bc    l
-                delay_slot or #nop
-                j     target
-                #nop
-             l:
-                .set macro
-                .set reorder
+              .set noreorder
+              .set nomacro
+              bc    l
+              delay_slot or #nop
+              j     target
+              #nop
+           l:
+              .set macro
+              .set reorder
 
-           If the original branch was a likely branch, the delay slot
-           must be executed only if the branch is taken, so generate:
+         If the original branch was a likely branch, the delay slot
+         must be executed only if the branch is taken, so generate:
 
-                .set noreorder
-                .set nomacro
-                bc    l
-                #nop
-                j     target
-                delay slot or #nop
-             l:
-                .set macro
-                .set reorder
+              .set noreorder
+              .set nomacro
+              bc    l
+              #nop
+              j     target
+              delay slot or #nop
+           l:
+              .set macro
+              .set reorder
 
-           When generating non-embedded PIC, instead of:
+         When generating non-embedded PIC, instead of:
 
-                j     target
+              j     target
 
-           we emit:
+         we emit:
 
-                .set noat
-                la    $at, target
-                jr    $at
-                .set at
-        */
+              .set noat
+              la    $at, target
+              jr    $at
+              .set at
+      */
 
-        rtx orig_target;
-        rtx target = gen_label_rtx ();
+      rtx orig_target;
+      rtx target = gen_label_rtx ();
 
-        orig_target = operands[1];
-        operands[1] = target;
-        /* Generate the reversed comparison.  This takes four
-           bytes.  */
-        if (float_p)
-          sprintf (buffer, "%%*b%s\t%%Z2%%1",
-                   inverted_p ? comp : inverted_comp);
-        else
-          sprintf (buffer, "%%*b%s%s\t%s%s,%%1",
-                   inverted_p ? comp : inverted_comp,
-                   need_z_p ? "z" : "",
-                   op1,
-                   op2);
-        output_asm_insn (buffer, operands);
+      orig_target = operands[1];
+      operands[1] = target;
+      /* Generate the reversed comparison.  This takes four
+         bytes.  */
+      if (float_p)
+        sprintf (buffer, "%%*b%s\t%%Z2%%1",
+                 inverted_p ? comp : inverted_comp);
+      else
+        sprintf (buffer, "%%*b%s%s\t%s%s,%%1",
+                 inverted_p ? comp : inverted_comp,
+                 need_z_p ? "z" : "",
+                 op1,
+                 op2);
+      output_asm_insn (buffer, operands);
 
-        if (length != 16 && length != 28 && ! mips_branch_likely)
-          {
-            /* Output delay slot instruction.  */
-            rtx insn = final_sequence;
-            final_scan_insn (XVECEXP (insn, 0, 1), asm_out_file,
-                             optimize, 0, 1, NULL);
-            INSN_DELETED_P (XVECEXP (insn, 0, 1)) = 1;
-          }
-        else
-          output_asm_insn ("%#", 0);
+      if (length != 16 && length != 28 && ! mips_branch_likely)
+        {
+          /* Output delay slot instruction.  */
+          rtx insn = final_sequence;
+          final_scan_insn (XVECEXP (insn, 0, 1), asm_out_file,
+                           optimize, 0, 1, NULL);
+          INSN_DELETED_P (XVECEXP (insn, 0, 1)) = 1;
+        }
+      else
+        output_asm_insn ("%#", 0);
 
-        if (length <= 16)
-          output_asm_insn ("j\t%0", &orig_target);
-        else
-          {
-            output_asm_insn (mips_output_load_label (), &orig_target);
-            output_asm_insn ("jr\t%@%]", 0);
-          }
+      if (length <= 16)
+        output_asm_insn ("j\t%0", &orig_target);
+      else
+        {
+          output_asm_insn (mips_output_load_label (), &orig_target);
+          output_asm_insn ("jr\t%@%]", 0);
+        }
 
-        if (length != 16 && length != 28 && mips_branch_likely)
-          {
-            /* Output delay slot instruction.  */
-            rtx insn = final_sequence;
-            final_scan_insn (XVECEXP (insn, 0, 1), asm_out_file,
-                             optimize, 0, 1, NULL);
-            INSN_DELETED_P (XVECEXP (insn, 0, 1)) = 1;
-          }
-        else
-          output_asm_insn ("%#", 0);
+      if (length != 16 && length != 28 && mips_branch_likely)
+        {
+          /* Output delay slot instruction.  */
+          rtx insn = final_sequence;
+          final_scan_insn (XVECEXP (insn, 0, 1), asm_out_file,
+                           optimize, 0, 1, NULL);
+          INSN_DELETED_P (XVECEXP (insn, 0, 1)) = 1;
+        }
+      else
+        output_asm_insn ("%#", 0);
 
-        (*targetm.asm_out.internal_label) (asm_out_file, "L",
-                                   CODE_LABEL_NUMBER (target));
+      (*targetm.asm_out.internal_label) (asm_out_file, "L",
+                                         CODE_LABEL_NUMBER (target));
 
-        return "";
-      }
+      return "";
+    }
 
     default:
       abort ();
@@ -11865,57 +12792,57 @@ mips_matching_cpu_name_p (const char *canonical, const char *given)
    A similar function exists in GAS.  */
 
 static const struct mips_cpu_info *
-mips_parse_cpu (const char *option, const char *cpu_string)
-{
-  const struct mips_cpu_info *p;
-  const char *s;
+      mips_parse_cpu (const char *option, const char *cpu_string)
+  {
+    const struct mips_cpu_info *p;
+    const char *s;
 
-  /* In the past, we allowed upper-case CPU names, but it doesn't
-     work well with the multilib machinery.  */
-  for (s = cpu_string; *s != 0; s++)
-    if (ISUPPER (*s))
-      {
-        warning ("the cpu name must be lower case");
-        break;
-      }
+    /* In the past, we allowed upper-case CPU names, but it doesn't
+       work well with the multilib machinery.  */
+    for (s = cpu_string; *s != 0; s++)
+      if (ISUPPER (*s))
+        {
+          warning ("the cpu name must be lower case");
+          break;
+        }
 
-  /* 'from-abi' selects the most compatible architecture for the given
-     ABI: MIPS I for 32-bit ABIs and MIPS III for 64-bit ABIs.  For the
-     EABIs, we have to decide whether we're using the 32-bit or 64-bit
-     version.  Look first at the -mgp options, if given, otherwise base
-     the choice on MASK_64BIT in TARGET_DEFAULT.  */
-  if (strcasecmp (cpu_string, "from-abi") == 0)
-    return mips_cpu_info_from_isa (ABI_NEEDS_32BIT_REGS ? 1
-                                   : ABI_NEEDS_64BIT_REGS ? 3
-                                   : (TARGET_64BIT ? 3 : 1));
+    /* 'from-abi' selects the most compatible architecture for the given
+       ABI: MIPS I for 32-bit ABIs and MIPS III for 64-bit ABIs.  For the
+       EABIs, we have to decide whether we're using the 32-bit or 64-bit
+       version.  Look first at the -mgp options, if given, otherwise base
+       the choice on MASK_64BIT in TARGET_DEFAULT.  */
+    if (strcasecmp (cpu_string, "from-abi") == 0)
+      return mips_cpu_info_from_isa (ABI_NEEDS_32BIT_REGS ? 1
+                                     : ABI_NEEDS_64BIT_REGS ? 3
+                                     : (TARGET_64BIT ? 3 : 1));
 
-  /* 'default' has traditionally been a no-op.  Probably not very useful.  */
-  if (strcasecmp (cpu_string, "default") == 0)
+    /* 'default' has traditionally been a no-op.  Probably not very useful.  */
+    if (strcasecmp (cpu_string, "default") == 0)
+      return 0;
+
+    for (p = mips_cpu_info_table; p->name != 0; p++)
+      if (mips_matching_cpu_name_p (p->name, cpu_string))
+        return p;
+
+    error ("bad value (%s) for %s", cpu_string, option);
     return 0;
-
-  for (p = mips_cpu_info_table; p->name != 0; p++)
-    if (mips_matching_cpu_name_p (p->name, cpu_string))
-      return p;
-
-  error ("bad value (%s) for %s", cpu_string, option);
-  return 0;
-}
+  }
 
 
 /* Return the processor associated with the given ISA level, or null
    if the ISA isn't valid.  */
 
 static const struct mips_cpu_info *
-mips_cpu_info_from_isa (int isa)
-{
-  const struct mips_cpu_info *p;
+      mips_cpu_info_from_isa (int isa)
+  {
+    const struct mips_cpu_info *p;
 
-  for (p = mips_cpu_info_table; p->name != 0; p++)
-    if (p->isa == isa)
-      return p;
+    for (p = mips_cpu_info_table; p->name != 0; p++)
+      if (p->isa == isa)
+        return p;
 
-  return 0;
-}
+    return 0;
+  }
 
 /* Adjust the cost of INSN based on the relationship between INSN that
    is dependent on DEP_INSN through the dependence LINK.  The default
@@ -11942,7 +12869,7 @@ static bool
 mips_is_costly_dependence (rtx insn, rtx next, rtx link, int cost, int distance)
 {
   if (TUNE_MIPS74K
-      && insn && INSN_P (insn) && GET_CODE (PATTERN (insn)) == SET 
+      && insn && INSN_P (insn) && GET_CODE (PATTERN (insn)) == SET
       && get_attr_type (insn) == TYPE_STORE
       && next && INSN_P (next) && GET_CODE (PATTERN (next)) == SET
       && get_attr_type (next) == TYPE_LOAD)
@@ -11961,9 +12888,9 @@ static int last_agen_insn = -1;
 
 static int
 mips_sched_reorder (FILE * stream ATTRIBUTE_UNUSED,
-		    int verbose ATTRIBUTE_UNUSED,
-		    rtx * ready, int *n_readyp,
-		    int clock ATTRIBUTE_UNUSED)
+                    int verbose ATTRIBUTE_UNUSED,
+                    rtx * ready, int *n_readyp,
+                    int clock ATTRIBUTE_UNUSED)
 {
   if (TUNE_MIPS74K)
     {
@@ -11972,58 +12899,58 @@ mips_sched_reorder (FILE * stream ATTRIBUTE_UNUSED,
       int load_pos = -1;
 
       for (i = *n_readyp-1; i >= 0; i--)
-	{
-	  rtx insn = ready[i];
-  	  if (GET_CODE (PATTERN (insn)) == SET
-	      && get_attr_type (insn) == TYPE_STORE
-	      && store_pos == -1)
-	    store_pos = i;
-  	  else if (GET_CODE (PATTERN (insn)) == SET
-		   && get_attr_type (insn) == TYPE_LOAD
-		   && load_pos == -1)
-	    load_pos = i;
-	}
+        {
+          rtx insn = ready[i];
+          if (GET_CODE (PATTERN (insn)) == SET
+              && get_attr_type (insn) == TYPE_STORE
+              && store_pos == -1)
+            store_pos = i;
+          else if (GET_CODE (PATTERN (insn)) == SET
+                   && get_attr_type (insn) == TYPE_LOAD
+                   && load_pos == -1)
+            load_pos = i;
+        }
 
       if (load_pos == -1 || store_pos == -1)
-	return mips_issue_rate ();
-	
+        return mips_issue_rate ();
+
       switch (last_agen_insn)
-	{
-	case -1:
-	  /* Prefer to schedule loads.  */
-	case 1:
-	  /* Swap loads to the front of the queue.  */
-	  if (INSN_PRIORITY (ready[load_pos]) + 4 
-	       >= INSN_PRIORITY (ready[store_pos])
-	      && load_pos < store_pos)
-	    {
-	      rtx temp;
-	      INSN_PRIORITY (ready[load_pos]) 
-		= INSN_PRIORITY (ready[store_pos]);
-	      temp = ready[load_pos];
-	      ready[load_pos] = ready[store_pos];
-	      ready[store_pos] = temp;
-	    }
-	  break;
-	case 2:
-	  /* Swap stores to the front of the queue.  */
-	  if (INSN_PRIORITY (ready[store_pos]) + 4 
-	       >= INSN_PRIORITY (ready[load_pos])
-	      && store_pos < load_pos)
-	    {
-	      rtx temp;
-	      INSN_PRIORITY (ready[store_pos]) 
-		= INSN_PRIORITY (ready[load_pos]);
-	      temp = ready[store_pos];
-	      ready[store_pos] = ready[load_pos];
-	      ready[load_pos] = temp;
-	    }
-	  break;
-	default:
-	  break;
-	}
+        {
+        case -1:
+          /* Prefer to schedule loads.  */
+        case 1:
+          /* Swap loads to the front of the queue.  */
+          if (INSN_PRIORITY (ready[load_pos]) + 4
+              >= INSN_PRIORITY (ready[store_pos])
+              && load_pos < store_pos)
+            {
+              rtx temp;
+              INSN_PRIORITY (ready[load_pos])
+              = INSN_PRIORITY (ready[store_pos]);
+              temp = ready[load_pos];
+              ready[load_pos] = ready[store_pos];
+              ready[store_pos] = temp;
+            }
+          break;
+        case 2:
+          /* Swap stores to the front of the queue.  */
+          if (INSN_PRIORITY (ready[store_pos]) + 4
+              >= INSN_PRIORITY (ready[load_pos])
+              && store_pos < load_pos)
+            {
+              rtx temp;
+              INSN_PRIORITY (ready[store_pos])
+              = INSN_PRIORITY (ready[load_pos]);
+              temp = ready[store_pos];
+              ready[store_pos] = ready[load_pos];
+              ready[load_pos] = temp;
+            }
+          break;
+        default:
+          break;
+        }
       /* At this point the ready queue may no longer sorted, but thats ok
-	 since 74k can't schedule concurrent ld/st on the same cycle.  */
+      since 74k can't schedule concurrent ld/st on the same cycle.  */
     }
 
   return mips_issue_rate ();
@@ -12036,31 +12963,31 @@ mips_variable_issue (FILE *dump, int sched_verbose, rtx insn,
   if (TUNE_MIPS74K)
     {
       switch (GET_CODE (insn))
-	{
-	case INSN:
-	  if (GET_CODE (PATTERN (insn)) == SET)
-	    {
-	      if (get_attr_type (insn) == TYPE_LOAD)
-		last_agen_insn = 1;
-	      else if (get_attr_type (insn) == TYPE_STORE)
-		last_agen_insn = 2;
-	    }
-	  break;
-	case JUMP_INSN:
-	  last_agen_insn = -1;
-	  break;
-	case CALL_INSN:
-	  last_agen_insn = -1;
-	  return 0;
-	default:
-	  break;
-	}
+        {
+        case INSN:
+          if (GET_CODE (PATTERN (insn)) == SET)
+            {
+              if (get_attr_type (insn) == TYPE_LOAD)
+                last_agen_insn = 1;
+              else if (get_attr_type (insn) == TYPE_STORE)
+                last_agen_insn = 2;
+            }
+          break;
+        case JUMP_INSN:
+          last_agen_insn = -1;
+          break;
+        case CALL_INSN:
+          last_agen_insn = -1;
+          return 0;
+        default:
+          break;
+        }
     }
 
   if (GET_CODE (PATTERN (insn)) == USE
       || GET_CODE (PATTERN (insn)) == CLOBBER)
     return can_issue_more;
-  else 
+  else
     return can_issue_more - 1;
 }
 
@@ -12069,34 +12996,34 @@ mips_variable_issue (FILE *dump, int sched_verbose, rtx insn,
 
 static int
 mips_dfa_new_cycle (FILE *sched_dump,
-		    int sched_verbose,
-		    rtx insn,
-		    int last_clock_var,
-		    int clock_var,
-		    int *sort_p)
+                    int sched_verbose,
+                    rtx insn,
+                    int last_clock_var,
+                    int clock_var,
+                    int *sort_p)
 {
   if (TUNE_MIPS74K)
     {
       if (reload_completed && flag_sched2_use_superblocks)
-	return 0;
+        return 0;
 
       /* We reach the end of the block (at the branch insn), and if there
-	 are some spare cycles, then pull in insns from following block by
-	 advancing cycle by LAPSE_CYCLES.  Hence readies insns from the
-	 queue that stalls in LAPSE_CYCLES, effectively moving it to the
-	 ready list.  */
-     if (GET_CODE (insn) == JUMP_INSN)
-	{
-	  if (clock_var - last_clock_var != 0
-	      && clock_var - last_clock_var <= LAPSE_CYCLES)
-	    {
-	      if (sched_verbose >= 5)
-		fprintf (sched_dump, ";;\t\t*** Lapse cycle *** \n");
-	      return 1;
-	    }
-  	}
+      are some spare cycles, then pull in insns from following block by
+      advancing cycle by LAPSE_CYCLES.  Hence readies insns from the
+      queue that stalls in LAPSE_CYCLES, effectively moving it to the
+      ready list.  */
+      if (GET_CODE (insn) == JUMP_INSN)
+        {
+          if (clock_var - last_clock_var != 0
+              && clock_var - last_clock_var <= LAPSE_CYCLES)
+            {
+              if (sched_verbose >= 5)
+                fprintf (sched_dump, ";;\t\t*** Lapse cycle *** \n");
+              return 1;
+            }
+        }
     }
-  
+
   return 0;
 }
 
@@ -12114,104 +13041,104 @@ mips_web_mark_register (rtx insn, char *use_addressof)
       rtx dest = SET_DEST (XVECEXP (PATTERN (insn), 0, 0));
       rtx src = SET_SRC (XVECEXP (PATTERN (insn), 0, 0));
       if (GET_CODE (dest) == REG && GET_CODE (src) == UNSPEC)
-	{
-	  rtx op0 = XVECEXP (src, 0, 0);
-	  int unspec_num = XINT (src, 1);
-	  if (GET_CODE (op0) == REG &&  GET_MODE (op0) == GET_MODE (dest)
-	      && REGNO (op0) == REGNO (dest)
-	      && (unspec_num == UNSPEC_DPAQ_S_W_PH
-		  || unspec_num == UNSPEC_DPAQ_S_W_PH_64
-		  || unspec_num == UNSPEC_DPAQ_W_QH
-		  || unspec_num == UNSPEC_DPAQ_S_W_QH
-		  || unspec_num == UNSPEC_DPSQ_S_W_PH
-		  || unspec_num == UNSPEC_DPSQ_S_W_PH_64
-		  || unspec_num == UNSPEC_DPSQ_W_QH
-		  || unspec_num == UNSPEC_DPSQ_S_W_QH
-		  || unspec_num == UNSPEC_MULSAQ_S_W_PH
-		  || unspec_num == UNSPEC_MULSAQ_S_W_PH_64
-		  || unspec_num == UNSPEC_MULSAQ_W_QH
-		  || unspec_num == UNSPEC_MULSAQ_S_W_QH
-		  || unspec_num == UNSPEC_MULSAQ_L_PW
-		  || unspec_num == UNSPEC_MULSAQ_S_L_PW
-		  || unspec_num == UNSPEC_DPAQ_SA_L_W
-		  || unspec_num == UNSPEC_DPAQ_SA_L_W_64
-		  || unspec_num == UNSPEC_DPAQ_L_PW
-		  || unspec_num == UNSPEC_DPAQ_SA_L_PW
-		  || unspec_num == UNSPEC_DPSQ_SA_L_W
-		  || unspec_num == UNSPEC_DPSQ_SA_L_W_64
-		  || unspec_num == UNSPEC_DPSQ_L_PW
-		  || unspec_num == UNSPEC_DPSQ_SA_L_PW
-		  || unspec_num == UNSPEC_MAQ_S_W_PHL
-		  || unspec_num == UNSPEC_MAQ_S_W_PHR
-		  || unspec_num == UNSPEC_MAQ_S_W_PHL_64
-		  || unspec_num == UNSPEC_MAQ_S_W_PHR_64
-		  || unspec_num == UNSPEC_MAQ_W_QHLL
-		  || unspec_num == UNSPEC_MAQ_W_QHLR
-		  || unspec_num == UNSPEC_MAQ_W_QHRL
-		  || unspec_num == UNSPEC_MAQ_W_QHRR
-		  || unspec_num == UNSPEC_MAQ_S_W_QHLL
-		  || unspec_num == UNSPEC_MAQ_S_W_QHLR
-		  || unspec_num == UNSPEC_MAQ_S_W_QHRL
-		  || unspec_num == UNSPEC_MAQ_S_W_QHRR
-		  || unspec_num == UNSPEC_MAQ_L_PWL
-		  || unspec_num == UNSPEC_MAQ_L_PWR
-		  || unspec_num == UNSPEC_MAQ_S_L_PWL
-		  || unspec_num == UNSPEC_MAQ_S_L_PWR
-		  || unspec_num == UNSPEC_MAQ_SA_W_PHL
-		  || unspec_num == UNSPEC_MAQ_SA_W_PHR
-		  || unspec_num == UNSPEC_MAQ_SA_W_PHL_64
-		  || unspec_num == UNSPEC_MAQ_SA_W_PHR_64
-		  || unspec_num == UNSPEC_MTHLIP
-		  || unspec_num == UNSPEC_MTHLIP_64
-		  || unspec_num == UNSPEC_DMTHLIP
-		  || unspec_num == UNSPEC_DPAQX_S_W_PH
-		  || unspec_num == UNSPEC_DPAQX_SA_W_PH
-		  || unspec_num == UNSPEC_DPSQX_S_W_PH
-		  || unspec_num == UNSPEC_DPSQX_SA_W_PH
-		  || unspec_num == UNSPEC_DPAQX_S_W_PH_64
-		  || unspec_num == UNSPEC_DPAQX_SA_W_PH_64
-		  || unspec_num == UNSPEC_DPSQX_S_W_PH_64
-		  || unspec_num == UNSPEC_DPSQX_SA_W_PH_64))
-	    use_addressof[REGNO (dest)] = 1;
-	}
+        {
+          rtx op0 = XVECEXP (src, 0, 0);
+          int unspec_num = XINT (src, 1);
+          if (GET_CODE (op0) == REG &&  GET_MODE (op0) == GET_MODE (dest)
+              && REGNO (op0) == REGNO (dest)
+              && (unspec_num == UNSPEC_DPAQ_S_W_PH
+                  || unspec_num == UNSPEC_DPAQ_S_W_PH_64
+                  || unspec_num == UNSPEC_DPAQ_W_QH
+                  || unspec_num == UNSPEC_DPAQ_S_W_QH
+                  || unspec_num == UNSPEC_DPSQ_S_W_PH
+                  || unspec_num == UNSPEC_DPSQ_S_W_PH_64
+                  || unspec_num == UNSPEC_DPSQ_W_QH
+                  || unspec_num == UNSPEC_DPSQ_S_W_QH
+                  || unspec_num == UNSPEC_MULSAQ_S_W_PH
+                  || unspec_num == UNSPEC_MULSAQ_S_W_PH_64
+                  || unspec_num == UNSPEC_MULSAQ_W_QH
+                  || unspec_num == UNSPEC_MULSAQ_S_W_QH
+                  || unspec_num == UNSPEC_MULSAQ_L_PW
+                  || unspec_num == UNSPEC_MULSAQ_S_L_PW
+                  || unspec_num == UNSPEC_DPAQ_SA_L_W
+                  || unspec_num == UNSPEC_DPAQ_SA_L_W_64
+                  || unspec_num == UNSPEC_DPAQ_L_PW
+                  || unspec_num == UNSPEC_DPAQ_SA_L_PW
+                  || unspec_num == UNSPEC_DPSQ_SA_L_W
+                  || unspec_num == UNSPEC_DPSQ_SA_L_W_64
+                  || unspec_num == UNSPEC_DPSQ_L_PW
+                  || unspec_num == UNSPEC_DPSQ_SA_L_PW
+                  || unspec_num == UNSPEC_MAQ_S_W_PHL
+                  || unspec_num == UNSPEC_MAQ_S_W_PHR
+                  || unspec_num == UNSPEC_MAQ_S_W_PHL_64
+                  || unspec_num == UNSPEC_MAQ_S_W_PHR_64
+                  || unspec_num == UNSPEC_MAQ_W_QHLL
+                  || unspec_num == UNSPEC_MAQ_W_QHLR
+                  || unspec_num == UNSPEC_MAQ_W_QHRL
+                  || unspec_num == UNSPEC_MAQ_W_QHRR
+                  || unspec_num == UNSPEC_MAQ_S_W_QHLL
+                  || unspec_num == UNSPEC_MAQ_S_W_QHLR
+                  || unspec_num == UNSPEC_MAQ_S_W_QHRL
+                  || unspec_num == UNSPEC_MAQ_S_W_QHRR
+                  || unspec_num == UNSPEC_MAQ_L_PWL
+                  || unspec_num == UNSPEC_MAQ_L_PWR
+                  || unspec_num == UNSPEC_MAQ_S_L_PWL
+                  || unspec_num == UNSPEC_MAQ_S_L_PWR
+                  || unspec_num == UNSPEC_MAQ_SA_W_PHL
+                  || unspec_num == UNSPEC_MAQ_SA_W_PHR
+                  || unspec_num == UNSPEC_MAQ_SA_W_PHL_64
+                  || unspec_num == UNSPEC_MAQ_SA_W_PHR_64
+                  || unspec_num == UNSPEC_MTHLIP
+                  || unspec_num == UNSPEC_MTHLIP_64
+                  || unspec_num == UNSPEC_DMTHLIP
+                  || unspec_num == UNSPEC_DPAQX_S_W_PH
+                  || unspec_num == UNSPEC_DPAQX_SA_W_PH
+                  || unspec_num == UNSPEC_DPSQX_S_W_PH
+                  || unspec_num == UNSPEC_DPSQX_SA_W_PH
+                  || unspec_num == UNSPEC_DPAQX_S_W_PH_64
+                  || unspec_num == UNSPEC_DPAQX_SA_W_PH_64
+                  || unspec_num == UNSPEC_DPSQX_S_W_PH_64
+                  || unspec_num == UNSPEC_DPSQX_SA_W_PH_64))
+            use_addressof[REGNO (dest)] = 1;
+        }
     }
   else if (GET_CODE (PATTERN (insn)) == SET)
     {
       rtx dest = SET_DEST (PATTERN (insn));
       rtx src = SET_SRC (PATTERN (insn));
       if (GET_CODE (dest) == REG && GET_CODE (src) == UNSPEC)
-	{
-	  rtx op0 = XVECEXP (src, 0, 0);
-	  int unspec_num = XINT (src, 1);
-	  if (GET_CODE (op0) == REG &&  GET_MODE (op0) == GET_MODE (dest)
-	      && REGNO (op0) == REGNO (dest)
-	      && (unspec_num == UNSPEC_DPAU_H_QBL
-		  || unspec_num == UNSPEC_DPAU_H_QBR
-		  || unspec_num == UNSPEC_DPAU_H_QBL_64
-		  || unspec_num == UNSPEC_DPAU_H_QBR_64
-		  || unspec_num == UNSPEC_DPSU_H_QBL
-		  || unspec_num == UNSPEC_DPSU_H_QBR
-		  || unspec_num == UNSPEC_DPSU_H_QBL_64
-		  || unspec_num == UNSPEC_DPSU_H_QBR_64
-		  || unspec_num == UNSPEC_DMADD
-		  || unspec_num == UNSPEC_DMADDU
-		  || unspec_num == UNSPEC_DMSUB
-		  || unspec_num == UNSPEC_DMSUBU
-		  || unspec_num == UNSPEC_SHILO
-		  || unspec_num == UNSPEC_SHILO_64
-		  || unspec_num == UNSPEC_DSHILO
-		  || unspec_num == UNSPEC_DPA_W_PH
-		  || unspec_num == UNSPEC_DPA_W_PH_64
-		  || unspec_num == UNSPEC_DPS_W_PH
-		  || unspec_num == UNSPEC_DPS_W_PH_64
-		  || unspec_num == UNSPEC_MULSA_W_PH
-		  || unspec_num == UNSPEC_MULSA_W_PH_64
-		  || unspec_num == UNSPEC_DPAX_W_PH
-		  || unspec_num == UNSPEC_DPSX_W_PH
-		  || unspec_num == UNSPEC_DPAX_W_PH_64
-		  || unspec_num == UNSPEC_DPSX_W_PH_64))
-	    use_addressof[REGNO (dest)] = 1;
-	}
+        {
+          rtx op0 = XVECEXP (src, 0, 0);
+          int unspec_num = XINT (src, 1);
+          if (GET_CODE (op0) == REG &&  GET_MODE (op0) == GET_MODE (dest)
+              && REGNO (op0) == REGNO (dest)
+              && (unspec_num == UNSPEC_DPAU_H_QBL
+                  || unspec_num == UNSPEC_DPAU_H_QBR
+                  || unspec_num == UNSPEC_DPAU_H_QBL_64
+                  || unspec_num == UNSPEC_DPAU_H_QBR_64
+                  || unspec_num == UNSPEC_DPSU_H_QBL
+                  || unspec_num == UNSPEC_DPSU_H_QBR
+                  || unspec_num == UNSPEC_DPSU_H_QBL_64
+                  || unspec_num == UNSPEC_DPSU_H_QBR_64
+                  || unspec_num == UNSPEC_DMADD
+                  || unspec_num == UNSPEC_DMADDU
+                  || unspec_num == UNSPEC_DMSUB
+                  || unspec_num == UNSPEC_DMSUBU
+                  || unspec_num == UNSPEC_SHILO
+                  || unspec_num == UNSPEC_SHILO_64
+                  || unspec_num == UNSPEC_DSHILO
+                  || unspec_num == UNSPEC_DPA_W_PH
+                  || unspec_num == UNSPEC_DPA_W_PH_64
+                  || unspec_num == UNSPEC_DPS_W_PH
+                  || unspec_num == UNSPEC_DPS_W_PH_64
+                  || unspec_num == UNSPEC_MULSA_W_PH
+                  || unspec_num == UNSPEC_MULSA_W_PH_64
+                  || unspec_num == UNSPEC_DPAX_W_PH
+                  || unspec_num == UNSPEC_DPSX_W_PH
+                  || unspec_num == UNSPEC_DPAX_W_PH_64
+                  || unspec_num == UNSPEC_DPSX_W_PH_64))
+            use_addressof[REGNO (dest)] = 1;
+        }
     }
 }
 
@@ -12259,10 +13186,10 @@ mips_issue_rate (void)
     case PROCESSOR_74KX:
     case PROCESSOR_74KZ:
       /* The 74k is not strictly quad-issue cpu, but can be seen as one
-	 by the scheduler.  It can issue 1 ALU, 1 AGEN, 2 FPU insns, but
-	 in reality only max of 3 insn can be issued as the floating point
-	 load/stores also requires a slot in the AGEN pipe.  */
-     return 4;
+      by the scheduler.  It can issue 1 ALU, 1 AGEN, 2 FPU insns, but
+      in reality only max of 3 insn can be issued as the floating point
+      load/stores also requires a slot in the AGEN pipe.  */
+      return 4;
 
     case PROCESSOR_20KC:
     case PROCESSOR_R5400:
@@ -12345,7 +13272,7 @@ mips_emit_prefetch (rtx *operands)
 
 static void
 irix_asm_named_section_1 (const char *name, unsigned int flags,
-                           unsigned int align)
+                          unsigned int align)
 {
   unsigned int sh_type, sh_flags, sh_entsize;
 
@@ -12391,11 +13318,11 @@ irix_asm_named_section (const char *name, unsigned int flags)
    alignment requested for the current section.  */
 
 struct GTY (()) irix_section_align_entry
-{
-  const char *name;
-  unsigned int log;
-  unsigned int flags;
-};
+  {
+    const char *name;
+    unsigned int log;
+    unsigned int flags;
+  };
 
 static htab_t irix_section_align_htab;
 static FILE *irix_orig_asm_out_file;
@@ -12428,13 +13355,13 @@ irix_asm_output_align (FILE *file, unsigned int log)
         abort ();
 
       slot = (struct irix_section_align_entry **)
-        htab_find_slot_with_hash (irix_section_align_htab, section,
-                                  htab_hash_string (section), INSERT);
+             htab_find_slot_with_hash (irix_section_align_htab, section,
+                                       htab_hash_string (section), INSERT);
       entry = *slot;
       if (! entry)
         {
           entry = (struct irix_section_align_entry *)
-            xmalloc (sizeof (struct irix_section_align_entry));
+                  xmalloc (sizeof (struct irix_section_align_entry));
           *slot = entry;
           entry->name = section;
           entry->log = log;
@@ -12471,7 +13398,7 @@ static int
 irix_section_align_1 (void **slot, void *data ATTRIBUTE_UNUSED)
 {
   const struct irix_section_align_entry *entry
-    = *(const struct irix_section_align_entry **) slot;
+        = *(const struct irix_section_align_entry **) slot;
 
   irix_asm_named_section_1 (entry->name, entry->flags, 1 << entry->log);
   return 1;
@@ -12543,683 +13470,685 @@ irix_section_type_flags (tree decl, const char *section, int relocs_p)
  * MIPS builtin functions
  */
 struct builtin_description
-{
-  enum insn_code icode;          /* MIPS instruction code */
-  const char *name;              /* MIPS builtin function name */
-  enum mips_builtins code;       /* MIPS builtin code */
-  enum mips_function_type ftype; /* function type */
-  int target_flags;              /* target flags required for
+  {
+    enum insn_code icode;          /* MIPS instruction code */
+    const char *name;              /* MIPS builtin function name */
+    enum mips_builtins code;       /* MIPS builtin code */
+    enum mips_function_type ftype; /* function type */
+    int target_flags;              /* target flags required for
                                     this builtin function */
-};
+  };
 
 /* NOTE: The order of mips_bdesc[] must be the same as the order of
    enum mips_builtins{} in mips.h */
 static const struct builtin_description mips_bdesc[] =
-{
-  { CODE_FOR_mips_pll_ps, "__builtin_mips_pll_ps", MIPS_BUILTIN_PLL_PS, MIPS_V2SF_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_pul_ps, "__builtin_mips_pul_ps", MIPS_BUILTIN_PUL_PS, MIPS_V2SF_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_plu_ps, "__builtin_mips_plu_ps", MIPS_BUILTIN_PLU_PS, MIPS_V2SF_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_puu_ps, "__builtin_mips_puu_ps", MIPS_BUILTIN_PUU_PS, MIPS_V2SF_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_cvt_ps_s, "__builtin_mips_cvt_ps_s", MIPS_BUILTIN_CVT_PS_S, MIPS_V2SF_FTYPE_SF_SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_cvt_s_pl, "__builtin_mips_cvt_s_pl", MIPS_BUILTIN_CVT_S_PL, MIPS_SF_FTYPE_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_cvt_s_pu, "__builtin_mips_cvt_s_pu", MIPS_BUILTIN_CVT_S_PU, MIPS_SF_FTYPE_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_absv2sf2, "__builtin_mips_abs_ps", MIPS_BUILTIN_ABS_PS, MIPS_V2SF_FTYPE_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_alnv_ps, "__builtin_mips_alnv_ps", MIPS_BUILTIN_ALNV_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_INT, MASK_PAIRED_SINGLE },
+  {
+    {
+      CODE_FOR_mips_pll_ps, "__builtin_mips_pll_ps", MIPS_BUILTIN_PLL_PS, MIPS_V2SF_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE
+    },
+    { CODE_FOR_mips_pul_ps, "__builtin_mips_pul_ps", MIPS_BUILTIN_PUL_PS, MIPS_V2SF_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_plu_ps, "__builtin_mips_plu_ps", MIPS_BUILTIN_PLU_PS, MIPS_V2SF_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_puu_ps, "__builtin_mips_puu_ps", MIPS_BUILTIN_PUU_PS, MIPS_V2SF_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_cvt_ps_s, "__builtin_mips_cvt_ps_s", MIPS_BUILTIN_CVT_PS_S, MIPS_V2SF_FTYPE_SF_SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_cvt_s_pl, "__builtin_mips_cvt_s_pl", MIPS_BUILTIN_CVT_S_PL, MIPS_SF_FTYPE_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_cvt_s_pu, "__builtin_mips_cvt_s_pu", MIPS_BUILTIN_CVT_S_PU, MIPS_SF_FTYPE_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_absv2sf2, "__builtin_mips_abs_ps", MIPS_BUILTIN_ABS_PS, MIPS_V2SF_FTYPE_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_alnv_ps, "__builtin_mips_alnv_ps", MIPS_BUILTIN_ALNV_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_INT, MASK_PAIRED_SINGLE },
 
-  { CODE_FOR_mips_addr_ps, "__builtin_mips_addr_ps", MIPS_BUILTIN_ADDR_PS, MIPS_V2SF_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_mulr_ps, "__builtin_mips_mulr_ps", MIPS_BUILTIN_MULR_PS, MIPS_V2SF_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cvt_pw_ps, "__builtin_mips_cvt_pw_ps", MIPS_BUILTIN_CVT_PW_PS, MIPS_V2SF_FTYPE_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cvt_ps_pw, "__builtin_mips_cvt_ps_pw", MIPS_BUILTIN_CVT_PS_PW, MIPS_V2SF_FTYPE_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_addr_ps, "__builtin_mips_addr_ps", MIPS_BUILTIN_ADDR_PS, MIPS_V2SF_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_mulr_ps, "__builtin_mips_mulr_ps", MIPS_BUILTIN_MULR_PS, MIPS_V2SF_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cvt_pw_ps, "__builtin_mips_cvt_pw_ps", MIPS_BUILTIN_CVT_PW_PS, MIPS_V2SF_FTYPE_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cvt_ps_pw, "__builtin_mips_cvt_ps_pw", MIPS_BUILTIN_CVT_PS_PW, MIPS_V2SF_FTYPE_V2SF, MASK_MIPS3D },
 
-  { CODE_FOR_mips_recip1_s, "__builtin_mips_recip1_s", MIPS_BUILTIN_RECIP1_S, MIPS_SF_FTYPE_SF, MASK_MIPS3D },
-  { CODE_FOR_mips_recip1_d, "__builtin_mips_recip1_d", MIPS_BUILTIN_RECIP1_D, MIPS_DF_FTYPE_DF, MASK_MIPS3D },
-  { CODE_FOR_mips_recip1_ps, "__builtin_mips_recip1_ps", MIPS_BUILTIN_RECIP1_PS, MIPS_V2SF_FTYPE_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_recip2_s, "__builtin_mips_recip2_s", MIPS_BUILTIN_RECIP2_S, MIPS_SF_FTYPE_SF_SF, MASK_MIPS3D },
-  { CODE_FOR_mips_recip2_d, "__builtin_mips_recip2_d", MIPS_BUILTIN_RECIP2_D, MIPS_DF_FTYPE_DF_DF, MASK_MIPS3D },
-  { CODE_FOR_mips_recip2_ps, "__builtin_mips_recip2_ps", MIPS_BUILTIN_RECIP2_PS, MIPS_V2SF_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_recip1_s, "__builtin_mips_recip1_s", MIPS_BUILTIN_RECIP1_S, MIPS_SF_FTYPE_SF, MASK_MIPS3D },
+    { CODE_FOR_mips_recip1_d, "__builtin_mips_recip1_d", MIPS_BUILTIN_RECIP1_D, MIPS_DF_FTYPE_DF, MASK_MIPS3D },
+    { CODE_FOR_mips_recip1_ps, "__builtin_mips_recip1_ps", MIPS_BUILTIN_RECIP1_PS, MIPS_V2SF_FTYPE_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_recip2_s, "__builtin_mips_recip2_s", MIPS_BUILTIN_RECIP2_S, MIPS_SF_FTYPE_SF_SF, MASK_MIPS3D },
+    { CODE_FOR_mips_recip2_d, "__builtin_mips_recip2_d", MIPS_BUILTIN_RECIP2_D, MIPS_DF_FTYPE_DF_DF, MASK_MIPS3D },
+    { CODE_FOR_mips_recip2_ps, "__builtin_mips_recip2_ps", MIPS_BUILTIN_RECIP2_PS, MIPS_V2SF_FTYPE_V2SF_V2SF, MASK_MIPS3D },
 
-  { CODE_FOR_mips_rsqrt1_s, "__builtin_mips_rsqrt1_s", MIPS_BUILTIN_RSQRT1_S, MIPS_SF_FTYPE_SF, MASK_MIPS3D },
-  { CODE_FOR_mips_rsqrt1_d, "__builtin_mips_rsqrt1_d", MIPS_BUILTIN_RSQRT1_D, MIPS_DF_FTYPE_DF, MASK_MIPS3D },
-  { CODE_FOR_mips_rsqrt1_ps, "__builtin_mips_rsqrt1_ps", MIPS_BUILTIN_RSQRT1_PS, MIPS_V2SF_FTYPE_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_rsqrt2_s, "__builtin_mips_rsqrt2_s", MIPS_BUILTIN_RSQRT2_S, MIPS_SF_FTYPE_SF_SF, MASK_MIPS3D },
-  { CODE_FOR_mips_rsqrt2_d, "__builtin_mips_rsqrt2_d", MIPS_BUILTIN_RSQRT2_D, MIPS_DF_FTYPE_DF_DF, MASK_MIPS3D },
-  { CODE_FOR_mips_rsqrt2_ps, "__builtin_mips_rsqrt2_ps", MIPS_BUILTIN_RSQRT2_PS, MIPS_V2SF_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_rsqrt1_s, "__builtin_mips_rsqrt1_s", MIPS_BUILTIN_RSQRT1_S, MIPS_SF_FTYPE_SF, MASK_MIPS3D },
+    { CODE_FOR_mips_rsqrt1_d, "__builtin_mips_rsqrt1_d", MIPS_BUILTIN_RSQRT1_D, MIPS_DF_FTYPE_DF, MASK_MIPS3D },
+    { CODE_FOR_mips_rsqrt1_ps, "__builtin_mips_rsqrt1_ps", MIPS_BUILTIN_RSQRT1_PS, MIPS_V2SF_FTYPE_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_rsqrt2_s, "__builtin_mips_rsqrt2_s", MIPS_BUILTIN_RSQRT2_S, MIPS_SF_FTYPE_SF_SF, MASK_MIPS3D },
+    { CODE_FOR_mips_rsqrt2_d, "__builtin_mips_rsqrt2_d", MIPS_BUILTIN_RSQRT2_D, MIPS_DF_FTYPE_DF_DF, MASK_MIPS3D },
+    { CODE_FOR_mips_rsqrt2_ps, "__builtin_mips_rsqrt2_ps", MIPS_BUILTIN_RSQRT2_PS, MIPS_V2SF_FTYPE_V2SF_V2SF, MASK_MIPS3D },
 
-  { CODE_FOR_mips_c_f_ps, "__builtin_mips_any_c_f_ps", MIPS_BUILTIN_ANY_C_F_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_f_ps, "__builtin_mips_upper_c_f_ps", MIPS_BUILTIN_UPPER_C_F_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_f_ps, "__builtin_mips_lower_c_f_ps", MIPS_BUILTIN_LOWER_C_F_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_f_ps, "__builtin_mips_all_c_f_ps", MIPS_BUILTIN_ALL_C_F_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_un_ps, "__builtin_mips_any_c_un_ps", MIPS_BUILTIN_ANY_C_UN_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_un_ps, "__builtin_mips_upper_c_un_ps", MIPS_BUILTIN_UPPER_C_UN_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_un_ps, "__builtin_mips_lower_c_un_ps", MIPS_BUILTIN_LOWER_C_UN_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_un_ps, "__builtin_mips_all_c_un_ps", MIPS_BUILTIN_ALL_C_UN_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_eq_ps, "__builtin_mips_any_c_eq_ps", MIPS_BUILTIN_ANY_C_EQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_eq_ps, "__builtin_mips_upper_c_eq_ps", MIPS_BUILTIN_UPPER_C_EQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_eq_ps, "__builtin_mips_lower_c_eq_ps", MIPS_BUILTIN_LOWER_C_EQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_eq_ps, "__builtin_mips_all_c_eq_ps", MIPS_BUILTIN_ALL_C_EQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_ueq_ps, "__builtin_mips_any_c_ueq_ps", MIPS_BUILTIN_ANY_C_UEQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_ueq_ps, "__builtin_mips_upper_c_ueq_ps", MIPS_BUILTIN_UPPER_C_UEQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_ueq_ps, "__builtin_mips_lower_c_ueq_ps", MIPS_BUILTIN_LOWER_C_UEQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_ueq_ps, "__builtin_mips_all_c_ueq_ps", MIPS_BUILTIN_ALL_C_UEQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_olt_ps, "__builtin_mips_any_c_olt_ps", MIPS_BUILTIN_ANY_C_OLT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_olt_ps, "__builtin_mips_upper_c_olt_ps", MIPS_BUILTIN_UPPER_C_OLT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_olt_ps, "__builtin_mips_lower_c_olt_ps", MIPS_BUILTIN_LOWER_C_OLT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_olt_ps, "__builtin_mips_all_c_olt_ps", MIPS_BUILTIN_ALL_C_OLT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_ult_ps, "__builtin_mips_any_c_ult_ps", MIPS_BUILTIN_ANY_C_ULT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_ult_ps, "__builtin_mips_upper_c_ult_ps", MIPS_BUILTIN_UPPER_C_ULT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_ult_ps, "__builtin_mips_lower_c_ult_ps", MIPS_BUILTIN_LOWER_C_ULT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_ult_ps, "__builtin_mips_all_c_ult_ps", MIPS_BUILTIN_ALL_C_ULT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_ole_ps, "__builtin_mips_any_c_ole_ps", MIPS_BUILTIN_ANY_C_OLE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_ole_ps, "__builtin_mips_upper_c_ole_ps", MIPS_BUILTIN_UPPER_C_OLE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_ole_ps, "__builtin_mips_lower_c_ole_ps", MIPS_BUILTIN_LOWER_C_OLE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_ole_ps, "__builtin_mips_all_c_ole_ps", MIPS_BUILTIN_ALL_C_OLE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_ule_ps, "__builtin_mips_any_c_ule_ps", MIPS_BUILTIN_ANY_C_ULE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_ule_ps, "__builtin_mips_upper_c_ule_ps", MIPS_BUILTIN_UPPER_C_ULE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_ule_ps, "__builtin_mips_lower_c_ule_ps", MIPS_BUILTIN_LOWER_C_ULE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_ule_ps, "__builtin_mips_all_c_ule_ps", MIPS_BUILTIN_ALL_C_ULE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_sf_ps, "__builtin_mips_any_c_sf_ps", MIPS_BUILTIN_ANY_C_SF_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_sf_ps, "__builtin_mips_upper_c_sf_ps", MIPS_BUILTIN_UPPER_C_SF_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_sf_ps, "__builtin_mips_lower_c_sf_ps", MIPS_BUILTIN_LOWER_C_SF_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_sf_ps, "__builtin_mips_all_c_sf_ps", MIPS_BUILTIN_ALL_C_SF_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_ngle_ps, "__builtin_mips_any_c_ngle_ps", MIPS_BUILTIN_ANY_C_NGLE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_ngle_ps, "__builtin_mips_upper_c_ngle_ps", MIPS_BUILTIN_UPPER_C_NGLE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_ngle_ps, "__builtin_mips_lower_c_ngle_ps", MIPS_BUILTIN_LOWER_C_NGLE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_ngle_ps, "__builtin_mips_all_c_ngle_ps", MIPS_BUILTIN_ALL_C_NGLE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_seq_ps, "__builtin_mips_any_c_seq_ps", MIPS_BUILTIN_ANY_C_SEQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_seq_ps, "__builtin_mips_upper_c_seq_ps", MIPS_BUILTIN_UPPER_C_SEQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_seq_ps, "__builtin_mips_lower_c_seq_ps", MIPS_BUILTIN_LOWER_C_SEQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_seq_ps, "__builtin_mips_all_c_seq_ps", MIPS_BUILTIN_ALL_C_SEQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_ngl_ps, "__builtin_mips_any_c_ngl_ps", MIPS_BUILTIN_ANY_C_NGL_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_ngl_ps, "__builtin_mips_upper_c_ngl_ps", MIPS_BUILTIN_UPPER_C_NGL_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_ngl_ps, "__builtin_mips_lower_c_ngl_ps", MIPS_BUILTIN_LOWER_C_NGL_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_ngl_ps, "__builtin_mips_all_c_ngl_ps", MIPS_BUILTIN_ALL_C_NGL_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_lt_ps, "__builtin_mips_any_c_lt_ps", MIPS_BUILTIN_ANY_C_LT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_lt_ps, "__builtin_mips_upper_c_lt_ps", MIPS_BUILTIN_UPPER_C_LT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_lt_ps, "__builtin_mips_lower_c_lt_ps", MIPS_BUILTIN_LOWER_C_LT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_lt_ps, "__builtin_mips_all_c_lt_ps", MIPS_BUILTIN_ALL_C_LT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_nge_ps, "__builtin_mips_any_c_nge_ps", MIPS_BUILTIN_ANY_C_NGE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_nge_ps, "__builtin_mips_upper_c_nge_ps", MIPS_BUILTIN_UPPER_C_NGE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_nge_ps, "__builtin_mips_lower_c_nge_ps", MIPS_BUILTIN_LOWER_C_NGE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_nge_ps, "__builtin_mips_all_c_nge_ps", MIPS_BUILTIN_ALL_C_NGE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_le_ps, "__builtin_mips_any_c_le_ps", MIPS_BUILTIN_ANY_C_LE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_le_ps, "__builtin_mips_upper_c_le_ps", MIPS_BUILTIN_UPPER_C_LE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_le_ps, "__builtin_mips_lower_c_le_ps", MIPS_BUILTIN_LOWER_C_LE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_le_ps, "__builtin_mips_all_c_le_ps", MIPS_BUILTIN_ALL_C_LE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_ngt_ps, "__builtin_mips_any_c_ngt_ps", MIPS_BUILTIN_ANY_C_NGT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_ngt_ps, "__builtin_mips_upper_c_ngt_ps", MIPS_BUILTIN_UPPER_C_NGT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_ngt_ps, "__builtin_mips_lower_c_ngt_ps", MIPS_BUILTIN_LOWER_C_NGT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_ngt_ps, "__builtin_mips_all_c_ngt_ps", MIPS_BUILTIN_ALL_C_NGT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_f_ps, "__builtin_mips_any_c_f_ps", MIPS_BUILTIN_ANY_C_F_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_f_ps, "__builtin_mips_upper_c_f_ps", MIPS_BUILTIN_UPPER_C_F_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_f_ps, "__builtin_mips_lower_c_f_ps", MIPS_BUILTIN_LOWER_C_F_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_f_ps, "__builtin_mips_all_c_f_ps", MIPS_BUILTIN_ALL_C_F_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_un_ps, "__builtin_mips_any_c_un_ps", MIPS_BUILTIN_ANY_C_UN_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_un_ps, "__builtin_mips_upper_c_un_ps", MIPS_BUILTIN_UPPER_C_UN_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_un_ps, "__builtin_mips_lower_c_un_ps", MIPS_BUILTIN_LOWER_C_UN_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_un_ps, "__builtin_mips_all_c_un_ps", MIPS_BUILTIN_ALL_C_UN_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_eq_ps, "__builtin_mips_any_c_eq_ps", MIPS_BUILTIN_ANY_C_EQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_eq_ps, "__builtin_mips_upper_c_eq_ps", MIPS_BUILTIN_UPPER_C_EQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_eq_ps, "__builtin_mips_lower_c_eq_ps", MIPS_BUILTIN_LOWER_C_EQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_eq_ps, "__builtin_mips_all_c_eq_ps", MIPS_BUILTIN_ALL_C_EQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_ueq_ps, "__builtin_mips_any_c_ueq_ps", MIPS_BUILTIN_ANY_C_UEQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_ueq_ps, "__builtin_mips_upper_c_ueq_ps", MIPS_BUILTIN_UPPER_C_UEQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_ueq_ps, "__builtin_mips_lower_c_ueq_ps", MIPS_BUILTIN_LOWER_C_UEQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_ueq_ps, "__builtin_mips_all_c_ueq_ps", MIPS_BUILTIN_ALL_C_UEQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_olt_ps, "__builtin_mips_any_c_olt_ps", MIPS_BUILTIN_ANY_C_OLT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_olt_ps, "__builtin_mips_upper_c_olt_ps", MIPS_BUILTIN_UPPER_C_OLT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_olt_ps, "__builtin_mips_lower_c_olt_ps", MIPS_BUILTIN_LOWER_C_OLT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_olt_ps, "__builtin_mips_all_c_olt_ps", MIPS_BUILTIN_ALL_C_OLT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_ult_ps, "__builtin_mips_any_c_ult_ps", MIPS_BUILTIN_ANY_C_ULT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_ult_ps, "__builtin_mips_upper_c_ult_ps", MIPS_BUILTIN_UPPER_C_ULT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_ult_ps, "__builtin_mips_lower_c_ult_ps", MIPS_BUILTIN_LOWER_C_ULT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_ult_ps, "__builtin_mips_all_c_ult_ps", MIPS_BUILTIN_ALL_C_ULT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_ole_ps, "__builtin_mips_any_c_ole_ps", MIPS_BUILTIN_ANY_C_OLE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_ole_ps, "__builtin_mips_upper_c_ole_ps", MIPS_BUILTIN_UPPER_C_OLE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_ole_ps, "__builtin_mips_lower_c_ole_ps", MIPS_BUILTIN_LOWER_C_OLE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_ole_ps, "__builtin_mips_all_c_ole_ps", MIPS_BUILTIN_ALL_C_OLE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_ule_ps, "__builtin_mips_any_c_ule_ps", MIPS_BUILTIN_ANY_C_ULE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_ule_ps, "__builtin_mips_upper_c_ule_ps", MIPS_BUILTIN_UPPER_C_ULE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_ule_ps, "__builtin_mips_lower_c_ule_ps", MIPS_BUILTIN_LOWER_C_ULE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_ule_ps, "__builtin_mips_all_c_ule_ps", MIPS_BUILTIN_ALL_C_ULE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_sf_ps, "__builtin_mips_any_c_sf_ps", MIPS_BUILTIN_ANY_C_SF_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_sf_ps, "__builtin_mips_upper_c_sf_ps", MIPS_BUILTIN_UPPER_C_SF_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_sf_ps, "__builtin_mips_lower_c_sf_ps", MIPS_BUILTIN_LOWER_C_SF_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_sf_ps, "__builtin_mips_all_c_sf_ps", MIPS_BUILTIN_ALL_C_SF_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_ngle_ps, "__builtin_mips_any_c_ngle_ps", MIPS_BUILTIN_ANY_C_NGLE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_ngle_ps, "__builtin_mips_upper_c_ngle_ps", MIPS_BUILTIN_UPPER_C_NGLE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_ngle_ps, "__builtin_mips_lower_c_ngle_ps", MIPS_BUILTIN_LOWER_C_NGLE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_ngle_ps, "__builtin_mips_all_c_ngle_ps", MIPS_BUILTIN_ALL_C_NGLE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_seq_ps, "__builtin_mips_any_c_seq_ps", MIPS_BUILTIN_ANY_C_SEQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_seq_ps, "__builtin_mips_upper_c_seq_ps", MIPS_BUILTIN_UPPER_C_SEQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_seq_ps, "__builtin_mips_lower_c_seq_ps", MIPS_BUILTIN_LOWER_C_SEQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_seq_ps, "__builtin_mips_all_c_seq_ps", MIPS_BUILTIN_ALL_C_SEQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_ngl_ps, "__builtin_mips_any_c_ngl_ps", MIPS_BUILTIN_ANY_C_NGL_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_ngl_ps, "__builtin_mips_upper_c_ngl_ps", MIPS_BUILTIN_UPPER_C_NGL_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_ngl_ps, "__builtin_mips_lower_c_ngl_ps", MIPS_BUILTIN_LOWER_C_NGL_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_ngl_ps, "__builtin_mips_all_c_ngl_ps", MIPS_BUILTIN_ALL_C_NGL_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_lt_ps, "__builtin_mips_any_c_lt_ps", MIPS_BUILTIN_ANY_C_LT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_lt_ps, "__builtin_mips_upper_c_lt_ps", MIPS_BUILTIN_UPPER_C_LT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_lt_ps, "__builtin_mips_lower_c_lt_ps", MIPS_BUILTIN_LOWER_C_LT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_lt_ps, "__builtin_mips_all_c_lt_ps", MIPS_BUILTIN_ALL_C_LT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_nge_ps, "__builtin_mips_any_c_nge_ps", MIPS_BUILTIN_ANY_C_NGE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_nge_ps, "__builtin_mips_upper_c_nge_ps", MIPS_BUILTIN_UPPER_C_NGE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_nge_ps, "__builtin_mips_lower_c_nge_ps", MIPS_BUILTIN_LOWER_C_NGE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_nge_ps, "__builtin_mips_all_c_nge_ps", MIPS_BUILTIN_ALL_C_NGE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_le_ps, "__builtin_mips_any_c_le_ps", MIPS_BUILTIN_ANY_C_LE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_le_ps, "__builtin_mips_upper_c_le_ps", MIPS_BUILTIN_UPPER_C_LE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_le_ps, "__builtin_mips_lower_c_le_ps", MIPS_BUILTIN_LOWER_C_LE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_le_ps, "__builtin_mips_all_c_le_ps", MIPS_BUILTIN_ALL_C_LE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_ngt_ps, "__builtin_mips_any_c_ngt_ps", MIPS_BUILTIN_ANY_C_NGT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_ngt_ps, "__builtin_mips_upper_c_ngt_ps", MIPS_BUILTIN_UPPER_C_NGT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_ngt_ps, "__builtin_mips_lower_c_ngt_ps", MIPS_BUILTIN_LOWER_C_NGT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_ngt_ps, "__builtin_mips_all_c_ngt_ps", MIPS_BUILTIN_ALL_C_NGT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
 
-  { CODE_FOR_mips_cabs_f_ps, "__builtin_mips_any_cabs_f_ps", MIPS_BUILTIN_ANY_CABS_F_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_f_ps, "__builtin_mips_upper_cabs_f_ps", MIPS_BUILTIN_UPPER_CABS_F_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_f_ps, "__builtin_mips_lower_cabs_f_ps", MIPS_BUILTIN_LOWER_CABS_F_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_f_ps, "__builtin_mips_all_cabs_f_ps", MIPS_BUILTIN_ALL_CABS_F_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_un_ps, "__builtin_mips_any_cabs_un_ps", MIPS_BUILTIN_ANY_CABS_UN_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_un_ps, "__builtin_mips_upper_cabs_un_ps", MIPS_BUILTIN_UPPER_CABS_UN_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_un_ps, "__builtin_mips_lower_cabs_un_ps", MIPS_BUILTIN_LOWER_CABS_UN_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_un_ps, "__builtin_mips_all_cabs_un_ps", MIPS_BUILTIN_ALL_CABS_UN_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_eq_ps, "__builtin_mips_any_cabs_eq_ps", MIPS_BUILTIN_ANY_CABS_EQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_eq_ps, "__builtin_mips_upper_cabs_eq_ps", MIPS_BUILTIN_UPPER_CABS_EQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_eq_ps, "__builtin_mips_lower_cabs_eq_ps", MIPS_BUILTIN_LOWER_CABS_EQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_eq_ps, "__builtin_mips_all_cabs_eq_ps", MIPS_BUILTIN_ALL_CABS_EQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ueq_ps, "__builtin_mips_any_cabs_ueq_ps", MIPS_BUILTIN_ANY_CABS_UEQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ueq_ps, "__builtin_mips_upper_cabs_ueq_ps", MIPS_BUILTIN_UPPER_CABS_UEQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ueq_ps, "__builtin_mips_lower_cabs_ueq_ps", MIPS_BUILTIN_LOWER_CABS_UEQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ueq_ps, "__builtin_mips_all_cabs_ueq_ps", MIPS_BUILTIN_ALL_CABS_UEQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_olt_ps, "__builtin_mips_any_cabs_olt_ps", MIPS_BUILTIN_ANY_CABS_OLT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_olt_ps, "__builtin_mips_upper_cabs_olt_ps", MIPS_BUILTIN_UPPER_CABS_OLT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_olt_ps, "__builtin_mips_lower_cabs_olt_ps", MIPS_BUILTIN_LOWER_CABS_OLT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_olt_ps, "__builtin_mips_all_cabs_olt_ps", MIPS_BUILTIN_ALL_CABS_OLT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ult_ps, "__builtin_mips_any_cabs_ult_ps", MIPS_BUILTIN_ANY_CABS_ULT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ult_ps, "__builtin_mips_upper_cabs_ult_ps", MIPS_BUILTIN_UPPER_CABS_ULT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ult_ps, "__builtin_mips_lower_cabs_ult_ps", MIPS_BUILTIN_LOWER_CABS_ULT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ult_ps, "__builtin_mips_all_cabs_ult_ps", MIPS_BUILTIN_ALL_CABS_ULT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ole_ps, "__builtin_mips_any_cabs_ole_ps", MIPS_BUILTIN_ANY_CABS_OLE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ole_ps, "__builtin_mips_upper_cabs_ole_ps", MIPS_BUILTIN_UPPER_CABS_OLE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ole_ps, "__builtin_mips_lower_cabs_ole_ps", MIPS_BUILTIN_LOWER_CABS_OLE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ole_ps, "__builtin_mips_all_cabs_ole_ps", MIPS_BUILTIN_ALL_CABS_OLE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ule_ps, "__builtin_mips_any_cabs_ule_ps", MIPS_BUILTIN_ANY_CABS_ULE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ule_ps, "__builtin_mips_upper_cabs_ule_ps", MIPS_BUILTIN_UPPER_CABS_ULE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ule_ps, "__builtin_mips_lower_cabs_ule_ps", MIPS_BUILTIN_LOWER_CABS_ULE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ule_ps, "__builtin_mips_all_cabs_ule_ps", MIPS_BUILTIN_ALL_CABS_ULE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_sf_ps, "__builtin_mips_any_cabs_sf_ps", MIPS_BUILTIN_ANY_CABS_SF_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_sf_ps, "__builtin_mips_upper_cabs_sf_ps", MIPS_BUILTIN_UPPER_CABS_SF_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_sf_ps, "__builtin_mips_lower_cabs_sf_ps", MIPS_BUILTIN_LOWER_CABS_SF_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_sf_ps, "__builtin_mips_all_cabs_sf_ps", MIPS_BUILTIN_ALL_CABS_SF_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ngle_ps, "__builtin_mips_any_cabs_ngle_ps", MIPS_BUILTIN_ANY_CABS_NGLE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ngle_ps, "__builtin_mips_upper_cabs_ngle_ps", MIPS_BUILTIN_UPPER_CABS_NGLE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ngle_ps, "__builtin_mips_lower_cabs_ngle_ps", MIPS_BUILTIN_LOWER_CABS_NGLE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ngle_ps, "__builtin_mips_all_cabs_ngle_ps", MIPS_BUILTIN_ALL_CABS_NGLE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_seq_ps, "__builtin_mips_any_cabs_seq_ps", MIPS_BUILTIN_ANY_CABS_SEQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_seq_ps, "__builtin_mips_upper_cabs_seq_ps", MIPS_BUILTIN_UPPER_CABS_SEQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_seq_ps, "__builtin_mips_lower_cabs_seq_ps", MIPS_BUILTIN_LOWER_CABS_SEQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_seq_ps, "__builtin_mips_all_cabs_seq_ps", MIPS_BUILTIN_ALL_CABS_SEQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ngl_ps, "__builtin_mips_any_cabs_ngl_ps", MIPS_BUILTIN_ANY_CABS_NGL_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ngl_ps, "__builtin_mips_upper_cabs_ngl_ps", MIPS_BUILTIN_UPPER_CABS_NGL_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ngl_ps, "__builtin_mips_lower_cabs_ngl_ps", MIPS_BUILTIN_LOWER_CABS_NGL_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ngl_ps, "__builtin_mips_all_cabs_ngl_ps", MIPS_BUILTIN_ALL_CABS_NGL_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_lt_ps, "__builtin_mips_any_cabs_lt_ps", MIPS_BUILTIN_ANY_CABS_LT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_lt_ps, "__builtin_mips_upper_cabs_lt_ps", MIPS_BUILTIN_UPPER_CABS_LT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_lt_ps, "__builtin_mips_lower_cabs_lt_ps", MIPS_BUILTIN_LOWER_CABS_LT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_lt_ps, "__builtin_mips_all_cabs_lt_ps", MIPS_BUILTIN_ALL_CABS_LT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_nge_ps, "__builtin_mips_any_cabs_nge_ps", MIPS_BUILTIN_ANY_CABS_NGE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_nge_ps, "__builtin_mips_upper_cabs_nge_ps", MIPS_BUILTIN_UPPER_CABS_NGE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_nge_ps, "__builtin_mips_lower_cabs_nge_ps", MIPS_BUILTIN_LOWER_CABS_NGE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_nge_ps, "__builtin_mips_all_cabs_nge_ps", MIPS_BUILTIN_ALL_CABS_NGE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_le_ps, "__builtin_mips_any_cabs_le_ps", MIPS_BUILTIN_ANY_CABS_LE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_le_ps, "__builtin_mips_upper_cabs_le_ps", MIPS_BUILTIN_UPPER_CABS_LE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_le_ps, "__builtin_mips_lower_cabs_le_ps", MIPS_BUILTIN_LOWER_CABS_LE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_le_ps, "__builtin_mips_all_cabs_le_ps", MIPS_BUILTIN_ALL_CABS_LE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ngt_ps, "__builtin_mips_any_cabs_ngt_ps", MIPS_BUILTIN_ANY_CABS_NGT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ngt_ps, "__builtin_mips_upper_cabs_ngt_ps", MIPS_BUILTIN_UPPER_CABS_NGT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ngt_ps, "__builtin_mips_lower_cabs_ngt_ps", MIPS_BUILTIN_LOWER_CABS_NGT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ngt_ps, "__builtin_mips_all_cabs_ngt_ps", MIPS_BUILTIN_ALL_CABS_NGT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_f_ps, "__builtin_mips_any_cabs_f_ps", MIPS_BUILTIN_ANY_CABS_F_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_f_ps, "__builtin_mips_upper_cabs_f_ps", MIPS_BUILTIN_UPPER_CABS_F_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_f_ps, "__builtin_mips_lower_cabs_f_ps", MIPS_BUILTIN_LOWER_CABS_F_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_f_ps, "__builtin_mips_all_cabs_f_ps", MIPS_BUILTIN_ALL_CABS_F_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_un_ps, "__builtin_mips_any_cabs_un_ps", MIPS_BUILTIN_ANY_CABS_UN_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_un_ps, "__builtin_mips_upper_cabs_un_ps", MIPS_BUILTIN_UPPER_CABS_UN_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_un_ps, "__builtin_mips_lower_cabs_un_ps", MIPS_BUILTIN_LOWER_CABS_UN_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_un_ps, "__builtin_mips_all_cabs_un_ps", MIPS_BUILTIN_ALL_CABS_UN_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_eq_ps, "__builtin_mips_any_cabs_eq_ps", MIPS_BUILTIN_ANY_CABS_EQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_eq_ps, "__builtin_mips_upper_cabs_eq_ps", MIPS_BUILTIN_UPPER_CABS_EQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_eq_ps, "__builtin_mips_lower_cabs_eq_ps", MIPS_BUILTIN_LOWER_CABS_EQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_eq_ps, "__builtin_mips_all_cabs_eq_ps", MIPS_BUILTIN_ALL_CABS_EQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ueq_ps, "__builtin_mips_any_cabs_ueq_ps", MIPS_BUILTIN_ANY_CABS_UEQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ueq_ps, "__builtin_mips_upper_cabs_ueq_ps", MIPS_BUILTIN_UPPER_CABS_UEQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ueq_ps, "__builtin_mips_lower_cabs_ueq_ps", MIPS_BUILTIN_LOWER_CABS_UEQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ueq_ps, "__builtin_mips_all_cabs_ueq_ps", MIPS_BUILTIN_ALL_CABS_UEQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_olt_ps, "__builtin_mips_any_cabs_olt_ps", MIPS_BUILTIN_ANY_CABS_OLT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_olt_ps, "__builtin_mips_upper_cabs_olt_ps", MIPS_BUILTIN_UPPER_CABS_OLT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_olt_ps, "__builtin_mips_lower_cabs_olt_ps", MIPS_BUILTIN_LOWER_CABS_OLT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_olt_ps, "__builtin_mips_all_cabs_olt_ps", MIPS_BUILTIN_ALL_CABS_OLT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ult_ps, "__builtin_mips_any_cabs_ult_ps", MIPS_BUILTIN_ANY_CABS_ULT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ult_ps, "__builtin_mips_upper_cabs_ult_ps", MIPS_BUILTIN_UPPER_CABS_ULT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ult_ps, "__builtin_mips_lower_cabs_ult_ps", MIPS_BUILTIN_LOWER_CABS_ULT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ult_ps, "__builtin_mips_all_cabs_ult_ps", MIPS_BUILTIN_ALL_CABS_ULT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ole_ps, "__builtin_mips_any_cabs_ole_ps", MIPS_BUILTIN_ANY_CABS_OLE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ole_ps, "__builtin_mips_upper_cabs_ole_ps", MIPS_BUILTIN_UPPER_CABS_OLE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ole_ps, "__builtin_mips_lower_cabs_ole_ps", MIPS_BUILTIN_LOWER_CABS_OLE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ole_ps, "__builtin_mips_all_cabs_ole_ps", MIPS_BUILTIN_ALL_CABS_OLE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ule_ps, "__builtin_mips_any_cabs_ule_ps", MIPS_BUILTIN_ANY_CABS_ULE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ule_ps, "__builtin_mips_upper_cabs_ule_ps", MIPS_BUILTIN_UPPER_CABS_ULE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ule_ps, "__builtin_mips_lower_cabs_ule_ps", MIPS_BUILTIN_LOWER_CABS_ULE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ule_ps, "__builtin_mips_all_cabs_ule_ps", MIPS_BUILTIN_ALL_CABS_ULE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_sf_ps, "__builtin_mips_any_cabs_sf_ps", MIPS_BUILTIN_ANY_CABS_SF_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_sf_ps, "__builtin_mips_upper_cabs_sf_ps", MIPS_BUILTIN_UPPER_CABS_SF_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_sf_ps, "__builtin_mips_lower_cabs_sf_ps", MIPS_BUILTIN_LOWER_CABS_SF_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_sf_ps, "__builtin_mips_all_cabs_sf_ps", MIPS_BUILTIN_ALL_CABS_SF_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ngle_ps, "__builtin_mips_any_cabs_ngle_ps", MIPS_BUILTIN_ANY_CABS_NGLE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ngle_ps, "__builtin_mips_upper_cabs_ngle_ps", MIPS_BUILTIN_UPPER_CABS_NGLE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ngle_ps, "__builtin_mips_lower_cabs_ngle_ps", MIPS_BUILTIN_LOWER_CABS_NGLE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ngle_ps, "__builtin_mips_all_cabs_ngle_ps", MIPS_BUILTIN_ALL_CABS_NGLE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_seq_ps, "__builtin_mips_any_cabs_seq_ps", MIPS_BUILTIN_ANY_CABS_SEQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_seq_ps, "__builtin_mips_upper_cabs_seq_ps", MIPS_BUILTIN_UPPER_CABS_SEQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_seq_ps, "__builtin_mips_lower_cabs_seq_ps", MIPS_BUILTIN_LOWER_CABS_SEQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_seq_ps, "__builtin_mips_all_cabs_seq_ps", MIPS_BUILTIN_ALL_CABS_SEQ_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ngl_ps, "__builtin_mips_any_cabs_ngl_ps", MIPS_BUILTIN_ANY_CABS_NGL_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ngl_ps, "__builtin_mips_upper_cabs_ngl_ps", MIPS_BUILTIN_UPPER_CABS_NGL_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ngl_ps, "__builtin_mips_lower_cabs_ngl_ps", MIPS_BUILTIN_LOWER_CABS_NGL_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ngl_ps, "__builtin_mips_all_cabs_ngl_ps", MIPS_BUILTIN_ALL_CABS_NGL_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_lt_ps, "__builtin_mips_any_cabs_lt_ps", MIPS_BUILTIN_ANY_CABS_LT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_lt_ps, "__builtin_mips_upper_cabs_lt_ps", MIPS_BUILTIN_UPPER_CABS_LT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_lt_ps, "__builtin_mips_lower_cabs_lt_ps", MIPS_BUILTIN_LOWER_CABS_LT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_lt_ps, "__builtin_mips_all_cabs_lt_ps", MIPS_BUILTIN_ALL_CABS_LT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_nge_ps, "__builtin_mips_any_cabs_nge_ps", MIPS_BUILTIN_ANY_CABS_NGE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_nge_ps, "__builtin_mips_upper_cabs_nge_ps", MIPS_BUILTIN_UPPER_CABS_NGE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_nge_ps, "__builtin_mips_lower_cabs_nge_ps", MIPS_BUILTIN_LOWER_CABS_NGE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_nge_ps, "__builtin_mips_all_cabs_nge_ps", MIPS_BUILTIN_ALL_CABS_NGE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_le_ps, "__builtin_mips_any_cabs_le_ps", MIPS_BUILTIN_ANY_CABS_LE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_le_ps, "__builtin_mips_upper_cabs_le_ps", MIPS_BUILTIN_UPPER_CABS_LE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_le_ps, "__builtin_mips_lower_cabs_le_ps", MIPS_BUILTIN_LOWER_CABS_LE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_le_ps, "__builtin_mips_all_cabs_le_ps", MIPS_BUILTIN_ALL_CABS_LE_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ngt_ps, "__builtin_mips_any_cabs_ngt_ps", MIPS_BUILTIN_ANY_CABS_NGT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ngt_ps, "__builtin_mips_upper_cabs_ngt_ps", MIPS_BUILTIN_UPPER_CABS_NGT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ngt_ps, "__builtin_mips_lower_cabs_ngt_ps", MIPS_BUILTIN_LOWER_CABS_NGT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ngt_ps, "__builtin_mips_all_cabs_ngt_ps", MIPS_BUILTIN_ALL_CABS_NGT_PS, MIPS_INT_FTYPE_V2SF_V2SF, MASK_MIPS3D },
 
 
-  { CODE_FOR_mips_c_f_4s, "__builtin_mips_any_c_f_4s", MIPS_BUILTIN_ANY_C_F_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_f_4s, "__builtin_mips_all_c_f_4s", MIPS_BUILTIN_ALL_C_F_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_un_4s, "__builtin_mips_any_c_un_4s", MIPS_BUILTIN_ANY_C_UN_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_un_4s, "__builtin_mips_all_c_un_4s", MIPS_BUILTIN_ALL_C_UN_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_eq_4s, "__builtin_mips_any_c_eq_4s", MIPS_BUILTIN_ANY_C_EQ_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_eq_4s, "__builtin_mips_all_c_eq_4s", MIPS_BUILTIN_ALL_C_EQ_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_ueq_4s, "__builtin_mips_any_c_ueq_4s", MIPS_BUILTIN_ANY_C_UEQ_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_ueq_4s, "__builtin_mips_all_c_ueq_4s", MIPS_BUILTIN_ALL_C_UEQ_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_olt_4s, "__builtin_mips_any_c_olt_4s", MIPS_BUILTIN_ANY_C_OLT_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_olt_4s, "__builtin_mips_all_c_olt_4s", MIPS_BUILTIN_ALL_C_OLT_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_ult_4s, "__builtin_mips_any_c_ult_4s", MIPS_BUILTIN_ANY_C_ULT_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_ult_4s, "__builtin_mips_all_c_ult_4s", MIPS_BUILTIN_ALL_C_ULT_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_ole_4s, "__builtin_mips_any_c_ole_4s", MIPS_BUILTIN_ANY_C_OLE_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_ole_4s, "__builtin_mips_all_c_ole_4s", MIPS_BUILTIN_ALL_C_OLE_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_ule_4s, "__builtin_mips_any_c_ule_4s", MIPS_BUILTIN_ANY_C_ULE_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_ule_4s, "__builtin_mips_all_c_ule_4s", MIPS_BUILTIN_ALL_C_ULE_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_sf_4s, "__builtin_mips_any_c_sf_4s", MIPS_BUILTIN_ANY_C_SF_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_sf_4s, "__builtin_mips_all_c_sf_4s", MIPS_BUILTIN_ALL_C_SF_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_ngle_4s, "__builtin_mips_any_c_ngle_4s", MIPS_BUILTIN_ANY_C_NGLE_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_ngle_4s, "__builtin_mips_all_c_ngle_4s", MIPS_BUILTIN_ALL_C_NGLE_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_seq_4s, "__builtin_mips_any_c_seq_4s", MIPS_BUILTIN_ANY_C_SEQ_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_seq_4s, "__builtin_mips_all_c_seq_4s", MIPS_BUILTIN_ALL_C_SEQ_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_ngl_4s, "__builtin_mips_any_c_ngl_4s", MIPS_BUILTIN_ANY_C_NGL_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_ngl_4s, "__builtin_mips_all_c_ngl_4s", MIPS_BUILTIN_ALL_C_NGL_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_lt_4s, "__builtin_mips_any_c_lt_4s", MIPS_BUILTIN_ANY_C_LT_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_lt_4s, "__builtin_mips_all_c_lt_4s", MIPS_BUILTIN_ALL_C_LT_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_nge_4s, "__builtin_mips_any_c_nge_4s", MIPS_BUILTIN_ANY_C_NGE_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_nge_4s, "__builtin_mips_all_c_nge_4s", MIPS_BUILTIN_ALL_C_NGE_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_le_4s, "__builtin_mips_any_c_le_4s", MIPS_BUILTIN_ANY_C_LE_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_le_4s, "__builtin_mips_all_c_le_4s", MIPS_BUILTIN_ALL_C_LE_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_ngt_4s, "__builtin_mips_any_c_ngt_4s", MIPS_BUILTIN_ANY_C_NGT_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_ngt_4s, "__builtin_mips_all_c_ngt_4s", MIPS_BUILTIN_ALL_C_NGT_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_f_4s, "__builtin_mips_any_c_f_4s", MIPS_BUILTIN_ANY_C_F_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_f_4s, "__builtin_mips_all_c_f_4s", MIPS_BUILTIN_ALL_C_F_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_un_4s, "__builtin_mips_any_c_un_4s", MIPS_BUILTIN_ANY_C_UN_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_un_4s, "__builtin_mips_all_c_un_4s", MIPS_BUILTIN_ALL_C_UN_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_eq_4s, "__builtin_mips_any_c_eq_4s", MIPS_BUILTIN_ANY_C_EQ_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_eq_4s, "__builtin_mips_all_c_eq_4s", MIPS_BUILTIN_ALL_C_EQ_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_ueq_4s, "__builtin_mips_any_c_ueq_4s", MIPS_BUILTIN_ANY_C_UEQ_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_ueq_4s, "__builtin_mips_all_c_ueq_4s", MIPS_BUILTIN_ALL_C_UEQ_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_olt_4s, "__builtin_mips_any_c_olt_4s", MIPS_BUILTIN_ANY_C_OLT_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_olt_4s, "__builtin_mips_all_c_olt_4s", MIPS_BUILTIN_ALL_C_OLT_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_ult_4s, "__builtin_mips_any_c_ult_4s", MIPS_BUILTIN_ANY_C_ULT_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_ult_4s, "__builtin_mips_all_c_ult_4s", MIPS_BUILTIN_ALL_C_ULT_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_ole_4s, "__builtin_mips_any_c_ole_4s", MIPS_BUILTIN_ANY_C_OLE_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_ole_4s, "__builtin_mips_all_c_ole_4s", MIPS_BUILTIN_ALL_C_OLE_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_ule_4s, "__builtin_mips_any_c_ule_4s", MIPS_BUILTIN_ANY_C_ULE_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_ule_4s, "__builtin_mips_all_c_ule_4s", MIPS_BUILTIN_ALL_C_ULE_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_sf_4s, "__builtin_mips_any_c_sf_4s", MIPS_BUILTIN_ANY_C_SF_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_sf_4s, "__builtin_mips_all_c_sf_4s", MIPS_BUILTIN_ALL_C_SF_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_ngle_4s, "__builtin_mips_any_c_ngle_4s", MIPS_BUILTIN_ANY_C_NGLE_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_ngle_4s, "__builtin_mips_all_c_ngle_4s", MIPS_BUILTIN_ALL_C_NGLE_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_seq_4s, "__builtin_mips_any_c_seq_4s", MIPS_BUILTIN_ANY_C_SEQ_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_seq_4s, "__builtin_mips_all_c_seq_4s", MIPS_BUILTIN_ALL_C_SEQ_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_ngl_4s, "__builtin_mips_any_c_ngl_4s", MIPS_BUILTIN_ANY_C_NGL_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_ngl_4s, "__builtin_mips_all_c_ngl_4s", MIPS_BUILTIN_ALL_C_NGL_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_lt_4s, "__builtin_mips_any_c_lt_4s", MIPS_BUILTIN_ANY_C_LT_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_lt_4s, "__builtin_mips_all_c_lt_4s", MIPS_BUILTIN_ALL_C_LT_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_nge_4s, "__builtin_mips_any_c_nge_4s", MIPS_BUILTIN_ANY_C_NGE_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_nge_4s, "__builtin_mips_all_c_nge_4s", MIPS_BUILTIN_ALL_C_NGE_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_le_4s, "__builtin_mips_any_c_le_4s", MIPS_BUILTIN_ANY_C_LE_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_le_4s, "__builtin_mips_all_c_le_4s", MIPS_BUILTIN_ALL_C_LE_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_ngt_4s, "__builtin_mips_any_c_ngt_4s", MIPS_BUILTIN_ANY_C_NGT_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_ngt_4s, "__builtin_mips_all_c_ngt_4s", MIPS_BUILTIN_ALL_C_NGT_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
 
-  { CODE_FOR_mips_cabs_f_4s, "__builtin_mips_any_cabs_f_4s", MIPS_BUILTIN_ANY_CABS_F_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_f_4s, "__builtin_mips_all_cabs_f_4s", MIPS_BUILTIN_ALL_CABS_F_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_un_4s, "__builtin_mips_any_cabs_un_4s", MIPS_BUILTIN_ANY_CABS_UN_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_un_4s, "__builtin_mips_all_cabs_un_4s", MIPS_BUILTIN_ALL_CABS_UN_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_eq_4s, "__builtin_mips_any_cabs_eq_4s", MIPS_BUILTIN_ANY_CABS_EQ_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_eq_4s, "__builtin_mips_all_cabs_eq_4s", MIPS_BUILTIN_ALL_CABS_EQ_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ueq_4s, "__builtin_mips_any_cabs_ueq_4s", MIPS_BUILTIN_ANY_CABS_UEQ_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ueq_4s, "__builtin_mips_all_cabs_ueq_4s", MIPS_BUILTIN_ALL_CABS_UEQ_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_olt_4s, "__builtin_mips_any_cabs_olt_4s", MIPS_BUILTIN_ANY_CABS_OLT_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_olt_4s, "__builtin_mips_all_cabs_olt_4s", MIPS_BUILTIN_ALL_CABS_OLT_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ult_4s, "__builtin_mips_any_cabs_ult_4s", MIPS_BUILTIN_ANY_CABS_ULT_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ult_4s, "__builtin_mips_all_cabs_ult_4s", MIPS_BUILTIN_ALL_CABS_ULT_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ole_4s, "__builtin_mips_any_cabs_ole_4s", MIPS_BUILTIN_ANY_CABS_OLE_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ole_4s, "__builtin_mips_all_cabs_ole_4s", MIPS_BUILTIN_ALL_CABS_OLE_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ule_4s, "__builtin_mips_any_cabs_ule_4s", MIPS_BUILTIN_ANY_CABS_ULE_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ule_4s, "__builtin_mips_all_cabs_ule_4s", MIPS_BUILTIN_ALL_CABS_ULE_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_sf_4s, "__builtin_mips_any_cabs_sf_4s", MIPS_BUILTIN_ANY_CABS_SF_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_sf_4s, "__builtin_mips_all_cabs_sf_4s", MIPS_BUILTIN_ALL_CABS_SF_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ngle_4s, "__builtin_mips_any_cabs_ngle_4s", MIPS_BUILTIN_ANY_CABS_NGLE_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ngle_4s, "__builtin_mips_all_cabs_ngle_4s", MIPS_BUILTIN_ALL_CABS_NGLE_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_seq_4s, "__builtin_mips_any_cabs_seq_4s", MIPS_BUILTIN_ANY_CABS_SEQ_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_seq_4s, "__builtin_mips_all_cabs_seq_4s", MIPS_BUILTIN_ALL_CABS_SEQ_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ngl_4s, "__builtin_mips_any_cabs_ngl_4s", MIPS_BUILTIN_ANY_CABS_NGL_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ngl_4s, "__builtin_mips_all_cabs_ngl_4s", MIPS_BUILTIN_ALL_CABS_NGL_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_lt_4s, "__builtin_mips_any_cabs_lt_4s", MIPS_BUILTIN_ANY_CABS_LT_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_lt_4s, "__builtin_mips_all_cabs_lt_4s", MIPS_BUILTIN_ALL_CABS_LT_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_nge_4s, "__builtin_mips_any_cabs_nge_4s", MIPS_BUILTIN_ANY_CABS_NGE_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_nge_4s, "__builtin_mips_all_cabs_nge_4s", MIPS_BUILTIN_ALL_CABS_NGE_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_le_4s, "__builtin_mips_any_cabs_le_4s", MIPS_BUILTIN_ANY_CABS_LE_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_le_4s, "__builtin_mips_all_cabs_le_4s", MIPS_BUILTIN_ALL_CABS_LE_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ngt_4s, "__builtin_mips_any_cabs_ngt_4s", MIPS_BUILTIN_ANY_CABS_NGT_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ngt_4s, "__builtin_mips_all_cabs_ngt_4s", MIPS_BUILTIN_ALL_CABS_NGT_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_f_4s, "__builtin_mips_any_cabs_f_4s", MIPS_BUILTIN_ANY_CABS_F_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_f_4s, "__builtin_mips_all_cabs_f_4s", MIPS_BUILTIN_ALL_CABS_F_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_un_4s, "__builtin_mips_any_cabs_un_4s", MIPS_BUILTIN_ANY_CABS_UN_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_un_4s, "__builtin_mips_all_cabs_un_4s", MIPS_BUILTIN_ALL_CABS_UN_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_eq_4s, "__builtin_mips_any_cabs_eq_4s", MIPS_BUILTIN_ANY_CABS_EQ_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_eq_4s, "__builtin_mips_all_cabs_eq_4s", MIPS_BUILTIN_ALL_CABS_EQ_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ueq_4s, "__builtin_mips_any_cabs_ueq_4s", MIPS_BUILTIN_ANY_CABS_UEQ_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ueq_4s, "__builtin_mips_all_cabs_ueq_4s", MIPS_BUILTIN_ALL_CABS_UEQ_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_olt_4s, "__builtin_mips_any_cabs_olt_4s", MIPS_BUILTIN_ANY_CABS_OLT_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_olt_4s, "__builtin_mips_all_cabs_olt_4s", MIPS_BUILTIN_ALL_CABS_OLT_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ult_4s, "__builtin_mips_any_cabs_ult_4s", MIPS_BUILTIN_ANY_CABS_ULT_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ult_4s, "__builtin_mips_all_cabs_ult_4s", MIPS_BUILTIN_ALL_CABS_ULT_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ole_4s, "__builtin_mips_any_cabs_ole_4s", MIPS_BUILTIN_ANY_CABS_OLE_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ole_4s, "__builtin_mips_all_cabs_ole_4s", MIPS_BUILTIN_ALL_CABS_OLE_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ule_4s, "__builtin_mips_any_cabs_ule_4s", MIPS_BUILTIN_ANY_CABS_ULE_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ule_4s, "__builtin_mips_all_cabs_ule_4s", MIPS_BUILTIN_ALL_CABS_ULE_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_sf_4s, "__builtin_mips_any_cabs_sf_4s", MIPS_BUILTIN_ANY_CABS_SF_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_sf_4s, "__builtin_mips_all_cabs_sf_4s", MIPS_BUILTIN_ALL_CABS_SF_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ngle_4s, "__builtin_mips_any_cabs_ngle_4s", MIPS_BUILTIN_ANY_CABS_NGLE_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ngle_4s, "__builtin_mips_all_cabs_ngle_4s", MIPS_BUILTIN_ALL_CABS_NGLE_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_seq_4s, "__builtin_mips_any_cabs_seq_4s", MIPS_BUILTIN_ANY_CABS_SEQ_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_seq_4s, "__builtin_mips_all_cabs_seq_4s", MIPS_BUILTIN_ALL_CABS_SEQ_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ngl_4s, "__builtin_mips_any_cabs_ngl_4s", MIPS_BUILTIN_ANY_CABS_NGL_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ngl_4s, "__builtin_mips_all_cabs_ngl_4s", MIPS_BUILTIN_ALL_CABS_NGL_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_lt_4s, "__builtin_mips_any_cabs_lt_4s", MIPS_BUILTIN_ANY_CABS_LT_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_lt_4s, "__builtin_mips_all_cabs_lt_4s", MIPS_BUILTIN_ALL_CABS_LT_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_nge_4s, "__builtin_mips_any_cabs_nge_4s", MIPS_BUILTIN_ANY_CABS_NGE_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_nge_4s, "__builtin_mips_all_cabs_nge_4s", MIPS_BUILTIN_ALL_CABS_NGE_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_le_4s, "__builtin_mips_any_cabs_le_4s", MIPS_BUILTIN_ANY_CABS_LE_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_le_4s, "__builtin_mips_all_cabs_le_4s", MIPS_BUILTIN_ALL_CABS_LE_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ngt_4s, "__builtin_mips_any_cabs_ngt_4s", MIPS_BUILTIN_ANY_CABS_NGT_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ngt_4s, "__builtin_mips_all_cabs_ngt_4s", MIPS_BUILTIN_ALL_CABS_NGT_4S, MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
 
-  { CODE_FOR_mips_cabs_f_s, "__builtin_mips_cabs_f_s", MIPS_BUILTIN_CABS_F_S, MIPS_INT_FTYPE_SF_SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_un_s, "__builtin_mips_cabs_un_s", MIPS_BUILTIN_CABS_UN_S, MIPS_INT_FTYPE_SF_SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_eq_s, "__builtin_mips_cabs_eq_s", MIPS_BUILTIN_CABS_EQ_S, MIPS_INT_FTYPE_SF_SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ueq_s, "__builtin_mips_cabs_ueq_s", MIPS_BUILTIN_CABS_UEQ_S, MIPS_INT_FTYPE_SF_SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_olt_s, "__builtin_mips_cabs_olt_s", MIPS_BUILTIN_CABS_OLT_S, MIPS_INT_FTYPE_SF_SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ult_s, "__builtin_mips_cabs_ult_s", MIPS_BUILTIN_CABS_ULT_S, MIPS_INT_FTYPE_SF_SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ole_s, "__builtin_mips_cabs_ole_s", MIPS_BUILTIN_CABS_OLE_S, MIPS_INT_FTYPE_SF_SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ule_s, "__builtin_mips_cabs_ule_s", MIPS_BUILTIN_CABS_ULE_S, MIPS_INT_FTYPE_SF_SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_sf_s, "__builtin_mips_cabs_sf_s", MIPS_BUILTIN_CABS_SF_S, MIPS_INT_FTYPE_SF_SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ngle_s, "__builtin_mips_cabs_ngle_s", MIPS_BUILTIN_CABS_NGLE_S, MIPS_INT_FTYPE_SF_SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_seq_s, "__builtin_mips_cabs_seq_s", MIPS_BUILTIN_CABS_SEQ_S, MIPS_INT_FTYPE_SF_SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ngl_s, "__builtin_mips_cabs_ngl_s", MIPS_BUILTIN_CABS_NGL_S, MIPS_INT_FTYPE_SF_SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_lt_s, "__builtin_mips_cabs_lt_s", MIPS_BUILTIN_CABS_LT_S, MIPS_INT_FTYPE_SF_SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_nge_s, "__builtin_mips_cabs_nge_s", MIPS_BUILTIN_CABS_NGE_S, MIPS_INT_FTYPE_SF_SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_le_s, "__builtin_mips_cabs_le_s", MIPS_BUILTIN_CABS_LE_S, MIPS_INT_FTYPE_SF_SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ngt_s, "__builtin_mips_cabs_ngt_s", MIPS_BUILTIN_CABS_NGT_S, MIPS_INT_FTYPE_SF_SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_f_d, "__builtin_mips_cabs_f_d", MIPS_BUILTIN_CABS_F_D, MIPS_INT_FTYPE_DF_DF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_un_d, "__builtin_mips_cabs_un_d", MIPS_BUILTIN_CABS_UN_D, MIPS_INT_FTYPE_DF_DF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_eq_d, "__builtin_mips_cabs_eq_d", MIPS_BUILTIN_CABS_EQ_D, MIPS_INT_FTYPE_DF_DF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ueq_d, "__builtin_mips_cabs_ueq_d", MIPS_BUILTIN_CABS_UEQ_D, MIPS_INT_FTYPE_DF_DF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_olt_d, "__builtin_mips_cabs_olt_d", MIPS_BUILTIN_CABS_OLT_D, MIPS_INT_FTYPE_DF_DF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ult_d, "__builtin_mips_cabs_ult_d", MIPS_BUILTIN_CABS_ULT_D, MIPS_INT_FTYPE_DF_DF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ole_d, "__builtin_mips_cabs_ole_d", MIPS_BUILTIN_CABS_OLE_D, MIPS_INT_FTYPE_DF_DF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ule_d, "__builtin_mips_cabs_ule_d", MIPS_BUILTIN_CABS_ULE_D, MIPS_INT_FTYPE_DF_DF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_sf_d, "__builtin_mips_cabs_sf_d", MIPS_BUILTIN_CABS_SF_D, MIPS_INT_FTYPE_DF_DF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ngle_d, "__builtin_mips_cabs_ngle_d", MIPS_BUILTIN_CABS_NGLE_D, MIPS_INT_FTYPE_DF_DF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_seq_d, "__builtin_mips_cabs_seq_d", MIPS_BUILTIN_CABS_SEQ_D, MIPS_INT_FTYPE_DF_DF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ngl_d, "__builtin_mips_cabs_ngl_d", MIPS_BUILTIN_CABS_NGL_D, MIPS_INT_FTYPE_DF_DF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_lt_d, "__builtin_mips_cabs_lt_d", MIPS_BUILTIN_CABS_LT_D, MIPS_INT_FTYPE_DF_DF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_nge_d, "__builtin_mips_cabs_nge_d", MIPS_BUILTIN_CABS_NGE_D, MIPS_INT_FTYPE_DF_DF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_le_d, "__builtin_mips_cabs_le_d", MIPS_BUILTIN_CABS_LE_D, MIPS_INT_FTYPE_DF_DF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ngt_d, "__builtin_mips_cabs_ngt_d", MIPS_BUILTIN_CABS_NGT_D, MIPS_INT_FTYPE_DF_DF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_f_s, "__builtin_mips_cabs_f_s", MIPS_BUILTIN_CABS_F_S, MIPS_INT_FTYPE_SF_SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_un_s, "__builtin_mips_cabs_un_s", MIPS_BUILTIN_CABS_UN_S, MIPS_INT_FTYPE_SF_SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_eq_s, "__builtin_mips_cabs_eq_s", MIPS_BUILTIN_CABS_EQ_S, MIPS_INT_FTYPE_SF_SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ueq_s, "__builtin_mips_cabs_ueq_s", MIPS_BUILTIN_CABS_UEQ_S, MIPS_INT_FTYPE_SF_SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_olt_s, "__builtin_mips_cabs_olt_s", MIPS_BUILTIN_CABS_OLT_S, MIPS_INT_FTYPE_SF_SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ult_s, "__builtin_mips_cabs_ult_s", MIPS_BUILTIN_CABS_ULT_S, MIPS_INT_FTYPE_SF_SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ole_s, "__builtin_mips_cabs_ole_s", MIPS_BUILTIN_CABS_OLE_S, MIPS_INT_FTYPE_SF_SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ule_s, "__builtin_mips_cabs_ule_s", MIPS_BUILTIN_CABS_ULE_S, MIPS_INT_FTYPE_SF_SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_sf_s, "__builtin_mips_cabs_sf_s", MIPS_BUILTIN_CABS_SF_S, MIPS_INT_FTYPE_SF_SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ngle_s, "__builtin_mips_cabs_ngle_s", MIPS_BUILTIN_CABS_NGLE_S, MIPS_INT_FTYPE_SF_SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_seq_s, "__builtin_mips_cabs_seq_s", MIPS_BUILTIN_CABS_SEQ_S, MIPS_INT_FTYPE_SF_SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ngl_s, "__builtin_mips_cabs_ngl_s", MIPS_BUILTIN_CABS_NGL_S, MIPS_INT_FTYPE_SF_SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_lt_s, "__builtin_mips_cabs_lt_s", MIPS_BUILTIN_CABS_LT_S, MIPS_INT_FTYPE_SF_SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_nge_s, "__builtin_mips_cabs_nge_s", MIPS_BUILTIN_CABS_NGE_S, MIPS_INT_FTYPE_SF_SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_le_s, "__builtin_mips_cabs_le_s", MIPS_BUILTIN_CABS_LE_S, MIPS_INT_FTYPE_SF_SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ngt_s, "__builtin_mips_cabs_ngt_s", MIPS_BUILTIN_CABS_NGT_S, MIPS_INT_FTYPE_SF_SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_f_d, "__builtin_mips_cabs_f_d", MIPS_BUILTIN_CABS_F_D, MIPS_INT_FTYPE_DF_DF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_un_d, "__builtin_mips_cabs_un_d", MIPS_BUILTIN_CABS_UN_D, MIPS_INT_FTYPE_DF_DF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_eq_d, "__builtin_mips_cabs_eq_d", MIPS_BUILTIN_CABS_EQ_D, MIPS_INT_FTYPE_DF_DF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ueq_d, "__builtin_mips_cabs_ueq_d", MIPS_BUILTIN_CABS_UEQ_D, MIPS_INT_FTYPE_DF_DF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_olt_d, "__builtin_mips_cabs_olt_d", MIPS_BUILTIN_CABS_OLT_D, MIPS_INT_FTYPE_DF_DF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ult_d, "__builtin_mips_cabs_ult_d", MIPS_BUILTIN_CABS_ULT_D, MIPS_INT_FTYPE_DF_DF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ole_d, "__builtin_mips_cabs_ole_d", MIPS_BUILTIN_CABS_OLE_D, MIPS_INT_FTYPE_DF_DF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ule_d, "__builtin_mips_cabs_ule_d", MIPS_BUILTIN_CABS_ULE_D, MIPS_INT_FTYPE_DF_DF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_sf_d, "__builtin_mips_cabs_sf_d", MIPS_BUILTIN_CABS_SF_D, MIPS_INT_FTYPE_DF_DF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ngle_d, "__builtin_mips_cabs_ngle_d", MIPS_BUILTIN_CABS_NGLE_D, MIPS_INT_FTYPE_DF_DF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_seq_d, "__builtin_mips_cabs_seq_d", MIPS_BUILTIN_CABS_SEQ_D, MIPS_INT_FTYPE_DF_DF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ngl_d, "__builtin_mips_cabs_ngl_d", MIPS_BUILTIN_CABS_NGL_D, MIPS_INT_FTYPE_DF_DF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_lt_d, "__builtin_mips_cabs_lt_d", MIPS_BUILTIN_CABS_LT_D, MIPS_INT_FTYPE_DF_DF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_nge_d, "__builtin_mips_cabs_nge_d", MIPS_BUILTIN_CABS_NGE_D, MIPS_INT_FTYPE_DF_DF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_le_d, "__builtin_mips_cabs_le_d", MIPS_BUILTIN_CABS_LE_D, MIPS_INT_FTYPE_DF_DF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ngt_d, "__builtin_mips_cabs_ngt_d", MIPS_BUILTIN_CABS_NGT_D, MIPS_INT_FTYPE_DF_DF, MASK_MIPS3D },
 
-  { CODE_FOR_mips_c_f_ps, "__builtin_mips_movt_c_f_ps", MIPS_BUILTIN_MOVT_C_F_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_un_ps, "__builtin_mips_movt_c_un_ps", MIPS_BUILTIN_MOVT_C_UN_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_eq_ps, "__builtin_mips_movt_c_eq_ps", MIPS_BUILTIN_MOVT_C_EQ_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_ueq_ps, "__builtin_mips_movt_c_ueq_ps", MIPS_BUILTIN_MOVT_C_UEQ_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_olt_ps, "__builtin_mips_movt_c_olt_ps", MIPS_BUILTIN_MOVT_C_OLT_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_ult_ps, "__builtin_mips_movt_c_ult_ps", MIPS_BUILTIN_MOVT_C_ULT_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_ole_ps, "__builtin_mips_movt_c_ole_ps", MIPS_BUILTIN_MOVT_C_OLE_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_ule_ps, "__builtin_mips_movt_c_ule_ps", MIPS_BUILTIN_MOVT_C_ULE_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_sf_ps, "__builtin_mips_movt_c_sf_ps", MIPS_BUILTIN_MOVT_C_SF_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_ngle_ps, "__builtin_mips_movt_c_ngle_ps", MIPS_BUILTIN_MOVT_C_NGLE_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_seq_ps, "__builtin_mips_movt_c_seq_ps", MIPS_BUILTIN_MOVT_C_SEQ_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_ngl_ps, "__builtin_mips_movt_c_ngl_ps", MIPS_BUILTIN_MOVT_C_NGL_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_lt_ps, "__builtin_mips_movt_c_lt_ps", MIPS_BUILTIN_MOVT_C_LT_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_nge_ps, "__builtin_mips_movt_c_nge_ps", MIPS_BUILTIN_MOVT_C_NGE_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_le_ps, "__builtin_mips_movt_c_le_ps", MIPS_BUILTIN_MOVT_C_LE_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_ngt_ps, "__builtin_mips_movt_c_ngt_ps", MIPS_BUILTIN_MOVT_C_NGT_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_cabs_f_ps, "__builtin_mips_movt_cabs_f_ps", MIPS_BUILTIN_MOVT_CABS_F_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_un_ps, "__builtin_mips_movt_cabs_un_ps", MIPS_BUILTIN_MOVT_CABS_UN_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_eq_ps, "__builtin_mips_movt_cabs_eq_ps", MIPS_BUILTIN_MOVT_CABS_EQ_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ueq_ps, "__builtin_mips_movt_cabs_ueq_ps", MIPS_BUILTIN_MOVT_CABS_UEQ_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_olt_ps, "__builtin_mips_movt_cabs_olt_ps", MIPS_BUILTIN_MOVT_CABS_OLT_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ult_ps, "__builtin_mips_movt_cabs_ult_ps", MIPS_BUILTIN_MOVT_CABS_ULT_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ole_ps, "__builtin_mips_movt_cabs_ole_ps", MIPS_BUILTIN_MOVT_CABS_OLE_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ule_ps, "__builtin_mips_movt_cabs_ule_ps", MIPS_BUILTIN_MOVT_CABS_ULE_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_sf_ps, "__builtin_mips_movt_cabs_sf_ps", MIPS_BUILTIN_MOVT_CABS_SF_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ngle_ps, "__builtin_mips_movt_cabs_ngle_ps", MIPS_BUILTIN_MOVT_CABS_NGLE_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_seq_ps, "__builtin_mips_movt_cabs_seq_ps", MIPS_BUILTIN_MOVT_CABS_SEQ_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ngl_ps, "__builtin_mips_movt_cabs_ngl_ps", MIPS_BUILTIN_MOVT_CABS_NGL_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_lt_ps, "__builtin_mips_movt_cabs_lt_ps", MIPS_BUILTIN_MOVT_CABS_LT_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_nge_ps, "__builtin_mips_movt_cabs_nge_ps", MIPS_BUILTIN_MOVT_CABS_NGE_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_le_ps, "__builtin_mips_movt_cabs_le_ps", MIPS_BUILTIN_MOVT_CABS_LE_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ngt_ps, "__builtin_mips_movt_cabs_ngt_ps", MIPS_BUILTIN_MOVT_CABS_NGT_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_c_f_ps, "__builtin_mips_movf_c_f_ps", MIPS_BUILTIN_MOVF_C_F_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_un_ps, "__builtin_mips_movf_c_un_ps", MIPS_BUILTIN_MOVF_C_UN_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_eq_ps, "__builtin_mips_movf_c_eq_ps", MIPS_BUILTIN_MOVF_C_EQ_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_ueq_ps, "__builtin_mips_movf_c_ueq_ps", MIPS_BUILTIN_MOVF_C_UEQ_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_olt_ps, "__builtin_mips_movf_c_olt_ps", MIPS_BUILTIN_MOVF_C_OLT_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_ult_ps, "__builtin_mips_movf_c_ult_ps", MIPS_BUILTIN_MOVF_C_ULT_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_ole_ps, "__builtin_mips_movf_c_ole_ps", MIPS_BUILTIN_MOVF_C_OLE_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_ule_ps, "__builtin_mips_movf_c_ule_ps", MIPS_BUILTIN_MOVF_C_ULE_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_sf_ps, "__builtin_mips_movf_c_sf_ps", MIPS_BUILTIN_MOVF_C_SF_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_ngle_ps, "__builtin_mips_movf_c_ngle_ps", MIPS_BUILTIN_MOVF_C_NGLE_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_seq_ps, "__builtin_mips_movf_c_seq_ps", MIPS_BUILTIN_MOVF_C_SEQ_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_ngl_ps, "__builtin_mips_movf_c_ngl_ps", MIPS_BUILTIN_MOVF_C_NGL_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_lt_ps, "__builtin_mips_movf_c_lt_ps", MIPS_BUILTIN_MOVF_C_LT_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_nge_ps, "__builtin_mips_movf_c_nge_ps", MIPS_BUILTIN_MOVF_C_NGE_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_le_ps, "__builtin_mips_movf_c_le_ps", MIPS_BUILTIN_MOVF_C_LE_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_c_ngt_ps, "__builtin_mips_movf_c_ngt_ps", MIPS_BUILTIN_MOVF_C_NGT_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
-  { CODE_FOR_mips_cabs_f_ps, "__builtin_mips_movf_cabs_f_ps", MIPS_BUILTIN_MOVF_CABS_F_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_un_ps, "__builtin_mips_movf_cabs_un_ps", MIPS_BUILTIN_MOVF_CABS_UN_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_eq_ps, "__builtin_mips_movf_cabs_eq_ps", MIPS_BUILTIN_MOVF_CABS_EQ_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ueq_ps, "__builtin_mips_movf_cabs_ueq_ps", MIPS_BUILTIN_MOVF_CABS_UEQ_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_olt_ps, "__builtin_mips_movf_cabs_olt_ps", MIPS_BUILTIN_MOVF_CABS_OLT_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ult_ps, "__builtin_mips_movf_cabs_ult_ps", MIPS_BUILTIN_MOVF_CABS_ULT_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ole_ps, "__builtin_mips_movf_cabs_ole_ps", MIPS_BUILTIN_MOVF_CABS_OLE_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ule_ps, "__builtin_mips_movf_cabs_ule_ps", MIPS_BUILTIN_MOVF_CABS_ULE_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_sf_ps, "__builtin_mips_movf_cabs_sf_ps", MIPS_BUILTIN_MOVF_CABS_SF_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ngle_ps, "__builtin_mips_movf_cabs_ngle_ps", MIPS_BUILTIN_MOVF_CABS_NGLE_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_seq_ps, "__builtin_mips_movf_cabs_seq_ps", MIPS_BUILTIN_MOVF_CABS_SEQ_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ngl_ps, "__builtin_mips_movf_cabs_ngl_ps", MIPS_BUILTIN_MOVF_CABS_NGL_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_lt_ps, "__builtin_mips_movf_cabs_lt_ps", MIPS_BUILTIN_MOVF_CABS_LT_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_nge_ps, "__builtin_mips_movf_cabs_nge_ps", MIPS_BUILTIN_MOVF_CABS_NGE_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_le_ps, "__builtin_mips_movf_cabs_le_ps", MIPS_BUILTIN_MOVF_CABS_LE_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
-  { CODE_FOR_mips_cabs_ngt_ps, "__builtin_mips_movf_cabs_ngt_ps", MIPS_BUILTIN_MOVF_CABS_NGT_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_f_ps, "__builtin_mips_movt_c_f_ps", MIPS_BUILTIN_MOVT_C_F_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_un_ps, "__builtin_mips_movt_c_un_ps", MIPS_BUILTIN_MOVT_C_UN_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_eq_ps, "__builtin_mips_movt_c_eq_ps", MIPS_BUILTIN_MOVT_C_EQ_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_ueq_ps, "__builtin_mips_movt_c_ueq_ps", MIPS_BUILTIN_MOVT_C_UEQ_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_olt_ps, "__builtin_mips_movt_c_olt_ps", MIPS_BUILTIN_MOVT_C_OLT_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_ult_ps, "__builtin_mips_movt_c_ult_ps", MIPS_BUILTIN_MOVT_C_ULT_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_ole_ps, "__builtin_mips_movt_c_ole_ps", MIPS_BUILTIN_MOVT_C_OLE_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_ule_ps, "__builtin_mips_movt_c_ule_ps", MIPS_BUILTIN_MOVT_C_ULE_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_sf_ps, "__builtin_mips_movt_c_sf_ps", MIPS_BUILTIN_MOVT_C_SF_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_ngle_ps, "__builtin_mips_movt_c_ngle_ps", MIPS_BUILTIN_MOVT_C_NGLE_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_seq_ps, "__builtin_mips_movt_c_seq_ps", MIPS_BUILTIN_MOVT_C_SEQ_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_ngl_ps, "__builtin_mips_movt_c_ngl_ps", MIPS_BUILTIN_MOVT_C_NGL_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_lt_ps, "__builtin_mips_movt_c_lt_ps", MIPS_BUILTIN_MOVT_C_LT_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_nge_ps, "__builtin_mips_movt_c_nge_ps", MIPS_BUILTIN_MOVT_C_NGE_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_le_ps, "__builtin_mips_movt_c_le_ps", MIPS_BUILTIN_MOVT_C_LE_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_ngt_ps, "__builtin_mips_movt_c_ngt_ps", MIPS_BUILTIN_MOVT_C_NGT_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_cabs_f_ps, "__builtin_mips_movt_cabs_f_ps", MIPS_BUILTIN_MOVT_CABS_F_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_un_ps, "__builtin_mips_movt_cabs_un_ps", MIPS_BUILTIN_MOVT_CABS_UN_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_eq_ps, "__builtin_mips_movt_cabs_eq_ps", MIPS_BUILTIN_MOVT_CABS_EQ_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ueq_ps, "__builtin_mips_movt_cabs_ueq_ps", MIPS_BUILTIN_MOVT_CABS_UEQ_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_olt_ps, "__builtin_mips_movt_cabs_olt_ps", MIPS_BUILTIN_MOVT_CABS_OLT_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ult_ps, "__builtin_mips_movt_cabs_ult_ps", MIPS_BUILTIN_MOVT_CABS_ULT_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ole_ps, "__builtin_mips_movt_cabs_ole_ps", MIPS_BUILTIN_MOVT_CABS_OLE_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ule_ps, "__builtin_mips_movt_cabs_ule_ps", MIPS_BUILTIN_MOVT_CABS_ULE_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_sf_ps, "__builtin_mips_movt_cabs_sf_ps", MIPS_BUILTIN_MOVT_CABS_SF_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ngle_ps, "__builtin_mips_movt_cabs_ngle_ps", MIPS_BUILTIN_MOVT_CABS_NGLE_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_seq_ps, "__builtin_mips_movt_cabs_seq_ps", MIPS_BUILTIN_MOVT_CABS_SEQ_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ngl_ps, "__builtin_mips_movt_cabs_ngl_ps", MIPS_BUILTIN_MOVT_CABS_NGL_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_lt_ps, "__builtin_mips_movt_cabs_lt_ps", MIPS_BUILTIN_MOVT_CABS_LT_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_nge_ps, "__builtin_mips_movt_cabs_nge_ps", MIPS_BUILTIN_MOVT_CABS_NGE_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_le_ps, "__builtin_mips_movt_cabs_le_ps", MIPS_BUILTIN_MOVT_CABS_LE_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ngt_ps, "__builtin_mips_movt_cabs_ngt_ps", MIPS_BUILTIN_MOVT_CABS_NGT_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_c_f_ps, "__builtin_mips_movf_c_f_ps", MIPS_BUILTIN_MOVF_C_F_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_un_ps, "__builtin_mips_movf_c_un_ps", MIPS_BUILTIN_MOVF_C_UN_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_eq_ps, "__builtin_mips_movf_c_eq_ps", MIPS_BUILTIN_MOVF_C_EQ_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_ueq_ps, "__builtin_mips_movf_c_ueq_ps", MIPS_BUILTIN_MOVF_C_UEQ_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_olt_ps, "__builtin_mips_movf_c_olt_ps", MIPS_BUILTIN_MOVF_C_OLT_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_ult_ps, "__builtin_mips_movf_c_ult_ps", MIPS_BUILTIN_MOVF_C_ULT_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_ole_ps, "__builtin_mips_movf_c_ole_ps", MIPS_BUILTIN_MOVF_C_OLE_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_ule_ps, "__builtin_mips_movf_c_ule_ps", MIPS_BUILTIN_MOVF_C_ULE_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_sf_ps, "__builtin_mips_movf_c_sf_ps", MIPS_BUILTIN_MOVF_C_SF_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_ngle_ps, "__builtin_mips_movf_c_ngle_ps", MIPS_BUILTIN_MOVF_C_NGLE_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_seq_ps, "__builtin_mips_movf_c_seq_ps", MIPS_BUILTIN_MOVF_C_SEQ_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_ngl_ps, "__builtin_mips_movf_c_ngl_ps", MIPS_BUILTIN_MOVF_C_NGL_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_lt_ps, "__builtin_mips_movf_c_lt_ps", MIPS_BUILTIN_MOVF_C_LT_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_nge_ps, "__builtin_mips_movf_c_nge_ps", MIPS_BUILTIN_MOVF_C_NGE_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_le_ps, "__builtin_mips_movf_c_le_ps", MIPS_BUILTIN_MOVF_C_LE_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_c_ngt_ps, "__builtin_mips_movf_c_ngt_ps", MIPS_BUILTIN_MOVF_C_NGT_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_PAIRED_SINGLE },
+    { CODE_FOR_mips_cabs_f_ps, "__builtin_mips_movf_cabs_f_ps", MIPS_BUILTIN_MOVF_CABS_F_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_un_ps, "__builtin_mips_movf_cabs_un_ps", MIPS_BUILTIN_MOVF_CABS_UN_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_eq_ps, "__builtin_mips_movf_cabs_eq_ps", MIPS_BUILTIN_MOVF_CABS_EQ_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ueq_ps, "__builtin_mips_movf_cabs_ueq_ps", MIPS_BUILTIN_MOVF_CABS_UEQ_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_olt_ps, "__builtin_mips_movf_cabs_olt_ps", MIPS_BUILTIN_MOVF_CABS_OLT_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ult_ps, "__builtin_mips_movf_cabs_ult_ps", MIPS_BUILTIN_MOVF_CABS_ULT_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ole_ps, "__builtin_mips_movf_cabs_ole_ps", MIPS_BUILTIN_MOVF_CABS_OLE_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ule_ps, "__builtin_mips_movf_cabs_ule_ps", MIPS_BUILTIN_MOVF_CABS_ULE_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_sf_ps, "__builtin_mips_movf_cabs_sf_ps", MIPS_BUILTIN_MOVF_CABS_SF_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ngle_ps, "__builtin_mips_movf_cabs_ngle_ps", MIPS_BUILTIN_MOVF_CABS_NGLE_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_seq_ps, "__builtin_mips_movf_cabs_seq_ps", MIPS_BUILTIN_MOVF_CABS_SEQ_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ngl_ps, "__builtin_mips_movf_cabs_ngl_ps", MIPS_BUILTIN_MOVF_CABS_NGL_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_lt_ps, "__builtin_mips_movf_cabs_lt_ps", MIPS_BUILTIN_MOVF_CABS_LT_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_nge_ps, "__builtin_mips_movf_cabs_nge_ps", MIPS_BUILTIN_MOVF_CABS_NGE_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_le_ps, "__builtin_mips_movf_cabs_le_ps", MIPS_BUILTIN_MOVF_CABS_LE_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
+    { CODE_FOR_mips_cabs_ngt_ps, "__builtin_mips_movf_cabs_ngt_ps", MIPS_BUILTIN_MOVF_CABS_NGT_PS, MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF, MASK_MIPS3D },
 
-  /* MIPS DSP ASE Revision 0.98 3/24/2005 */
-  /* Table 2-1. MIPS DSP ASE Instructions: Arithmetic */
-  /* ADDQ* */
-  { CODE_FOR_addv2hi3, "__builtin_mips_addq_ph", MIPS_BUILTIN_ADDQ_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSP },
-  { CODE_FOR_mips_addq_s_ph, "__builtin_mips_addq_s_ph", MIPS_BUILTIN_ADDQ_S_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSP },
-  { CODE_FOR_addv4hi3, "__builtin_mips_addq_qh", MIPS_BUILTIN_ADDQ_QH, MIPS_V4HI_FTYPE_V4HI_V4HI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_addq_s_qh, "__builtin_mips_addq_s_qh", MIPS_BUILTIN_ADDQ_S_QH, MIPS_V4HI_FTYPE_V4HI_V4HI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_addq_s_w, "__builtin_mips_addq_s_w", MIPS_BUILTIN_ADDQ_S_W, MIPS_SI_FTYPE_SI_SI, MASK_DSP },
-  { CODE_FOR_addv2si3, "__builtin_mips_addq_pw", MIPS_BUILTIN_ADDQ_PW, MIPS_V2SI_FTYPE_V2SI_V2SI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_addq_s_pw, "__builtin_mips_addq_s_pw", MIPS_BUILTIN_ADDQ_S_PW, MIPS_V2SI_FTYPE_V2SI_V2SI, MASK_DSP|MASK_64BIT },
-  /* ADDU* */
-  { CODE_FOR_addv4qi3, "__builtin_mips_addu_qb", MIPS_BUILTIN_ADDU_QB, MIPS_V4QI_FTYPE_V4QI_V4QI, MASK_DSP },
-  { CODE_FOR_mips_addu_s_qb, "__builtin_mips_addu_s_qb", MIPS_BUILTIN_ADDU_S_QB, MIPS_V4QI_FTYPE_V4QI_V4QI, MASK_DSP },
-  { CODE_FOR_addv8qi3, "__builtin_mips_addu_ob", MIPS_BUILTIN_ADDU_OB, MIPS_V8QI_FTYPE_V8QI_V8QI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_addu_s_ob, "__builtin_mips_addu_s_ob", MIPS_BUILTIN_ADDU_S_OB, MIPS_V8QI_FTYPE_V8QI_V8QI, MASK_DSP|MASK_64BIT },
-  /* SUBQ* */
-  { CODE_FOR_subv2hi3, "__builtin_mips_subq_ph", MIPS_BUILTIN_SUBQ_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSP },
-  { CODE_FOR_mips_subq_s_ph, "__builtin_mips_subq_s_ph", MIPS_BUILTIN_SUBQ_S_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSP },
-  { CODE_FOR_subv4hi3, "__builtin_mips_subq_qh", MIPS_BUILTIN_SUBQ_QH, MIPS_V4HI_FTYPE_V4HI_V4HI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_subq_s_qh, "__builtin_mips_subq_s_qh", MIPS_BUILTIN_SUBQ_S_QH, MIPS_V4HI_FTYPE_V4HI_V4HI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_subq_s_w, "__builtin_mips_subq_s_w", MIPS_BUILTIN_SUBQ_S_W, MIPS_SI_FTYPE_SI_SI, MASK_DSP },
-  { CODE_FOR_subv2si3, "__builtin_mips_subq_pw", MIPS_BUILTIN_SUBQ_PW, MIPS_V2SI_FTYPE_V2SI_V2SI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_subq_s_pw, "__builtin_mips_subq_s_pw", MIPS_BUILTIN_SUBQ_S_PW, MIPS_V2SI_FTYPE_V2SI_V2SI, MASK_DSP|MASK_64BIT },
-  /* SUBU*  */
-  { CODE_FOR_subv4qi3, "__builtin_mips_subu_qb", MIPS_BUILTIN_SUBU_QB, MIPS_V4QI_FTYPE_V4QI_V4QI, MASK_DSP },
-  { CODE_FOR_mips_subu_s_qb, "__builtin_mips_subu_s_qb", MIPS_BUILTIN_SUBU_S_QB, MIPS_V4QI_FTYPE_V4QI_V4QI, MASK_DSP },
-  { CODE_FOR_subv8qi3, "__builtin_mips_subu_ob", MIPS_BUILTIN_SUBU_OB, MIPS_V8QI_FTYPE_V8QI_V8QI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_subu_s_ob, "__builtin_mips_subu_s_ob", MIPS_BUILTIN_SUBU_S_OB, MIPS_V8QI_FTYPE_V8QI_V8QI, MASK_DSP|MASK_64BIT },
-  /* ADDSC */
-  { CODE_FOR_mips_addsc, "__builtin_mips_addsc", MIPS_BUILTIN_ADDSC, MIPS_SI_FTYPE_SI_SI, MASK_DSP },
-  /* ADDWC */
-  { CODE_FOR_mips_addwc, "__builtin_mips_addwc", MIPS_BUILTIN_ADDWC, MIPS_SI_FTYPE_SI_SI, MASK_DSP },
-  /* MODSUB  */
-  { CODE_FOR_mips_modsub, "__builtin_mips_modsub", MIPS_BUILTIN_MODSUB, MIPS_SI_FTYPE_SI_SI, MASK_DSP },
-  /* RADDU* */
-  { CODE_FOR_mips_raddu_w_qb, "__builtin_mips_raddu_w_qb", MIPS_BUILTIN_RADDU_W_QB, MIPS_SI_FTYPE_V4QI, MASK_DSP },
-  { CODE_FOR_mips_raddu_l_ob, "__builtin_mips_raddu_l_ob", MIPS_BUILTIN_RADDU_L_OB, MIPS_DI_FTYPE_V8QI, MASK_DSP|MASK_64BIT },
-  /* ABSQ* */
-  { CODE_FOR_mips_absq_s_ph, "__builtin_mips_absq_s_ph", MIPS_BUILTIN_ABSQ_S_PH, MIPS_V2HI_FTYPE_V2HI, MASK_DSP },
-  { CODE_FOR_mips_absq_s_w, "__builtin_mips_absq_s_w", MIPS_BUILTIN_ABSQ_S_W, MIPS_SI_FTYPE_SI, MASK_DSP },
-  { CODE_FOR_mips_absq_qh, "__builtin_mips_absq_qh", MIPS_BUILTIN_ABSQ_QH, MIPS_V4HI_FTYPE_V4HI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_absq_s_qh, "__builtin_mips_absq_s_qh", MIPS_BUILTIN_ABSQ_S_QH, MIPS_V4HI_FTYPE_V4HI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_absq_pw, "__builtin_mips_absq_pw", MIPS_BUILTIN_ABSQ_PW, MIPS_V2SI_FTYPE_V2SI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_absq_s_pw, "__builtin_mips_absq_s_pw", MIPS_BUILTIN_ABSQ_S_PW, MIPS_V2SI_FTYPE_V2SI, MASK_DSP|MASK_64BIT },
-  /* PRECRQ* */
-  { CODE_FOR_mips_precrq_qb_ph, "__builtin_mips_precrq_qb_ph", MIPS_BUILTIN_PRECRQ_QB_PH, MIPS_V4QI_FTYPE_V2HI_V2HI, MASK_DSP },
-  { CODE_FOR_mips_precrq_ph_w, "__builtin_mips_precrq_ph_w", MIPS_BUILTIN_PRECRQ_PH_W, MIPS_V2HI_FTYPE_SI_SI, MASK_DSP },
-  { CODE_FOR_mips_precrq_rs_ph_w, "__builtin_mips_precrq_rs_ph_w", MIPS_BUILTIN_PRECRQ_RS_PH_W, MIPS_V2HI_FTYPE_SI_SI, MASK_DSP },
-  { CODE_FOR_mips_precrq_ob_qh, "__builtin_mips_precrq_ob_qh", MIPS_BUILTIN_PRECRQ_OB_QH, MIPS_V8QI_FTYPE_V4HI_V4HI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_precrq_qh_pw, "__builtin_mips_precrq_qh_pw", MIPS_BUILTIN_PRECRQ_QH_PW, MIPS_V4HI_FTYPE_V2SI_V2SI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_precrq_rs_qh_pw, "__builtin_mips_precrq_rs_qh_pw", MIPS_BUILTIN_PRECRQ_RS_QH_PW, MIPS_V4HI_FTYPE_V2SI_V2SI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_precrq_pw_l, "__builtin_mips_precrq_pw_l", MIPS_BUILTIN_PRECRQ_PW_L, MIPS_V2SI_FTYPE_DI_DI, MASK_DSP|MASK_64BIT },
-  /* PRECRQU* */
-  { CODE_FOR_mips_precrqu_s_qb_ph, "__builtin_mips_precrqu_s_qb_ph", MIPS_BUILTIN_PRECRQU_S_QB_PH, MIPS_V4QI_FTYPE_V2HI_V2HI, MASK_DSP },
-  { CODE_FOR_mips_precrqu_s_ob_qh, "__builtin_mips_precrqu_s_ob_qh", MIPS_BUILTIN_PRECRQU_S_OB_QH, MIPS_V8QI_FTYPE_V4HI_V4HI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_precrqu_s_qh_pw, "__builtin_mips_precrqu_s_qh_pw", MIPS_BUILTIN_PRECRQU_S_QH_PW, MIPS_V4HI_FTYPE_V2SI_V2SI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_precrqu_s_pw_l, "__builtin_mips_precrqu_s_pw_l", MIPS_BUILTIN_PRECRQU_S_PW_L, MIPS_V2SI_FTYPE_DI_DI, MASK_DSP|MASK_64BIT },
-  /* PRECEQ* */
-  { CODE_FOR_mips_preceq_w_phl, "__builtin_mips_preceq_w_phl", MIPS_BUILTIN_PRECEQ_W_PHL, MIPS_SI_FTYPE_V2HI, MASK_DSP },
-  { CODE_FOR_mips_preceq_w_phr, "__builtin_mips_preceq_w_phr", MIPS_BUILTIN_PRECEQ_W_PHR, MIPS_SI_FTYPE_V2HI, MASK_DSP },
-  { CODE_FOR_mips_preceq_pw_qhl, "__builtin_mips_preceq_pw_qhl", MIPS_BUILTIN_PRECEQ_PW_QHL, MIPS_V2SI_FTYPE_V4HI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_preceq_pw_qhr, "__builtin_mips_preceq_pw_qhr", MIPS_BUILTIN_PRECEQ_PW_QHR, MIPS_V2SI_FTYPE_V4HI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_preceq_pw_qhla, "__builtin_mips_preceq_pw_qhla", MIPS_BUILTIN_PRECEQ_PW_QHLA, MIPS_V2SI_FTYPE_V4HI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_preceq_pw_qhra, "__builtin_mips_preceq_pw_qhra", MIPS_BUILTIN_PRECEQ_PW_QHRA, MIPS_V2SI_FTYPE_V4HI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_preceq_l_pwl, "__builtin_mips_preceq_l_pwl", MIPS_BUILTIN_PRECEQ_L_PWL, MIPS_DI_FTYPE_V2SI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_preceq_l_pwr, "__builtin_mips_preceq_l_pwr", MIPS_BUILTIN_PRECEQ_L_PWR, MIPS_DI_FTYPE_V2SI, MASK_DSP|MASK_64BIT },
-  /* PRECEQU* */
-  { CODE_FOR_mips_precequ_ph_qbl, "__builtin_mips_precequ_ph_qbl", MIPS_BUILTIN_PRECEQU_PH_QBL, MIPS_V2HI_FTYPE_V4QI, MASK_DSP },
-  { CODE_FOR_mips_precequ_ph_qbr, "__builtin_mips_precequ_ph_qbr", MIPS_BUILTIN_PRECEQU_PH_QBR, MIPS_V2HI_FTYPE_V4QI, MASK_DSP },
-  { CODE_FOR_mips_precequ_ph_qbla, "__builtin_mips_precequ_ph_qbla", MIPS_BUILTIN_PRECEQU_PH_QBLA, MIPS_V2HI_FTYPE_V4QI, MASK_DSP },
-  { CODE_FOR_mips_precequ_ph_qbra, "__builtin_mips_precequ_ph_qbra", MIPS_BUILTIN_PRECEQU_PH_QBRA, MIPS_V2HI_FTYPE_V4QI, MASK_DSP },
-  { CODE_FOR_mips_precequ_qh_obl, "__builtin_mips_precequ_qh_obl", MIPS_BUILTIN_PRECEQU_QH_OBL, MIPS_V4HI_FTYPE_V8QI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_precequ_qh_obr, "__builtin_mips_precequ_qh_obr", MIPS_BUILTIN_PRECEQU_QH_OBR, MIPS_V4HI_FTYPE_V8QI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_precequ_qh_obla, "__builtin_mips_precequ_qh_obla", MIPS_BUILTIN_PRECEQU_QH_OBLA, MIPS_V4HI_FTYPE_V8QI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_precequ_qh_obra, "__builtin_mips_precequ_qh_obra", MIPS_BUILTIN_PRECEQU_QH_OBRA, MIPS_V4HI_FTYPE_V8QI, MASK_DSP|MASK_64BIT },
-  /* PRECEU* */
-  { CODE_FOR_mips_preceu_ph_qbl, "__builtin_mips_preceu_ph_qbl", MIPS_BUILTIN_PRECEU_PH_QBL, MIPS_V2HI_FTYPE_V4QI, MASK_DSP },
-  { CODE_FOR_mips_preceu_ph_qbr, "__builtin_mips_preceu_ph_qbr", MIPS_BUILTIN_PRECEU_PH_QBR, MIPS_V2HI_FTYPE_V4QI, MASK_DSP },
-  { CODE_FOR_mips_preceu_ph_qbla, "__builtin_mips_preceu_ph_qbla", MIPS_BUILTIN_PRECEU_PH_QBLA, MIPS_V2HI_FTYPE_V4QI, MASK_DSP },
-  { CODE_FOR_mips_preceu_ph_qbra, "__builtin_mips_preceu_ph_qbra", MIPS_BUILTIN_PRECEU_PH_QBRA, MIPS_V2HI_FTYPE_V4QI, MASK_DSP },
-  /* Table 2-2. MIPS DSP ASE Instructions: Shift */
-  /* SHLL* */
-  { CODE_FOR_mips_shll_qb, "__builtin_mips_shll_qb", MIPS_BUILTIN_SHLL_QB, MIPS_V4QI_FTYPE_V4QI_SI, MASK_DSP },
-  { CODE_FOR_mips_shll_ob, "__builtin_mips_shll_ob", MIPS_BUILTIN_SHLL_OB, MIPS_V8QI_FTYPE_V8QI_DI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_shll_ph, "__builtin_mips_shll_ph", MIPS_BUILTIN_SHLL_PH, MIPS_V2HI_FTYPE_V2HI_SI, MASK_DSP },
-  { CODE_FOR_mips_shll_s_ph, "__builtin_mips_shll_s_ph", MIPS_BUILTIN_SHLL_S_PH, MIPS_V2HI_FTYPE_V2HI_SI, MASK_DSP },
-  { CODE_FOR_mips_shll_qh, "__builtin_mips_shll_qh", MIPS_BUILTIN_SHLL_QH, MIPS_V4HI_FTYPE_V4HI_DI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_shll_s_qh, "__builtin_mips_shll_s_qh", MIPS_BUILTIN_SHLL_S_QH, MIPS_V4HI_FTYPE_V4HI_DI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_shll_s_w, "__builtin_mips_shll_s_w", MIPS_BUILTIN_SHLL_S_W, MIPS_SI_FTYPE_SI_SI, MASK_DSP },
-  { CODE_FOR_mips_shll_pw, "__builtin_mips_shll_pw", MIPS_BUILTIN_SHLL_PW, MIPS_V2SI_FTYPE_V2SI_DI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_shll_s_pw, "__builtin_mips_shll_s_pw", MIPS_BUILTIN_SHLL_S_PW, MIPS_V2SI_FTYPE_V2SI_DI, MASK_DSP|MASK_64BIT },
-  /* SHRL* */
-  { CODE_FOR_mips_shrl_qb, "__builtin_mips_shrl_qb", MIPS_BUILTIN_SHRL_QB, MIPS_V4QI_FTYPE_V4QI_SI, MASK_DSP },
-  { CODE_FOR_mips_shrl_ob, "__builtin_mips_shrl_ob", MIPS_BUILTIN_SHRL_OB, MIPS_V8QI_FTYPE_V8QI_DI, MASK_DSP|MASK_64BIT },
-  /* SHRA* */
-  { CODE_FOR_mips_shra_ph, "__builtin_mips_shra_ph", MIPS_BUILTIN_SHRA_PH, MIPS_V2HI_FTYPE_V2HI_SI, MASK_DSP },
-  { CODE_FOR_mips_shra_r_ph, "__builtin_mips_shra_r_ph", MIPS_BUILTIN_SHRA_R_PH, MIPS_V2HI_FTYPE_V2HI_SI, MASK_DSP },
-  { CODE_FOR_mips_shra_r_w, "__builtin_mips_shra_r_w", MIPS_BUILTIN_SHRA_R_W, MIPS_SI_FTYPE_SI_SI, MASK_DSP },
-  { CODE_FOR_mips_shra_qh, "__builtin_mips_shra_qh", MIPS_BUILTIN_SHRA_QH, MIPS_V4HI_FTYPE_V4HI_DI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_shra_r_qh, "__builtin_mips_shra_r_qh", MIPS_BUILTIN_SHRA_R_QH, MIPS_V4HI_FTYPE_V4HI_DI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_shra_pw, "__builtin_mips_shra_pw", MIPS_BUILTIN_SHRA_PW, MIPS_V2SI_FTYPE_V2SI_DI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_shra_r_pw, "__builtin_mips_shra_r_pw", MIPS_BUILTIN_SHRA_R_PW, MIPS_V2SI_FTYPE_V2SI_DI, MASK_DSP|MASK_64BIT },
-  /* Table 2-3. MIPS DSP ASE Instructions: Multiply */
-  /* MULEU* */
-  { CODE_FOR_mips_muleu_s_ph_qbl, "__builtin_mips_muleu_s_ph_qbl", MIPS_BUILTIN_MULEU_S_PH_QBL, MIPS_V2HI_FTYPE_V4QI_V2HI, MASK_DSP },
-  { CODE_FOR_mips_muleu_s_ph_qbr, "__builtin_mips_muleu_s_ph_qbr", MIPS_BUILTIN_MULEU_S_PH_QBR, MIPS_V2HI_FTYPE_V4QI_V2HI, MASK_DSP },
-  /* MULQ* */
-  { CODE_FOR_mips_mulq_rs_ph, "__builtin_mips_mulq_rs_ph", MIPS_BUILTIN_MULQ_RS_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSP },
-  { CODE_FOR_mips_mulq_qh, "__builtin_mips_mulq_qh", MIPS_BUILTIN_MULQ_QH, MIPS_V4HI_FTYPE_V4HI_V4HI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_mulq_rs_qh, "__builtin_mips_mulq_rs_qh", MIPS_BUILTIN_MULQ_RS_QH, MIPS_V4HI_FTYPE_V4HI_V4HI, MASK_DSP|MASK_64BIT },
-  /* MULEQ* */
-  { CODE_FOR_mips_muleq_s_w_phl, "__builtin_mips_muleq_s_w_phl", MIPS_BUILTIN_MULEQ_S_W_PHL, MIPS_SI_FTYPE_V2HI_V2HI, MASK_DSP },
-  { CODE_FOR_mips_muleq_s_w_phr, "__builtin_mips_muleq_s_w_phr", MIPS_BUILTIN_MULEQ_S_W_PHR, MIPS_SI_FTYPE_V2HI_V2HI, MASK_DSP },
-  { CODE_FOR_mips_muleq_pw_qhl, "__builtin_mips_muleq_pw_qhl", MIPS_BUILTIN_MULEQ_PW_QHL, MIPS_V2SI_FTYPE_V4HI_V4HI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_muleq_pw_qhr, "__builtin_mips_muleq_pw_qhr", MIPS_BUILTIN_MULEQ_PW_QHR, MIPS_V2SI_FTYPE_V4HI_V4HI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_muleq_s_pw_qhl, "__builtin_mips_muleq_s_pw_qhl", MIPS_BUILTIN_MULEQ_S_PW_QHL, MIPS_V2SI_FTYPE_V4HI_V4HI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_muleq_s_pw_qhr, "__builtin_mips_muleq_s_pw_qhr", MIPS_BUILTIN_MULEQ_S_PW_QHR, MIPS_V2SI_FTYPE_V4HI_V4HI, MASK_DSP|MASK_64BIT },
-  /* DPAU* */
-  { CODE_FOR_mips_dpau_h_qbl, "__builtin_mips_dpau_h_qbl", MIPS_BUILTIN_DPAU_H_QBL, MIPS_DI_FTYPE_DI_V4QI_V4QI, MASK_DSP },
-  { CODE_FOR_mips_dpau_h_qbr, "__builtin_mips_dpau_h_qbr", MIPS_BUILTIN_DPAU_H_QBR, MIPS_DI_FTYPE_DI_V4QI_V4QI, MASK_DSP },
-  { CODE_FOR_mips_dpau_h_qbl_64, "__builtin_mips_dpau_h_qbl_64", MIPS_BUILTIN_DPAU_H_QBL_64, MIPS_TI_FTYPE_TI_V4QI_V4QI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_dpau_h_qbr_64, "__builtin_mips_dpau_h_qbr_64", MIPS_BUILTIN_DPAU_H_QBR_64, MIPS_TI_FTYPE_TI_V4QI_V4QI, MASK_DSP|MASK_64BIT },
-  /* DPSU* */
-  { CODE_FOR_mips_dpsu_h_qbl, "__builtin_mips_dpsu_h_qbl", MIPS_BUILTIN_DPSU_H_QBL, MIPS_DI_FTYPE_DI_V4QI_V4QI, MASK_DSP },
-  { CODE_FOR_mips_dpsu_h_qbr, "__builtin_mips_dpsu_h_qbr", MIPS_BUILTIN_DPSU_H_QBR, MIPS_DI_FTYPE_DI_V4QI_V4QI, MASK_DSP },
-  { CODE_FOR_mips_dpsu_h_qbl_64, "__builtin_mips_dpsu_h_qbl_64", MIPS_BUILTIN_DPSU_H_QBL_64, MIPS_TI_FTYPE_TI_V4QI_V4QI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_dpsu_h_qbr_64, "__builtin_mips_dpsu_h_qbr_64", MIPS_BUILTIN_DPSU_H_QBR_64, MIPS_TI_FTYPE_TI_V4QI_V4QI, MASK_DSP|MASK_64BIT },
-  /* DPAQ* */
-  { CODE_FOR_mips_dpaq_s_w_ph, "__builtin_mips_dpaq_s_w_ph", MIPS_BUILTIN_DPAQ_S_W_PH, MIPS_DI_FTYPE_DI_V2HI_V2HI, MASK_DSP },
-  { CODE_FOR_mips_dpaq_s_w_ph_64, "__builtin_mips_dpaq_s_w_ph_64", MIPS_BUILTIN_DPAQ_S_W_PH_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_dpaq_w_qh, "__builtin_mips_dpaq_w_qh", MIPS_BUILTIN_DPAQ_W_QH, MIPS_TI_FTYPE_TI_V4HI_V4HI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_dpaq_s_w_qh, "__builtin_mips_dpaq_s_w_qh", MIPS_BUILTIN_DPAQ_S_W_QH, MIPS_TI_FTYPE_TI_V4HI_V4HI, MASK_DSP|MASK_64BIT },
-  /* DPSQ* */
-  { CODE_FOR_mips_dpsq_s_w_ph, "__builtin_mips_dpsq_s_w_ph", MIPS_BUILTIN_DPSQ_S_W_PH, MIPS_DI_FTYPE_DI_V2HI_V2HI, MASK_DSP },
-  { CODE_FOR_mips_dpsq_s_w_ph_64, "__builtin_mips_dpsq_s_w_ph_64", MIPS_BUILTIN_DPSQ_S_W_PH_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_dpsq_w_qh, "__builtin_mips_dpsq_w_qh", MIPS_BUILTIN_DPSQ_W_QH, MIPS_TI_FTYPE_TI_V4HI_V4HI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_dpsq_s_w_qh, "__builtin_mips_dpsq_s_w_qh", MIPS_BUILTIN_DPSQ_S_W_QH, MIPS_TI_FTYPE_TI_V4HI_V4HI, MASK_DSP|MASK_64BIT },
-  /* MULSAQ* */
-  { CODE_FOR_mips_mulsaq_s_w_ph, "__builtin_mips_mulsaq_s_w_ph", MIPS_BUILTIN_MULSAQ_S_W_PH, MIPS_DI_FTYPE_DI_V2HI_V2HI, MASK_DSP },
-  { CODE_FOR_mips_mulsaq_s_w_ph_64, "__builtin_mips_mulsaq_s_w_ph_64", MIPS_BUILTIN_MULSAQ_S_W_PH_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_mulsaq_w_qh, "__builtin_mips_mulsaq_w_qh", MIPS_BUILTIN_MULSAQ_W_QH, MIPS_TI_FTYPE_TI_V4HI_V4HI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_mulsaq_s_w_qh, "__builtin_mips_mulsaq_s_w_qh", MIPS_BUILTIN_MULSAQ_S_W_QH, MIPS_TI_FTYPE_TI_V4HI_V4HI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_mulsaq_l_pw, "__builtin_mips_mulsaq_l_pw", MIPS_BUILTIN_MULSAQ_L_PW, MIPS_TI_FTYPE_TI_V2SI_V2SI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_mulsaq_s_l_pw, "__builtin_mips_mulsaq_s_l_pw", MIPS_BUILTIN_MULSAQ_S_L_PW, MIPS_TI_FTYPE_TI_V2SI_V2SI, MASK_DSP|MASK_64BIT },
-  /* DPAQ* */
-  { CODE_FOR_mips_dpaq_sa_l_w, "__builtin_mips_dpaq_sa_l_w", MIPS_BUILTIN_DPAQ_SA_L_W, MIPS_DI_FTYPE_DI_SI_SI, MASK_DSP },
-  { CODE_FOR_mips_dpaq_sa_l_w_64, "__builtin_mips_dpaq_sa_l_w_64", MIPS_BUILTIN_DPAQ_SA_L_W_64, MIPS_TI_FTYPE_TI_SI_SI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_dpaq_l_pw, "__builtin_mips_dpaq_l_pw", MIPS_BUILTIN_DPAQ_L_PW, MIPS_TI_FTYPE_TI_V2SI_V2SI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_dpaq_sa_l_pw, "__builtin_mips_dpaq_sa_l_pw", MIPS_BUILTIN_DPAQ_SA_L_PW, MIPS_TI_FTYPE_TI_V2SI_V2SI, MASK_DSP|MASK_64BIT },
-  /* DPSQ* */
-  { CODE_FOR_mips_dpsq_sa_l_w, "__builtin_mips_dpsq_sa_l_w", MIPS_BUILTIN_DPSQ_SA_L_W, MIPS_DI_FTYPE_DI_SI_SI, MASK_DSP },
-  { CODE_FOR_mips_dpsq_sa_l_w_64, "__builtin_mips_dpsq_sa_l_w_64", MIPS_BUILTIN_DPSQ_SA_L_W_64, MIPS_TI_FTYPE_TI_SI_SI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_dpsq_l_pw, "__builtin_mips_dpsq_l_pw", MIPS_BUILTIN_DPSQ_L_PW, MIPS_TI_FTYPE_TI_V2SI_V2SI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_dpsq_sa_l_pw, "__builtin_mips_dpsq_sa_l_pw", MIPS_BUILTIN_DPSQ_SA_L_PW, MIPS_TI_FTYPE_TI_V2SI_V2SI, MASK_DSP|MASK_64BIT },
-  /* MAQ* */
-  { CODE_FOR_mips_maq_s_w_phl, "__builtin_mips_maq_s_w_phl", MIPS_BUILTIN_MAQ_S_W_PHL, MIPS_DI_FTYPE_DI_V2HI_V2HI, MASK_DSP },
-  { CODE_FOR_mips_maq_s_w_phr, "__builtin_mips_maq_s_w_phr", MIPS_BUILTIN_MAQ_S_W_PHR, MIPS_DI_FTYPE_DI_V2HI_V2HI, MASK_DSP },
-  { CODE_FOR_mips_maq_s_w_phl_64, "__builtin_mips_maq_s_w_phl_64", MIPS_BUILTIN_MAQ_S_W_PHL_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_maq_s_w_phr_64, "__builtin_mips_maq_s_w_phr_64", MIPS_BUILTIN_MAQ_S_W_PHR_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_maq_w_qhll, "__builtin_mips_maq_w_qhll", MIPS_BUILTIN_MAQ_W_QHLL, MIPS_TI_FTYPE_TI_V4HI_V4HI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_maq_w_qhlr, "__builtin_mips_maq_w_qhlr", MIPS_BUILTIN_MAQ_W_QHLR, MIPS_TI_FTYPE_TI_V4HI_V4HI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_maq_w_qhrl, "__builtin_mips_maq_w_qhrl", MIPS_BUILTIN_MAQ_W_QHRL, MIPS_TI_FTYPE_TI_V4HI_V4HI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_maq_w_qhrr, "__builtin_mips_maq_w_qhrr", MIPS_BUILTIN_MAQ_W_QHRR, MIPS_TI_FTYPE_TI_V4HI_V4HI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_maq_s_w_qhll, "__builtin_mips_maq_s_w_qhll", MIPS_BUILTIN_MAQ_S_W_QHLL, MIPS_TI_FTYPE_TI_V4HI_V4HI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_maq_s_w_qhlr, "__builtin_mips_maq_s_w_qhlr", MIPS_BUILTIN_MAQ_S_W_QHLR, MIPS_TI_FTYPE_TI_V4HI_V4HI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_maq_s_w_qhrl, "__builtin_mips_maq_s_w_qhrl", MIPS_BUILTIN_MAQ_S_W_QHRL, MIPS_TI_FTYPE_TI_V4HI_V4HI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_maq_s_w_qhrr, "__builtin_mips_maq_s_w_qhrr", MIPS_BUILTIN_MAQ_S_W_QHRR, MIPS_TI_FTYPE_TI_V4HI_V4HI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_maq_l_pwl, "__builtin_mips_maq_l_pwl", MIPS_BUILTIN_MAQ_L_PWL, MIPS_TI_FTYPE_TI_V2SI_V2SI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_maq_l_pwr, "__builtin_mips_maq_l_pwr", MIPS_BUILTIN_MAQ_L_PWR, MIPS_TI_FTYPE_TI_V2SI_V2SI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_maq_s_l_pwl, "__builtin_mips_maq_s_l_pwl", MIPS_BUILTIN_MAQ_S_L_PWL, MIPS_TI_FTYPE_TI_V2SI_V2SI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_maq_s_l_pwr, "__builtin_mips_maq_s_l_pwr", MIPS_BUILTIN_MAQ_S_L_PWR, MIPS_TI_FTYPE_TI_V2SI_V2SI, MASK_DSP|MASK_64BIT },
-  /* MAQ_SA* */
-  { CODE_FOR_mips_maq_sa_w_phl, "__builtin_mips_maq_sa_w_phl", MIPS_BUILTIN_MAQ_SA_W_PHL, MIPS_DI_FTYPE_DI_V2HI_V2HI, MASK_DSP },
-  { CODE_FOR_mips_maq_sa_w_phr, "__builtin_mips_maq_sa_w_phr", MIPS_BUILTIN_MAQ_SA_W_PHR, MIPS_DI_FTYPE_DI_V2HI_V2HI, MASK_DSP },
-  { CODE_FOR_mips_maq_sa_w_phl_64, "__builtin_mips_maq_sa_w_phl_64", MIPS_BUILTIN_MAQ_SA_W_PHL_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_maq_sa_w_phr_64, "__builtin_mips_maq_sa_w_phr_64", MIPS_BUILTIN_MAQ_SA_W_PHR_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSP|MASK_64BIT },
-  /* DMADD* */
-  { CODE_FOR_mips_dmadd, "__builtin_mips_dmadd", MIPS_BUILTIN_DMADD, MIPS_TI_FTYPE_TI_DI_DI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_dmaddu, "__builtin_mips_dmaddu", MIPS_BUILTIN_DMADDU, MIPS_TI_FTYPE_TI_UDI_UDI, MASK_DSP|MASK_64BIT },
-  /* DMSUB* */
-  { CODE_FOR_mips_dmsub, "__builtin_mips_dmsub", MIPS_BUILTIN_DMSUB, MIPS_TI_FTYPE_TI_DI_DI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_dmsubu, "__builtin_mips_dmsubu", MIPS_BUILTIN_DMSUBU, MIPS_TI_FTYPE_TI_UDI_UDI, MASK_DSP|MASK_64BIT },
-  /* Table 2-4. MIPS DSP ASE Instructions: General Bit/Manipulation */
-  /* BITREV */
-  { CODE_FOR_mips_bitrev, "__builtin_mips_bitrev", MIPS_BUILTIN_BITREV, MIPS_SI_FTYPE_SI, MASK_DSP },
-  /* INSV */
-  { CODE_FOR_mips_insv, "__builtin_mips_insv", MIPS_BUILTIN_INSV, MIPS_SI_FTYPE_SI_SI, MASK_DSP },
-  { CODE_FOR_mips_dinsv, "__builtin_mips_dinsv", MIPS_BUILTIN_DINSV, MIPS_DI_FTYPE_DI_DI, MASK_DSP|MASK_64BIT },
-  /* REPL* */
-  { CODE_FOR_mips_repl_qb, "__builtin_mips_repl_qb", MIPS_BUILTIN_REPL_QB, MIPS_V4QI_FTYPE_SI, MASK_DSP },
-  { CODE_FOR_mips_repl_ob, "__builtin_mips_repl_ob", MIPS_BUILTIN_REPL_OB, MIPS_V8QI_FTYPE_DI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_repl_ph, "__builtin_mips_repl_ph", MIPS_BUILTIN_REPL_PH, MIPS_V2HI_FTYPE_SI, MASK_DSP },
-  { CODE_FOR_mips_repl_qh, "__builtin_mips_repl_qh", MIPS_BUILTIN_REPL_QH, MIPS_V4HI_FTYPE_DI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_repl_pw, "__builtin_mips_repl_pw", MIPS_BUILTIN_REPL_PW, MIPS_V2SI_FTYPE_DI, MASK_DSP|MASK_64BIT },
-  /* Table 2-5. MIPS DSP ASE Instructions: Compare-Pick */
-  /* CMPU.* CMP.* */
-  { CODE_FOR_mips_cmpu_eq_qb, "__builtin_mips_cmpu_eq_qb", MIPS_BUILTIN_CMPU_EQ_QB, MIPS_VOID_FTYPE_V4QI_V4QI, MASK_DSP },
-  { CODE_FOR_mips_cmpu_lt_qb, "__builtin_mips_cmpu_lt_qb", MIPS_BUILTIN_CMPU_LT_QB, MIPS_VOID_FTYPE_V4QI_V4QI, MASK_DSP },
-  { CODE_FOR_mips_cmpu_le_qb, "__builtin_mips_cmpu_le_qb", MIPS_BUILTIN_CMPU_LE_QB, MIPS_VOID_FTYPE_V4QI_V4QI, MASK_DSP },
-  { CODE_FOR_mips_cmpgu_eq_qb, "__builtin_mips_cmpgu_eq_qb", MIPS_BUILTIN_CMPGU_EQ_QB, MIPS_SI_FTYPE_V4QI_V4QI, MASK_DSP },
-  { CODE_FOR_mips_cmpgu_lt_qb, "__builtin_mips_cmpgu_lt_qb", MIPS_BUILTIN_CMPGU_LT_QB, MIPS_SI_FTYPE_V4QI_V4QI, MASK_DSP },
-  { CODE_FOR_mips_cmpgu_le_qb, "__builtin_mips_cmpgu_le_qb", MIPS_BUILTIN_CMPGU_LE_QB, MIPS_SI_FTYPE_V4QI_V4QI, MASK_DSP },
-  { CODE_FOR_mips_cmp_eq_ph, "__builtin_mips_cmp_eq_ph", MIPS_BUILTIN_CMP_EQ_PH, MIPS_VOID_FTYPE_V2HI_V2HI, MASK_DSP },
-  { CODE_FOR_mips_cmp_lt_ph, "__builtin_mips_cmp_lt_ph", MIPS_BUILTIN_CMP_LT_PH, MIPS_VOID_FTYPE_V2HI_V2HI, MASK_DSP },
-  { CODE_FOR_mips_cmp_le_ph, "__builtin_mips_cmp_le_ph", MIPS_BUILTIN_CMP_LE_PH, MIPS_VOID_FTYPE_V2HI_V2HI, MASK_DSP },
-  { CODE_FOR_mips_cmpu_eq_ob, "__builtin_mips_cmpu_eq_ob", MIPS_BUILTIN_CMPU_EQ_OB, MIPS_VOID_FTYPE_V8QI_V8QI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_cmpu_lt_ob, "__builtin_mips_cmpu_lt_ob", MIPS_BUILTIN_CMPU_LT_OB, MIPS_VOID_FTYPE_V8QI_V8QI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_cmpu_le_ob, "__builtin_mips_cmpu_le_ob", MIPS_BUILTIN_CMPU_LE_OB, MIPS_VOID_FTYPE_V8QI_V8QI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_cmp_eq_qh, "__builtin_mips_cmp_eq_qh", MIPS_BUILTIN_CMP_EQ_QH, MIPS_VOID_FTYPE_V4HI_V4HI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_cmp_lt_qh, "__builtin_mips_cmp_lt_qh", MIPS_BUILTIN_CMP_LT_QH, MIPS_VOID_FTYPE_V4HI_V4HI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_cmp_le_qh, "__builtin_mips_cmp_le_qh", MIPS_BUILTIN_CMP_LE_QH, MIPS_VOID_FTYPE_V4HI_V4HI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_cmp_eq_pw, "__builtin_mips_cmp_eq_pw", MIPS_BUILTIN_CMP_EQ_PW, MIPS_VOID_FTYPE_V2SI_V2SI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_cmp_lt_pw, "__builtin_mips_cmp_lt_pw", MIPS_BUILTIN_CMP_LT_PW, MIPS_VOID_FTYPE_V2SI_V2SI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_cmp_le_pw, "__builtin_mips_cmp_le_pw", MIPS_BUILTIN_CMP_LE_PW, MIPS_VOID_FTYPE_V2SI_V2SI, MASK_DSP|MASK_64BIT },
-  /* PICK* */
-  { CODE_FOR_mips_pick_qb, "__builtin_mips_pick_qb", MIPS_BUILTIN_PICK_QB, MIPS_V4QI_FTYPE_V4QI_V4QI, MASK_DSP },
-  { CODE_FOR_mips_pick_ph, "__builtin_mips_pick_ph", MIPS_BUILTIN_PICK_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSP },
-  { CODE_FOR_mips_pick_ob, "__builtin_mips_pick_ob", MIPS_BUILTIN_PICK_OB, MIPS_V8QI_FTYPE_V8QI_V8QI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_pick_qh, "__builtin_mips_pick_qh", MIPS_BUILTIN_PICK_QH, MIPS_V4HI_FTYPE_V4HI_V4HI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_pick_pw, "__builtin_mips_pick_pw", MIPS_BUILTIN_PICK_PW, MIPS_V2SI_FTYPE_V2SI_V2SI, MASK_DSP|MASK_64BIT },
-  /* PACKRL* */
-  { CODE_FOR_mips_packrl_ph, "__builtin_mips_packrl_ph", MIPS_BUILTIN_PACKRL_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSP },
-  /* Table 2-6. MIPS DSP ASE Instructions: Accumulator and DSPControl Access */
-  /* EXTR* */
-  { CODE_FOR_mips_extr_w, "__builtin_mips_extr_w", MIPS_BUILTIN_EXTR_W, MIPS_SI_FTYPE_DI_SI, MASK_DSP },
-  { CODE_FOR_mips_extr_r_w, "__builtin_mips_extr_r_w", MIPS_BUILTIN_EXTR_R_W, MIPS_SI_FTYPE_DI_SI, MASK_DSP },
-  { CODE_FOR_mips_extr_rs_w, "__builtin_mips_extr_rs_w", MIPS_BUILTIN_EXTR_RS_W, MIPS_SI_FTYPE_DI_SI, MASK_DSP },
-  { CODE_FOR_mips_extr_w_64, "__builtin_mips_extr_w_64", MIPS_BUILTIN_EXTR_W_64, MIPS_SI_FTYPE_TI_SI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_extr_r_w_64, "__builtin_mips_extr_r_w_64", MIPS_BUILTIN_EXTR_R_W_64, MIPS_SI_FTYPE_TI_SI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_extr_rs_w_64, "__builtin_mips_extr_rs_w_64", MIPS_BUILTIN_EXTR_RS_W_64, MIPS_SI_FTYPE_TI_SI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_dextr_w, "__builtin_mips_dextr_w", MIPS_BUILTIN_DEXTR_W, MIPS_DI_FTYPE_TI_DI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_dextr_r_w, "__builtin_mips_dextr_r_w", MIPS_BUILTIN_DEXTR_R_W, MIPS_DI_FTYPE_TI_DI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_dextr_rs_w, "__builtin_mips_dextr_rs_w", MIPS_BUILTIN_DEXTR_RS_W, MIPS_DI_FTYPE_TI_DI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_dextr_l, "__builtin_mips_dextr_l", MIPS_BUILTIN_DEXTR_L, MIPS_DI_FTYPE_TI_DI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_dextr_r_l, "__builtin_mips_dextr_r_l", MIPS_BUILTIN_DEXTR_R_L, MIPS_DI_FTYPE_TI_DI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_dextr_rs_l, "__builtin_mips_dextr_rs_l", MIPS_BUILTIN_DEXTR_RS_L, MIPS_DI_FTYPE_TI_DI, MASK_DSP|MASK_64BIT },
-  /* EXTR*_S.H */
-  { CODE_FOR_mips_extr_s_h, "__builtin_mips_extr_s_h", MIPS_BUILTIN_EXTR_S_H, MIPS_SI_FTYPE_DI_SI, MASK_DSP },
-  { CODE_FOR_mips_extr_s_h_64, "__builtin_mips_extr_s_h_64", MIPS_BUILTIN_EXTR_S_H_64, MIPS_SI_FTYPE_TI_SI, MASK_DSP|MASK_64BIT },
-  /* EXTL* */
-  { CODE_FOR_mips_dextl_w, "__builtin_mips_dextl_w", MIPS_BUILTIN_DEXTL_W, MIPS_DI_FTYPE_TI_DI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_dextl_s_w, "__builtin_mips_dextl_s_w", MIPS_BUILTIN_DEXTL_S_W, MIPS_DI_FTYPE_TI_DI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_dextl_l, "__builtin_mips_dextl_l", MIPS_BUILTIN_DEXTL_L, MIPS_DI_FTYPE_TI_DI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_dextl_s_l, "__builtin_mips_dextl_s_l", MIPS_BUILTIN_DEXTL_S_L, MIPS_DI_FTYPE_TI_DI, MASK_DSP|MASK_64BIT },
-  /* EXTP* */
-  { CODE_FOR_mips_extp, "__builtin_mips_extp", MIPS_BUILTIN_EXTP, MIPS_SI_FTYPE_DI_SI, MASK_DSP },
-  { CODE_FOR_mips_extpdp, "__builtin_mips_extpdp", MIPS_BUILTIN_EXTPDP, MIPS_SI_FTYPE_DI_SI, MASK_DSP },
-  { CODE_FOR_mips_extp_64, "__builtin_mips_extp_64", MIPS_BUILTIN_EXTP_64, MIPS_SI_FTYPE_TI_SI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_extpdp_64, "__builtin_mips_extpdp_64", MIPS_BUILTIN_EXTPDP_64, MIPS_SI_FTYPE_TI_SI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_dextp, "__builtin_mips_dextp", MIPS_BUILTIN_DEXTP, MIPS_DI_FTYPE_TI_DI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_dextpdp, "__builtin_mips_dextpdp", MIPS_BUILTIN_DEXTPDP, MIPS_DI_FTYPE_TI_DI, MASK_DSP|MASK_64BIT },
-  /* SHILO* */
-  { CODE_FOR_mips_shilo, "__builtin_mips_shilo", MIPS_BUILTIN_SHILO, MIPS_DI_FTYPE_DI_SI, MASK_DSP },
-  { CODE_FOR_mips_shilo_64, "__builtin_mips_shilo_64", MIPS_BUILTIN_SHILO_64, MIPS_TI_FTYPE_TI_SI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_dshilo, "__builtin_mips_dshilo", MIPS_BUILTIN_DSHILO, MIPS_TI_FTYPE_TI_DI, MASK_DSP|MASK_64BIT },
-  /* MTHLIP* */
-  { CODE_FOR_mips_mthlip, "__builtin_mips_mthlip", MIPS_BUILTIN_MTHLIP, MIPS_DI_FTYPE_DI_SI, MASK_DSP },
-  { CODE_FOR_mips_mthlip_64, "__builtin_mips_mthlip_64", MIPS_BUILTIN_MTHLIP_64, MIPS_TI_FTYPE_TI_SI, MASK_DSP|MASK_64BIT },
-  { CODE_FOR_mips_dmthlip, "__builtin_mips_dmthlip", MIPS_BUILTIN_DMTHLIP, MIPS_TI_FTYPE_TI_DI, MASK_DSP|MASK_64BIT },
-  /* WRDSP */
-  { CODE_FOR_mips_wrdsp, "__builtin_mips_wrdsp", MIPS_BUILTIN_WRDSP, MIPS_VOID_FTYPE_SI_SI, MASK_DSP },
-  /* RDDSP */
-  { CODE_FOR_mips_rddsp, "__builtin_mips_rddsp", MIPS_BUILTIN_RDDSP, MIPS_SI_FTYPE_SI, MASK_DSP },
-  /* Table 2-7. MIPS DSP ASE Instructions: Indexed-Load */
-  /* L*X */
-  { CODE_FOR_mips_lbux, "__builtin_mips_lbux", MIPS_BUILTIN_LBUX, MIPS_SI_FTYPE_PTR_SI, MASK_DSP },
-  { CODE_FOR_mips_lhx, "__builtin_mips_lhx", MIPS_BUILTIN_LHX, MIPS_SI_FTYPE_PTR_SI, MASK_DSP },
-  { CODE_FOR_mips_lwx, "__builtin_mips_lwx", MIPS_BUILTIN_LWX, MIPS_SI_FTYPE_PTR_SI, MASK_DSP },
-  { CODE_FOR_mips_ldx, "__builtin_mips_ldx", MIPS_BUILTIN_LDX, MIPS_DI_FTYPE_PTR_DI, MASK_DSP|MASK_64BIT },
-  /* Table 2-8. MIPS DSP ASE Instructions: Branch */
-  /* BPOSGE32 */
-  { CODE_FOR_mips_bposge, "__builtin_mips_bposge32", MIPS_BUILTIN_BPOSGE32, MIPS_SI_FTYPE_VOID, MASK_DSP },
-  { CODE_FOR_mips_bposge, "__builtin_mips_bposge64", MIPS_BUILTIN_BPOSGE64, MIPS_SI_FTYPE_VOID, MASK_DSP|MASK_64BIT },
+    /* MIPS DSP ASE Revision 0.98 3/24/2005 */
+    /* Table 2-1. MIPS DSP ASE Instructions: Arithmetic */
+    /* ADDQ* */
+    { CODE_FOR_addv2hi3, "__builtin_mips_addq_ph", MIPS_BUILTIN_ADDQ_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSP },
+    { CODE_FOR_mips_addq_s_ph, "__builtin_mips_addq_s_ph", MIPS_BUILTIN_ADDQ_S_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSP },
+    { CODE_FOR_addv4hi3, "__builtin_mips_addq_qh", MIPS_BUILTIN_ADDQ_QH, MIPS_V4HI_FTYPE_V4HI_V4HI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_addq_s_qh, "__builtin_mips_addq_s_qh", MIPS_BUILTIN_ADDQ_S_QH, MIPS_V4HI_FTYPE_V4HI_V4HI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_addq_s_w, "__builtin_mips_addq_s_w", MIPS_BUILTIN_ADDQ_S_W, MIPS_SI_FTYPE_SI_SI, MASK_DSP },
+    { CODE_FOR_addv2si3, "__builtin_mips_addq_pw", MIPS_BUILTIN_ADDQ_PW, MIPS_V2SI_FTYPE_V2SI_V2SI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_addq_s_pw, "__builtin_mips_addq_s_pw", MIPS_BUILTIN_ADDQ_S_PW, MIPS_V2SI_FTYPE_V2SI_V2SI, MASK_DSP|MASK_64BIT },
+    /* ADDU* */
+    { CODE_FOR_addv4qi3, "__builtin_mips_addu_qb", MIPS_BUILTIN_ADDU_QB, MIPS_V4QI_FTYPE_V4QI_V4QI, MASK_DSP },
+    { CODE_FOR_mips_addu_s_qb, "__builtin_mips_addu_s_qb", MIPS_BUILTIN_ADDU_S_QB, MIPS_V4QI_FTYPE_V4QI_V4QI, MASK_DSP },
+    { CODE_FOR_addv8qi3, "__builtin_mips_addu_ob", MIPS_BUILTIN_ADDU_OB, MIPS_V8QI_FTYPE_V8QI_V8QI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_addu_s_ob, "__builtin_mips_addu_s_ob", MIPS_BUILTIN_ADDU_S_OB, MIPS_V8QI_FTYPE_V8QI_V8QI, MASK_DSP|MASK_64BIT },
+    /* SUBQ* */
+    { CODE_FOR_subv2hi3, "__builtin_mips_subq_ph", MIPS_BUILTIN_SUBQ_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSP },
+    { CODE_FOR_mips_subq_s_ph, "__builtin_mips_subq_s_ph", MIPS_BUILTIN_SUBQ_S_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSP },
+    { CODE_FOR_subv4hi3, "__builtin_mips_subq_qh", MIPS_BUILTIN_SUBQ_QH, MIPS_V4HI_FTYPE_V4HI_V4HI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_subq_s_qh, "__builtin_mips_subq_s_qh", MIPS_BUILTIN_SUBQ_S_QH, MIPS_V4HI_FTYPE_V4HI_V4HI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_subq_s_w, "__builtin_mips_subq_s_w", MIPS_BUILTIN_SUBQ_S_W, MIPS_SI_FTYPE_SI_SI, MASK_DSP },
+    { CODE_FOR_subv2si3, "__builtin_mips_subq_pw", MIPS_BUILTIN_SUBQ_PW, MIPS_V2SI_FTYPE_V2SI_V2SI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_subq_s_pw, "__builtin_mips_subq_s_pw", MIPS_BUILTIN_SUBQ_S_PW, MIPS_V2SI_FTYPE_V2SI_V2SI, MASK_DSP|MASK_64BIT },
+    /* SUBU*  */
+    { CODE_FOR_subv4qi3, "__builtin_mips_subu_qb", MIPS_BUILTIN_SUBU_QB, MIPS_V4QI_FTYPE_V4QI_V4QI, MASK_DSP },
+    { CODE_FOR_mips_subu_s_qb, "__builtin_mips_subu_s_qb", MIPS_BUILTIN_SUBU_S_QB, MIPS_V4QI_FTYPE_V4QI_V4QI, MASK_DSP },
+    { CODE_FOR_subv8qi3, "__builtin_mips_subu_ob", MIPS_BUILTIN_SUBU_OB, MIPS_V8QI_FTYPE_V8QI_V8QI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_subu_s_ob, "__builtin_mips_subu_s_ob", MIPS_BUILTIN_SUBU_S_OB, MIPS_V8QI_FTYPE_V8QI_V8QI, MASK_DSP|MASK_64BIT },
+    /* ADDSC */
+    { CODE_FOR_mips_addsc, "__builtin_mips_addsc", MIPS_BUILTIN_ADDSC, MIPS_SI_FTYPE_SI_SI, MASK_DSP },
+    /* ADDWC */
+    { CODE_FOR_mips_addwc, "__builtin_mips_addwc", MIPS_BUILTIN_ADDWC, MIPS_SI_FTYPE_SI_SI, MASK_DSP },
+    /* MODSUB  */
+    { CODE_FOR_mips_modsub, "__builtin_mips_modsub", MIPS_BUILTIN_MODSUB, MIPS_SI_FTYPE_SI_SI, MASK_DSP },
+    /* RADDU* */
+    { CODE_FOR_mips_raddu_w_qb, "__builtin_mips_raddu_w_qb", MIPS_BUILTIN_RADDU_W_QB, MIPS_SI_FTYPE_V4QI, MASK_DSP },
+    { CODE_FOR_mips_raddu_l_ob, "__builtin_mips_raddu_l_ob", MIPS_BUILTIN_RADDU_L_OB, MIPS_DI_FTYPE_V8QI, MASK_DSP|MASK_64BIT },
+    /* ABSQ* */
+    { CODE_FOR_mips_absq_s_ph, "__builtin_mips_absq_s_ph", MIPS_BUILTIN_ABSQ_S_PH, MIPS_V2HI_FTYPE_V2HI, MASK_DSP },
+    { CODE_FOR_mips_absq_s_w, "__builtin_mips_absq_s_w", MIPS_BUILTIN_ABSQ_S_W, MIPS_SI_FTYPE_SI, MASK_DSP },
+    { CODE_FOR_mips_absq_qh, "__builtin_mips_absq_qh", MIPS_BUILTIN_ABSQ_QH, MIPS_V4HI_FTYPE_V4HI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_absq_s_qh, "__builtin_mips_absq_s_qh", MIPS_BUILTIN_ABSQ_S_QH, MIPS_V4HI_FTYPE_V4HI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_absq_pw, "__builtin_mips_absq_pw", MIPS_BUILTIN_ABSQ_PW, MIPS_V2SI_FTYPE_V2SI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_absq_s_pw, "__builtin_mips_absq_s_pw", MIPS_BUILTIN_ABSQ_S_PW, MIPS_V2SI_FTYPE_V2SI, MASK_DSP|MASK_64BIT },
+    /* PRECRQ* */
+    { CODE_FOR_mips_precrq_qb_ph, "__builtin_mips_precrq_qb_ph", MIPS_BUILTIN_PRECRQ_QB_PH, MIPS_V4QI_FTYPE_V2HI_V2HI, MASK_DSP },
+    { CODE_FOR_mips_precrq_ph_w, "__builtin_mips_precrq_ph_w", MIPS_BUILTIN_PRECRQ_PH_W, MIPS_V2HI_FTYPE_SI_SI, MASK_DSP },
+    { CODE_FOR_mips_precrq_rs_ph_w, "__builtin_mips_precrq_rs_ph_w", MIPS_BUILTIN_PRECRQ_RS_PH_W, MIPS_V2HI_FTYPE_SI_SI, MASK_DSP },
+    { CODE_FOR_mips_precrq_ob_qh, "__builtin_mips_precrq_ob_qh", MIPS_BUILTIN_PRECRQ_OB_QH, MIPS_V8QI_FTYPE_V4HI_V4HI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_precrq_qh_pw, "__builtin_mips_precrq_qh_pw", MIPS_BUILTIN_PRECRQ_QH_PW, MIPS_V4HI_FTYPE_V2SI_V2SI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_precrq_rs_qh_pw, "__builtin_mips_precrq_rs_qh_pw", MIPS_BUILTIN_PRECRQ_RS_QH_PW, MIPS_V4HI_FTYPE_V2SI_V2SI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_precrq_pw_l, "__builtin_mips_precrq_pw_l", MIPS_BUILTIN_PRECRQ_PW_L, MIPS_V2SI_FTYPE_DI_DI, MASK_DSP|MASK_64BIT },
+    /* PRECRQU* */
+    { CODE_FOR_mips_precrqu_s_qb_ph, "__builtin_mips_precrqu_s_qb_ph", MIPS_BUILTIN_PRECRQU_S_QB_PH, MIPS_V4QI_FTYPE_V2HI_V2HI, MASK_DSP },
+    { CODE_FOR_mips_precrqu_s_ob_qh, "__builtin_mips_precrqu_s_ob_qh", MIPS_BUILTIN_PRECRQU_S_OB_QH, MIPS_V8QI_FTYPE_V4HI_V4HI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_precrqu_s_qh_pw, "__builtin_mips_precrqu_s_qh_pw", MIPS_BUILTIN_PRECRQU_S_QH_PW, MIPS_V4HI_FTYPE_V2SI_V2SI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_precrqu_s_pw_l, "__builtin_mips_precrqu_s_pw_l", MIPS_BUILTIN_PRECRQU_S_PW_L, MIPS_V2SI_FTYPE_DI_DI, MASK_DSP|MASK_64BIT },
+    /* PRECEQ* */
+    { CODE_FOR_mips_preceq_w_phl, "__builtin_mips_preceq_w_phl", MIPS_BUILTIN_PRECEQ_W_PHL, MIPS_SI_FTYPE_V2HI, MASK_DSP },
+    { CODE_FOR_mips_preceq_w_phr, "__builtin_mips_preceq_w_phr", MIPS_BUILTIN_PRECEQ_W_PHR, MIPS_SI_FTYPE_V2HI, MASK_DSP },
+    { CODE_FOR_mips_preceq_pw_qhl, "__builtin_mips_preceq_pw_qhl", MIPS_BUILTIN_PRECEQ_PW_QHL, MIPS_V2SI_FTYPE_V4HI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_preceq_pw_qhr, "__builtin_mips_preceq_pw_qhr", MIPS_BUILTIN_PRECEQ_PW_QHR, MIPS_V2SI_FTYPE_V4HI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_preceq_pw_qhla, "__builtin_mips_preceq_pw_qhla", MIPS_BUILTIN_PRECEQ_PW_QHLA, MIPS_V2SI_FTYPE_V4HI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_preceq_pw_qhra, "__builtin_mips_preceq_pw_qhra", MIPS_BUILTIN_PRECEQ_PW_QHRA, MIPS_V2SI_FTYPE_V4HI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_preceq_l_pwl, "__builtin_mips_preceq_l_pwl", MIPS_BUILTIN_PRECEQ_L_PWL, MIPS_DI_FTYPE_V2SI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_preceq_l_pwr, "__builtin_mips_preceq_l_pwr", MIPS_BUILTIN_PRECEQ_L_PWR, MIPS_DI_FTYPE_V2SI, MASK_DSP|MASK_64BIT },
+    /* PRECEQU* */
+    { CODE_FOR_mips_precequ_ph_qbl, "__builtin_mips_precequ_ph_qbl", MIPS_BUILTIN_PRECEQU_PH_QBL, MIPS_V2HI_FTYPE_V4QI, MASK_DSP },
+    { CODE_FOR_mips_precequ_ph_qbr, "__builtin_mips_precequ_ph_qbr", MIPS_BUILTIN_PRECEQU_PH_QBR, MIPS_V2HI_FTYPE_V4QI, MASK_DSP },
+    { CODE_FOR_mips_precequ_ph_qbla, "__builtin_mips_precequ_ph_qbla", MIPS_BUILTIN_PRECEQU_PH_QBLA, MIPS_V2HI_FTYPE_V4QI, MASK_DSP },
+    { CODE_FOR_mips_precequ_ph_qbra, "__builtin_mips_precequ_ph_qbra", MIPS_BUILTIN_PRECEQU_PH_QBRA, MIPS_V2HI_FTYPE_V4QI, MASK_DSP },
+    { CODE_FOR_mips_precequ_qh_obl, "__builtin_mips_precequ_qh_obl", MIPS_BUILTIN_PRECEQU_QH_OBL, MIPS_V4HI_FTYPE_V8QI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_precequ_qh_obr, "__builtin_mips_precequ_qh_obr", MIPS_BUILTIN_PRECEQU_QH_OBR, MIPS_V4HI_FTYPE_V8QI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_precequ_qh_obla, "__builtin_mips_precequ_qh_obla", MIPS_BUILTIN_PRECEQU_QH_OBLA, MIPS_V4HI_FTYPE_V8QI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_precequ_qh_obra, "__builtin_mips_precequ_qh_obra", MIPS_BUILTIN_PRECEQU_QH_OBRA, MIPS_V4HI_FTYPE_V8QI, MASK_DSP|MASK_64BIT },
+    /* PRECEU* */
+    { CODE_FOR_mips_preceu_ph_qbl, "__builtin_mips_preceu_ph_qbl", MIPS_BUILTIN_PRECEU_PH_QBL, MIPS_V2HI_FTYPE_V4QI, MASK_DSP },
+    { CODE_FOR_mips_preceu_ph_qbr, "__builtin_mips_preceu_ph_qbr", MIPS_BUILTIN_PRECEU_PH_QBR, MIPS_V2HI_FTYPE_V4QI, MASK_DSP },
+    { CODE_FOR_mips_preceu_ph_qbla, "__builtin_mips_preceu_ph_qbla", MIPS_BUILTIN_PRECEU_PH_QBLA, MIPS_V2HI_FTYPE_V4QI, MASK_DSP },
+    { CODE_FOR_mips_preceu_ph_qbra, "__builtin_mips_preceu_ph_qbra", MIPS_BUILTIN_PRECEU_PH_QBRA, MIPS_V2HI_FTYPE_V4QI, MASK_DSP },
+    /* Table 2-2. MIPS DSP ASE Instructions: Shift */
+    /* SHLL* */
+    { CODE_FOR_mips_shll_qb, "__builtin_mips_shll_qb", MIPS_BUILTIN_SHLL_QB, MIPS_V4QI_FTYPE_V4QI_SI, MASK_DSP },
+    { CODE_FOR_mips_shll_ob, "__builtin_mips_shll_ob", MIPS_BUILTIN_SHLL_OB, MIPS_V8QI_FTYPE_V8QI_DI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_shll_ph, "__builtin_mips_shll_ph", MIPS_BUILTIN_SHLL_PH, MIPS_V2HI_FTYPE_V2HI_SI, MASK_DSP },
+    { CODE_FOR_mips_shll_s_ph, "__builtin_mips_shll_s_ph", MIPS_BUILTIN_SHLL_S_PH, MIPS_V2HI_FTYPE_V2HI_SI, MASK_DSP },
+    { CODE_FOR_mips_shll_qh, "__builtin_mips_shll_qh", MIPS_BUILTIN_SHLL_QH, MIPS_V4HI_FTYPE_V4HI_DI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_shll_s_qh, "__builtin_mips_shll_s_qh", MIPS_BUILTIN_SHLL_S_QH, MIPS_V4HI_FTYPE_V4HI_DI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_shll_s_w, "__builtin_mips_shll_s_w", MIPS_BUILTIN_SHLL_S_W, MIPS_SI_FTYPE_SI_SI, MASK_DSP },
+    { CODE_FOR_mips_shll_pw, "__builtin_mips_shll_pw", MIPS_BUILTIN_SHLL_PW, MIPS_V2SI_FTYPE_V2SI_DI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_shll_s_pw, "__builtin_mips_shll_s_pw", MIPS_BUILTIN_SHLL_S_PW, MIPS_V2SI_FTYPE_V2SI_DI, MASK_DSP|MASK_64BIT },
+    /* SHRL* */
+    { CODE_FOR_mips_shrl_qb, "__builtin_mips_shrl_qb", MIPS_BUILTIN_SHRL_QB, MIPS_V4QI_FTYPE_V4QI_SI, MASK_DSP },
+    { CODE_FOR_mips_shrl_ob, "__builtin_mips_shrl_ob", MIPS_BUILTIN_SHRL_OB, MIPS_V8QI_FTYPE_V8QI_DI, MASK_DSP|MASK_64BIT },
+    /* SHRA* */
+    { CODE_FOR_mips_shra_ph, "__builtin_mips_shra_ph", MIPS_BUILTIN_SHRA_PH, MIPS_V2HI_FTYPE_V2HI_SI, MASK_DSP },
+    { CODE_FOR_mips_shra_r_ph, "__builtin_mips_shra_r_ph", MIPS_BUILTIN_SHRA_R_PH, MIPS_V2HI_FTYPE_V2HI_SI, MASK_DSP },
+    { CODE_FOR_mips_shra_r_w, "__builtin_mips_shra_r_w", MIPS_BUILTIN_SHRA_R_W, MIPS_SI_FTYPE_SI_SI, MASK_DSP },
+    { CODE_FOR_mips_shra_qh, "__builtin_mips_shra_qh", MIPS_BUILTIN_SHRA_QH, MIPS_V4HI_FTYPE_V4HI_DI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_shra_r_qh, "__builtin_mips_shra_r_qh", MIPS_BUILTIN_SHRA_R_QH, MIPS_V4HI_FTYPE_V4HI_DI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_shra_pw, "__builtin_mips_shra_pw", MIPS_BUILTIN_SHRA_PW, MIPS_V2SI_FTYPE_V2SI_DI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_shra_r_pw, "__builtin_mips_shra_r_pw", MIPS_BUILTIN_SHRA_R_PW, MIPS_V2SI_FTYPE_V2SI_DI, MASK_DSP|MASK_64BIT },
+    /* Table 2-3. MIPS DSP ASE Instructions: Multiply */
+    /* MULEU* */
+    { CODE_FOR_mips_muleu_s_ph_qbl, "__builtin_mips_muleu_s_ph_qbl", MIPS_BUILTIN_MULEU_S_PH_QBL, MIPS_V2HI_FTYPE_V4QI_V2HI, MASK_DSP },
+    { CODE_FOR_mips_muleu_s_ph_qbr, "__builtin_mips_muleu_s_ph_qbr", MIPS_BUILTIN_MULEU_S_PH_QBR, MIPS_V2HI_FTYPE_V4QI_V2HI, MASK_DSP },
+    /* MULQ* */
+    { CODE_FOR_mips_mulq_rs_ph, "__builtin_mips_mulq_rs_ph", MIPS_BUILTIN_MULQ_RS_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSP },
+    { CODE_FOR_mips_mulq_qh, "__builtin_mips_mulq_qh", MIPS_BUILTIN_MULQ_QH, MIPS_V4HI_FTYPE_V4HI_V4HI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_mulq_rs_qh, "__builtin_mips_mulq_rs_qh", MIPS_BUILTIN_MULQ_RS_QH, MIPS_V4HI_FTYPE_V4HI_V4HI, MASK_DSP|MASK_64BIT },
+    /* MULEQ* */
+    { CODE_FOR_mips_muleq_s_w_phl, "__builtin_mips_muleq_s_w_phl", MIPS_BUILTIN_MULEQ_S_W_PHL, MIPS_SI_FTYPE_V2HI_V2HI, MASK_DSP },
+    { CODE_FOR_mips_muleq_s_w_phr, "__builtin_mips_muleq_s_w_phr", MIPS_BUILTIN_MULEQ_S_W_PHR, MIPS_SI_FTYPE_V2HI_V2HI, MASK_DSP },
+    { CODE_FOR_mips_muleq_pw_qhl, "__builtin_mips_muleq_pw_qhl", MIPS_BUILTIN_MULEQ_PW_QHL, MIPS_V2SI_FTYPE_V4HI_V4HI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_muleq_pw_qhr, "__builtin_mips_muleq_pw_qhr", MIPS_BUILTIN_MULEQ_PW_QHR, MIPS_V2SI_FTYPE_V4HI_V4HI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_muleq_s_pw_qhl, "__builtin_mips_muleq_s_pw_qhl", MIPS_BUILTIN_MULEQ_S_PW_QHL, MIPS_V2SI_FTYPE_V4HI_V4HI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_muleq_s_pw_qhr, "__builtin_mips_muleq_s_pw_qhr", MIPS_BUILTIN_MULEQ_S_PW_QHR, MIPS_V2SI_FTYPE_V4HI_V4HI, MASK_DSP|MASK_64BIT },
+    /* DPAU* */
+    { CODE_FOR_mips_dpau_h_qbl, "__builtin_mips_dpau_h_qbl", MIPS_BUILTIN_DPAU_H_QBL, MIPS_DI_FTYPE_DI_V4QI_V4QI, MASK_DSP },
+    { CODE_FOR_mips_dpau_h_qbr, "__builtin_mips_dpau_h_qbr", MIPS_BUILTIN_DPAU_H_QBR, MIPS_DI_FTYPE_DI_V4QI_V4QI, MASK_DSP },
+    { CODE_FOR_mips_dpau_h_qbl_64, "__builtin_mips_dpau_h_qbl_64", MIPS_BUILTIN_DPAU_H_QBL_64, MIPS_TI_FTYPE_TI_V4QI_V4QI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_dpau_h_qbr_64, "__builtin_mips_dpau_h_qbr_64", MIPS_BUILTIN_DPAU_H_QBR_64, MIPS_TI_FTYPE_TI_V4QI_V4QI, MASK_DSP|MASK_64BIT },
+    /* DPSU* */
+    { CODE_FOR_mips_dpsu_h_qbl, "__builtin_mips_dpsu_h_qbl", MIPS_BUILTIN_DPSU_H_QBL, MIPS_DI_FTYPE_DI_V4QI_V4QI, MASK_DSP },
+    { CODE_FOR_mips_dpsu_h_qbr, "__builtin_mips_dpsu_h_qbr", MIPS_BUILTIN_DPSU_H_QBR, MIPS_DI_FTYPE_DI_V4QI_V4QI, MASK_DSP },
+    { CODE_FOR_mips_dpsu_h_qbl_64, "__builtin_mips_dpsu_h_qbl_64", MIPS_BUILTIN_DPSU_H_QBL_64, MIPS_TI_FTYPE_TI_V4QI_V4QI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_dpsu_h_qbr_64, "__builtin_mips_dpsu_h_qbr_64", MIPS_BUILTIN_DPSU_H_QBR_64, MIPS_TI_FTYPE_TI_V4QI_V4QI, MASK_DSP|MASK_64BIT },
+    /* DPAQ* */
+    { CODE_FOR_mips_dpaq_s_w_ph, "__builtin_mips_dpaq_s_w_ph", MIPS_BUILTIN_DPAQ_S_W_PH, MIPS_DI_FTYPE_DI_V2HI_V2HI, MASK_DSP },
+    { CODE_FOR_mips_dpaq_s_w_ph_64, "__builtin_mips_dpaq_s_w_ph_64", MIPS_BUILTIN_DPAQ_S_W_PH_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_dpaq_w_qh, "__builtin_mips_dpaq_w_qh", MIPS_BUILTIN_DPAQ_W_QH, MIPS_TI_FTYPE_TI_V4HI_V4HI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_dpaq_s_w_qh, "__builtin_mips_dpaq_s_w_qh", MIPS_BUILTIN_DPAQ_S_W_QH, MIPS_TI_FTYPE_TI_V4HI_V4HI, MASK_DSP|MASK_64BIT },
+    /* DPSQ* */
+    { CODE_FOR_mips_dpsq_s_w_ph, "__builtin_mips_dpsq_s_w_ph", MIPS_BUILTIN_DPSQ_S_W_PH, MIPS_DI_FTYPE_DI_V2HI_V2HI, MASK_DSP },
+    { CODE_FOR_mips_dpsq_s_w_ph_64, "__builtin_mips_dpsq_s_w_ph_64", MIPS_BUILTIN_DPSQ_S_W_PH_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_dpsq_w_qh, "__builtin_mips_dpsq_w_qh", MIPS_BUILTIN_DPSQ_W_QH, MIPS_TI_FTYPE_TI_V4HI_V4HI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_dpsq_s_w_qh, "__builtin_mips_dpsq_s_w_qh", MIPS_BUILTIN_DPSQ_S_W_QH, MIPS_TI_FTYPE_TI_V4HI_V4HI, MASK_DSP|MASK_64BIT },
+    /* MULSAQ* */
+    { CODE_FOR_mips_mulsaq_s_w_ph, "__builtin_mips_mulsaq_s_w_ph", MIPS_BUILTIN_MULSAQ_S_W_PH, MIPS_DI_FTYPE_DI_V2HI_V2HI, MASK_DSP },
+    { CODE_FOR_mips_mulsaq_s_w_ph_64, "__builtin_mips_mulsaq_s_w_ph_64", MIPS_BUILTIN_MULSAQ_S_W_PH_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_mulsaq_w_qh, "__builtin_mips_mulsaq_w_qh", MIPS_BUILTIN_MULSAQ_W_QH, MIPS_TI_FTYPE_TI_V4HI_V4HI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_mulsaq_s_w_qh, "__builtin_mips_mulsaq_s_w_qh", MIPS_BUILTIN_MULSAQ_S_W_QH, MIPS_TI_FTYPE_TI_V4HI_V4HI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_mulsaq_l_pw, "__builtin_mips_mulsaq_l_pw", MIPS_BUILTIN_MULSAQ_L_PW, MIPS_TI_FTYPE_TI_V2SI_V2SI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_mulsaq_s_l_pw, "__builtin_mips_mulsaq_s_l_pw", MIPS_BUILTIN_MULSAQ_S_L_PW, MIPS_TI_FTYPE_TI_V2SI_V2SI, MASK_DSP|MASK_64BIT },
+    /* DPAQ* */
+    { CODE_FOR_mips_dpaq_sa_l_w, "__builtin_mips_dpaq_sa_l_w", MIPS_BUILTIN_DPAQ_SA_L_W, MIPS_DI_FTYPE_DI_SI_SI, MASK_DSP },
+    { CODE_FOR_mips_dpaq_sa_l_w_64, "__builtin_mips_dpaq_sa_l_w_64", MIPS_BUILTIN_DPAQ_SA_L_W_64, MIPS_TI_FTYPE_TI_SI_SI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_dpaq_l_pw, "__builtin_mips_dpaq_l_pw", MIPS_BUILTIN_DPAQ_L_PW, MIPS_TI_FTYPE_TI_V2SI_V2SI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_dpaq_sa_l_pw, "__builtin_mips_dpaq_sa_l_pw", MIPS_BUILTIN_DPAQ_SA_L_PW, MIPS_TI_FTYPE_TI_V2SI_V2SI, MASK_DSP|MASK_64BIT },
+    /* DPSQ* */
+    { CODE_FOR_mips_dpsq_sa_l_w, "__builtin_mips_dpsq_sa_l_w", MIPS_BUILTIN_DPSQ_SA_L_W, MIPS_DI_FTYPE_DI_SI_SI, MASK_DSP },
+    { CODE_FOR_mips_dpsq_sa_l_w_64, "__builtin_mips_dpsq_sa_l_w_64", MIPS_BUILTIN_DPSQ_SA_L_W_64, MIPS_TI_FTYPE_TI_SI_SI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_dpsq_l_pw, "__builtin_mips_dpsq_l_pw", MIPS_BUILTIN_DPSQ_L_PW, MIPS_TI_FTYPE_TI_V2SI_V2SI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_dpsq_sa_l_pw, "__builtin_mips_dpsq_sa_l_pw", MIPS_BUILTIN_DPSQ_SA_L_PW, MIPS_TI_FTYPE_TI_V2SI_V2SI, MASK_DSP|MASK_64BIT },
+    /* MAQ* */
+    { CODE_FOR_mips_maq_s_w_phl, "__builtin_mips_maq_s_w_phl", MIPS_BUILTIN_MAQ_S_W_PHL, MIPS_DI_FTYPE_DI_V2HI_V2HI, MASK_DSP },
+    { CODE_FOR_mips_maq_s_w_phr, "__builtin_mips_maq_s_w_phr", MIPS_BUILTIN_MAQ_S_W_PHR, MIPS_DI_FTYPE_DI_V2HI_V2HI, MASK_DSP },
+    { CODE_FOR_mips_maq_s_w_phl_64, "__builtin_mips_maq_s_w_phl_64", MIPS_BUILTIN_MAQ_S_W_PHL_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_maq_s_w_phr_64, "__builtin_mips_maq_s_w_phr_64", MIPS_BUILTIN_MAQ_S_W_PHR_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_maq_w_qhll, "__builtin_mips_maq_w_qhll", MIPS_BUILTIN_MAQ_W_QHLL, MIPS_TI_FTYPE_TI_V4HI_V4HI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_maq_w_qhlr, "__builtin_mips_maq_w_qhlr", MIPS_BUILTIN_MAQ_W_QHLR, MIPS_TI_FTYPE_TI_V4HI_V4HI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_maq_w_qhrl, "__builtin_mips_maq_w_qhrl", MIPS_BUILTIN_MAQ_W_QHRL, MIPS_TI_FTYPE_TI_V4HI_V4HI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_maq_w_qhrr, "__builtin_mips_maq_w_qhrr", MIPS_BUILTIN_MAQ_W_QHRR, MIPS_TI_FTYPE_TI_V4HI_V4HI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_maq_s_w_qhll, "__builtin_mips_maq_s_w_qhll", MIPS_BUILTIN_MAQ_S_W_QHLL, MIPS_TI_FTYPE_TI_V4HI_V4HI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_maq_s_w_qhlr, "__builtin_mips_maq_s_w_qhlr", MIPS_BUILTIN_MAQ_S_W_QHLR, MIPS_TI_FTYPE_TI_V4HI_V4HI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_maq_s_w_qhrl, "__builtin_mips_maq_s_w_qhrl", MIPS_BUILTIN_MAQ_S_W_QHRL, MIPS_TI_FTYPE_TI_V4HI_V4HI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_maq_s_w_qhrr, "__builtin_mips_maq_s_w_qhrr", MIPS_BUILTIN_MAQ_S_W_QHRR, MIPS_TI_FTYPE_TI_V4HI_V4HI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_maq_l_pwl, "__builtin_mips_maq_l_pwl", MIPS_BUILTIN_MAQ_L_PWL, MIPS_TI_FTYPE_TI_V2SI_V2SI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_maq_l_pwr, "__builtin_mips_maq_l_pwr", MIPS_BUILTIN_MAQ_L_PWR, MIPS_TI_FTYPE_TI_V2SI_V2SI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_maq_s_l_pwl, "__builtin_mips_maq_s_l_pwl", MIPS_BUILTIN_MAQ_S_L_PWL, MIPS_TI_FTYPE_TI_V2SI_V2SI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_maq_s_l_pwr, "__builtin_mips_maq_s_l_pwr", MIPS_BUILTIN_MAQ_S_L_PWR, MIPS_TI_FTYPE_TI_V2SI_V2SI, MASK_DSP|MASK_64BIT },
+    /* MAQ_SA* */
+    { CODE_FOR_mips_maq_sa_w_phl, "__builtin_mips_maq_sa_w_phl", MIPS_BUILTIN_MAQ_SA_W_PHL, MIPS_DI_FTYPE_DI_V2HI_V2HI, MASK_DSP },
+    { CODE_FOR_mips_maq_sa_w_phr, "__builtin_mips_maq_sa_w_phr", MIPS_BUILTIN_MAQ_SA_W_PHR, MIPS_DI_FTYPE_DI_V2HI_V2HI, MASK_DSP },
+    { CODE_FOR_mips_maq_sa_w_phl_64, "__builtin_mips_maq_sa_w_phl_64", MIPS_BUILTIN_MAQ_SA_W_PHL_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_maq_sa_w_phr_64, "__builtin_mips_maq_sa_w_phr_64", MIPS_BUILTIN_MAQ_SA_W_PHR_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSP|MASK_64BIT },
+    /* DMADD* */
+    { CODE_FOR_mips_dmadd, "__builtin_mips_dmadd", MIPS_BUILTIN_DMADD, MIPS_TI_FTYPE_TI_DI_DI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_dmaddu, "__builtin_mips_dmaddu", MIPS_BUILTIN_DMADDU, MIPS_TI_FTYPE_TI_UDI_UDI, MASK_DSP|MASK_64BIT },
+    /* DMSUB* */
+    { CODE_FOR_mips_dmsub, "__builtin_mips_dmsub", MIPS_BUILTIN_DMSUB, MIPS_TI_FTYPE_TI_DI_DI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_dmsubu, "__builtin_mips_dmsubu", MIPS_BUILTIN_DMSUBU, MIPS_TI_FTYPE_TI_UDI_UDI, MASK_DSP|MASK_64BIT },
+    /* Table 2-4. MIPS DSP ASE Instructions: General Bit/Manipulation */
+    /* BITREV */
+    { CODE_FOR_mips_bitrev, "__builtin_mips_bitrev", MIPS_BUILTIN_BITREV, MIPS_SI_FTYPE_SI, MASK_DSP },
+    /* INSV */
+    { CODE_FOR_mips_insv, "__builtin_mips_insv", MIPS_BUILTIN_INSV, MIPS_SI_FTYPE_SI_SI, MASK_DSP },
+    { CODE_FOR_mips_dinsv, "__builtin_mips_dinsv", MIPS_BUILTIN_DINSV, MIPS_DI_FTYPE_DI_DI, MASK_DSP|MASK_64BIT },
+    /* REPL* */
+    { CODE_FOR_mips_repl_qb, "__builtin_mips_repl_qb", MIPS_BUILTIN_REPL_QB, MIPS_V4QI_FTYPE_SI, MASK_DSP },
+    { CODE_FOR_mips_repl_ob, "__builtin_mips_repl_ob", MIPS_BUILTIN_REPL_OB, MIPS_V8QI_FTYPE_DI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_repl_ph, "__builtin_mips_repl_ph", MIPS_BUILTIN_REPL_PH, MIPS_V2HI_FTYPE_SI, MASK_DSP },
+    { CODE_FOR_mips_repl_qh, "__builtin_mips_repl_qh", MIPS_BUILTIN_REPL_QH, MIPS_V4HI_FTYPE_DI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_repl_pw, "__builtin_mips_repl_pw", MIPS_BUILTIN_REPL_PW, MIPS_V2SI_FTYPE_DI, MASK_DSP|MASK_64BIT },
+    /* Table 2-5. MIPS DSP ASE Instructions: Compare-Pick */
+    /* CMPU.* CMP.* */
+    { CODE_FOR_mips_cmpu_eq_qb, "__builtin_mips_cmpu_eq_qb", MIPS_BUILTIN_CMPU_EQ_QB, MIPS_VOID_FTYPE_V4QI_V4QI, MASK_DSP },
+    { CODE_FOR_mips_cmpu_lt_qb, "__builtin_mips_cmpu_lt_qb", MIPS_BUILTIN_CMPU_LT_QB, MIPS_VOID_FTYPE_V4QI_V4QI, MASK_DSP },
+    { CODE_FOR_mips_cmpu_le_qb, "__builtin_mips_cmpu_le_qb", MIPS_BUILTIN_CMPU_LE_QB, MIPS_VOID_FTYPE_V4QI_V4QI, MASK_DSP },
+    { CODE_FOR_mips_cmpgu_eq_qb, "__builtin_mips_cmpgu_eq_qb", MIPS_BUILTIN_CMPGU_EQ_QB, MIPS_SI_FTYPE_V4QI_V4QI, MASK_DSP },
+    { CODE_FOR_mips_cmpgu_lt_qb, "__builtin_mips_cmpgu_lt_qb", MIPS_BUILTIN_CMPGU_LT_QB, MIPS_SI_FTYPE_V4QI_V4QI, MASK_DSP },
+    { CODE_FOR_mips_cmpgu_le_qb, "__builtin_mips_cmpgu_le_qb", MIPS_BUILTIN_CMPGU_LE_QB, MIPS_SI_FTYPE_V4QI_V4QI, MASK_DSP },
+    { CODE_FOR_mips_cmp_eq_ph, "__builtin_mips_cmp_eq_ph", MIPS_BUILTIN_CMP_EQ_PH, MIPS_VOID_FTYPE_V2HI_V2HI, MASK_DSP },
+    { CODE_FOR_mips_cmp_lt_ph, "__builtin_mips_cmp_lt_ph", MIPS_BUILTIN_CMP_LT_PH, MIPS_VOID_FTYPE_V2HI_V2HI, MASK_DSP },
+    { CODE_FOR_mips_cmp_le_ph, "__builtin_mips_cmp_le_ph", MIPS_BUILTIN_CMP_LE_PH, MIPS_VOID_FTYPE_V2HI_V2HI, MASK_DSP },
+    { CODE_FOR_mips_cmpu_eq_ob, "__builtin_mips_cmpu_eq_ob", MIPS_BUILTIN_CMPU_EQ_OB, MIPS_VOID_FTYPE_V8QI_V8QI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_cmpu_lt_ob, "__builtin_mips_cmpu_lt_ob", MIPS_BUILTIN_CMPU_LT_OB, MIPS_VOID_FTYPE_V8QI_V8QI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_cmpu_le_ob, "__builtin_mips_cmpu_le_ob", MIPS_BUILTIN_CMPU_LE_OB, MIPS_VOID_FTYPE_V8QI_V8QI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_cmp_eq_qh, "__builtin_mips_cmp_eq_qh", MIPS_BUILTIN_CMP_EQ_QH, MIPS_VOID_FTYPE_V4HI_V4HI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_cmp_lt_qh, "__builtin_mips_cmp_lt_qh", MIPS_BUILTIN_CMP_LT_QH, MIPS_VOID_FTYPE_V4HI_V4HI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_cmp_le_qh, "__builtin_mips_cmp_le_qh", MIPS_BUILTIN_CMP_LE_QH, MIPS_VOID_FTYPE_V4HI_V4HI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_cmp_eq_pw, "__builtin_mips_cmp_eq_pw", MIPS_BUILTIN_CMP_EQ_PW, MIPS_VOID_FTYPE_V2SI_V2SI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_cmp_lt_pw, "__builtin_mips_cmp_lt_pw", MIPS_BUILTIN_CMP_LT_PW, MIPS_VOID_FTYPE_V2SI_V2SI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_cmp_le_pw, "__builtin_mips_cmp_le_pw", MIPS_BUILTIN_CMP_LE_PW, MIPS_VOID_FTYPE_V2SI_V2SI, MASK_DSP|MASK_64BIT },
+    /* PICK* */
+    { CODE_FOR_mips_pick_qb, "__builtin_mips_pick_qb", MIPS_BUILTIN_PICK_QB, MIPS_V4QI_FTYPE_V4QI_V4QI, MASK_DSP },
+    { CODE_FOR_mips_pick_ph, "__builtin_mips_pick_ph", MIPS_BUILTIN_PICK_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSP },
+    { CODE_FOR_mips_pick_ob, "__builtin_mips_pick_ob", MIPS_BUILTIN_PICK_OB, MIPS_V8QI_FTYPE_V8QI_V8QI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_pick_qh, "__builtin_mips_pick_qh", MIPS_BUILTIN_PICK_QH, MIPS_V4HI_FTYPE_V4HI_V4HI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_pick_pw, "__builtin_mips_pick_pw", MIPS_BUILTIN_PICK_PW, MIPS_V2SI_FTYPE_V2SI_V2SI, MASK_DSP|MASK_64BIT },
+    /* PACKRL* */
+    { CODE_FOR_mips_packrl_ph, "__builtin_mips_packrl_ph", MIPS_BUILTIN_PACKRL_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSP },
+    /* Table 2-6. MIPS DSP ASE Instructions: Accumulator and DSPControl Access */
+    /* EXTR* */
+    { CODE_FOR_mips_extr_w, "__builtin_mips_extr_w", MIPS_BUILTIN_EXTR_W, MIPS_SI_FTYPE_DI_SI, MASK_DSP },
+    { CODE_FOR_mips_extr_r_w, "__builtin_mips_extr_r_w", MIPS_BUILTIN_EXTR_R_W, MIPS_SI_FTYPE_DI_SI, MASK_DSP },
+    { CODE_FOR_mips_extr_rs_w, "__builtin_mips_extr_rs_w", MIPS_BUILTIN_EXTR_RS_W, MIPS_SI_FTYPE_DI_SI, MASK_DSP },
+    { CODE_FOR_mips_extr_w_64, "__builtin_mips_extr_w_64", MIPS_BUILTIN_EXTR_W_64, MIPS_SI_FTYPE_TI_SI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_extr_r_w_64, "__builtin_mips_extr_r_w_64", MIPS_BUILTIN_EXTR_R_W_64, MIPS_SI_FTYPE_TI_SI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_extr_rs_w_64, "__builtin_mips_extr_rs_w_64", MIPS_BUILTIN_EXTR_RS_W_64, MIPS_SI_FTYPE_TI_SI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_dextr_w, "__builtin_mips_dextr_w", MIPS_BUILTIN_DEXTR_W, MIPS_DI_FTYPE_TI_DI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_dextr_r_w, "__builtin_mips_dextr_r_w", MIPS_BUILTIN_DEXTR_R_W, MIPS_DI_FTYPE_TI_DI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_dextr_rs_w, "__builtin_mips_dextr_rs_w", MIPS_BUILTIN_DEXTR_RS_W, MIPS_DI_FTYPE_TI_DI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_dextr_l, "__builtin_mips_dextr_l", MIPS_BUILTIN_DEXTR_L, MIPS_DI_FTYPE_TI_DI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_dextr_r_l, "__builtin_mips_dextr_r_l", MIPS_BUILTIN_DEXTR_R_L, MIPS_DI_FTYPE_TI_DI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_dextr_rs_l, "__builtin_mips_dextr_rs_l", MIPS_BUILTIN_DEXTR_RS_L, MIPS_DI_FTYPE_TI_DI, MASK_DSP|MASK_64BIT },
+    /* EXTR*_S.H */
+    { CODE_FOR_mips_extr_s_h, "__builtin_mips_extr_s_h", MIPS_BUILTIN_EXTR_S_H, MIPS_SI_FTYPE_DI_SI, MASK_DSP },
+    { CODE_FOR_mips_extr_s_h_64, "__builtin_mips_extr_s_h_64", MIPS_BUILTIN_EXTR_S_H_64, MIPS_SI_FTYPE_TI_SI, MASK_DSP|MASK_64BIT },
+    /* EXTL* */
+    { CODE_FOR_mips_dextl_w, "__builtin_mips_dextl_w", MIPS_BUILTIN_DEXTL_W, MIPS_DI_FTYPE_TI_DI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_dextl_s_w, "__builtin_mips_dextl_s_w", MIPS_BUILTIN_DEXTL_S_W, MIPS_DI_FTYPE_TI_DI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_dextl_l, "__builtin_mips_dextl_l", MIPS_BUILTIN_DEXTL_L, MIPS_DI_FTYPE_TI_DI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_dextl_s_l, "__builtin_mips_dextl_s_l", MIPS_BUILTIN_DEXTL_S_L, MIPS_DI_FTYPE_TI_DI, MASK_DSP|MASK_64BIT },
+    /* EXTP* */
+    { CODE_FOR_mips_extp, "__builtin_mips_extp", MIPS_BUILTIN_EXTP, MIPS_SI_FTYPE_DI_SI, MASK_DSP },
+    { CODE_FOR_mips_extpdp, "__builtin_mips_extpdp", MIPS_BUILTIN_EXTPDP, MIPS_SI_FTYPE_DI_SI, MASK_DSP },
+    { CODE_FOR_mips_extp_64, "__builtin_mips_extp_64", MIPS_BUILTIN_EXTP_64, MIPS_SI_FTYPE_TI_SI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_extpdp_64, "__builtin_mips_extpdp_64", MIPS_BUILTIN_EXTPDP_64, MIPS_SI_FTYPE_TI_SI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_dextp, "__builtin_mips_dextp", MIPS_BUILTIN_DEXTP, MIPS_DI_FTYPE_TI_DI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_dextpdp, "__builtin_mips_dextpdp", MIPS_BUILTIN_DEXTPDP, MIPS_DI_FTYPE_TI_DI, MASK_DSP|MASK_64BIT },
+    /* SHILO* */
+    { CODE_FOR_mips_shilo, "__builtin_mips_shilo", MIPS_BUILTIN_SHILO, MIPS_DI_FTYPE_DI_SI, MASK_DSP },
+    { CODE_FOR_mips_shilo_64, "__builtin_mips_shilo_64", MIPS_BUILTIN_SHILO_64, MIPS_TI_FTYPE_TI_SI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_dshilo, "__builtin_mips_dshilo", MIPS_BUILTIN_DSHILO, MIPS_TI_FTYPE_TI_DI, MASK_DSP|MASK_64BIT },
+    /* MTHLIP* */
+    { CODE_FOR_mips_mthlip, "__builtin_mips_mthlip", MIPS_BUILTIN_MTHLIP, MIPS_DI_FTYPE_DI_SI, MASK_DSP },
+    { CODE_FOR_mips_mthlip_64, "__builtin_mips_mthlip_64", MIPS_BUILTIN_MTHLIP_64, MIPS_TI_FTYPE_TI_SI, MASK_DSP|MASK_64BIT },
+    { CODE_FOR_mips_dmthlip, "__builtin_mips_dmthlip", MIPS_BUILTIN_DMTHLIP, MIPS_TI_FTYPE_TI_DI, MASK_DSP|MASK_64BIT },
+    /* WRDSP */
+    { CODE_FOR_mips_wrdsp, "__builtin_mips_wrdsp", MIPS_BUILTIN_WRDSP, MIPS_VOID_FTYPE_SI_SI, MASK_DSP },
+    /* RDDSP */
+    { CODE_FOR_mips_rddsp, "__builtin_mips_rddsp", MIPS_BUILTIN_RDDSP, MIPS_SI_FTYPE_SI, MASK_DSP },
+    /* Table 2-7. MIPS DSP ASE Instructions: Indexed-Load */
+    /* L*X */
+    { CODE_FOR_mips_lbux, "__builtin_mips_lbux", MIPS_BUILTIN_LBUX, MIPS_SI_FTYPE_PTR_SI, MASK_DSP },
+    { CODE_FOR_mips_lhx, "__builtin_mips_lhx", MIPS_BUILTIN_LHX, MIPS_SI_FTYPE_PTR_SI, MASK_DSP },
+    { CODE_FOR_mips_lwx, "__builtin_mips_lwx", MIPS_BUILTIN_LWX, MIPS_SI_FTYPE_PTR_SI, MASK_DSP },
+    { CODE_FOR_mips_ldx, "__builtin_mips_ldx", MIPS_BUILTIN_LDX, MIPS_DI_FTYPE_PTR_DI, MASK_DSP|MASK_64BIT },
+    /* Table 2-8. MIPS DSP ASE Instructions: Branch */
+    /* BPOSGE32 */
+    { CODE_FOR_mips_bposge, "__builtin_mips_bposge32", MIPS_BUILTIN_BPOSGE32, MIPS_SI_FTYPE_VOID, MASK_DSP },
+    { CODE_FOR_mips_bposge, "__builtin_mips_bposge64", MIPS_BUILTIN_BPOSGE64, MIPS_SI_FTYPE_VOID, MASK_DSP|MASK_64BIT },
 
-  /* MIPS DSP ASE Rev2 Revision 0.02 5/19/2006 */
-  { CODE_FOR_mips_absq_s_qb, "__builtin_mips_absq_s_qb", MIPS_BUILTIN_ABSQ_S_QB, MIPS_V4QI_FTYPE_V4QI, MASK_DSPR2 },
-  { CODE_FOR_mips_addu_ph, "__builtin_mips_addu_ph", MIPS_BUILTIN_ADDU_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSPR2 },
-  { CODE_FOR_mips_addu_s_ph, "__builtin_mips_addu_s_ph", MIPS_BUILTIN_ADDU_S_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSPR2 },
-  { CODE_FOR_mips_adduh_qb, "__builtin_mips_adduh_qb", MIPS_BUILTIN_ADDUH_QB, MIPS_V4QI_FTYPE_V4QI_V4QI, MASK_DSPR2 },
-  { CODE_FOR_mips_adduh_r_qb, "__builtin_mips_adduh_r_qb", MIPS_BUILTIN_ADDUH_R_QB, MIPS_V4QI_FTYPE_V4QI_V4QI, MASK_DSPR2 },
-  { CODE_FOR_mips_append, "__builtin_mips_append", MIPS_BUILTIN_APPEND, MIPS_SI_FTYPE_SI_SI_SI, MASK_DSPR2 },
-  { CODE_FOR_mips_balign, "__builtin_mips_balign", MIPS_BUILTIN_BALIGN, MIPS_SI_FTYPE_SI_SI_SI, MASK_DSPR2 },
-  { CODE_FOR_mips_cmpgdu_eq_qb, "__builtin_mips_cmpgdu_eq_qb", MIPS_BUILTIN_CMPGDU_EQ_QB, MIPS_SI_FTYPE_V4QI_V4QI, MASK_DSPR2 },
-  { CODE_FOR_mips_cmpgdu_lt_qb, "__builtin_mips_cmpgdu_lt_qb", MIPS_BUILTIN_CMPGDU_LT_QB, MIPS_SI_FTYPE_V4QI_V4QI, MASK_DSPR2 },
-  { CODE_FOR_mips_cmpgdu_le_qb, "__builtin_mips_cmpgdu_le_qb", MIPS_BUILTIN_CMPGDU_LE_QB, MIPS_SI_FTYPE_V4QI_V4QI, MASK_DSPR2 },
-  { CODE_FOR_mips_dpa_w_ph, "__builtin_mips_dpa_w_ph", MIPS_BUILTIN_DPA_W_PH, MIPS_DI_FTYPE_DI_V2HI_V2HI, MASK_DSPR2 },
-  { CODE_FOR_mips_dpa_w_ph_64, "__builtin_mips_dpa_w_ph_64", MIPS_BUILTIN_DPA_W_PH_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSPR2|MASK_64BIT },
-  { CODE_FOR_mips_dps_w_ph, "__builtin_mips_dps_w_ph", MIPS_BUILTIN_DPS_W_PH, MIPS_DI_FTYPE_DI_V2HI_V2HI, MASK_DSPR2 },
-  { CODE_FOR_mips_dps_w_ph_64, "__builtin_mips_dps_w_ph_64", MIPS_BUILTIN_DPS_W_PH_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSPR2|MASK_64BIT },
-  { CODE_FOR_mips_madd, "__builtin_mips_madd", MIPS_BUILTIN_MADD, MIPS_DI_FTYPE_DI_SI_SI, MASK_DSPR2 },
-  { CODE_FOR_mips_maddu, "__builtin_mips_maddu", MIPS_BUILTIN_MADDU, MIPS_DI_FTYPE_DI_USI_USI, MASK_DSPR2 },
-  { CODE_FOR_mips_msub, "__builtin_mips_msub", MIPS_BUILTIN_MSUB, MIPS_DI_FTYPE_DI_SI_SI, MASK_DSPR2 },
-  { CODE_FOR_mips_msubu, "__builtin_mips_msubu", MIPS_BUILTIN_MSUBU, MIPS_DI_FTYPE_DI_USI_USI, MASK_DSPR2 },
-  { CODE_FOR_mulv2hi3, "__builtin_mips_mul_ph", MIPS_BUILTIN_MUL_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSPR2 },
-  { CODE_FOR_mips_mul_s_ph, "__builtin_mips_mul_s_ph", MIPS_BUILTIN_MUL_S_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSPR2 },
-  { CODE_FOR_mips_mulq_rs_w, "__builtin_mips_mulq_rs_w", MIPS_BUILTIN_MULQ_RS_W, MIPS_SI_FTYPE_SI_SI, MASK_DSPR2 },
-  { CODE_FOR_mips_mulq_s_ph, "__builtin_mips_mulq_s_ph", MIPS_BUILTIN_MULQ_S_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSPR2 },
-  { CODE_FOR_mips_mulq_s_w, "__builtin_mips_mulq_s_w", MIPS_BUILTIN_MULQ_S_W, MIPS_SI_FTYPE_SI_SI, MASK_DSPR2 },
-  { CODE_FOR_mips_mulsa_w_ph, "__builtin_mips_mulsa_w_ph", MIPS_BUILTIN_MULSA_W_PH, MIPS_DI_FTYPE_DI_V2HI_V2HI, MASK_DSPR2 },
-  { CODE_FOR_mips_mulsa_w_ph_64, "__builtin_mips_mulsa_w_ph_64", MIPS_BUILTIN_MULSA_W_PH_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSPR2|MASK_64BIT },
-  { CODE_FOR_mips_mult, "__builtin_mips_mult", MIPS_BUILTIN_MULT, MIPS_DI_FTYPE_SI_SI, MASK_DSPR2 },
-  { CODE_FOR_mips_multu, "__builtin_mips_multu", MIPS_BUILTIN_MULTU, MIPS_DI_FTYPE_USI_USI, MASK_DSPR2 },
-  { CODE_FOR_mips_precr_qb_ph, "__builtin_mips_precr_qb_ph", MIPS_BUILTIN_PRECR_QB_PH, MIPS_V4QI_FTYPE_V2HI_V2HI, MASK_DSPR2 },
-  { CODE_FOR_mips_precr_sra_ph_w, "__builtin_mips_precr_sra_ph_w", MIPS_BUILTIN_PRECR_SRA_PH_W, MIPS_V2HI_FTYPE_SI_SI_SI, MASK_DSPR2 },
-  { CODE_FOR_mips_precr_sra_r_ph_w, "__builtin_mips_precr_sra_r_ph_w", MIPS_BUILTIN_PRECR_SRA_R_PH_W, MIPS_V2HI_FTYPE_SI_SI_SI, MASK_DSPR2 },
-  { CODE_FOR_mips_prepend, "__builtin_mips_prepend", MIPS_BUILTIN_PREPEND, MIPS_SI_FTYPE_SI_SI_SI, MASK_DSPR2 },
-  { CODE_FOR_mips_shra_qb, "__builtin_mips_shra_qb", MIPS_BUILTIN_SHRA_QB, MIPS_V4QI_FTYPE_V4QI_SI, MASK_DSPR2 },
-  { CODE_FOR_mips_shra_r_qb, "__builtin_mips_shra_r_qb", MIPS_BUILTIN_SHRA_R_QB, MIPS_V4QI_FTYPE_V4QI_SI, MASK_DSPR2 },
-  { CODE_FOR_mips_shrl_ph, "__builtin_mips_shrl_ph", MIPS_BUILTIN_SHRL_PH, MIPS_V2HI_FTYPE_V2HI_SI, MASK_DSPR2 },
-  { CODE_FOR_mips_subu_ph, "__builtin_mips_subu_ph", MIPS_BUILTIN_SUBU_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSPR2 },
-  { CODE_FOR_mips_subu_s_ph, "__builtin_mips_subu_s_ph", MIPS_BUILTIN_SUBU_S_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSPR2 },
-  { CODE_FOR_mips_subuh_qb, "__builtin_mips_subuh_qb", MIPS_BUILTIN_SUBUH_QB, MIPS_V4QI_FTYPE_V4QI_V4QI, MASK_DSPR2 },
-  { CODE_FOR_mips_subuh_r_qb, "__builtin_mips_subuh_r_qb", MIPS_BUILTIN_SUBUH_R_QB, MIPS_V4QI_FTYPE_V4QI_V4QI, MASK_DSPR2 },
-  { CODE_FOR_mips_addqh_ph, "__builtin_mips_addqh_ph", MIPS_BUILTIN_ADDQH_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSPR2 },
-  { CODE_FOR_mips_addqh_r_ph, "__builtin_mips_addqh_r_ph", MIPS_BUILTIN_ADDQH_R_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSPR2 },
-  { CODE_FOR_mips_addqh_w, "__builtin_mips_addqh_w", MIPS_BUILTIN_ADDQH_W, MIPS_SI_FTYPE_SI_SI, MASK_DSPR2 },
-  { CODE_FOR_mips_addqh_r_w, "__builtin_mips_addqh_r_w", MIPS_BUILTIN_ADDQH_R_W, MIPS_SI_FTYPE_SI_SI, MASK_DSPR2 },
-  { CODE_FOR_mips_subqh_ph, "__builtin_mips_subqh_ph", MIPS_BUILTIN_SUBQH_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSPR2 },
-  { CODE_FOR_mips_subqh_r_ph, "__builtin_mips_subqh_r_ph", MIPS_BUILTIN_SUBQH_R_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSPR2 },
-  { CODE_FOR_mips_subqh_w, "__builtin_mips_subqh_w", MIPS_BUILTIN_SUBQH_W, MIPS_SI_FTYPE_SI_SI, MASK_DSPR2 },
-  { CODE_FOR_mips_subqh_r_w, "__builtin_mips_subqh_r_w", MIPS_BUILTIN_SUBQH_R_W, MIPS_SI_FTYPE_SI_SI, MASK_DSPR2 },
-  { CODE_FOR_mips_dpax_w_ph, "__builtin_mips_dpax_w_ph", MIPS_BUILTIN_DPAX_W_PH, MIPS_DI_FTYPE_DI_V2HI_V2HI, MASK_DSPR2 },
-  { CODE_FOR_mips_dpsx_w_ph, "__builtin_mips_dpsx_w_ph", MIPS_BUILTIN_DPSX_W_PH, MIPS_DI_FTYPE_DI_V2HI_V2HI, MASK_DSPR2 },
-  { CODE_FOR_mips_dpaqx_s_w_ph, "__builtin_mips_dpaqx_s_w_ph", MIPS_BUILTIN_DPAQX_S_W_PH, MIPS_DI_FTYPE_DI_V2HI_V2HI, MASK_DSPR2 },
-  { CODE_FOR_mips_dpaqx_sa_w_ph, "__builtin_mips_dpaqx_sa_w_ph", MIPS_BUILTIN_DPAQX_SA_W_PH, MIPS_DI_FTYPE_DI_V2HI_V2HI, MASK_DSPR2 },
-  { CODE_FOR_mips_dpsqx_s_w_ph, "__builtin_mips_dpsqx_s_w_ph", MIPS_BUILTIN_DPSQX_S_W_PH, MIPS_DI_FTYPE_DI_V2HI_V2HI, MASK_DSPR2 },
-  { CODE_FOR_mips_dpsqx_sa_w_ph, "__builtin_mips_dpsqx_sa_w_ph", MIPS_BUILTIN_DPSQX_SA_W_PH, MIPS_DI_FTYPE_DI_V2HI_V2HI, MASK_DSPR2 },
-  { CODE_FOR_mips_dpax_w_ph_64, "__builtin_mips_dpax_w_ph_64", MIPS_BUILTIN_DPAX_W_PH_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSPR2|MASK_64BIT },
-  { CODE_FOR_mips_dpsx_w_ph_64, "__builtin_mips_dpsx_w_ph_64", MIPS_BUILTIN_DPSX_W_PH_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSPR2|MASK_64BIT },
-  { CODE_FOR_mips_dpaqx_s_w_ph_64, "__builtin_mips_dpaqx_s_w_ph_64", MIPS_BUILTIN_DPAQX_S_W_PH_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSPR2|MASK_64BIT },
-  { CODE_FOR_mips_dpaqx_sa_w_ph_64, "__builtin_mips_dpaqx_sa_w_ph_64", MIPS_BUILTIN_DPAQX_SA_W_PH_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSPR2|MASK_64BIT },
-  { CODE_FOR_mips_dpsqx_s_w_ph_64, "__builtin_mips_dpsqx_s_w_ph_64", MIPS_BUILTIN_DPSQX_S_W_PH_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSPR2|MASK_64BIT },
-  { CODE_FOR_mips_dpsqx_sa_w_ph_64, "__builtin_mips_dpsqx_sa_w_ph_64", MIPS_BUILTIN_DPSQX_SA_W_PH_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSPR2|MASK_64BIT },
+    /* MIPS DSP ASE Rev2 Revision 0.02 5/19/2006 */
+    { CODE_FOR_mips_absq_s_qb, "__builtin_mips_absq_s_qb", MIPS_BUILTIN_ABSQ_S_QB, MIPS_V4QI_FTYPE_V4QI, MASK_DSPR2 },
+    { CODE_FOR_mips_addu_ph, "__builtin_mips_addu_ph", MIPS_BUILTIN_ADDU_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSPR2 },
+    { CODE_FOR_mips_addu_s_ph, "__builtin_mips_addu_s_ph", MIPS_BUILTIN_ADDU_S_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSPR2 },
+    { CODE_FOR_mips_adduh_qb, "__builtin_mips_adduh_qb", MIPS_BUILTIN_ADDUH_QB, MIPS_V4QI_FTYPE_V4QI_V4QI, MASK_DSPR2 },
+    { CODE_FOR_mips_adduh_r_qb, "__builtin_mips_adduh_r_qb", MIPS_BUILTIN_ADDUH_R_QB, MIPS_V4QI_FTYPE_V4QI_V4QI, MASK_DSPR2 },
+    { CODE_FOR_mips_append, "__builtin_mips_append", MIPS_BUILTIN_APPEND, MIPS_SI_FTYPE_SI_SI_SI, MASK_DSPR2 },
+    { CODE_FOR_mips_balign, "__builtin_mips_balign", MIPS_BUILTIN_BALIGN, MIPS_SI_FTYPE_SI_SI_SI, MASK_DSPR2 },
+    { CODE_FOR_mips_cmpgdu_eq_qb, "__builtin_mips_cmpgdu_eq_qb", MIPS_BUILTIN_CMPGDU_EQ_QB, MIPS_SI_FTYPE_V4QI_V4QI, MASK_DSPR2 },
+    { CODE_FOR_mips_cmpgdu_lt_qb, "__builtin_mips_cmpgdu_lt_qb", MIPS_BUILTIN_CMPGDU_LT_QB, MIPS_SI_FTYPE_V4QI_V4QI, MASK_DSPR2 },
+    { CODE_FOR_mips_cmpgdu_le_qb, "__builtin_mips_cmpgdu_le_qb", MIPS_BUILTIN_CMPGDU_LE_QB, MIPS_SI_FTYPE_V4QI_V4QI, MASK_DSPR2 },
+    { CODE_FOR_mips_dpa_w_ph, "__builtin_mips_dpa_w_ph", MIPS_BUILTIN_DPA_W_PH, MIPS_DI_FTYPE_DI_V2HI_V2HI, MASK_DSPR2 },
+    { CODE_FOR_mips_dpa_w_ph_64, "__builtin_mips_dpa_w_ph_64", MIPS_BUILTIN_DPA_W_PH_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSPR2|MASK_64BIT },
+    { CODE_FOR_mips_dps_w_ph, "__builtin_mips_dps_w_ph", MIPS_BUILTIN_DPS_W_PH, MIPS_DI_FTYPE_DI_V2HI_V2HI, MASK_DSPR2 },
+    { CODE_FOR_mips_dps_w_ph_64, "__builtin_mips_dps_w_ph_64", MIPS_BUILTIN_DPS_W_PH_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSPR2|MASK_64BIT },
+    { CODE_FOR_mips_madd, "__builtin_mips_madd", MIPS_BUILTIN_MADD, MIPS_DI_FTYPE_DI_SI_SI, MASK_DSPR2 },
+    { CODE_FOR_mips_maddu, "__builtin_mips_maddu", MIPS_BUILTIN_MADDU, MIPS_DI_FTYPE_DI_USI_USI, MASK_DSPR2 },
+    { CODE_FOR_mips_msub, "__builtin_mips_msub", MIPS_BUILTIN_MSUB, MIPS_DI_FTYPE_DI_SI_SI, MASK_DSPR2 },
+    { CODE_FOR_mips_msubu, "__builtin_mips_msubu", MIPS_BUILTIN_MSUBU, MIPS_DI_FTYPE_DI_USI_USI, MASK_DSPR2 },
+    { CODE_FOR_mulv2hi3, "__builtin_mips_mul_ph", MIPS_BUILTIN_MUL_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSPR2 },
+    { CODE_FOR_mips_mul_s_ph, "__builtin_mips_mul_s_ph", MIPS_BUILTIN_MUL_S_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSPR2 },
+    { CODE_FOR_mips_mulq_rs_w, "__builtin_mips_mulq_rs_w", MIPS_BUILTIN_MULQ_RS_W, MIPS_SI_FTYPE_SI_SI, MASK_DSPR2 },
+    { CODE_FOR_mips_mulq_s_ph, "__builtin_mips_mulq_s_ph", MIPS_BUILTIN_MULQ_S_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSPR2 },
+    { CODE_FOR_mips_mulq_s_w, "__builtin_mips_mulq_s_w", MIPS_BUILTIN_MULQ_S_W, MIPS_SI_FTYPE_SI_SI, MASK_DSPR2 },
+    { CODE_FOR_mips_mulsa_w_ph, "__builtin_mips_mulsa_w_ph", MIPS_BUILTIN_MULSA_W_PH, MIPS_DI_FTYPE_DI_V2HI_V2HI, MASK_DSPR2 },
+    { CODE_FOR_mips_mulsa_w_ph_64, "__builtin_mips_mulsa_w_ph_64", MIPS_BUILTIN_MULSA_W_PH_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSPR2|MASK_64BIT },
+    { CODE_FOR_mips_mult, "__builtin_mips_mult", MIPS_BUILTIN_MULT, MIPS_DI_FTYPE_SI_SI, MASK_DSPR2 },
+    { CODE_FOR_mips_multu, "__builtin_mips_multu", MIPS_BUILTIN_MULTU, MIPS_DI_FTYPE_USI_USI, MASK_DSPR2 },
+    { CODE_FOR_mips_precr_qb_ph, "__builtin_mips_precr_qb_ph", MIPS_BUILTIN_PRECR_QB_PH, MIPS_V4QI_FTYPE_V2HI_V2HI, MASK_DSPR2 },
+    { CODE_FOR_mips_precr_sra_ph_w, "__builtin_mips_precr_sra_ph_w", MIPS_BUILTIN_PRECR_SRA_PH_W, MIPS_V2HI_FTYPE_SI_SI_SI, MASK_DSPR2 },
+    { CODE_FOR_mips_precr_sra_r_ph_w, "__builtin_mips_precr_sra_r_ph_w", MIPS_BUILTIN_PRECR_SRA_R_PH_W, MIPS_V2HI_FTYPE_SI_SI_SI, MASK_DSPR2 },
+    { CODE_FOR_mips_prepend, "__builtin_mips_prepend", MIPS_BUILTIN_PREPEND, MIPS_SI_FTYPE_SI_SI_SI, MASK_DSPR2 },
+    { CODE_FOR_mips_shra_qb, "__builtin_mips_shra_qb", MIPS_BUILTIN_SHRA_QB, MIPS_V4QI_FTYPE_V4QI_SI, MASK_DSPR2 },
+    { CODE_FOR_mips_shra_r_qb, "__builtin_mips_shra_r_qb", MIPS_BUILTIN_SHRA_R_QB, MIPS_V4QI_FTYPE_V4QI_SI, MASK_DSPR2 },
+    { CODE_FOR_mips_shrl_ph, "__builtin_mips_shrl_ph", MIPS_BUILTIN_SHRL_PH, MIPS_V2HI_FTYPE_V2HI_SI, MASK_DSPR2 },
+    { CODE_FOR_mips_subu_ph, "__builtin_mips_subu_ph", MIPS_BUILTIN_SUBU_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSPR2 },
+    { CODE_FOR_mips_subu_s_ph, "__builtin_mips_subu_s_ph", MIPS_BUILTIN_SUBU_S_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSPR2 },
+    { CODE_FOR_mips_subuh_qb, "__builtin_mips_subuh_qb", MIPS_BUILTIN_SUBUH_QB, MIPS_V4QI_FTYPE_V4QI_V4QI, MASK_DSPR2 },
+    { CODE_FOR_mips_subuh_r_qb, "__builtin_mips_subuh_r_qb", MIPS_BUILTIN_SUBUH_R_QB, MIPS_V4QI_FTYPE_V4QI_V4QI, MASK_DSPR2 },
+    { CODE_FOR_mips_addqh_ph, "__builtin_mips_addqh_ph", MIPS_BUILTIN_ADDQH_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSPR2 },
+    { CODE_FOR_mips_addqh_r_ph, "__builtin_mips_addqh_r_ph", MIPS_BUILTIN_ADDQH_R_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSPR2 },
+    { CODE_FOR_mips_addqh_w, "__builtin_mips_addqh_w", MIPS_BUILTIN_ADDQH_W, MIPS_SI_FTYPE_SI_SI, MASK_DSPR2 },
+    { CODE_FOR_mips_addqh_r_w, "__builtin_mips_addqh_r_w", MIPS_BUILTIN_ADDQH_R_W, MIPS_SI_FTYPE_SI_SI, MASK_DSPR2 },
+    { CODE_FOR_mips_subqh_ph, "__builtin_mips_subqh_ph", MIPS_BUILTIN_SUBQH_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSPR2 },
+    { CODE_FOR_mips_subqh_r_ph, "__builtin_mips_subqh_r_ph", MIPS_BUILTIN_SUBQH_R_PH, MIPS_V2HI_FTYPE_V2HI_V2HI, MASK_DSPR2 },
+    { CODE_FOR_mips_subqh_w, "__builtin_mips_subqh_w", MIPS_BUILTIN_SUBQH_W, MIPS_SI_FTYPE_SI_SI, MASK_DSPR2 },
+    { CODE_FOR_mips_subqh_r_w, "__builtin_mips_subqh_r_w", MIPS_BUILTIN_SUBQH_R_W, MIPS_SI_FTYPE_SI_SI, MASK_DSPR2 },
+    { CODE_FOR_mips_dpax_w_ph, "__builtin_mips_dpax_w_ph", MIPS_BUILTIN_DPAX_W_PH, MIPS_DI_FTYPE_DI_V2HI_V2HI, MASK_DSPR2 },
+    { CODE_FOR_mips_dpsx_w_ph, "__builtin_mips_dpsx_w_ph", MIPS_BUILTIN_DPSX_W_PH, MIPS_DI_FTYPE_DI_V2HI_V2HI, MASK_DSPR2 },
+    { CODE_FOR_mips_dpaqx_s_w_ph, "__builtin_mips_dpaqx_s_w_ph", MIPS_BUILTIN_DPAQX_S_W_PH, MIPS_DI_FTYPE_DI_V2HI_V2HI, MASK_DSPR2 },
+    { CODE_FOR_mips_dpaqx_sa_w_ph, "__builtin_mips_dpaqx_sa_w_ph", MIPS_BUILTIN_DPAQX_SA_W_PH, MIPS_DI_FTYPE_DI_V2HI_V2HI, MASK_DSPR2 },
+    { CODE_FOR_mips_dpsqx_s_w_ph, "__builtin_mips_dpsqx_s_w_ph", MIPS_BUILTIN_DPSQX_S_W_PH, MIPS_DI_FTYPE_DI_V2HI_V2HI, MASK_DSPR2 },
+    { CODE_FOR_mips_dpsqx_sa_w_ph, "__builtin_mips_dpsqx_sa_w_ph", MIPS_BUILTIN_DPSQX_SA_W_PH, MIPS_DI_FTYPE_DI_V2HI_V2HI, MASK_DSPR2 },
+    { CODE_FOR_mips_dpax_w_ph_64, "__builtin_mips_dpax_w_ph_64", MIPS_BUILTIN_DPAX_W_PH_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSPR2|MASK_64BIT },
+    { CODE_FOR_mips_dpsx_w_ph_64, "__builtin_mips_dpsx_w_ph_64", MIPS_BUILTIN_DPSX_W_PH_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSPR2|MASK_64BIT },
+    { CODE_FOR_mips_dpaqx_s_w_ph_64, "__builtin_mips_dpaqx_s_w_ph_64", MIPS_BUILTIN_DPAQX_S_W_PH_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSPR2|MASK_64BIT },
+    { CODE_FOR_mips_dpaqx_sa_w_ph_64, "__builtin_mips_dpaqx_sa_w_ph_64", MIPS_BUILTIN_DPAQX_SA_W_PH_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSPR2|MASK_64BIT },
+    { CODE_FOR_mips_dpsqx_s_w_ph_64, "__builtin_mips_dpsqx_s_w_ph_64", MIPS_BUILTIN_DPSQX_S_W_PH_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSPR2|MASK_64BIT },
+    { CODE_FOR_mips_dpsqx_sa_w_ph_64, "__builtin_mips_dpsqx_sa_w_ph_64", MIPS_BUILTIN_DPSQX_SA_W_PH_64, MIPS_TI_FTYPE_TI_V2HI_V2HI, MASK_DSPR2|MASK_64BIT },
 
-};
+  };
 
 /* Expand conditional move builtin functions */
 static rtx mips_expand_ps_cond_move_builtin (enum mips_cmp_choice cmp_choice,
-                                             rtx target, unsigned int fcode,
-                                             tree arglist)
+    rtx target, unsigned int fcode,
+    tree arglist)
 {
   rtx pat;
   enum insn_code icode;
@@ -13280,10 +14209,10 @@ static rtx mips_expand_ps_cond_move_builtin (enum mips_cmp_choice cmp_choice,
     target = gen_reg_rtx (tmode);
 
   if (VECTOR_MODE_P (tmode) && op2 == const0_rtx)
-     op2 = gen_reg_rtx (tmode);
+    op2 = gen_reg_rtx (tmode);
 
   if (VECTOR_MODE_P (tmode) && op3 == const0_rtx)
-     op3 = gen_reg_rtx (tmode);
+    op3 = gen_reg_rtx (tmode);
 
   /* Let op2 be the same as the tmode */
   if (! (*insn_data[icode].operand[0].predicate) (op2, tmode))
@@ -13352,16 +14281,16 @@ mips_expand_4s_compare_builtin (enum mips_cmp_choice cmp_choice, rtx target,
   mode3 = insn_data[icode].operand[4].mode;
 
   if (VECTOR_MODE_P (mode0) && op0 == const0_rtx)
-     op0 = gen_reg_rtx (mode0);
+    op0 = gen_reg_rtx (mode0);
 
   if (VECTOR_MODE_P (mode1) && op1 == const0_rtx)
-     op1 = gen_reg_rtx (mode1);
+    op1 = gen_reg_rtx (mode1);
 
   if (VECTOR_MODE_P (mode2) && op2 == const0_rtx)
-     op2 = gen_reg_rtx (mode2);
+    op2 = gen_reg_rtx (mode2);
 
   if (VECTOR_MODE_P (mode3) && op3 == const0_rtx)
-     op3 = gen_reg_rtx (mode3);
+    op3 = gen_reg_rtx (mode3);
 
   temp_target = gen_reg_rtx (tmode);
 
@@ -13420,10 +14349,10 @@ mips_expand_4s_compare_builtin (enum mips_cmp_choice cmp_choice, rtx target,
   label1 = gen_label_rtx ();
   label2 = gen_label_rtx ();
   if_then_else
-    = gen_rtx_IF_THEN_ELSE (VOIDmode,
-                            gen_rtx (test_code, CCV4mode, temp_target,
-                                     GEN_INT (compare_value)),
-                            gen_rtx_LABEL_REF (VOIDmode, label1), pc_rtx);
+  = gen_rtx_IF_THEN_ELSE (VOIDmode,
+                          gen_rtx (test_code, CCV4mode, temp_target,
+                                   GEN_INT (compare_value)),
+                          gen_rtx_LABEL_REF (VOIDmode, label1), pc_rtx);
 
   emit_jump_insn (gen_rtx_SET (VOIDmode, pc_rtx, if_then_else));
   emit_jump_insn (gen_rtx_SET (VOIDmode, pc_rtx,
@@ -13493,10 +14422,10 @@ mips_expand_compare_builtin (rtx target, unsigned int fcode, tree arglist)
 
   test_code =  NE;
   if_then_else
-    = gen_rtx_IF_THEN_ELSE (VOIDmode,
-                            gen_rtx (test_code, CCmode,
-                                     temp_target, const0_rtx),
-                            gen_rtx_LABEL_REF (VOIDmode, label1), pc_rtx);
+  = gen_rtx_IF_THEN_ELSE (VOIDmode,
+                          gen_rtx (test_code, CCmode,
+                                   temp_target, const0_rtx),
+                          gen_rtx_LABEL_REF (VOIDmode, label1), pc_rtx);
 
   emit_jump_insn (gen_rtx_SET (VOIDmode, pc_rtx, if_then_else));
   emit_jump_insn (gen_rtx_SET (VOIDmode, pc_rtx,
@@ -13544,10 +14473,10 @@ mips_expand_ps_compare_builtin (enum mips_cmp_choice cmp_choice, rtx target,
   mode1 = insn_data[icode].operand[2].mode;
 
   if (VECTOR_MODE_P (mode0) && op0 == const0_rtx)
-     op0 = gen_reg_rtx (mode0);
+    op0 = gen_reg_rtx (mode0);
 
   if (VECTOR_MODE_P (mode1) && op1 == const0_rtx)
-     op1 = gen_reg_rtx (mode1);
+    op1 = gen_reg_rtx (mode1);
 
   temp_target = gen_reg_rtx (tmode);
 
@@ -13615,10 +14544,10 @@ mips_expand_ps_compare_builtin (enum mips_cmp_choice cmp_choice, rtx target,
   label2 = gen_label_rtx ();
 
   if_then_else
-    = gen_rtx_IF_THEN_ELSE (VOIDmode,
-                            gen_rtx (test_code, CCV2mode, temp_target,
-                                     GEN_INT (compare_value)),
-                            gen_rtx_LABEL_REF (VOIDmode, label1), pc_rtx);
+  = gen_rtx_IF_THEN_ELSE (VOIDmode,
+                          gen_rtx (test_code, CCV2mode, temp_target,
+                                   GEN_INT (compare_value)),
+                          gen_rtx_LABEL_REF (VOIDmode, label1), pc_rtx);
 
   emit_jump_insn (gen_rtx_SET (VOIDmode, pc_rtx, if_then_else));
   emit_jump_insn (gen_rtx_SET (VOIDmode, pc_rtx,
@@ -13667,12 +14596,12 @@ mips_expand_bposge (rtx target, int compare_value)
 
   /* Generate if_then_else */
   if_then_else
-    = gen_rtx_IF_THEN_ELSE (VOIDmode,
-                            gen_rtx (GE, CCDSPmode,
-                                     gen_rtx_REG (CCDSPmode,
-                                                  DSP_CONTROL_PO_REGNUM),
-                                     GEN_INT (compare_value)),
-                            gen_rtx_LABEL_REF (VOIDmode, label1), pc_rtx);
+  = gen_rtx_IF_THEN_ELSE (VOIDmode,
+                          gen_rtx (GE, CCDSPmode,
+                                   gen_rtx_REG (CCDSPmode,
+                                                DSP_CONTROL_PO_REGNUM),
+                                   GEN_INT (compare_value)),
+                          gen_rtx_LABEL_REF (VOIDmode, label1), pc_rtx);
 
   emit_jump_insn (gen_rtx_SET (VOIDmode, pc_rtx, if_then_else));
   emit_jump_insn (gen_rtx_SET (VOIDmode, pc_rtx,
@@ -13689,7 +14618,7 @@ mips_expand_bposge (rtx target, int compare_value)
 
 rtx
 mips_expand_two_operands_with_immediate (rtx target, unsigned int fcode,
-                                         tree arglist, int bits, int is_signed)
+    tree arglist, int bits, int is_signed)
 {
   rtx pat;
   enum insn_code icode;
@@ -13712,32 +14641,32 @@ mips_expand_two_operands_with_immediate (rtx target, unsigned int fcode,
   mode1 = insn_data[icode].operand[2].mode;
 
   if (TREE_CODE (arg1) == INTEGER_CST)
-  {
-    if (is_signed == 1) /* signed */
-      {
-        if ((TREE_INT_CST_LOW (arg1) + (1 << (bits - 1))) >
-            (unsigned HOST_WIDE_INT) ((1 << bits) - 1))
-          {
-            warning ("argument 2 of `%s' not in the range %d to %d.",
-                     mips_bdesc[fcode].name,
-                     - (1 << (bits - 1)), (1 << (bits - 1)) - 1);
-            value = INTVAL (op1) & ((1 << bits) - 1);
-            if (value & (unsigned HOST_WIDE_INT) (1 << (bits - 1)))
-              value |= ~ (unsigned HOST_WIDE_INT) ((1 << bits) - 1);
-            op1 = GEN_INT (value);
-          }
-      }
-    else /* unsigned */
-      {
-        if (TREE_INT_CST_LOW (arg1) >
-            (unsigned HOST_WIDE_INT) ((1 << bits) - 1))
-          {
-            warning ("argument 2 of `%s' not in the range 0 to %d.",
-                     mips_bdesc[fcode].name, (1 << bits) - 1);
-            op1 = GEN_INT (INTVAL (op1) & ((1 << bits) - 1));
-          }
-      }
-  }
+    {
+      if (is_signed == 1) /* signed */
+        {
+          if ((TREE_INT_CST_LOW (arg1) + (1 << (bits - 1))) >
+              (unsigned HOST_WIDE_INT) ((1 << bits) - 1))
+            {
+              warning ("argument 2 of `%s' not in the range %d to %d.",
+                       mips_bdesc[fcode].name,
+                       - (1 << (bits - 1)), (1 << (bits - 1)) - 1);
+              value = INTVAL (op1) & ((1 << bits) - 1);
+              if (value & (unsigned HOST_WIDE_INT) (1 << (bits - 1)))
+                value |= ~ (unsigned HOST_WIDE_INT) ((1 << bits) - 1);
+              op1 = GEN_INT (value);
+            }
+        }
+      else /* unsigned */
+        {
+          if (TREE_INT_CST_LOW (arg1) >
+              (unsigned HOST_WIDE_INT) ((1 << bits) - 1))
+            {
+              warning ("argument 2 of `%s' not in the range 0 to %d.",
+                       mips_bdesc[fcode].name, (1 << bits) - 1);
+              op1 = GEN_INT (INTVAL (op1) & ((1 << bits) - 1));
+            }
+        }
+    }
 
   if (VECTOR_MODE_P (mode0) && op0 == const0_rtx)
     op0 = gen_reg_rtx (mode0);
@@ -13795,64 +14724,64 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
     {
       switch (fcode)
         {
-	case MIPS_BUILTIN_DPAU_H_QBL:
-	case MIPS_BUILTIN_DPAU_H_QBR:
-	case MIPS_BUILTIN_DPSU_H_QBL:
-	case MIPS_BUILTIN_DPSU_H_QBR:
-	case MIPS_BUILTIN_DPAQ_S_W_PH:
-	case MIPS_BUILTIN_DPSQ_S_W_PH:
-	case MIPS_BUILTIN_MULSAQ_S_W_PH:
-	case MIPS_BUILTIN_DPAQ_SA_L_W:
-	case MIPS_BUILTIN_DPSQ_SA_L_W:
-	case MIPS_BUILTIN_MAQ_S_W_PHL:
-	case MIPS_BUILTIN_MAQ_S_W_PHR:
-	case MIPS_BUILTIN_MAQ_SA_W_PHL:
-	case MIPS_BUILTIN_MAQ_SA_W_PHR:
-	case MIPS_BUILTIN_EXTR_W:
-	case MIPS_BUILTIN_EXTR_R_W:
-	case MIPS_BUILTIN_EXTR_RS_W:
-	case MIPS_BUILTIN_EXTR_S_H:
-	case MIPS_BUILTIN_EXTP:
-	case MIPS_BUILTIN_EXTPDP:
-	case MIPS_BUILTIN_SHILO:
-	case MIPS_BUILTIN_MTHLIP:
-	case MIPS_BUILTIN_DPA_W_PH:
-	case MIPS_BUILTIN_DPS_W_PH:
-	case MIPS_BUILTIN_MADD:
-	case MIPS_BUILTIN_MADDU:
-	case MIPS_BUILTIN_MSUB:
-	case MIPS_BUILTIN_MSUBU:
-	case MIPS_BUILTIN_MULSA_W_PH:
-	case MIPS_BUILTIN_MULT:
-	case MIPS_BUILTIN_MULTU:
-	case MIPS_BUILTIN_DPAX_W_PH:
-	case MIPS_BUILTIN_DPSX_W_PH:
-	case MIPS_BUILTIN_DPAQX_S_W_PH:
-	case MIPS_BUILTIN_DPAQX_SA_W_PH:
-	case MIPS_BUILTIN_DPSQX_S_W_PH:
-	case MIPS_BUILTIN_DPSQX_SA_W_PH:
-	  error ("This function `%s' cannot be used in MIPS64.",
-		  mips_bdesc[fcode].name);
-	  return 0;
- 
-	default:
-	  break;
+        case MIPS_BUILTIN_DPAU_H_QBL:
+        case MIPS_BUILTIN_DPAU_H_QBR:
+        case MIPS_BUILTIN_DPSU_H_QBL:
+        case MIPS_BUILTIN_DPSU_H_QBR:
+        case MIPS_BUILTIN_DPAQ_S_W_PH:
+        case MIPS_BUILTIN_DPSQ_S_W_PH:
+        case MIPS_BUILTIN_MULSAQ_S_W_PH:
+        case MIPS_BUILTIN_DPAQ_SA_L_W:
+        case MIPS_BUILTIN_DPSQ_SA_L_W:
+        case MIPS_BUILTIN_MAQ_S_W_PHL:
+        case MIPS_BUILTIN_MAQ_S_W_PHR:
+        case MIPS_BUILTIN_MAQ_SA_W_PHL:
+        case MIPS_BUILTIN_MAQ_SA_W_PHR:
+        case MIPS_BUILTIN_EXTR_W:
+        case MIPS_BUILTIN_EXTR_R_W:
+        case MIPS_BUILTIN_EXTR_RS_W:
+        case MIPS_BUILTIN_EXTR_S_H:
+        case MIPS_BUILTIN_EXTP:
+        case MIPS_BUILTIN_EXTPDP:
+        case MIPS_BUILTIN_SHILO:
+        case MIPS_BUILTIN_MTHLIP:
+        case MIPS_BUILTIN_DPA_W_PH:
+        case MIPS_BUILTIN_DPS_W_PH:
+        case MIPS_BUILTIN_MADD:
+        case MIPS_BUILTIN_MADDU:
+        case MIPS_BUILTIN_MSUB:
+        case MIPS_BUILTIN_MSUBU:
+        case MIPS_BUILTIN_MULSA_W_PH:
+        case MIPS_BUILTIN_MULT:
+        case MIPS_BUILTIN_MULTU:
+        case MIPS_BUILTIN_DPAX_W_PH:
+        case MIPS_BUILTIN_DPSX_W_PH:
+        case MIPS_BUILTIN_DPAQX_S_W_PH:
+        case MIPS_BUILTIN_DPAQX_SA_W_PH:
+        case MIPS_BUILTIN_DPSQX_S_W_PH:
+        case MIPS_BUILTIN_DPSQX_SA_W_PH:
+          error ("This function `%s' cannot be used in MIPS64.",
+                 mips_bdesc[fcode].name);
+          return 0;
+
+        default:
+          break;
         }
     }
 
   switch (fcode)
     {
-    /* No Operand */
-    /* BPOSGE32 */
+      /* No Operand */
+      /* BPOSGE32 */
     case MIPS_BUILTIN_BPOSGE32:
       return mips_expand_bposge (target, 32);
 
-    /* No Operand */
-    /* BPOSGE64 */
+      /* No Operand */
+      /* BPOSGE64 */
     case MIPS_BUILTIN_BPOSGE64:
       return mips_expand_bposge (target, 64);
 
-    /* Two Operands */
+      /* Two Operands */
     case MIPS_BUILTIN_PLL_PS:
     case MIPS_BUILTIN_PUL_PS:
     case MIPS_BUILTIN_PLU_PS:
@@ -13866,7 +14795,7 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
     case MIPS_BUILTIN_RSQRT2_S:
     case MIPS_BUILTIN_RSQRT2_D:
     case MIPS_BUILTIN_RSQRT2_PS:
-    /* ADDQ* */
+      /* ADDQ* */
     case MIPS_BUILTIN_ADDQ_PH:
     case MIPS_BUILTIN_ADDQ_S_PH:
     case MIPS_BUILTIN_ADDQ_QH:
@@ -13874,12 +14803,12 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
     case MIPS_BUILTIN_ADDQ_S_W:
     case MIPS_BUILTIN_ADDQ_PW:
     case MIPS_BUILTIN_ADDQ_S_PW:
-    /* ADDU* */
+      /* ADDU* */
     case MIPS_BUILTIN_ADDU_QB:
     case MIPS_BUILTIN_ADDU_S_QB:
     case MIPS_BUILTIN_ADDU_OB:
     case MIPS_BUILTIN_ADDU_S_OB:
-    /* SUBQ* */
+      /* SUBQ* */
     case MIPS_BUILTIN_SUBQ_PH:
     case MIPS_BUILTIN_SUBQ_S_PH:
     case MIPS_BUILTIN_SUBQ_QH:
@@ -13887,47 +14816,47 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
     case MIPS_BUILTIN_SUBQ_S_W:
     case MIPS_BUILTIN_SUBQ_PW:
     case MIPS_BUILTIN_SUBQ_S_PW:
-    /* SUBU*  */
+      /* SUBU*  */
     case MIPS_BUILTIN_SUBU_QB:
     case MIPS_BUILTIN_SUBU_S_QB:
     case MIPS_BUILTIN_SUBU_OB:
     case MIPS_BUILTIN_SUBU_S_OB:
-    /* ADDSC */
+      /* ADDSC */
     case MIPS_BUILTIN_ADDSC:
-    /* ADDWC */
+      /* ADDWC */
     case MIPS_BUILTIN_ADDWC:
-    /* MODSUB  */
+      /* MODSUB  */
     case MIPS_BUILTIN_MODSUB:
-    /* MULEU* */
+      /* MULEU* */
     case MIPS_BUILTIN_MULEU_S_PH_QBL:
     case MIPS_BUILTIN_MULEU_S_PH_QBR:
-    /* MULQ* */
+      /* MULQ* */
     case MIPS_BUILTIN_MULQ_RS_PH:
     case MIPS_BUILTIN_MULQ_QH:
     case MIPS_BUILTIN_MULQ_RS_QH:
-    /* MULEQ* */
+      /* MULEQ* */
     case MIPS_BUILTIN_MULEQ_S_W_PHL:
     case MIPS_BUILTIN_MULEQ_S_W_PHR:
     case MIPS_BUILTIN_MULEQ_PW_QHL:
     case MIPS_BUILTIN_MULEQ_PW_QHR:
     case MIPS_BUILTIN_MULEQ_S_PW_QHL:
     case MIPS_BUILTIN_MULEQ_S_PW_QHR:
-    /* INSV */
+      /* INSV */
     case MIPS_BUILTIN_INSV:
     case MIPS_BUILTIN_DINSV:
-    /* CMPGU.* */
+      /* CMPGU.* */
     case MIPS_BUILTIN_CMPGU_EQ_QB:
     case MIPS_BUILTIN_CMPGU_LT_QB:
     case MIPS_BUILTIN_CMPGU_LE_QB:
-    /* PICK* */
+      /* PICK* */
     case MIPS_BUILTIN_PICK_QB:
     case MIPS_BUILTIN_PICK_PH:
     case MIPS_BUILTIN_PICK_OB:
     case MIPS_BUILTIN_PICK_QH:
     case MIPS_BUILTIN_PICK_PW:
-    /* PACKRL* */
+      /* PACKRL* */
     case MIPS_BUILTIN_PACKRL_PH:
-    /* PRECRQ* */
+      /* PRECRQ* */
     case MIPS_BUILTIN_PRECRQ_QB_PH:
     case MIPS_BUILTIN_PRECRQ_PH_W:
     case MIPS_BUILTIN_PRECRQ_RS_PH_W:
@@ -13935,21 +14864,21 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
     case MIPS_BUILTIN_PRECRQ_QH_PW:
     case MIPS_BUILTIN_PRECRQ_RS_QH_PW:
     case MIPS_BUILTIN_PRECRQ_PW_L:
-    /* PRECRQU* */
+      /* PRECRQU* */
     case MIPS_BUILTIN_PRECRQU_S_QB_PH:
     case MIPS_BUILTIN_PRECRQU_S_OB_QH:
     case MIPS_BUILTIN_PRECRQU_S_QH_PW:
     case MIPS_BUILTIN_PRECRQU_S_PW_L:
-    /* MTHLIP* */
+      /* MTHLIP* */
     case MIPS_BUILTIN_MTHLIP:
     case MIPS_BUILTIN_MTHLIP_64:
     case MIPS_BUILTIN_DMTHLIP:
-    /* L*X */
+      /* L*X */
     case MIPS_BUILTIN_LBUX:
     case MIPS_BUILTIN_LHX:
     case MIPS_BUILTIN_LWX:
     case MIPS_BUILTIN_LDX:
-    /* DSP Rev2 */
+      /* DSP Rev2 */
     case MIPS_BUILTIN_ADDU_PH:
     case MIPS_BUILTIN_ADDU_S_PH:
     case MIPS_BUILTIN_ADDUH_QB:
@@ -14009,48 +14938,48 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
       emit_insn (pat);
       return target;
 
-    /* Two Operands.  The 2nd operand may be a 3-bit unsigned immediate */
-    /* SHLL* */
+      /* Two Operands.  The 2nd operand may be a 3-bit unsigned immediate */
+      /* SHLL* */
     case MIPS_BUILTIN_SHLL_QB:
     case MIPS_BUILTIN_SHLL_OB:
-    /* SHRL* */
+      /* SHRL* */
     case MIPS_BUILTIN_SHRL_QB:
     case MIPS_BUILTIN_SHRL_OB:
-    /* DSP Rev2 */
+      /* DSP Rev2 */
     case MIPS_BUILTIN_SHRA_QB:
     case MIPS_BUILTIN_SHRA_R_QB:
-      return mips_expand_two_operands_with_immediate (target, fcode, arglist, 
-                                                      3, 0);
+      return mips_expand_two_operands_with_immediate (target, fcode, arglist,
+             3, 0);
 
-    /* Two Operands.  The 2nd operand may be a 4-bit unsigned immediate */
-    /* SHLL* */
+      /* Two Operands.  The 2nd operand may be a 4-bit unsigned immediate */
+      /* SHLL* */
     case MIPS_BUILTIN_SHLL_PH:
     case MIPS_BUILTIN_SHLL_S_PH:
     case MIPS_BUILTIN_SHLL_QH:
     case MIPS_BUILTIN_SHLL_S_QH:
-    /* SHRA* */
+      /* SHRA* */
     case MIPS_BUILTIN_SHRA_PH:
     case MIPS_BUILTIN_SHRA_R_PH:
     case MIPS_BUILTIN_SHRA_QH:
     case MIPS_BUILTIN_SHRA_R_QH:
-    /* DSP Rev2 */
+      /* DSP Rev2 */
     case MIPS_BUILTIN_SHRL_PH:
-      return mips_expand_two_operands_with_immediate (target, fcode, arglist, 
-                                                      4, 0);
+      return mips_expand_two_operands_with_immediate (target, fcode, arglist,
+             4, 0);
 
-    /* Two Operands.  The 2nd operand may be a 5-bit unsigned immediate */
-    /* SHLL* */
+      /* Two Operands.  The 2nd operand may be a 5-bit unsigned immediate */
+      /* SHLL* */
     case MIPS_BUILTIN_SHLL_S_W:
     case MIPS_BUILTIN_SHLL_PW:
     case MIPS_BUILTIN_SHLL_S_PW:
-    /* SHRA* */
+      /* SHRA* */
     case MIPS_BUILTIN_SHRA_R_W:
     case MIPS_BUILTIN_SHRA_PW:
     case MIPS_BUILTIN_SHRA_R_PW:
-    /* EXTR*_S.H */
+      /* EXTR*_S.H */
     case MIPS_BUILTIN_EXTR_S_H:
     case MIPS_BUILTIN_EXTR_S_H_64:
-    /* EXTR* */
+      /* EXTR* */
     case MIPS_BUILTIN_EXTR_W:
     case MIPS_BUILTIN_EXTR_R_W:
     case MIPS_BUILTIN_EXTR_RS_W:
@@ -14063,12 +14992,12 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
     case MIPS_BUILTIN_DEXTR_L:
     case MIPS_BUILTIN_DEXTR_R_L:
     case MIPS_BUILTIN_DEXTR_RS_L:
-    /* EXTL* */
+      /* EXTL* */
     case MIPS_BUILTIN_DEXTL_W:
     case MIPS_BUILTIN_DEXTL_S_W:
     case MIPS_BUILTIN_DEXTL_L:
     case MIPS_BUILTIN_DEXTL_S_L:
-    /* EXTP* */
+      /* EXTP* */
     case MIPS_BUILTIN_EXTP:
     case MIPS_BUILTIN_EXTPDP:
     case MIPS_BUILTIN_EXTP_64:
@@ -14076,21 +15005,21 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
     case MIPS_BUILTIN_DEXTP:
     case MIPS_BUILTIN_DEXTPDP:
       return mips_expand_two_operands_with_immediate (target, fcode, arglist,
-                                                      5, 0);
+             5, 0);
 
-    /* Two Operands.  The 2nd operand may be a 6-bit signed immediate */
-    /* SHILO* */
+      /* Two Operands.  The 2nd operand may be a 6-bit signed immediate */
+      /* SHILO* */
     case MIPS_BUILTIN_SHILO:
     case MIPS_BUILTIN_SHILO_64:
       return mips_expand_two_operands_with_immediate (target, fcode, arglist,
-                                                      6, 1);
+             6, 1);
 
-    /* Two Operands.  The 2nd operand may be a 7-bit signed immediate */
+      /* Two Operands.  The 2nd operand may be a 7-bit signed immediate */
     case MIPS_BUILTIN_DSHILO:
       return mips_expand_two_operands_with_immediate (target, fcode, arglist,
-                                                      7, 1);
+             7, 1);
 
-    /* One Operand */
+      /* One Operand */
     case MIPS_BUILTIN_CVT_S_PL:
     case MIPS_BUILTIN_CVT_S_PU:
     case MIPS_BUILTIN_ABS_PS:
@@ -14102,17 +15031,17 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
     case MIPS_BUILTIN_RSQRT1_S:
     case MIPS_BUILTIN_RSQRT1_D:
     case MIPS_BUILTIN_RSQRT1_PS:
-    /* RADDU* */
+      /* RADDU* */
     case MIPS_BUILTIN_RADDU_W_QB:
     case MIPS_BUILTIN_RADDU_L_OB:
-    /* ABSQ* */
+      /* ABSQ* */
     case MIPS_BUILTIN_ABSQ_S_PH:
     case MIPS_BUILTIN_ABSQ_S_W:
     case MIPS_BUILTIN_ABSQ_QH:
     case MIPS_BUILTIN_ABSQ_S_QH:
     case MIPS_BUILTIN_ABSQ_PW:
     case MIPS_BUILTIN_ABSQ_S_PW:
-    /* PRECEQ* */
+      /* PRECEQ* */
     case MIPS_BUILTIN_PRECEQ_W_PHL:
     case MIPS_BUILTIN_PRECEQ_W_PHR:
     case MIPS_BUILTIN_PRECEQ_PW_QHL:
@@ -14121,7 +15050,7 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
     case MIPS_BUILTIN_PRECEQ_PW_QHRA:
     case MIPS_BUILTIN_PRECEQ_L_PWL:
     case MIPS_BUILTIN_PRECEQ_L_PWR:
-    /* PRECEQU* */
+      /* PRECEQU* */
     case MIPS_BUILTIN_PRECEQU_PH_QBL:
     case MIPS_BUILTIN_PRECEQU_PH_QBR:
     case MIPS_BUILTIN_PRECEQU_PH_QBLA:
@@ -14130,14 +15059,14 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
     case MIPS_BUILTIN_PRECEQU_QH_OBR:
     case MIPS_BUILTIN_PRECEQU_QH_OBLA:
     case MIPS_BUILTIN_PRECEQU_QH_OBRA:
-    /* BITREV */
+      /* BITREV */
     case MIPS_BUILTIN_BITREV:
-    /* PRECEU* */
+      /* PRECEU* */
     case MIPS_BUILTIN_PRECEU_PH_QBL:
     case MIPS_BUILTIN_PRECEU_PH_QBR:
     case MIPS_BUILTIN_PRECEU_PH_QBLA:
     case MIPS_BUILTIN_PRECEU_PH_QBRA:
-    /* DSP Rev2 */
+      /* DSP Rev2 */
     case MIPS_BUILTIN_ABSQ_S_QB:
       icode = mips_bdesc[fcode].icode;
       arg0 = TREE_VALUE (arglist);
@@ -14163,9 +15092,9 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
       emit_insn (pat);
       return target;
 
-    /* Two Operands & no target.  The 2nd operand is a 6-bit unsigned
-       immediate. */
-    /* WRDSP */
+      /* Two Operands & no target.  The 2nd operand is a 6-bit unsigned
+         immediate. */
+      /* WRDSP */
     case MIPS_BUILTIN_WRDSP:
       icode = mips_bdesc[fcode].icode;
       arg0 = TREE_VALUE (arglist);
@@ -14192,8 +15121,8 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
       emit_insn (pat);
       return 0; /* No Target */
 
-    /* One Operand.  The 1st operand is a 6-bit unsigned literal. */
-    /* RDDSP */
+      /* One Operand.  The 1st operand is a 6-bit unsigned literal. */
+      /* RDDSP */
     case MIPS_BUILTIN_RDDSP:
       icode = mips_bdesc[fcode].icode;
       arg0 = TREE_VALUE (arglist);
@@ -14220,8 +15149,8 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
       emit_insn (pat);
       return target;
 
-    /* One Operand - The 1st operand may be an 8-bit unsigned literal. */
-    /* REPL* */
+      /* One Operand - The 1st operand may be an 8-bit unsigned literal. */
+      /* REPL* */
     case MIPS_BUILTIN_REPL_QB:
     case MIPS_BUILTIN_REPL_OB:
       icode = mips_bdesc[fcode].icode;
@@ -14252,14 +15181,14 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
       emit_insn (pat);
       return target;
 
-    /* One Operand - The 1st operand may be a 16-bit signed literal. */
-    /* REPL_PH, REPL_QH, REPH_PW */
-    /* The immediate version of instructions can accept -512 to 511, but
-       the variable version of instructions can deal with -32768 to 32767.
-       If the immediate operand is not in -32768 to 32767, GCC will give
-       warnings and mask out the number to 16 bits.
-       NOTE: GCC can generate the immedaite version when the number is -512 to
-       511, or the variable version otherwise.  */
+      /* One Operand - The 1st operand may be a 16-bit signed literal. */
+      /* REPL_PH, REPL_QH, REPH_PW */
+      /* The immediate version of instructions can accept -512 to 511, but
+         the variable version of instructions can deal with -32768 to 32767.
+         If the immediate operand is not in -32768 to 32767, GCC will give
+         warnings and mask out the number to 16 bits.
+         NOTE: GCC can generate the immedaite version when the number is -512 to
+         511, or the variable version otherwise.  */
     case MIPS_BUILTIN_REPL_PH:
     case MIPS_BUILTIN_REPL_QH:
     case MIPS_BUILTIN_REPL_PW:
@@ -14291,8 +15220,8 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
       emit_insn (pat);
       return target;
 
-    /* Two Operands.  No Target */
-    /* CMP.* */
+      /* Two Operands.  No Target */
+      /* CMP.* */
     case MIPS_BUILTIN_CMPU_EQ_QB:
     case MIPS_BUILTIN_CMPU_LT_QB:
     case MIPS_BUILTIN_CMPU_LE_QB:
@@ -14328,47 +15257,47 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
       emit_insn (pat);
       return 0; /* No target */
 
-    /* Three Operands */
+      /* Three Operands */
     case MIPS_BUILTIN_ALNV_PS:
-    /* DPAU* */
+      /* DPAU* */
     case MIPS_BUILTIN_DPAU_H_QBL:
     case MIPS_BUILTIN_DPAU_H_QBR:
     case MIPS_BUILTIN_DPAU_H_QBL_64:
     case MIPS_BUILTIN_DPAU_H_QBR_64:
-    /* DPSU* */
+      /* DPSU* */
     case MIPS_BUILTIN_DPSU_H_QBL:
     case MIPS_BUILTIN_DPSU_H_QBR:
     case MIPS_BUILTIN_DPSU_H_QBL_64:
     case MIPS_BUILTIN_DPSU_H_QBR_64:
-    /* DPAQ* */
+      /* DPAQ* */
     case MIPS_BUILTIN_DPAQ_S_W_PH:
     case MIPS_BUILTIN_DPAQ_S_W_PH_64:
     case MIPS_BUILTIN_DPAQ_W_QH:
     case MIPS_BUILTIN_DPAQ_S_W_QH:
-    /* DPSQ* */
+      /* DPSQ* */
     case MIPS_BUILTIN_DPSQ_S_W_PH:
     case MIPS_BUILTIN_DPSQ_S_W_PH_64:
     case MIPS_BUILTIN_DPSQ_W_QH:
     case MIPS_BUILTIN_DPSQ_S_W_QH:
-    /* MULSAQ* */
+      /* MULSAQ* */
     case MIPS_BUILTIN_MULSAQ_S_W_PH:
     case MIPS_BUILTIN_MULSAQ_S_W_PH_64:
     case MIPS_BUILTIN_MULSAQ_W_QH:
     case MIPS_BUILTIN_MULSAQ_S_W_QH:
-    /* MULSAQ* */
+      /* MULSAQ* */
     case MIPS_BUILTIN_MULSAQ_L_PW:
     case MIPS_BUILTIN_MULSAQ_S_L_PW:
-    /* DPAQ* */
+      /* DPAQ* */
     case MIPS_BUILTIN_DPAQ_SA_L_W:
     case MIPS_BUILTIN_DPAQ_SA_L_W_64:
     case MIPS_BUILTIN_DPAQ_L_PW:
     case MIPS_BUILTIN_DPAQ_SA_L_PW:
-    /* DPSQ* */
+      /* DPSQ* */
     case MIPS_BUILTIN_DPSQ_SA_L_W:
     case MIPS_BUILTIN_DPSQ_SA_L_W_64:
     case MIPS_BUILTIN_DPSQ_L_PW:
     case MIPS_BUILTIN_DPSQ_SA_L_PW:
-    /* MAQ* */
+      /* MAQ* */
     case MIPS_BUILTIN_MAQ_S_W_PHL:
     case MIPS_BUILTIN_MAQ_S_W_PHR:
     case MIPS_BUILTIN_MAQ_S_W_PHL_64:
@@ -14385,18 +15314,18 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
     case MIPS_BUILTIN_MAQ_L_PWR:
     case MIPS_BUILTIN_MAQ_S_L_PWL:
     case MIPS_BUILTIN_MAQ_S_L_PWR:
-    /* MAQ_SA* */
+      /* MAQ_SA* */
     case MIPS_BUILTIN_MAQ_SA_W_PHL:
     case MIPS_BUILTIN_MAQ_SA_W_PHR:
     case MIPS_BUILTIN_MAQ_SA_W_PHL_64:
     case MIPS_BUILTIN_MAQ_SA_W_PHR_64:
-    /* DMADD* */
+      /* DMADD* */
     case MIPS_BUILTIN_DMADD:
     case MIPS_BUILTIN_DMADDU:
-    /* DMSUB* */
+      /* DMSUB* */
     case MIPS_BUILTIN_DMSUB:
     case MIPS_BUILTIN_DMSUBU:
-    /* DSP Rev2 */
+      /* DSP Rev2 */
     case MIPS_BUILTIN_DPA_W_PH:
     case MIPS_BUILTIN_DPA_W_PH_64:
     case MIPS_BUILTIN_DPS_W_PH:
@@ -14461,8 +15390,8 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
       emit_insn (pat);
       return target;
 
-    /* Three Operands.  The 3nd operand is a 2-bit unsigned immediate. */
-    /* DSP Rev2 */
+      /* Three Operands.  The 3nd operand is a 2-bit unsigned immediate. */
+      /* DSP Rev2 */
     case MIPS_BUILTIN_BALIGN:
       icode = mips_bdesc[fcode].icode;
       arg0 = TREE_VALUE (arglist);
@@ -14477,21 +15406,21 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
       mode2 = insn_data[icode].operand[3].mode;
 
       if (VECTOR_MODE_P (mode0) && op0 == const0_rtx)
-	op0 = gen_reg_rtx (mode0);
+        op0 = gen_reg_rtx (mode0);
 
       if (VECTOR_MODE_P (mode1) && op1 == const0_rtx)
-	op1 = gen_reg_rtx (mode1);
+        op1 = gen_reg_rtx (mode1);
 
       if (TREE_CODE (arg2) != INTEGER_CST || TREE_INT_CST_LOW (arg2) > 4 )
         {
-	  warning ("argument 3 of `%s' not in the range 0 to 3.",
-		   mips_bdesc[fcode].name);
-	  op2 = GEN_INT (INTVAL (op2) & 0x1f);
+          warning ("argument 3 of `%s' not in the range 0 to 3.",
+                   mips_bdesc[fcode].name);
+          op2 = GEN_INT (INTVAL (op2) & 0x1f);
         }
 
       if (target == 0
-	  || GET_MODE (target) != tmode
-	  || ! (*insn_data[icode].operand[0].predicate) (target, tmode))
+          || GET_MODE (target) != tmode
+          || ! (*insn_data[icode].operand[0].predicate) (target, tmode))
         target = gen_reg_rtx (tmode);
 
       if (! (*insn_data[icode].operand[1].predicate) (op0, mode0))
@@ -14503,12 +15432,12 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
       pat = GEN_FCN (icode) (target, op0, op1, op2);
       if (! pat)
         return 0;
-      
+
       emit_insn (pat);
       return target;
 
-    /* Three Operands.  The 3nd operand is a 5-bit unsigned immediate. */
-    /* DSP Rev2 */
+      /* Three Operands.  The 3nd operand is a 5-bit unsigned immediate. */
+      /* DSP Rev2 */
     case MIPS_BUILTIN_APPEND:
     case MIPS_BUILTIN_PRECR_SRA_PH_W:
     case MIPS_BUILTIN_PRECR_SRA_R_PH_W:
@@ -14526,21 +15455,21 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
       mode2 = insn_data[icode].operand[3].mode;
 
       if (VECTOR_MODE_P (mode0) && op0 == const0_rtx)
-	op0 = gen_reg_rtx (mode0);
+        op0 = gen_reg_rtx (mode0);
 
       if (VECTOR_MODE_P (mode1) && op1 == const0_rtx)
-	op1 = gen_reg_rtx (mode1);
+        op1 = gen_reg_rtx (mode1);
 
       if (TREE_CODE (arg2) != INTEGER_CST || TREE_INT_CST_LOW (arg2) > 31 )
         {
-	  warning ("argument 3 of `%s' not in the range 0 to 31.",
-		   mips_bdesc[fcode].name);
-	  op2 = GEN_INT (INTVAL (op2) & 0x1f);
+          warning ("argument 3 of `%s' not in the range 0 to 31.",
+                   mips_bdesc[fcode].name);
+          op2 = GEN_INT (INTVAL (op2) & 0x1f);
         }
 
       if (target == 0
-	  || GET_MODE (target) != tmode
-	  || ! (*insn_data[icode].operand[0].predicate) (target, tmode))
+          || GET_MODE (target) != tmode
+          || ! (*insn_data[icode].operand[0].predicate) (target, tmode))
         target = gen_reg_rtx (tmode);
 
       if (! (*insn_data[icode].operand[1].predicate) (op0, mode0))
@@ -14552,11 +15481,11 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
       pat = GEN_FCN (icode) (target, op0, op1, op2);
       if (! pat)
         return 0;
-      
+
       emit_insn (pat);
       return target;
 
-    /* Paired Single Comparison */
+      /* Paired Single Comparison */
     case MIPS_BUILTIN_ANY_C_F_PS:
     case MIPS_BUILTIN_ANY_C_UN_PS:
     case MIPS_BUILTIN_ANY_C_EQ_PS:
@@ -14592,7 +15521,7 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
       return mips_expand_ps_compare_builtin (MIPS_CMP_ANY, target,
                                              fcode, arglist);
 
-    /* Paired Single Comparison */
+      /* Paired Single Comparison */
     case MIPS_BUILTIN_UPPER_C_F_PS:
     case MIPS_BUILTIN_UPPER_C_UN_PS:
     case MIPS_BUILTIN_UPPER_C_EQ_PS:
@@ -14628,7 +15557,7 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
       return mips_expand_ps_compare_builtin (MIPS_CMP_UPPER, target,
                                              fcode, arglist);
 
-    /* Paired Single Comparison */
+      /* Paired Single Comparison */
     case MIPS_BUILTIN_LOWER_C_F_PS:
     case MIPS_BUILTIN_LOWER_C_UN_PS:
     case MIPS_BUILTIN_LOWER_C_EQ_PS:
@@ -14664,7 +15593,7 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
       return mips_expand_ps_compare_builtin (MIPS_CMP_LOWER, target,
                                              fcode, arglist);
 
-    /* Paired Single Comparison */
+      /* Paired Single Comparison */
     case MIPS_BUILTIN_ALL_C_F_PS:
     case MIPS_BUILTIN_ALL_C_UN_PS:
     case MIPS_BUILTIN_ALL_C_EQ_PS:
@@ -14700,7 +15629,7 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
       return mips_expand_ps_compare_builtin (MIPS_CMP_ALL, target,
                                              fcode, arglist);
 
-    /* Four Single Comparison */
+      /* Four Single Comparison */
     case MIPS_BUILTIN_ANY_C_F_4S:
     case MIPS_BUILTIN_ANY_C_UN_4S:
     case MIPS_BUILTIN_ANY_C_EQ_4S:
@@ -14736,7 +15665,7 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
       return mips_expand_4s_compare_builtin (MIPS_CMP_ANY, target,
                                              fcode, arglist);
 
-    /* Four Single Comparison */
+      /* Four Single Comparison */
     case MIPS_BUILTIN_ALL_C_F_4S:
     case MIPS_BUILTIN_ALL_C_UN_4S:
     case MIPS_BUILTIN_ALL_C_EQ_4S:
@@ -14772,7 +15701,7 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
       return mips_expand_4s_compare_builtin (MIPS_CMP_ALL, target,
                                              fcode, arglist);
 
-    /* Single/Double Compare Absolute */
+      /* Single/Double Compare Absolute */
     case MIPS_BUILTIN_CABS_F_S:
     case MIPS_BUILTIN_CABS_UN_S:
     case MIPS_BUILTIN_CABS_EQ_S:
@@ -14807,7 +15736,7 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
     case MIPS_BUILTIN_CABS_NGT_D:
       return mips_expand_compare_builtin (target, fcode, arglist);
 
-    /* Conditional Move on True */
+      /* Conditional Move on True */
     case MIPS_BUILTIN_MOVT_C_F_PS:
     case MIPS_BUILTIN_MOVT_C_UN_PS:
     case MIPS_BUILTIN_MOVT_C_EQ_PS:
@@ -14841,9 +15770,9 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
     case MIPS_BUILTIN_MOVT_CABS_LE_PS:
     case MIPS_BUILTIN_MOVT_CABS_NGT_PS:
       return mips_expand_ps_cond_move_builtin (MIPS_CMP_MOVT, target,
-                                               fcode, arglist);
+             fcode, arglist);
 
-    /* Conditional Move on False */
+      /* Conditional Move on False */
     case MIPS_BUILTIN_MOVF_C_F_PS:
     case MIPS_BUILTIN_MOVF_C_UN_PS:
     case MIPS_BUILTIN_MOVF_C_EQ_PS:
@@ -14877,7 +15806,7 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
     case MIPS_BUILTIN_MOVF_CABS_LE_PS:
     case MIPS_BUILTIN_MOVF_CABS_NGT_PS:
       return mips_expand_ps_cond_move_builtin (MIPS_CMP_MOVF, target,
-                                               fcode, arglist);
+             fcode, arglist);
 
     default:
       break;
@@ -14981,413 +15910,413 @@ mips_init_builtins (void)
   if (TARGET_PAIRED_SINGLE_FLOAT)
     {
       int_ftype_sf_sf
-        = build_function_type_list (integer_type_node,
-                                    float_type_node, float_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (integer_type_node,
+                                  float_type_node, float_type_node,
+                                  NULL_TREE);
 
       int_ftype_df_df
-        = build_function_type_list (integer_type_node,
-                                    double_type_node, double_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (integer_type_node,
+                                  double_type_node, double_type_node,
+                                  NULL_TREE);
 
       v2sf_ftype_v2sf_v2sf
-        = build_function_type_list (V2SF_type_node,
-                                    V2SF_type_node, V2SF_type_node, NULL_TREE);
+      = build_function_type_list (V2SF_type_node,
+                                  V2SF_type_node, V2SF_type_node, NULL_TREE);
 
       v2sf_ftype_sf_sf
-        = build_function_type_list (V2SF_type_node,
-                                    float_type_node, float_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (V2SF_type_node,
+                                  float_type_node, float_type_node,
+                                  NULL_TREE);
 
       sf_ftype_v2sf
-        = build_function_type_list (float_type_node, V2SF_type_node, NULL_TREE);
+      = build_function_type_list (float_type_node, V2SF_type_node, NULL_TREE);
 
       v2sf_ftype_v2sf
-        = build_function_type_list (V2SF_type_node, V2SF_type_node, NULL_TREE);
+      = build_function_type_list (V2SF_type_node, V2SF_type_node, NULL_TREE);
 
       int_ftype_v2sf_v2sf
-        = build_function_type_list (integer_type_node,
-                                    V2SF_type_node, V2SF_type_node, NULL_TREE);
+      = build_function_type_list (integer_type_node,
+                                  V2SF_type_node, V2SF_type_node, NULL_TREE);
 
       int_ftype_v2sf_v2sf_v2sf_v2sf
-        = build_function_type_list (integer_type_node,
-                                    V2SF_type_node, V2SF_type_node,
-                                    V2SF_type_node, V2SF_type_node, NULL_TREE);
+      = build_function_type_list (integer_type_node,
+                                  V2SF_type_node, V2SF_type_node,
+                                  V2SF_type_node, V2SF_type_node, NULL_TREE);
 
       v2sf_ftype_v2sf_v2sf_v2sf_v2sf
-        = build_function_type_list (V2SF_type_node,
-                                    V2SF_type_node, V2SF_type_node,
-                                    V2SF_type_node, V2SF_type_node, NULL_TREE);
+      = build_function_type_list (V2SF_type_node,
+                                  V2SF_type_node, V2SF_type_node,
+                                  V2SF_type_node, V2SF_type_node, NULL_TREE);
 
       v2sf_ftype_v2sf_v2sf_int
-        = build_function_type_list (V2SF_type_node,
-                                    V2SF_type_node, V2SF_type_node,
-                                    integer_type_node, NULL_TREE);
+      = build_function_type_list (V2SF_type_node,
+                                  V2SF_type_node, V2SF_type_node,
+                                  integer_type_node, NULL_TREE);
 
       sf_ftype_sf
-        = build_function_type_list (float_type_node,
-                                    float_type_node, NULL_TREE);
+      = build_function_type_list (float_type_node,
+                                  float_type_node, NULL_TREE);
 
       df_ftype_df
-        = build_function_type_list (double_type_node,
-                                    double_type_node, NULL_TREE);
+      = build_function_type_list (double_type_node,
+                                  double_type_node, NULL_TREE);
 
       sf_ftype_sf_sf
-        = build_function_type_list (float_type_node,
-                                    float_type_node, float_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (float_type_node,
+                                  float_type_node, float_type_node,
+                                  NULL_TREE);
 
       df_ftype_df_df
-        = build_function_type_list (double_type_node,
-                                    double_type_node, double_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (double_type_node,
+                                  double_type_node, double_type_node,
+                                  NULL_TREE);
     }
 
   if (TARGET_MIPS_DSP32)
     {
       v2hi_ftype_v2hi_v2hi
-        = build_function_type_list (V2HI_type_node,
-                                    V2HI_type_node, V2HI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (V2HI_type_node,
+                                  V2HI_type_node, V2HI_type_node,
+                                  NULL_TREE);
 
       si_ftype_si_si
-        = build_function_type_list (intSI_type_node,
-                                    intSI_type_node, intSI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (intSI_type_node,
+                                  intSI_type_node, intSI_type_node,
+                                  NULL_TREE);
 
       v4qi_ftype_v4qi_v4qi
-        = build_function_type_list (V4QI_type_node,
-                                    V4QI_type_node, V4QI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (V4QI_type_node,
+                                  V4QI_type_node, V4QI_type_node,
+                                  NULL_TREE);
 
       si_ftype_v4qi
-        = build_function_type_list (intSI_type_node,
-                                    V4QI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (intSI_type_node,
+                                  V4QI_type_node,
+                                  NULL_TREE);
 
       v2hi_ftype_v2hi
-        = build_function_type_list (V2HI_type_node,
-                                    V2HI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (V2HI_type_node,
+                                  V2HI_type_node,
+                                  NULL_TREE);
 
       si_ftype_si
-        = build_function_type_list (intSI_type_node,
-                                    intSI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (intSI_type_node,
+                                  intSI_type_node,
+                                  NULL_TREE);
 
       v4qi_ftype_v2hi_v2hi
-        = build_function_type_list (V4QI_type_node,
-                                    V2HI_type_node, V2HI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (V4QI_type_node,
+                                  V2HI_type_node, V2HI_type_node,
+                                  NULL_TREE);
 
       v2hi_ftype_si_si
-        = build_function_type_list (V2HI_type_node,
-                                    intSI_type_node, intSI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (V2HI_type_node,
+                                  intSI_type_node, intSI_type_node,
+                                  NULL_TREE);
 
       si_ftype_v2hi
-        = build_function_type_list (intSI_type_node,
-                                    V2HI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (intSI_type_node,
+                                  V2HI_type_node,
+                                  NULL_TREE);
 
       v2hi_ftype_v4qi
-        = build_function_type_list (V2HI_type_node,
-                                    V4QI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (V2HI_type_node,
+                                  V4QI_type_node,
+                                  NULL_TREE);
 
       v4qi_ftype_v4qi_si
-        = build_function_type_list (V4QI_type_node,
-                                    V4QI_type_node, intSI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (V4QI_type_node,
+                                  V4QI_type_node, intSI_type_node,
+                                  NULL_TREE);
 
       v2hi_ftype_v2hi_si
-        = build_function_type_list (V2HI_type_node,
-                                    V2HI_type_node, intSI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (V2HI_type_node,
+                                  V2HI_type_node, intSI_type_node,
+                                  NULL_TREE);
 
       v2hi_ftype_v4qi_v2hi
-        = build_function_type_list (V2HI_type_node,
-                                    V4QI_type_node, V2HI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (V2HI_type_node,
+                                  V4QI_type_node, V2HI_type_node,
+                                  NULL_TREE);
 
       si_ftype_v2hi_v2hi
-        = build_function_type_list (intSI_type_node,
-                                    V2HI_type_node, V2HI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (intSI_type_node,
+                                  V2HI_type_node, V2HI_type_node,
+                                  NULL_TREE);
 
       di_ftype_di_v4qi_v4qi
-        = build_function_type_list (intDI_type_node,
-                                    intDI_type_node, V4QI_type_node, V4QI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (intDI_type_node,
+                                  intDI_type_node, V4QI_type_node, V4QI_type_node,
+                                  NULL_TREE);
 
       di_ftype_di_v2hi_v2hi
-        = build_function_type_list (intDI_type_node,
-                                    intDI_type_node, V2HI_type_node, V2HI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (intDI_type_node,
+                                  intDI_type_node, V2HI_type_node, V2HI_type_node,
+                                  NULL_TREE);
 
       di_ftype_di_si_si
-        = build_function_type_list (intDI_type_node,
-                                    intDI_type_node, intSI_type_node, intSI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (intDI_type_node,
+                                  intDI_type_node, intSI_type_node, intSI_type_node,
+                                  NULL_TREE);
 
       v4qi_ftype_si
-        = build_function_type_list (V4QI_type_node,
-                                    intSI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (V4QI_type_node,
+                                  intSI_type_node,
+                                  NULL_TREE);
 
       v2hi_ftype_si
-        = build_function_type_list (V2HI_type_node,
-                                    intSI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (V2HI_type_node,
+                                  intSI_type_node,
+                                  NULL_TREE);
 
       void_ftype_v4qi_v4qi
-        = build_function_type_list (void_type_node,
-                                    V4QI_type_node, V4QI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (void_type_node,
+                                  V4QI_type_node, V4QI_type_node,
+                                  NULL_TREE);
 
       si_ftype_v4qi_v4qi
-        = build_function_type_list (intSI_type_node,
-                                    V4QI_type_node, V4QI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (intSI_type_node,
+                                  V4QI_type_node, V4QI_type_node,
+                                  NULL_TREE);
 
       void_ftype_v2hi_v2hi
-        = build_function_type_list (void_type_node,
-                                    V2HI_type_node, V2HI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (void_type_node,
+                                  V2HI_type_node, V2HI_type_node,
+                                  NULL_TREE);
 
       si_ftype_di_si
-        = build_function_type_list (intSI_type_node,
-                                    intDI_type_node, intSI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (intSI_type_node,
+                                  intDI_type_node, intSI_type_node,
+                                  NULL_TREE);
 
       di_ftype_di_si
-        = build_function_type_list (intDI_type_node,
-                                    intDI_type_node, intSI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (intDI_type_node,
+                                  intDI_type_node, intSI_type_node,
+                                  NULL_TREE);
 
       void_ftype_si_si
-        = build_function_type_list (void_type_node,
-                                    intSI_type_node, intSI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (void_type_node,
+                                  intSI_type_node, intSI_type_node,
+                                  NULL_TREE);
 
       si_ftype_ptr_si
-        = build_function_type_list (intSI_type_node,
-                                    ptr_type_node, intSI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (intSI_type_node,
+                                  ptr_type_node, intSI_type_node,
+                                  NULL_TREE);
 
       si_ftype_void
-        = build_function_type (intSI_type_node, void_list_node);
+      = build_function_type (intSI_type_node, void_list_node);
     }
 
   if (TARGET_MIPS_DSP32R2)
     {
       v4qi_ftype_v4qi
-	= build_function_type_list (V4QI_type_node,
-				    V4QI_type_node,
-				    NULL_TREE);
+      = build_function_type_list (V4QI_type_node,
+                                  V4QI_type_node,
+                                  NULL_TREE);
 
       si_ftype_si_si_si
-	= build_function_type_list (intSI_type_node,
-				    intSI_type_node, intSI_type_node, intSI_type_node,
-				    NULL_TREE);
+      = build_function_type_list (intSI_type_node,
+                                  intSI_type_node, intSI_type_node, intSI_type_node,
+                                  NULL_TREE);
 
       di_ftype_si_si
-	= build_function_type_list (intDI_type_node,
-				    intSI_type_node, intSI_type_node,
-				    NULL_TREE);
+      = build_function_type_list (intDI_type_node,
+                                  intSI_type_node, intSI_type_node,
+                                  NULL_TREE);
 
       v2hi_ftype_si_si_si
-	= build_function_type_list (V2HI_type_node,
-				    intSI_type_node, intSI_type_node, intSI_type_node,
-				    NULL_TREE);
+      = build_function_type_list (V2HI_type_node,
+                                  intSI_type_node, intSI_type_node, intSI_type_node,
+                                  NULL_TREE);
 
       di_ftype_di_usi_usi
-	= build_function_type_list (intDI_type_node,
-				    intDI_type_node, unsigned_intSI_type_node, unsigned_intSI_type_node,
-				    NULL_TREE);
+      = build_function_type_list (intDI_type_node,
+                                  intDI_type_node, unsigned_intSI_type_node, unsigned_intSI_type_node,
+                                  NULL_TREE);
 
       di_ftype_usi_usi
-	= build_function_type_list (intDI_type_node,
-				    unsigned_intSI_type_node, unsigned_intSI_type_node,
-				    NULL_TREE);
+      = build_function_type_list (intDI_type_node,
+                                  unsigned_intSI_type_node, unsigned_intSI_type_node,
+                                  NULL_TREE);
     }
 
   if (TARGET_MIPS_DSP64)
     {
       v4hi_ftype_v4hi_v4hi
-        = build_function_type_list (V4HI_type_node,
-                                    V4HI_type_node, V4HI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (V4HI_type_node,
+                                  V4HI_type_node, V4HI_type_node,
+                                  NULL_TREE);
 
       v2si_ftype_v2si_v2si
-        = build_function_type_list (V2SI_type_node,
-                                    V2SI_type_node, V2SI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (V2SI_type_node,
+                                  V2SI_type_node, V2SI_type_node,
+                                  NULL_TREE);
 
       v8qi_ftype_v8qi_v8qi
-        = build_function_type_list (V8QI_type_node,
-                                    V8QI_type_node, V8QI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (V8QI_type_node,
+                                  V8QI_type_node, V8QI_type_node,
+                                  NULL_TREE);
 
       di_ftype_v8qi
-        = build_function_type_list (intDI_type_node,
-                                    V8QI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (intDI_type_node,
+                                  V8QI_type_node,
+                                  NULL_TREE);
 
       v4hi_ftype_v4hi
-        = build_function_type_list (V4HI_type_node,
-                                    V4HI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (V4HI_type_node,
+                                  V4HI_type_node,
+                                  NULL_TREE);
 
       v2si_ftype_v2si
-        = build_function_type_list (V2SI_type_node,
-                                    V2SI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (V2SI_type_node,
+                                  V2SI_type_node,
+                                  NULL_TREE);
 
       v8qi_ftype_v4hi_v4hi
-        = build_function_type_list (V8QI_type_node,
-                                    V4HI_type_node, V4HI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (V8QI_type_node,
+                                  V4HI_type_node, V4HI_type_node,
+                                  NULL_TREE);
 
       v4hi_ftype_v2si_v2si
-        = build_function_type_list (V4HI_type_node,
-                                    V2SI_type_node, V2SI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (V4HI_type_node,
+                                  V2SI_type_node, V2SI_type_node,
+                                  NULL_TREE);
 
       v2si_ftype_di_di
-        = build_function_type_list (V2SI_type_node,
-                                    intDI_type_node, intDI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (V2SI_type_node,
+                                  intDI_type_node, intDI_type_node,
+                                  NULL_TREE);
 
       v2si_ftype_v4hi
-        = build_function_type_list (V2SI_type_node,
-                                    V4HI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (V2SI_type_node,
+                                  V4HI_type_node,
+                                  NULL_TREE);
 
       di_ftype_v2si
-        = build_function_type_list (intDI_type_node,
-                                    V2SI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (intDI_type_node,
+                                  V2SI_type_node,
+                                  NULL_TREE);
 
       v4hi_ftype_v8qi
-        = build_function_type_list (V4HI_type_node,
-                                    V8QI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (V4HI_type_node,
+                                  V8QI_type_node,
+                                  NULL_TREE);
 
       v8qi_ftype_v8qi_di
-        = build_function_type_list (V8QI_type_node,
-                                    V8QI_type_node, intDI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (V8QI_type_node,
+                                  V8QI_type_node, intDI_type_node,
+                                  NULL_TREE);
 
       v4hi_ftype_v4hi_di
-        = build_function_type_list (V4HI_type_node,
-                                    V4HI_type_node, intDI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (V4HI_type_node,
+                                  V4HI_type_node, intDI_type_node,
+                                  NULL_TREE);
 
       v2si_ftype_v2si_di
-        = build_function_type_list (V2SI_type_node,
-                                    V2SI_type_node, intDI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (V2SI_type_node,
+                                  V2SI_type_node, intDI_type_node,
+                                  NULL_TREE);
 
       v2si_ftype_v4hi_v4hi
-        = build_function_type_list (V2SI_type_node,
-                                    V4HI_type_node, V4HI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (V2SI_type_node,
+                                  V4HI_type_node, V4HI_type_node,
+                                  NULL_TREE);
 
       ti_ftype_ti_v4qi_v4qi
-        = build_function_type_list (intTI_type_node,
-                                    intTI_type_node, V4QI_type_node, V4QI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (intTI_type_node,
+                                  intTI_type_node, V4QI_type_node, V4QI_type_node,
+                                  NULL_TREE);
 
       ti_ftype_ti_v2hi_v2hi
-        = build_function_type_list (intTI_type_node,
-                                    intTI_type_node, V2HI_type_node, V2HI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (intTI_type_node,
+                                  intTI_type_node, V2HI_type_node, V2HI_type_node,
+                                  NULL_TREE);
 
       ti_ftype_ti_v4hi_v4hi
-        = build_function_type_list (intTI_type_node,
-                                    intTI_type_node, V4HI_type_node, V4HI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (intTI_type_node,
+                                  intTI_type_node, V4HI_type_node, V4HI_type_node,
+                                  NULL_TREE);
 
       ti_ftype_ti_v2si_v2si
-        = build_function_type_list (intTI_type_node,
-                                    intTI_type_node, V2SI_type_node, V2SI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (intTI_type_node,
+                                  intTI_type_node, V2SI_type_node, V2SI_type_node,
+                                  NULL_TREE);
 
       ti_ftype_ti_si_si
-        = build_function_type_list (intTI_type_node,
-                                    intTI_type_node, intSI_type_node, intSI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (intTI_type_node,
+                                  intTI_type_node, intSI_type_node, intSI_type_node,
+                                  NULL_TREE);
 
       ti_ftype_ti_di_di
-        = build_function_type_list (intTI_type_node,
-                                    intTI_type_node, intDI_type_node, intDI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (intTI_type_node,
+                                  intTI_type_node, intDI_type_node, intDI_type_node,
+                                  NULL_TREE);
 
       ti_ftype_ti_udi_udi
-	= build_function_type_list (intTI_type_node,
-				    intTI_type_node, unsigned_intDI_type_node, unsigned_intDI_type_node,
-				    NULL_TREE);
+      = build_function_type_list (intTI_type_node,
+                                  intTI_type_node, unsigned_intDI_type_node, unsigned_intDI_type_node,
+                                  NULL_TREE);
 
       di_ftype_di_di
-        = build_function_type_list (intDI_type_node,
-                                    intDI_type_node, intDI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (intDI_type_node,
+                                  intDI_type_node, intDI_type_node,
+                                  NULL_TREE);
 
       v8qi_ftype_di
-        = build_function_type_list (V8QI_type_node,
-                                    intDI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (V8QI_type_node,
+                                  intDI_type_node,
+                                  NULL_TREE);
 
       v4hi_ftype_di
-        = build_function_type_list (V4HI_type_node,
-                                    intDI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (V4HI_type_node,
+                                  intDI_type_node,
+                                  NULL_TREE);
 
       v2si_ftype_di
-        = build_function_type_list (V2SI_type_node,
-                                    intDI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (V2SI_type_node,
+                                  intDI_type_node,
+                                  NULL_TREE);
 
       void_ftype_v8qi_v8qi
-        = build_function_type_list (void_type_node,
-                                    V8QI_type_node, V8QI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (void_type_node,
+                                  V8QI_type_node, V8QI_type_node,
+                                  NULL_TREE);
 
       void_ftype_v4hi_v4hi
-        = build_function_type_list (void_type_node,
-                                    V4HI_type_node, V4HI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (void_type_node,
+                                  V4HI_type_node, V4HI_type_node,
+                                  NULL_TREE);
 
       void_ftype_v2si_v2si
-        = build_function_type_list (void_type_node,
-                                    V2SI_type_node, V2SI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (void_type_node,
+                                  V2SI_type_node, V2SI_type_node,
+                                  NULL_TREE);
 
       si_ftype_ti_si
-        = build_function_type_list (intSI_type_node,
-                                    intTI_type_node, intSI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (intSI_type_node,
+                                  intTI_type_node, intSI_type_node,
+                                  NULL_TREE);
 
       di_ftype_ti_di
-        = build_function_type_list (intDI_type_node,
-                                    intTI_type_node, intDI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (intDI_type_node,
+                                  intTI_type_node, intDI_type_node,
+                                  NULL_TREE);
 
       ti_ftype_ti_si
-        = build_function_type_list (intTI_type_node,
-                                    intTI_type_node, intSI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (intTI_type_node,
+                                  intTI_type_node, intSI_type_node,
+                                  NULL_TREE);
 
       ti_ftype_ti_di
-        = build_function_type_list (intTI_type_node,
-                                    intTI_type_node, intDI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (intTI_type_node,
+                                  intTI_type_node, intDI_type_node,
+                                  NULL_TREE);
 
       di_ftype_ptr_di
-        = build_function_type_list (intDI_type_node,
-                                    ptr_type_node, intDI_type_node,
-                                    NULL_TREE);
+      = build_function_type_list (intDI_type_node,
+                                  ptr_type_node, intDI_type_node,
+                                  NULL_TREE);
 
     }
 
@@ -15406,7 +16335,7 @@ mips_init_builtins (void)
         continue;
 
       if ((d->target_flags & MASK_DSPR2)
-	  && ! TARGET_MIPS_DSP32R2)
+          && ! TARGET_MIPS_DSP32R2)
         continue;
 
       if ((d->target_flags & MASK_DSP) && (d->target_flags & MASK_64BIT)
@@ -15414,426 +16343,426 @@ mips_init_builtins (void)
         continue;
 
       if ((d->target_flags & MASK_DSPR2) && (d->target_flags & MASK_64BIT)
-	  && ! TARGET_MIPS_DSP64R2)
+          && ! TARGET_MIPS_DSP64R2)
         continue;
 
-    switch (d->ftype)
-      {
-      case MIPS_V2SF_FTYPE_V2SF_V2SF:
-        builtin_function (d->name, v2sf_ftype_v2sf_v2sf,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_V2SF_FTYPE_SF_SF:
-        builtin_function (d->name, v2sf_ftype_sf_sf,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_SF_FTYPE_V2SF:
-        builtin_function (d->name, sf_ftype_v2sf,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_V2SF_FTYPE_V2SF:
-        builtin_function (d->name, v2sf_ftype_v2sf,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_INT_FTYPE_V2SF_V2SF:
-        builtin_function (d->name, int_ftype_v2sf_v2sf,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF:
-        builtin_function (d->name, int_ftype_v2sf_v2sf_v2sf_v2sf,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_V2SF_FTYPE_V2SF_V2SF_INT:
-        builtin_function (d->name, v2sf_ftype_v2sf_v2sf_int,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF:
-        builtin_function (d->name, v2sf_ftype_v2sf_v2sf_v2sf_v2sf,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_SF_FTYPE_SF:
-        builtin_function (d->name, sf_ftype_sf,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_DF_FTYPE_DF:
-        builtin_function (d->name, df_ftype_df,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_INT_FTYPE_SF_SF:
-        builtin_function (d->name, int_ftype_sf_sf,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_INT_FTYPE_DF_DF:
-        builtin_function (d->name, int_ftype_df_df,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_SF_FTYPE_SF_SF:
-        builtin_function (d->name, sf_ftype_sf_sf,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_DF_FTYPE_DF_DF:
-        builtin_function (d->name, df_ftype_df_df,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      /* For MIPS DSP ASE */
-      case MIPS_V2HI_FTYPE_V2HI_V2HI:
-        builtin_function (d->name, v2hi_ftype_v2hi_v2hi,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_V4HI_FTYPE_V4HI_V4HI:
-        builtin_function (d->name, v4hi_ftype_v4hi_v4hi,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_SI_FTYPE_SI_SI:
-        builtin_function (d->name, si_ftype_si_si,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_V2SI_FTYPE_V2SI_V2SI:
-        builtin_function (d->name, v2si_ftype_v2si_v2si,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_V4QI_FTYPE_V4QI_V4QI:
-        builtin_function (d->name, v4qi_ftype_v4qi_v4qi,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_V8QI_FTYPE_V8QI_V8QI:
-        builtin_function (d->name, v8qi_ftype_v8qi_v8qi,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_SI_FTYPE_V4QI:
-        builtin_function (d->name, si_ftype_v4qi,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_DI_FTYPE_V8QI:
-        builtin_function (d->name, di_ftype_v8qi,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_V2HI_FTYPE_V2HI:
-        builtin_function (d->name, v2hi_ftype_v2hi,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_SI_FTYPE_SI:
-        builtin_function (d->name, si_ftype_si,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_V4HI_FTYPE_V4HI:
-        builtin_function (d->name, v4hi_ftype_v4hi,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_V2SI_FTYPE_V2SI:
-        builtin_function (d->name, v2si_ftype_v2si,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_V4QI_FTYPE_V2HI_V2HI:
-        builtin_function (d->name, v4qi_ftype_v2hi_v2hi,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_V2HI_FTYPE_SI_SI:
-        builtin_function (d->name, v2hi_ftype_si_si,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_V8QI_FTYPE_V4HI_V4HI:
-        builtin_function (d->name, v8qi_ftype_v4hi_v4hi,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_V4HI_FTYPE_V2SI_V2SI:
-        builtin_function (d->name, v4hi_ftype_v2si_v2si,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_V2SI_FTYPE_DI_DI:
-        builtin_function (d->name, v2si_ftype_di_di,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_SI_FTYPE_V2HI:
-        builtin_function (d->name, si_ftype_v2hi,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_V2SI_FTYPE_V4HI:
-        builtin_function (d->name, v2si_ftype_v4hi,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_DI_FTYPE_V2SI:
-        builtin_function (d->name, di_ftype_v2si,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_V2HI_FTYPE_V4QI:
-        builtin_function (d->name, v2hi_ftype_v4qi,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_V4HI_FTYPE_V8QI:
-        builtin_function (d->name, v4hi_ftype_v8qi,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_V4QI_FTYPE_V4QI_SI:
-        builtin_function (d->name, v4qi_ftype_v4qi_si,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_V8QI_FTYPE_V8QI_DI:
-        builtin_function (d->name, v8qi_ftype_v8qi_di,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_V2HI_FTYPE_V2HI_SI:
-        builtin_function (d->name, v2hi_ftype_v2hi_si,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_V4HI_FTYPE_V4HI_DI:
-        builtin_function (d->name, v4hi_ftype_v4hi_di,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_V2SI_FTYPE_V2SI_DI:
-        builtin_function (d->name, v2si_ftype_v2si_di,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_V2HI_FTYPE_V4QI_V2HI:
-        builtin_function (d->name, v2hi_ftype_v4qi_v2hi,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_SI_FTYPE_V2HI_V2HI:
-        builtin_function (d->name, si_ftype_v2hi_v2hi,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_V2SI_FTYPE_V4HI_V4HI:
-        builtin_function (d->name, v2si_ftype_v4hi_v4hi,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_DI_FTYPE_DI_V4QI_V4QI:
-        builtin_function (d->name, di_ftype_di_v4qi_v4qi,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_TI_FTYPE_TI_V4QI_V4QI:
-        builtin_function (d->name, ti_ftype_ti_v4qi_v4qi,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_DI_FTYPE_DI_V2HI_V2HI:
-        builtin_function (d->name, di_ftype_di_v2hi_v2hi,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_TI_FTYPE_TI_V2HI_V2HI:
-        builtin_function (d->name, ti_ftype_ti_v2hi_v2hi,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_TI_FTYPE_TI_V4HI_V4HI:
-        builtin_function (d->name, ti_ftype_ti_v4hi_v4hi,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_TI_FTYPE_TI_V2SI_V2SI:
-        builtin_function (d->name, ti_ftype_ti_v2si_v2si,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_DI_FTYPE_DI_SI_SI:
-        builtin_function (d->name, di_ftype_di_si_si,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_TI_FTYPE_TI_SI_SI:
-        builtin_function (d->name, ti_ftype_ti_si_si,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_TI_FTYPE_TI_DI_DI:
-        builtin_function (d->name, ti_ftype_ti_di_di,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_TI_FTYPE_TI_UDI_UDI:
-	builtin_function (d->name, ti_ftype_ti_udi_udi,
-			  d->code, BUILT_IN_MD, NULL, NULL_TREE);
-	break;
-
-      case MIPS_DI_FTYPE_DI_DI:
-        builtin_function (d->name, di_ftype_di_di,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_V4QI_FTYPE_SI:
-        builtin_function (d->name, v4qi_ftype_si,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_V8QI_FTYPE_DI:
-        builtin_function (d->name, v8qi_ftype_di,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_V2HI_FTYPE_SI:
-        builtin_function (d->name, v2hi_ftype_si,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_V4HI_FTYPE_DI:
-        builtin_function (d->name, v4hi_ftype_di,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_V2SI_FTYPE_DI:
-        builtin_function (d->name, v2si_ftype_di,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_VOID_FTYPE_V4QI_V4QI:
-        builtin_function (d->name, void_ftype_v4qi_v4qi,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_SI_FTYPE_V4QI_V4QI:
-        builtin_function (d->name, si_ftype_v4qi_v4qi,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_VOID_FTYPE_V2HI_V2HI:
-        builtin_function (d->name, void_ftype_v2hi_v2hi,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_VOID_FTYPE_V8QI_V8QI:
-        builtin_function (d->name, void_ftype_v8qi_v8qi,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_VOID_FTYPE_V4HI_V4HI:
-        builtin_function (d->name, void_ftype_v4hi_v4hi,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_VOID_FTYPE_V2SI_V2SI:
-        builtin_function (d->name, void_ftype_v2si_v2si,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_SI_FTYPE_DI_SI:
-        builtin_function (d->name, si_ftype_di_si,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_SI_FTYPE_TI_SI:
-        builtin_function (d->name, si_ftype_ti_si,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_DI_FTYPE_TI_DI:
-        builtin_function (d->name, di_ftype_ti_di,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_DI_FTYPE_DI_SI:
-        builtin_function (d->name, di_ftype_di_si,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_TI_FTYPE_TI_SI:
-        builtin_function (d->name, ti_ftype_ti_si,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_TI_FTYPE_TI_DI:
-        builtin_function (d->name, ti_ftype_ti_di,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_VOID_FTYPE_SI_SI:
-        builtin_function (d->name, void_ftype_si_si,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_SI_FTYPE_PTR_SI:
-        builtin_function (d->name, si_ftype_ptr_si,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_DI_FTYPE_PTR_DI:
-        builtin_function (d->name, di_ftype_ptr_di,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-      case MIPS_SI_FTYPE_VOID:
-        builtin_function (d->name, si_ftype_void,
-                          d->code, BUILT_IN_MD, NULL, NULL_TREE);
-        break;
-
-
-      case MIPS_V4QI_FTYPE_V4QI:
-	builtin_function (d->name, v4qi_ftype_v4qi,
-			  d->code, BUILT_IN_MD, NULL, NULL_TREE);
-	break;
-
-      case MIPS_SI_FTYPE_SI_SI_SI:
-	builtin_function (d->name, si_ftype_si_si_si,
-			  d->code, BUILT_IN_MD, NULL, NULL_TREE);
-	break;
-
-      case MIPS_DI_FTYPE_SI_SI:
-	builtin_function (d->name, di_ftype_si_si,
-			  d->code, BUILT_IN_MD, NULL, NULL_TREE);
-	break;
-
-      case MIPS_V2HI_FTYPE_SI_SI_SI:
-	builtin_function (d->name, v2hi_ftype_si_si_si,
-			  d->code, BUILT_IN_MD, NULL, NULL_TREE);
-	break;
-
-      case MIPS_DI_FTYPE_DI_USI_USI:
-	builtin_function (d->name, di_ftype_di_usi_usi,
-			  d->code, BUILT_IN_MD, NULL, NULL_TREE);
-	break;
-
-      case MIPS_DI_FTYPE_USI_USI:
-	builtin_function (d->name, di_ftype_usi_usi,
-			  d->code, BUILT_IN_MD, NULL, NULL_TREE);
-	break;
-
-      default:
-        break;
-      }
+      switch (d->ftype)
+        {
+        case MIPS_V2SF_FTYPE_V2SF_V2SF:
+          builtin_function (d->name, v2sf_ftype_v2sf_v2sf,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_V2SF_FTYPE_SF_SF:
+          builtin_function (d->name, v2sf_ftype_sf_sf,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_SF_FTYPE_V2SF:
+          builtin_function (d->name, sf_ftype_v2sf,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_V2SF_FTYPE_V2SF:
+          builtin_function (d->name, v2sf_ftype_v2sf,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_INT_FTYPE_V2SF_V2SF:
+          builtin_function (d->name, int_ftype_v2sf_v2sf,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_INT_FTYPE_V2SF_V2SF_V2SF_V2SF:
+          builtin_function (d->name, int_ftype_v2sf_v2sf_v2sf_v2sf,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_V2SF_FTYPE_V2SF_V2SF_INT:
+          builtin_function (d->name, v2sf_ftype_v2sf_v2sf_int,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_V2SF_FTYPE_V2SF_V2SF_V2SF_V2SF:
+          builtin_function (d->name, v2sf_ftype_v2sf_v2sf_v2sf_v2sf,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_SF_FTYPE_SF:
+          builtin_function (d->name, sf_ftype_sf,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_DF_FTYPE_DF:
+          builtin_function (d->name, df_ftype_df,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_INT_FTYPE_SF_SF:
+          builtin_function (d->name, int_ftype_sf_sf,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_INT_FTYPE_DF_DF:
+          builtin_function (d->name, int_ftype_df_df,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_SF_FTYPE_SF_SF:
+          builtin_function (d->name, sf_ftype_sf_sf,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_DF_FTYPE_DF_DF:
+          builtin_function (d->name, df_ftype_df_df,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+          /* For MIPS DSP ASE */
+        case MIPS_V2HI_FTYPE_V2HI_V2HI:
+          builtin_function (d->name, v2hi_ftype_v2hi_v2hi,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_V4HI_FTYPE_V4HI_V4HI:
+          builtin_function (d->name, v4hi_ftype_v4hi_v4hi,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_SI_FTYPE_SI_SI:
+          builtin_function (d->name, si_ftype_si_si,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_V2SI_FTYPE_V2SI_V2SI:
+          builtin_function (d->name, v2si_ftype_v2si_v2si,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_V4QI_FTYPE_V4QI_V4QI:
+          builtin_function (d->name, v4qi_ftype_v4qi_v4qi,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_V8QI_FTYPE_V8QI_V8QI:
+          builtin_function (d->name, v8qi_ftype_v8qi_v8qi,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_SI_FTYPE_V4QI:
+          builtin_function (d->name, si_ftype_v4qi,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_DI_FTYPE_V8QI:
+          builtin_function (d->name, di_ftype_v8qi,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_V2HI_FTYPE_V2HI:
+          builtin_function (d->name, v2hi_ftype_v2hi,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_SI_FTYPE_SI:
+          builtin_function (d->name, si_ftype_si,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_V4HI_FTYPE_V4HI:
+          builtin_function (d->name, v4hi_ftype_v4hi,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_V2SI_FTYPE_V2SI:
+          builtin_function (d->name, v2si_ftype_v2si,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_V4QI_FTYPE_V2HI_V2HI:
+          builtin_function (d->name, v4qi_ftype_v2hi_v2hi,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_V2HI_FTYPE_SI_SI:
+          builtin_function (d->name, v2hi_ftype_si_si,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_V8QI_FTYPE_V4HI_V4HI:
+          builtin_function (d->name, v8qi_ftype_v4hi_v4hi,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_V4HI_FTYPE_V2SI_V2SI:
+          builtin_function (d->name, v4hi_ftype_v2si_v2si,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_V2SI_FTYPE_DI_DI:
+          builtin_function (d->name, v2si_ftype_di_di,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_SI_FTYPE_V2HI:
+          builtin_function (d->name, si_ftype_v2hi,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_V2SI_FTYPE_V4HI:
+          builtin_function (d->name, v2si_ftype_v4hi,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_DI_FTYPE_V2SI:
+          builtin_function (d->name, di_ftype_v2si,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_V2HI_FTYPE_V4QI:
+          builtin_function (d->name, v2hi_ftype_v4qi,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_V4HI_FTYPE_V8QI:
+          builtin_function (d->name, v4hi_ftype_v8qi,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_V4QI_FTYPE_V4QI_SI:
+          builtin_function (d->name, v4qi_ftype_v4qi_si,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_V8QI_FTYPE_V8QI_DI:
+          builtin_function (d->name, v8qi_ftype_v8qi_di,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_V2HI_FTYPE_V2HI_SI:
+          builtin_function (d->name, v2hi_ftype_v2hi_si,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_V4HI_FTYPE_V4HI_DI:
+          builtin_function (d->name, v4hi_ftype_v4hi_di,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_V2SI_FTYPE_V2SI_DI:
+          builtin_function (d->name, v2si_ftype_v2si_di,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_V2HI_FTYPE_V4QI_V2HI:
+          builtin_function (d->name, v2hi_ftype_v4qi_v2hi,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_SI_FTYPE_V2HI_V2HI:
+          builtin_function (d->name, si_ftype_v2hi_v2hi,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_V2SI_FTYPE_V4HI_V4HI:
+          builtin_function (d->name, v2si_ftype_v4hi_v4hi,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_DI_FTYPE_DI_V4QI_V4QI:
+          builtin_function (d->name, di_ftype_di_v4qi_v4qi,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_TI_FTYPE_TI_V4QI_V4QI:
+          builtin_function (d->name, ti_ftype_ti_v4qi_v4qi,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_DI_FTYPE_DI_V2HI_V2HI:
+          builtin_function (d->name, di_ftype_di_v2hi_v2hi,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_TI_FTYPE_TI_V2HI_V2HI:
+          builtin_function (d->name, ti_ftype_ti_v2hi_v2hi,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_TI_FTYPE_TI_V4HI_V4HI:
+          builtin_function (d->name, ti_ftype_ti_v4hi_v4hi,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_TI_FTYPE_TI_V2SI_V2SI:
+          builtin_function (d->name, ti_ftype_ti_v2si_v2si,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_DI_FTYPE_DI_SI_SI:
+          builtin_function (d->name, di_ftype_di_si_si,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_TI_FTYPE_TI_SI_SI:
+          builtin_function (d->name, ti_ftype_ti_si_si,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_TI_FTYPE_TI_DI_DI:
+          builtin_function (d->name, ti_ftype_ti_di_di,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_TI_FTYPE_TI_UDI_UDI:
+          builtin_function (d->name, ti_ftype_ti_udi_udi,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_DI_FTYPE_DI_DI:
+          builtin_function (d->name, di_ftype_di_di,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_V4QI_FTYPE_SI:
+          builtin_function (d->name, v4qi_ftype_si,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_V8QI_FTYPE_DI:
+          builtin_function (d->name, v8qi_ftype_di,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_V2HI_FTYPE_SI:
+          builtin_function (d->name, v2hi_ftype_si,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_V4HI_FTYPE_DI:
+          builtin_function (d->name, v4hi_ftype_di,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_V2SI_FTYPE_DI:
+          builtin_function (d->name, v2si_ftype_di,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_VOID_FTYPE_V4QI_V4QI:
+          builtin_function (d->name, void_ftype_v4qi_v4qi,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_SI_FTYPE_V4QI_V4QI:
+          builtin_function (d->name, si_ftype_v4qi_v4qi,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_VOID_FTYPE_V2HI_V2HI:
+          builtin_function (d->name, void_ftype_v2hi_v2hi,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_VOID_FTYPE_V8QI_V8QI:
+          builtin_function (d->name, void_ftype_v8qi_v8qi,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_VOID_FTYPE_V4HI_V4HI:
+          builtin_function (d->name, void_ftype_v4hi_v4hi,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_VOID_FTYPE_V2SI_V2SI:
+          builtin_function (d->name, void_ftype_v2si_v2si,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_SI_FTYPE_DI_SI:
+          builtin_function (d->name, si_ftype_di_si,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_SI_FTYPE_TI_SI:
+          builtin_function (d->name, si_ftype_ti_si,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_DI_FTYPE_TI_DI:
+          builtin_function (d->name, di_ftype_ti_di,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_DI_FTYPE_DI_SI:
+          builtin_function (d->name, di_ftype_di_si,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_TI_FTYPE_TI_SI:
+          builtin_function (d->name, ti_ftype_ti_si,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_TI_FTYPE_TI_DI:
+          builtin_function (d->name, ti_ftype_ti_di,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_VOID_FTYPE_SI_SI:
+          builtin_function (d->name, void_ftype_si_si,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_SI_FTYPE_PTR_SI:
+          builtin_function (d->name, si_ftype_ptr_si,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_DI_FTYPE_PTR_DI:
+          builtin_function (d->name, di_ftype_ptr_di,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_SI_FTYPE_VOID:
+          builtin_function (d->name, si_ftype_void,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+
+        case MIPS_V4QI_FTYPE_V4QI:
+          builtin_function (d->name, v4qi_ftype_v4qi,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_SI_FTYPE_SI_SI_SI:
+          builtin_function (d->name, si_ftype_si_si_si,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_DI_FTYPE_SI_SI:
+          builtin_function (d->name, di_ftype_si_si,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_V2HI_FTYPE_SI_SI_SI:
+          builtin_function (d->name, v2hi_ftype_si_si_si,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_DI_FTYPE_DI_USI_USI:
+          builtin_function (d->name, di_ftype_di_usi_usi,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_DI_FTYPE_USI_USI:
+          builtin_function (d->name, di_ftype_usi_usi,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        default:
+          break;
+        }
     }
 }
 
@@ -15982,7 +16911,7 @@ mips16e_output_save (rtx *operands)
       {
         if (regno > 18)
           sprintf (s, ",%s-%s", reg_names[GP_REG_FIRST + 18],
-                                reg_names[GP_REG_FIRST + regno]);
+                   reg_names[GP_REG_FIRST + regno]);
         else
           sprintf (s, ",%s", reg_names[GP_REG_FIRST + regno]);
 
@@ -15996,7 +16925,7 @@ mips16e_output_save (rtx *operands)
       {
         if (regno < 7)
           sprintf (s, ",%s-%s", reg_names[GP_REG_FIRST + regno],
-                                reg_names[GP_REG_FIRST + 7]);
+                   reg_names[GP_REG_FIRST + 7]);
         else
           sprintf (s, ",%s", reg_names[GP_REG_FIRST + 7]);
         s += strlen(s);
@@ -16048,7 +16977,7 @@ mips16e_output_restore (rtx *operands)
       {
         if (regno > 18)
           sprintf (s, ",%s-%s", reg_names[GP_REG_FIRST + 18],
-                                reg_names[GP_REG_FIRST + regno]);
+                   reg_names[GP_REG_FIRST + regno]);
         else
           sprintf (s, ",%s", reg_names[GP_REG_FIRST + regno]);
 
@@ -16062,7 +16991,7 @@ mips16e_output_restore (rtx *operands)
       {
         if (regno < 7)
           sprintf (s, ",%s-%s", reg_names[GP_REG_FIRST + regno],
-                                reg_names[GP_REG_FIRST + 7]);
+                   reg_names[GP_REG_FIRST + 7]);
         else
           sprintf (s, ",%s", reg_names[GP_REG_FIRST + 7]);
         s += strlen(s);
@@ -16233,8 +17162,8 @@ dspalu_bypass_p (rtx out_insn, rtx in_insn)
    that if it's a structure type, and all of its fields are smaller
    than 32-bits and correctly aligned, then its better to push it onto
    the stack instead of synthesising bit insert or extract operations
-   in a register. 
-   SPILL holds the state of fields alreday looked into so far.  
+   in a register.
+   SPILL holds the state of fields alreday looked into so far.
    Normally false is passes from the top level.  */
 
 static bool
@@ -16260,72 +17189,72 @@ mips_spill_auto_register (tree decl, bool spill)
       /* Must be a struct/union to be a candidate for spilling. */
       spill = false;
       for (field = TYPE_FIELDS (type); field != 0; field = TREE_CHAIN (field))
-	{
-	  if (TREE_CODE (field) == FIELD_DECL)
-	    {
-	      if (TREE_CODE (TREE_TYPE (field)) == UNION_TYPE
-		  || TREE_CODE (TREE_TYPE (field)) == RECORD_TYPE
-		  || TREE_CODE (TREE_TYPE (field)) == ARRAY_TYPE)
-		{
-		  /* Sub records or array base must conform.  */
-		  if (mips_spill_auto_register (field, spill))
-		    spill |= true;
-		  else
-		    return false;
-		}
-	      else if (DECL_SIZE (field) 
-		       && host_integerp (DECL_SIZE (field), 1))
-		{
-		  unsigned int bits = tree_low_cst (DECL_SIZE (field), 1);
-		  if (bits == 8
-		      || bits == 16
-		      || (bits == 32 && TARGET_64BIT))
-		    /* Only worth spilling if there are correctly
-		       aligned partial words. */
-		    spill |= true;
-		  else if (bits == 32 || bits == 64)
-		    /* Allow word and dword fields, but they
-		       aren't enough to force spilling. */
-		    spill &= true;
-		  else
-		    return false;
-		  /* Cannot cope with fields whose positions are
-		     variable. */
-		  if (! host_integerp (bit_position (field), 0))
-		    return false;
-		  if (int_bit_position (field) % bits != 0)
-		    /* Don't spill if the fields are not aligned. */
-		    return false;
-		}
-	    }
-	  else
-	    return false;
-	}
+        {
+          if (TREE_CODE (field) == FIELD_DECL)
+            {
+              if (TREE_CODE (TREE_TYPE (field)) == UNION_TYPE
+                  || TREE_CODE (TREE_TYPE (field)) == RECORD_TYPE
+                  || TREE_CODE (TREE_TYPE (field)) == ARRAY_TYPE)
+                {
+                  /* Sub records or array base must conform.  */
+                  if (mips_spill_auto_register (field, spill))
+                    spill |= true;
+                  else
+                    return false;
+                }
+              else if (DECL_SIZE (field)
+                       && host_integerp (DECL_SIZE (field), 1))
+                {
+                  unsigned int bits = tree_low_cst (DECL_SIZE (field), 1);
+                  if (bits == 8
+                      || bits == 16
+                      || (bits == 32 && TARGET_64BIT))
+                    /* Only worth spilling if there are correctly
+                       aligned partial words. */
+                    spill |= true;
+                  else if (bits == 32 || bits == 64)
+                    /* Allow word and dword fields, but they
+                       aren't enough to force spilling. */
+                    spill &= true;
+                  else
+                    return false;
+                  /* Cannot cope with fields whose positions are
+                     variable. */
+                  if (! host_integerp (bit_position (field), 0))
+                    return false;
+                  if (int_bit_position (field) % bits != 0)
+                    /* Don't spill if the fields are not aligned. */
+                    return false;
+                }
+            }
+          else
+            return false;
+        }
       return spill;
 
     case ARRAY_TYPE:
       if (TREE_CODE (TREE_TYPE (type)) == UNION_TYPE
-	  || TREE_CODE (TREE_TYPE (type)) == RECORD_TYPE
-  	  || TREE_CODE (TREE_TYPE (type)) == ARRAY_TYPE)
-	return mips_spill_auto_register (type, spill);
+          || TREE_CODE (TREE_TYPE (type)) == RECORD_TYPE
+          || TREE_CODE (TREE_TYPE (type)) == ARRAY_TYPE)
+        return mips_spill_auto_register (type, spill);
 
       if (TREE_CODE (TREE_TYPE (type)) == INTEGER_TYPE)
-	{
-	  /* Any size that's modulo of 8 is good.  */
-	  switch (tree_low_cst (TYPE_SIZE (TREE_TYPE (type)), 1))
-	    {
-	    case 8:
-	    case 16:
-	      spill |= true;
-	      break;
-	    case 32:
-	    case 64:
-	      /* Keep spill unchanged.  */
-	      break;    
-	    default:
-	      return false;
-	    }
-	}
+        {
+          /* Any size that's modulo of 8 is good.  */
+          switch (tree_low_cst (TYPE_SIZE (TREE_TYPE (type)), 1))
+            {
+            case 8:
+            case 16:
+              spill |= true;
+              break;
+            case 32:
+            case 64:
+              /* Keep spill unchanged.  */
+              break;
+            default:
+              return false;
+            }
+        }
       return spill;
 
     default:
@@ -16360,7 +17289,22 @@ mchp_function_interrupt_p (tree decl)
   tree attr;
   attr = lookup_attribute ("interrupt", attrlist);
   if (attr)
-    attr = TREE_VALUE (attr);
+    {
+      if (TREE_VALUE(attr) == NULL)
+        {
+          current_function_type = AUTO_CONTEXT_SAVE;
+          mchp_interrupt_priority = -1;
+        }
+      else
+        {
+          current_function_type = UNKNOWN_CONTEXT_SAVE;
+        }
+      attr = TREE_VALUE (attr);
+    }
+  else
+    {
+      current_function_type = NON_INTERRUPT;
+    }
   return attr;
 }
 
@@ -16411,7 +17355,7 @@ mchp_handle_vector_pragma (struct cpp_reader *pfile ATTRIBUTE_UNUSED)
         }
       /* add the vector to the list of dispatch functions to emit */
       mchp_add_vector_dispatch_entry (fname,
-          (int)TREE_INT_CST_LOW (tok_value));
+                                      (int)TREE_INT_CST_LOW (tok_value));
 
       tok = c_lex (&tok_value);
     }
@@ -16461,13 +17405,13 @@ mchp_handle_interrupt_pragma (struct cpp_reader *pfile ATTRIBUTE_UNUSED)
   tok = c_lex (&tok_value);
   if (tok != CPP_NAME
       || (strcmp ("single", IDENTIFIER_POINTER (tok_value)) != 0
-        && ((strncmp ("ipl", IDENTIFIER_POINTER (tok_value), 3) != 0
-            && strncmp ("IPL", IDENTIFIER_POINTER (tok_value), 3) != 0)
-          || IDENTIFIER_POINTER (tok_value)[3] > '7'
-          || IDENTIFIER_POINTER (tok_value)[3] < '0')))
+          && ((strncmp ("ipl", IDENTIFIER_POINTER (tok_value), 3) != 0
+               && strncmp ("IPL", IDENTIFIER_POINTER (tok_value), 3) != 0)
+              || IDENTIFIER_POINTER (tok_value)[3] > '7'
+              || IDENTIFIER_POINTER (tok_value)[3] < '0')))
     {
       error ("priority level specifier not found for interrupt #pragma %s",
-          fname);
+             fname);
       return;
     }
   ipl = tok_value;
@@ -16515,7 +17459,7 @@ mchp_handle_interrupt_pragma (struct cpp_reader *pfile ATTRIBUTE_UNUSED)
           ((int)TREE_INT_CST_LOW (tok_value) < 0 ||
            (int)TREE_INT_CST_LOW (tok_value) > 63))
         {
-          error ("IRQ number must be an integer between 0 and 63");
+          error ("Vector number must be an integer between 0 and 63");
           return;
         }
       /* if this is a "single" handler, the only valid vector is zero */
@@ -16525,7 +17469,7 @@ mchp_handle_interrupt_pragma (struct cpp_reader *pfile ATTRIBUTE_UNUSED)
           error ("'single' interrupt handlers only work with vector 0");
           return;
         }
-      
+
       p->irq_number = (unsigned)TREE_INT_CST_LOW (tok_value);
     }
   else
@@ -16540,7 +17484,7 @@ mchp_handle_interrupt_pragma (struct cpp_reader *pfile ATTRIBUTE_UNUSED)
           ((int)TREE_INT_CST_LOW (tok_value) < 0 ||
            (int)TREE_INT_CST_LOW (tok_value) > 63))
         {
-          error ("IRQ number must be an integer between 0 and 63");
+          error ("Vector number must be an integer between 0 and 63");
           return;
         }
       /* if this is a "single" handler, the only valid vector is zero */
@@ -16552,7 +17496,7 @@ mchp_handle_interrupt_pragma (struct cpp_reader *pfile ATTRIBUTE_UNUSED)
         }
       /* add the vector to the list of dispatch functions to emit */
       mchp_add_vector_dispatch_entry (fname,
-          (int)TREE_INT_CST_LOW (tok_value));
+                                      (int)TREE_INT_CST_LOW (tok_value));
     }
 
   /* There are optionally more addresses, comma separated */
@@ -16564,12 +17508,12 @@ mchp_handle_interrupt_pragma (struct cpp_reader *pfile ATTRIBUTE_UNUSED)
           ((int)TREE_INT_CST_LOW (tok_value) < 0 ||
            (int)TREE_INT_CST_LOW (tok_value) > 63))
         {
-          error ("IRQ number must be an integer between 0 and 63");
+          error ("Vector number must be an integer between 0 and 63");
           return;
         }
       /* add the vector to the list of dispatch functions to emit */
       mchp_add_vector_dispatch_entry (fname,
-          (int)TREE_INT_CST_LOW (tok_value));
+                                      (int)TREE_INT_CST_LOW (tok_value));
       tok = c_lex (&tok_value);
     }
 
@@ -16598,8 +17542,8 @@ mchp_target_insert_attributes (tree decl, tree *attr_ptr)
       fname = IDENTIFIER_POINTER (DECL_NAME (decl));
       assert (fname);
       for (p = interrupt_pragma_list_head ;
-          p && strcmp (p->name, fname) ;
-          p = p->next)
+           p && strcmp (p->name, fname) ;
+           p = p->next)
         ;
       /* if p != NULL, we have a match */
       if (p)
@@ -16614,8 +17558,8 @@ mchp_target_insert_attributes (tree decl, tree *attr_ptr)
              of the attribute and the parameters of the attribute being
              another TREE_LIST as the value of the attribute tree.  */
           *attr_ptr = tree_cons (get_identifier ("interrupt"),
-              build_tree_list (NULL_TREE, p->ipl),
-              *attr_ptr);
+                                 build_tree_list (NULL_TREE, p->ipl),
+                                 *attr_ptr);
           /* If the interrupt goes directly at the vector address,
              add a section attribute to the function to place it in the
              dedicated vector section */
@@ -16625,9 +17569,9 @@ mchp_target_insert_attributes (tree decl, tree *attr_ptr)
               assert (p->irq_number < 64);
               sprintf (scn_name, ".vector_%d", p->irq_number);
               *attr_ptr = tree_cons (get_identifier ("section"),
-                  build_tree_list (NULL_TREE,
-                    build_string (strlen (scn_name), scn_name)),
-                  *attr_ptr);
+                                     build_tree_list (NULL_TREE,
+                                                      build_string (strlen (scn_name), scn_name)),
+                                     *attr_ptr);
             }
         }
     }
@@ -16645,8 +17589,8 @@ mchp_target_insert_attributes (tree decl, tree *attr_ptr)
    decls/types */
 static tree
 mchp_interrupt_attribute (tree *node ATTRIBUTE_UNUSED,
-    tree name ATTRIBUTE_UNUSED, tree args,
-    int flags ATTRIBUTE_UNUSED, bool *no_add_attrs)
+                          tree name ATTRIBUTE_UNUSED, tree args,
+                          int flags ATTRIBUTE_UNUSED, bool *no_add_attrs)
 {
   /* we want to validate that the argument isn't bogus. There should
      be one and only one argument in the args TREE_LIST and it should
@@ -16654,13 +17598,19 @@ mchp_interrupt_attribute (tree *node ATTRIBUTE_UNUSED,
 
   /* we can assert one argument since that should be enforced by
      the parser from the attribute table */
+
+  if (args == NULL)
+    {
+      return NULL_TREE;
+    }
+
   assert (TREE_CHAIN (args) == NULL);
   if (TREE_CODE (TREE_VALUE (args)) != IDENTIFIER_NODE
       || (strcmp ("single", IDENTIFIER_POINTER (TREE_VALUE (args))) != 0
           && ((strncmp ("ipl", IDENTIFIER_POINTER (TREE_VALUE (args)), 3) != 0
-	       && strncmp ("IPL", IDENTIFIER_POINTER (TREE_VALUE(args)),3)!= 0)
-            || IDENTIFIER_POINTER (TREE_VALUE (args))[3] > '7'
-            || IDENTIFIER_POINTER (TREE_VALUE (args))[3] < '0')))
+               && strncmp ("IPL", IDENTIFIER_POINTER (TREE_VALUE(args)),3)!= 0)
+              || IDENTIFIER_POINTER (TREE_VALUE (args))[3] > '7'
+              || IDENTIFIER_POINTER (TREE_VALUE (args))[3] < '0')))
     {
       error ("Interrupt priority must be specified as 'ipl0' - 'ipl7'");
       *no_add_attrs = 1;
@@ -16685,7 +17635,7 @@ mchp_interrupt_attribute (tree *node ATTRIBUTE_UNUSED,
    */
 static tree
 mchp_at_vector_attribute (tree *node, tree name ATTRIBUTE_UNUSED, tree args,
-    int flags ATTRIBUTE_UNUSED, bool *no_add_attrs)
+                          int flags ATTRIBUTE_UNUSED, bool *no_add_attrs)
 {
   tree decl = *node;
   char scn_name[11];
@@ -16706,11 +17656,10 @@ mchp_at_vector_attribute (tree *node, tree name ATTRIBUTE_UNUSED, tree args,
       (int)TREE_INT_CST_LOW (TREE_VALUE (args)) < 0 ||
       (int)TREE_INT_CST_LOW (TREE_VALUE (args)) > 63)
     {
-    printf ("\nTree arg is %s\n", (char*)TREE_STRING_POINTER (TREE_VALUE (args)));
-    *no_add_attrs = 1;
+      *no_add_attrs = 1;
 
-    error ("IRQ number must be an integer between 0 and 63");
-    return NULL_TREE;
+      error ("IRQ number must be an integer between 0 and 63");
+      return NULL_TREE;
     }
   /* now mark the decl as going into the section for the indicated vector */
   sprintf (scn_name, ".vector_%d", (int)TREE_INT_CST_LOW (TREE_VALUE (args)));
@@ -16733,10 +17682,10 @@ mchp_at_vector_attribute (tree *node, tree name ATTRIBUTE_UNUSED, tree args,
    decls/types */
 static tree
 mchp_vector_attribute (tree *node, tree name ATTRIBUTE_UNUSED, tree args,
-    int flags ATTRIBUTE_UNUSED, bool *no_add_attrs)
+                       int flags ATTRIBUTE_UNUSED, bool *no_add_attrs)
 {
   tree decl = *node;
-    unsigned int subexpr;
+  unsigned int subexpr;
   /* If this attribute isn't on the actual function declaration, we
      ignore it */
   if (TREE_CODE (decl) != FUNCTION_DECL)
@@ -16749,19 +17698,19 @@ mchp_vector_attribute (tree *node, tree name ATTRIBUTE_UNUSED, tree args,
     {
       if (TREE_CODE (TREE_VALUE (args)) == INTEGER_CST)
         {
-            /* The argument must be an integer constant between 0 and 63 */
-            if ((int)TREE_INT_CST_LOW (TREE_VALUE (args)) < 0 ||
+          /* The argument must be an integer constant between 0 and 63 */
+          if ((int)TREE_INT_CST_LOW (TREE_VALUE (args)) < 0 ||
               (int)TREE_INT_CST_LOW (TREE_VALUE (args)) > 63)
-              {
-                *no_add_attrs = 1;
+            {
+              *no_add_attrs = 1;
 
-                error ("Vector number must be an integer between 0 and 63");
-                return NULL_TREE;
-              }
-            /* add the vector to the list of dispatch functions to emit */
-            mchp_add_vector_dispatch_entry (
-                IDENTIFIER_POINTER (DECL_NAME (*node)),
-                (int)TREE_INT_CST_LOW (TREE_VALUE (args)));
+              error ("Vector number must be an integer between 0 and 63");
+              return NULL_TREE;
+            }
+          /* add the vector to the list of dispatch functions to emit */
+          mchp_add_vector_dispatch_entry (
+            IDENTIFIER_POINTER (DECL_NAME (*node)),
+            (int)TREE_INT_CST_LOW (TREE_VALUE (args)));
         }
       else
         {
@@ -16770,6 +17719,12 @@ mchp_vector_attribute (tree *node, tree name ATTRIBUTE_UNUSED, tree args,
               mchp_vector_attribute_compound_expr (node, TREE_VALUE(args),
                                                    no_add_attrs);
             }
+          else
+            {
+              *no_add_attrs = 1;
+              error ("Vector number must be an integer between 0 and 63");
+              return NULL_TREE;
+            }
         }
       args = TREE_CHAIN (args);
     }
@@ -16777,10 +17732,10 @@ mchp_vector_attribute (tree *node, tree name ATTRIBUTE_UNUSED, tree args,
   return NULL_TREE;
 }
 
-/* Handles compound expressions within the vector attribute list. 
+/* Handles compound expressions within the vector attribute list.
    Called from mchp_vector_attribute(). */
 static int
-mchp_vector_attribute_compound_expr (tree *node, tree expr, 
+mchp_vector_attribute_compound_expr (tree *node, tree expr,
                                      bool *no_add_attrs)
 {
   int len = 0;
@@ -16789,8 +17744,8 @@ mchp_vector_attribute_compound_expr (tree *node, tree expr,
     return 0;
   for (; TREE_CODE (expr) == COMPOUND_EXPR; expr = TREE_OPERAND (expr, 1))
     {
-      len += mchp_vector_attribute_compound_expr (node, TREE_OPERAND (expr, 0), 
-                                                  no_add_attrs);
+      len += mchp_vector_attribute_compound_expr (node, TREE_OPERAND (expr, 0),
+             no_add_attrs);
     }
   if (TREE_CODE (expr) == INTEGER_CST)
     {
@@ -16817,12 +17772,38 @@ mchp_vector_attribute_compound_expr (tree *node, tree expr,
 static int
 mchp_register_interrupt_context_p (unsigned regno)
 {
-  /* return true for v0, v1, a0-a3, t0-t9 and ra */
-  if ((regno >= 1 && regno <= 15) /* v0, v1, a0-a3, t0-t7 */
-      || regno == 24 /* t8 */
-      || regno == 25 /* t9 */
-      || regno == 31) /* ra */
-    return 1;
+  if (current_function_type == AUTO_CONTEXT_SAVE)
+    {
+      /* return true for at, a0-a3, t0-t9 and ra */
+      /* Don't save v0-v1 because we save these in asm */
+      if ((regno >= 4 && regno <= 15) /* a0-a3, t0-t7 */
+          || regno == 1  /* at */
+          || regno == 24 /* t8 */
+          || regno == 25 /* t9 */
+          || regno == 31) /* ra */
+        return 1;
+    }
+  else if (current_function_type == SOFTWARE_CONTEXT_SAVE)
+    {
+      /* return true for at, a0-a3, t0-t9 and ra */
+      /* Don't save v0-v1 because we save these in asm */
+      if ((regno >= 4 && regno <= 15) /* a0-a3, t0-t7 */
+          || regno == 1  /* at */
+          || regno == 24 /* t8 */
+          || regno == 25 /* t9 */
+          || regno == 31) /* ra */
+        return 1;
+    }
+  else
+    {
+      /* return true for v0, v1, a0-a3, t0-t9 and ra */
+      if ((regno >= 1 && regno <= 15) /* v0, v1, a0-a3, t0-t7 */
+          || regno == 24 /* t8 */
+          || regno == 25 /* t9 */
+          || regno == 31) /* ra */
+        return 1;
+    }
+
   return 0;
 }
 
@@ -16834,8 +17815,11 @@ mchp_epilogue_uses (unsigned regno)
     return 1;
   /* if the register is part of the GPRs that's saved for interrupt context,
      we need to mark it as used by the epilogue. */
-  if (current_function_type == SOFTWARE_CONTEXT_SAVE)
-    return (mchp_register_interrupt_context_p (regno));
+  if (current_function_type == SOFTWARE_CONTEXT_SAVE ||
+      current_function_type == AUTO_CONTEXT_SAVE)
+    {
+      return (mchp_register_interrupt_context_p (regno));
+    }
   return 0;
 }
 

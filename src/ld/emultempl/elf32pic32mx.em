@@ -49,6 +49,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include "ctype.h"
 
+struct traverse_hash_info
+{
+  bfd *abfd;
+  asection *sec;
+};
+
 /* Memory Reporting Info */
 struct magic_section_description_tag {
  char *name;
@@ -82,12 +88,25 @@ static bfd_size_type bfd_pic32_report_sections
   PARAMS ((asection *, const lang_memory_region_type *, 
            struct magic_sections_tag *, FILE *));
 
+struct bfd_link_hash_entry *bfd_pic32_is_defined_global_symbol
+  PARAMS ((const char *const));
+
+static bfd_boolean bfd_pic32_undefine_one_symbol_bfd
+  PARAMS ((struct bfd_link_hash_entry *, PTR));
+
+static void bfd_pic32_undefine_symbols_bfd
+  PARAMS ((bfd *));
+
+static void bfd_pic32_remove_archive_module
+  PARAMS ((const char *const));
+
 static char * bfd_pic32_lookup_magic_section_description
   PARAMS ((const char *, struct magic_sections_tag *, char **));
 
 /* Declare functions used by various EXTRA_EM_FILEs.  */
 static void gld${EMULATION_NAME}_before_parse (void);
 static void gld${EMULATION_NAME}_before_allocation (void);
+static void gld${EMULATION_NAME}_after_open PARAMS ((void));
 static void gld${EMULATION_NAME}_finish (void);
 
 /* Memory Reporting Info */
@@ -205,6 +224,130 @@ static bfd_size_type region_data_memory_used = 0;
 
 /* Section Lists */
 static struct pic32_section *pic32_section_list;
+
+/*
+** smart_io Data Structure
+**
+** The following data structure is used to identify
+** I/O function pairs that have redundant functionality.
+** The "full_set" function is a standard I/O function
+** such as printf(). The "reduced_set" function has the
+** same type and parameter list but supports a reduced
+** feature set, such as the integer-only _iprintf().
+**
+** If both members of a function pair are defined,
+** the reduced_set function is considered redundant.
+** The --smart-io option causes the linker to merge
+** the two functions in order to conserve memory.
+**
+** Function merging is performed by the _after_open()
+** emulation entry point, after all the input BFDs
+** have been opened, but before memory is allocated.
+**
+** Function merging consists of several steps:
+**
+** 1. Lookup both function names in the Global Linker
+**    Hash Table and load pointers to the corresponding
+**    hash table entries.
+**
+** 2. Copy the (value) and (section) fields from the
+**    full_set hash table entry to the reduced_set hash
+**    table entry. This causes the reduced_set function
+**    name to be a synonym for the full_set function name.
+**
+**    This operation is valid because:
+**
+**    (section) is a pointer into a BFD data structure.
+**    When a BFD is opened, it remains locked in memory
+**    until it is closed at the completion of the link.
+**    Pointers into a BFD data structure are guaranteed
+**    not to move.
+**
+**    (value) is an offset into an input section. Offsets
+**    within an input section are determined by the
+**    assembler and do not change during the link.
+**
+** 3. Loop through each input statement in the linker script
+**    and find the BFD associated with the reduced_set
+**    function, based on its module_name.
+**
+** 4. Traverse the Global Linker Hash Table and change the
+**    type of any symbols that are defined and owned by
+**    the reduced_set BFD to "undefined".
+**
+** 5. For each section attached to the reduced_set BFD,
+**    set the SEC_NEVER_LOAD section flag and set the
+**    section size to zero. This causes the reduced_set
+**    function to be omitted from the final link.
+*/
+
+struct function_pair_type
+{
+  char *full_set;
+  char *reduced_set;
+  char *module_name;
+};
+
+const struct function_pair_type function_pairs[] =
+  {
+    /* iprintf() */
+    { "printf",    "_iprintf",   "iprintf.o"    },
+
+    /* ifprintf() */
+    { "fprintf",   "_ifprintf",  "ifprintf.o"   },
+
+    /* isprintf() */
+    { "sprintf",   "_isprintf",  "isprintf.o"   },
+
+    /* ivprintf() */
+    { "vprintf",   "_ivprintf",  "ivprintf.o"   },
+
+    /* ivfprintf() */
+    { "vfprintf",  "_ivfprintf",  "_idoprnt.o" },
+
+    /* ivsprintf() */
+    { "vsprintf",  "_ivsprintf",  "isprintf.o" },
+
+    /* isnprintf() */
+    { "snprintf",  "_isnprintf",  "isnprintf.o" },
+
+    /* ivsnprintf() */
+    { "vsnprintf", "_ivsnprintf", "ivsnprintf.o" },
+
+    /* __vsnprintf() */
+    { "__vsnprintf",  "__ivsnprintf",  "__ivsnprintf.o" },
+
+    /* __vasprintf() */
+    { "__vasprintf",  "__ivasprintf",  "__ivasprintf.o" },
+
+    /* vasprintf() */
+    { "vasprintf",  "_ivasprintf",  "ivasprintf.o" },
+
+    /* asprintf() */
+    { "asprintf",  "_iasprintf",  "iasprintf.o" },
+
+
+    /* iscanf() */
+    { "scanf",     "_iscanf",     "iscanf.o"    },
+
+    /* ifscanf() */
+    { "fscanf",    "_ifscanf",    "iscanf.o"   },
+
+    /* isscanf() */
+    { "sscanf",    "_isscanf",    "isscanf.o"   },
+
+    /* vfscanf() */
+    { "vfscanf",    "_ivfscanf",    "_idoscan.o"   },
+
+    /* vsscanf() */
+    { "vsscanf",    "_ivsscanf",    "isscanf.o"   },
+
+    /* vscanf() */
+    { "vscanf",    "_ivscanf",    "iscanf.o"   },
+
+    /* null terminator */
+    { 0, 0, 0 },
+  };
 
 EOF
 
@@ -360,6 +503,99 @@ report_percent_used (used, max, fp)
        fprintf( fp, "<1%% of %#lx", max);
    }
 }
+
+/*
+** Return a pointer to bfd_link_hash_entry
+** if a global symbol is defined;
+** else return zero.
+*/
+struct bfd_link_hash_entry *
+bfd_pic32_is_defined_global_symbol (name)
+     const char *const name;
+{
+    struct bfd_link_hash_entry *h;
+    h = bfd_link_hash_lookup (link_info.hash, name, FALSE, FALSE, TRUE);
+    if ((h != (struct bfd_link_hash_entry *) NULL) &&
+        (h->type == bfd_link_hash_defined)) {
+      return h;
+    }
+    else
+      return (struct bfd_link_hash_entry *) NULL;
+}
+
+/*
+** Undefine one symbol by BFD
+**
+** This routine is called by bfd_link_hash_traverse()
+*/
+static bfd_boolean
+bfd_pic32_undefine_one_symbol_bfd (h, p)
+     struct bfd_link_hash_entry *h;
+     PTR p;
+{
+  struct bfd_link_hash_entry *H = (struct bfd_link_hash_entry *) h;
+  struct traverse_hash_info *info = ( struct traverse_hash_info *) p;
+
+  /* if this symbol is defined, and owned by the BFD in question */
+  if ((( H->type == bfd_link_hash_defined) ||
+       ( H->type == bfd_link_hash_defweak)) &&
+      ( H->u.def.section->owner == info->abfd))
+
+    /* mark it undefined */
+    H->type = bfd_link_hash_undefined;
+
+  /* traverse the entire hash table */
+  return TRUE;
+} /* static bfd_boolean bfd_pic32_undefine_one_symbol_bfd (...)*/
+
+
+/*
+** Undefine all symbols owned by a bfd
+*/
+static void
+bfd_pic32_undefine_symbols_bfd (target)
+     bfd *target;
+{
+    struct traverse_hash_info info;
+    info.abfd = target;
+
+    /* traverse the global linker hash table */
+    bfd_link_hash_traverse (link_info.hash,
+       bfd_pic32_undefine_one_symbol_bfd, &info);
+
+} /* static void bfd_pic32_undefine_symbols_bfd (...) */
+
+/*
+** Remove an archive module
+*/
+static void
+bfd_pic32_remove_archive_module (name)
+     const char *const name;
+{
+  LANG_FOR_EACH_INPUT_STATEMENT (is)
+  {
+      if (strcmp (is->the_bfd->filename, name) == 0)
+      {
+          if (pic32_debug)
+          {
+              printf("\nRemoving %s\n", name);
+              printf("  %s had %d symbols\n", name , is->the_bfd->symcount);
+          }
+
+          /*
+          ** remove the symbols
+          */
+          bfd_pic32_undefine_symbols_bfd (is->the_bfd);
+          is->the_bfd->symcount = 0;
+
+          /*
+          ** remove the sections in this bfd
+          */
+          bfd_section_list_clear(is->the_bfd);
+          break;
+      }
+  }
+} /* static void bfd_pic32_remove_archive_module */
 
 /*****************************************************************************
 **
@@ -614,6 +850,64 @@ gld${EMULATION_NAME}_before_parse (void)
 EOF
 fi
 
+if test x"$LDEMUL_AFTER_OPEN" != xgld"$EMULATION_NAME"_after_open; then
+cat >>e${EMULATION_NAME}.c <<EOF
+/*
+** after_open() is called after all input BFDS
+** have been created.
+**
+*/
+static void
+gld${EMULATION_NAME}_after_open()
+{
+
+  /*
+  ** Merge full- and reduced-set I/O functions
+  */
+  if (pic32_smart_io)
+    {
+      int i = 0;
+
+      if (pic32_debug)
+        printf("\nMerging smart-io functions:\n");
+
+      while ( function_pairs[i].full_set )
+
+        {
+          struct bfd_link_hash_entry *full, *reduced;
+          char *func1, *func2;
+
+          func1 = function_pairs[i].full_set;
+          func2 = function_pairs[i].reduced_set;
+          if (pic32_debug)
+            printf("\nLooking for (%s, %s) ...", func1, func2);
+
+          if ((full = bfd_pic32_is_defined_global_symbol (func1)) &&
+              (reduced = bfd_pic32_is_defined_global_symbol (func2)))
+            {
+              if (pic32_debug)
+                printf("Found\n\nRedirecting %s -> %s\n", func2, func1);
+
+              /* redirect reduced_set function to full_set function */
+              reduced->u.def.value = full->u.def.value;
+              reduced->u.def.section = full->u.def.section;
+
+              /* remove the reduced_set module */
+              bfd_pic32_remove_archive_module (function_pairs[i].module_name);
+            }
+          else
+            if (pic32_debug)
+              printf("Not Found\n");
+          i++;
+        }
+    } /* pic32_smart_io */
+
+
+}
+
+EOF
+fi
+
 cat >>e${EMULATION_NAME}.c <<EOF
 /*
 ** finish()
@@ -624,6 +918,8 @@ cat >>e${EMULATION_NAME}.c <<EOF
 static void  
 gld${EMULATION_NAME}_finish()
 {
+  if (pic32_debug)
+    printf ("gld_finish\n");
   if (config.map_file != NULL) {
     bfd_pic32_report_memory_usage (config.map_file);
   }
@@ -697,7 +993,7 @@ struct ld_emulation_xfer_struct ld_${EMULATION_NAME}_emulation =
   ${LDEMUL_SYSLIB-syslib_default},
   ${LDEMUL_HLL-hll_default},
   ${LDEMUL_AFTER_PARSE-after_parse_default},
-  ${LDEMUL_AFTER_OPEN-after_open_default},
+  gld${EMULATION_NAME}_after_open,
   ${LDEMUL_AFTER_ALLOCATION-after_allocation_default},
   ${LDEMUL_SET_OUTPUT_ARCH-set_output_arch_default},
   ${LDEMUL_CHOOSE_TARGET-ldemul_default_target},

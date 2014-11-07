@@ -120,7 +120,7 @@ static const bfd_arch_info_type arch_info_struct[] =
   N (64, 64, bfd_mach_mipsisa64,  "mips:isa64",   FALSE, NN(I_mipsisa64)),
   N (64, 64, bfd_mach_mipsisa64r2,"mips:isa64r2", FALSE, NN(I_mipsisa64r2)),
   N (64, 64, bfd_mach_mips_sb1,   "mips:sb1",     FALSE, NN(I_sb1)),
-  N (32, 32, bfd_mach_pic32mx,    "pic32mx",      FALSE, 0),
+  N (32, 32, bfd_mach_pic32mx,    "pic32mx",      FALSE, NN(I_pic32mx)),
 };
 
 /* The default architecture is mips:3000, but with a machine number of

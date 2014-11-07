@@ -9000,7 +9000,7 @@ movn\t%M0,%.,%3"
   [(set (pc)
 	(label_ref (match_operand 0 "" "")))]
   "!TARGET_MIPS16"
-{
+  {
   if (flag_pic && ! TARGET_EMBEDDED_PIC)
     {
       if (get_attr_length (insn) <= 8)
@@ -9528,7 +9528,7 @@ ld\\t%2,%1-%S1(%2)\;daddu\\t%2,%2,$31\\n\\t%*j\\t%2%/"
   "TARGET_SIBCALLS && SIBLING_CALL_P (insn)"
   "@
     %*jr\t%0%/
-    %*j\t%0%/"
+    %*j\t%0%/";
   [(set_attr "type" "call")])
 
 (define_expand "sibcall_value"
@@ -9619,7 +9619,8 @@ ld\\t%2,%1-%S1(%2)\;daddu\\t%2,%2,$31\\n\\t%*j\\t%2%/"
 	 (match_operand 1 "" ""))
    (clobber (reg:SI 31))]
   ""
-  { return TARGET_SPLIT_CALLS ? "#" : "%*jal\t%0%/"; }
+  {
+  return TARGET_SPLIT_CALLS ? "#" : "%*jal\t%0%/"; }
   "reload_completed && TARGET_SPLIT_CALLS && (operands[2] = insn)"
   [(const_int 0)]
 {
@@ -9637,7 +9638,8 @@ ld\\t%2,%1-%S1(%2)\;daddu\\t%2,%2,$31\\n\\t%*j\\t%2%/"
    (clobber (reg:SI 31))
    (clobber (reg:SI 28))]
   "TARGET_SPLIT_CALLS"
-  "%*jalr\t%0%/"
+  {
+  "%*jalr\t%0%/";}
   [(set_attr "type" "call")])
 
 (define_expand "call_value"
@@ -9647,10 +9649,11 @@ ld\\t%2,%1-%S1(%2)\;daddu\\t%2,%2,$31\\n\\t%*j\\t%2%/"
 	      (use (match_operand 3 "" ""))])]		;; next_arg_reg
   ""
 {
-  mips_expand_call (operands[0], XEXP (operands[1], 0),
+  mips_expand_call (operands[0], XEXP(operands[1],0),
 		    operands[2], operands[3], false);
   DONE;
 })
+
 
 ;; See comment for call_internal.
 (define_insn_and_split "call_value_internal"
@@ -9659,7 +9662,8 @@ ld\\t%2,%1-%S1(%2)\;daddu\\t%2,%2,$31\\n\\t%*j\\t%2%/"
               (match_operand 2 "" "")))
    (clobber (reg:SI 31))]
   ""
-  { return TARGET_SPLIT_CALLS ? "#" : "%*jal\t%1%/"; }
+  {
+   return TARGET_SPLIT_CALLS ? "#" : "%*jal\t%1%/"; }
   "reload_completed && TARGET_SPLIT_CALLS && (operands[3] = insn)"
   [(const_int 0)]
 {
@@ -9679,7 +9683,8 @@ ld\\t%2,%1-%S1(%2)\;daddu\\t%2,%2,$31\\n\\t%*j\\t%2%/"
    (clobber (reg:SI 31))
    (clobber (reg:SI 28))]
   "TARGET_SPLIT_CALLS"
-  "%*jalr\t%1%/"
+  {
+  "%*jalr\t%1%/";}
   [(set_attr "type" "call")])
 
 ;; See comment for call_internal.
@@ -9692,7 +9697,8 @@ ld\\t%2,%1-%S1(%2)\;daddu\\t%2,%2,$31\\n\\t%*j\\t%2%/"
 	      (match_dup 2)))
    (clobber (reg:SI 31))]
   ""
-  { return TARGET_SPLIT_CALLS ? "#" : "%*jal\t%1%/"; }
+  {
+   return TARGET_SPLIT_CALLS ? "#" : "%*jal\t%1%/"; }
   "reload_completed && TARGET_SPLIT_CALLS && (operands[4] = insn)"
   [(const_int 0)]
 {
@@ -9715,7 +9721,8 @@ ld\\t%2,%1-%S1(%2)\;daddu\\t%2,%2,$31\\n\\t%*j\\t%2%/"
    (clobber (reg:SI 31))
    (clobber (reg:SI 28))]
   "TARGET_SPLIT_CALLS"
-  "%*jalr\t%1%/"
+  {
+  "%*jalr\t%1%/";}
   [(set_attr "type" "call")])
 
 ;; Call subroutine returning any type.
@@ -9728,7 +9735,6 @@ ld\\t%2,%1-%S1(%2)\;daddu\\t%2,%2,$31\\n\\t%*j\\t%2%/"
   ""
 {
   int i;
-
   emit_call_insn (GEN_CALL (operands[0], const0_rtx, NULL, const0_rtx));
 
   for (i = 0; i < XVECLEN (operands[2], 0); i++)

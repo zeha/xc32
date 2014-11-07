@@ -25,8 +25,7 @@ Boston, MA 02111-1307, USA.  */
 
 
 /* Standard GCC variables that we reference.  */
-
-extern int	target_flags;
+extern int target_flags;
 
 /* MIPS external variables defined in mips.c.  */
 
@@ -213,6 +212,8 @@ extern const struct mips_cpu_info *mips_tune_info;
 #define MASK_DEBUG_G	0		/* don't support 64 bit arithmetic */
 #define MASK_DEBUG_I	0		/* unused */
 
+#define MCHP_MASK_SMART_IO		(1u<<0)	/* -msmart-io enabled */
+
 					/* Dummy switches used only in specs */
 #define MASK_MIPS_TFILE	0		/* flag for mips-tfile usage */
 
@@ -350,6 +351,14 @@ extern const struct mips_cpu_info *mips_tune_info;
 					/* Generate mips16 code */
 #define TARGET_MIPS16		(target_flags & MASK_MIPS16)
 #define TARGET_MIPS16E		(target_flags & MASK_MIPS16E)
+
+/*
+ *  TARGET_SMART_IO evaluates to 0,1,2
+ *    0 if MCHP_MASK_SMART_IO not set
+ *    1 if MCHP_MASK_SMART_IO set and MCHP_MASK_SMART_IO_LVL clear
+ *    2 if MCHP_MASK_SMART_IO set and MCHP_MASK_SMART_IO_LVL set
+ */
+#define MCHP_TARGET_SMART_IO ((mchp_target_flags&MCHP_MASK_SMART_IO) ? (mchp_io_size_val) : 0)
 
 /* MIPS16e save/restore is supported for ABI_32 (o32) only */
 #define TARGET_M16E_SAVE	(TARGET_MIPS16E && mips_abi == ABI_32)
@@ -1659,7 +1668,7 @@ enum mips_cmp_choice
   { "code-xonly", &mips_code_xonly_string,				\
       N_("Execute-only MIPS16 code, strings and jump tables in data seg"), 0},\
   { "flip-mips16", &mips_flip_mips16_string,				\
-      0, 0},\
+      0, 0} \
 }
 
 /* This is meant to be redefined in the host dependent files.  */
@@ -2623,11 +2632,14 @@ extern enum mips_brlikely mips_brlikely;
 
 #define AT_REGNUM	(GP_REG_FIRST + 1)
 #define V0_REGNUM	(GP_REG_FIRST + 2)
+#define V1_REGNUM	(GP_REG_FIRST + 3)
 #define RA_REGNUM	(GP_REG_FIRST + 31)
 #define MD0_REGNUM	(MD_REG_FIRST + 0)
 #define MD1_REGNUM	(MD_REG_FIRST + 1)
 #define HI_REGNUM	(WORDS_BIG_ENDIAN ? MD0_REGNUM : MD1_REGNUM)
 #define LO_REGNUM	(WORDS_BIG_ENDIAN ? MD1_REGNUM : MD0_REGNUM)
+#define T0_REGNUM       (GP_REG_FIRST + 8)
+#define T1_REGNUM       (GP_REG_FIRST + 9)
 #define K0_REGNUM       (GP_REG_FIRST + 26)
 #define K1_REGNUM       (GP_REG_FIRST + 27)
 #define SR_REGNUM       (COP0_REG_FIRST + 12)
@@ -4220,6 +4232,12 @@ extern int mips_branch_cost;
 
 #define PRINT_OPERAND_ADDRESS(FILE, ADDR) print_operand_address (FILE, ADDR)
 
+/*
+** Easy access check for function beginning 
+**/
+#define NOTE_INSN_FUNCTION_BEG_P(INSN) \
+  ((GET_CODE(INSN) == NOTE) && \
+   (NOTE_LINE_NUMBER (INSN) == NOTE_INSN_FUNCTION_BEG))
 
 /* A C statement, to be executed after all slot-filler instructions
    have been output.  If necessary, call `dbr_sequence_length' to

@@ -574,6 +574,8 @@ OTHER_SECTIONS="
   /* Stack allocation follows the heap */
   .stack ALIGN(4) :
   {
+    _splim = . ;
+    _SPLIM = . ;
     . += _min_stack_size ;
   } >${DATA_MEMORY_REGION}
 
