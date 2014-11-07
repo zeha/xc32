@@ -46,7 +46,9 @@ extern tree mchp_pragma_section;
 extern unsigned int mchp_pragma_keep;
 extern unsigned int mchp_pragma_printf_args;
 extern unsigned int mchp_pragma_scanf_args;
+extern unsigned int mchp_pragma_inline;
 
+int pic30_frame_pointer_needed_p(int size); 
 tree pic30_extended_pointer_integer_type(enum machine_mode);
 int pic30_md_mustsave(rtx reg);
 tree pic30_read_externals(enum pic30_special_trees kind);
@@ -60,6 +62,7 @@ void pic30_handle_code_pragma(struct cpp_reader *pfile);
 void pic30_handle_idata_pragma(struct cpp_reader *pfile);
 void pic30_handle_udata_pragma(struct cpp_reader *pfile);
 void mchp_handle_config_pragma(struct cpp_reader *pfile);
+void mchp_handle_inline_pragma(struct cpp_reader *pfile);
 
 extern const char * pic30_section_name(rtx op);
 extern const char *pic30_strip_name_encoding_helper(const char *symbol_name);

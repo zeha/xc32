@@ -129,15 +129,17 @@ do {                     \
     } \
     %{flto} %{fwhopr} %l " LINK_PIE_SPEC \
    "%X %{o*} %{A} %{d} %{e*} %{m} %{N} %{n} %{r}\
-    %{s} %{t} %{u*} %{x} %{z} %{Z} %{!A:%{!nostdlib:%{!nostartfiles:%S}}}\
+    %{s} %{t} %{u*} %{x} %{z} %{Z} %{!A:%{!nostdlib:%{!nostartfiles:%S} }}\
     %{Wno-poison-system-directories:--no-poison-system-directories}\
     %{Werror=poison-system-directories:--error-poison-system-directories}\
     %{static:} %{L*} %(mfwrap) %(link_libgcc) %o\
     %{fopenmp|ftree-parallelize-loops=*:%:include(libgomp.spec)%(link_gomp)} %(mflib)\
     %{fprofile-arcs|fprofile-generate*|coverage:-lgcov}\
+    %{!A:%{!nostdlib:%{!mno-default-isr-vectors:-l:default_isr_vectors.o} }}\
     %{T:%{T*}; !T: -T %s./ldscripts/elf32pic32mx.x} \
     %{!nostdlib:%{!nodefaultlibs:%(link_ssp) %(link_gcc_c_sequence)}}\
-    %{!A:%{!nostdlib:%{!nostartfiles:%E}}} }}}}}}"
+    %{!A:%{!nostdlib:%{!nostartfiles:%E} }} \
+    }}}}}}"
 #undef LINK_COMMAND_SPEC_SUPPRESS_DEFAULT_SCRIPT
 #define LINK_COMMAND_SPEC_SUPPRESS_DEFAULT_SCRIPT "\
 %{!fsyntax-only:%{!c:%{!M:%{!MM:%{!E:%{!S:\
@@ -156,15 +158,17 @@ do {                     \
     } \
     %{flto} %{fwhopr} %l " LINK_PIE_SPEC \
    "%X %{o*} %{A} %{d} %{e*} %{m} %{N} %{n} %{r}\
-    %{s} %{t} %{u*} %{x} %{z} %{Z} %{!A:%{!nostdlib:%{!nostartfiles:%S}}}\
+    %{s} %{t} %{u*} %{x} %{z} %{Z} %{!A:%{!nostdlib:%{!nostartfiles:%S} }}\
     %{Wno-poison-system-directories:--no-poison-system-directories}\
     %{Werror=poison-system-directories:--error-poison-system-directories}\
     %{static:} %{L*} %(mfwrap) %(link_libgcc) %o\
     %{fopenmp|ftree-parallelize-loops=*:%:include(libgomp.spec)%(link_gomp)} %(mflib)\
     %{fprofile-arcs|fprofile-generate*|coverage:-lgcov}\
+    %{!A:%{!nostdlib:%{!mno-default-isr-vectors:-l:default_isr_vectors.o} }}\
     %{T*} \
     %{!nostdlib:%{!nodefaultlibs:%(link_ssp) %(link_gcc_c_sequence)}}\
-    %{!A:%{!nostdlib:%{!nostartfiles:%E}}} }}}}}}"
+    %{!A:%{!nostdlib:%{!nostartfiles:%E} }} \
+    }}}}}}"
 
 /* Added on the linker command line after all user-specified -L options are
  * included.  This will add all the standard -L search paths, the
@@ -309,7 +313,6 @@ extern void pic32_system_include_paths(const char *root, const char *system,
  %{mprocessor=32mx* : %{mdspr2:%e-mdspr2 option not available on a PIC32MX MCU}} \
  %{mprocessor=32MX* : %{mmcu:%e-mmcu option not available on a PIC32MX MCU}} \
  %{mprocessor=32mx* : %{mmcu:%e-mmcu option not available on a PIC32MX MCU}} \
- %{O2:%{!mtune:-mtune=4kec}} \
  %{O3:%{!mtune:-mtune=4kec}} \
  %(mchp_cci_cc1_spec) \
  %(subtarget_cc1_spec) \
@@ -698,7 +701,7 @@ extern const char *mchp_config_data_dir;
                  Microchip++;                               \
                  minor = strtol(Microchip, &Microchip, 0);  \
                }                                            \
-             pic32_compiler_version = (major*1000) + minor;  \
+             pic32_compiler_version = (major*1000) + (minor*10);  \
           }                                                 \
         else                                                \
           {                                                 \
@@ -943,11 +946,11 @@ static const int TARGET_MDMX = 0;
     { "vector",           1, 64, true,  false, false, mchp_vector_attribute },   \
     { "at_vector",        1, 1,  true,  false, false, mchp_at_vector_attribute }, \
     /* also allow functions to be created without prologue/epilogue code */     \
-    { "naked",            0, 0,  true,  false, false, NULL },                   \
+    { "naked",            0, 0,  true,  false, false, mchp_naked_attribute },                   \
     { "address",          1, 1,  false, false, false, mchp_address_attribute }, \
     { "space",            1, 1,  false, false, false, mchp_space_attribute },   \
     { "persistent",       0, 0,  false, false, false, NULL }, \
-    { "ramfunc",          0, 0,  false, true,  true,  NULL }, \
+    { "ramfunc",          0, 0,  false, true,  true,  mchp_ramfunc_attribute }, \
     { "unsupported",      0, 1,  false, false, false, mchp_unsupported_attribute }, \
     { "target_error",     1, 1,  false, false, false, mchp_target_error_attribute }, \
     { "keep",             0, 0,  false, false, false, mchp_keep_attribute },

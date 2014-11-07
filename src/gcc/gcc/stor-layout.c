@@ -172,6 +172,32 @@ variable_size (tree size)
 /* An array of functions used for self-referential size computation.  */
 static GTY(()) VEC (tree, gc) *size_functions;
 
+/* Look inside EXPR into simple arithmetic operations involving constants.
+   Return the outermost non-arithmetic or non-constant node.  */
+
+static tree
+skip_simple_constant_arithmetic (tree expr)
+{
+  while (true)
+    {
+      if (UNARY_CLASS_P (expr))
+	expr = TREE_OPERAND (expr, 0);
+      else if (BINARY_CLASS_P (expr))
+	{
+	  if (TREE_CONSTANT (TREE_OPERAND (expr, 1)))
+	    expr = TREE_OPERAND (expr, 0);
+	  else if (TREE_CONSTANT (TREE_OPERAND (expr, 0)))
+	    expr = TREE_OPERAND (expr, 1);
+	  else
+	    break;
+	}
+      else
+	break;
+    }
+
+  return expr;
+}
+
 /* Similar to copy_tree_r but do not copy component references involving
    PLACEHOLDER_EXPRs.  These nodes are spotted in find_placeholder_in_expr
    and substituted in substitute_in_expr.  */
@@ -239,7 +265,7 @@ self_referential_size (tree size)
   char buf[128];
 
   /* Do not factor out simple operations.  */
-  t = skip_simple_arithmetic (size);
+  t = skip_simple_constant_arithmetic (size);
   if (TREE_CODE (t) == CALL_EXPR)
     return size;
 
@@ -595,12 +621,13 @@ layout_decl (tree decl, unsigned int known_align)
 	  /* See if we can use an ordinary integer mode for a bit-field.
 	     Conditions are: a fixed size that is correct for another mode,
 	     occupying a complete byte or bytes on proper boundary,
-	     and not volatile or not -fstrict-volatile-bitfields.  */
+	     and not -fstrict-volatile-bitfields.  If the latter is set,
+	     we unfortunately can't check TREE_THIS_VOLATILE, as a cast
+	     may make a volatile object later.  */
 	  if (TYPE_SIZE (type) != 0
 	      && TREE_CODE (TYPE_SIZE (type)) == INTEGER_CST
 	      && GET_MODE_CLASS (TYPE_MODE (type)) == MODE_INT
-	      && !(TREE_THIS_VOLATILE (decl)
-		   && flag_strict_volatile_bitfields > 0))
+	      && flag_strict_volatile_bitfields <= 0)
 	    {
 	      enum machine_mode xmode
 		= mode_for_size_tree (DECL_SIZE (decl), MODE_INT, 1);

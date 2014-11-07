@@ -757,7 +757,7 @@ static int      pic30_valid_machine_decl_preprologue(tree);
 static void    pic30_check_type_attribute(tree, tree, tree *);
 static int    pic30_check_decl_attribute(tree, tree, tree, tree *);
 int    pic30_mode1MinMax_operand(rtx, enum machine_mode, int, int);
-static int    pic30_frame_pointer_needed_p(int size);
+int    pic30_frame_pointer_needed_p(int size);
 static void    pic30_expand_prologue_frame(int);
 static double    pic30_get_double(rtx);
 static const char *    pic30_condition_code_name(enum rtx_code);
@@ -951,6 +951,7 @@ unsigned int mchp_pragma_align = 0;
 unsigned int mchp_pragma_keep = 0;
 unsigned int mchp_pragma_printf_args = 0;
 unsigned int mchp_pragma_scanf_args = 0;
+unsigned int mchp_pragma_inline = 0;
 tree mchp_pragma_section = NULL_TREE;
 
 void pic30_output_section_asm_op(const void *directive) {
@@ -2640,7 +2641,6 @@ get_license (void)
   if ((version_string != NULL) && *version_string)
     {
       char *Microchip;
-      gcc_assert(strlen(version_string) < 80);
       Microchip = strrchr (version_string, 'v');
       if (Microchip)
         {
@@ -9063,7 +9063,7 @@ int pic30_S_constraint_ecore(rtx op, int ecore_okay) {
     rtx rtxPlusOp1;
 
     if (!ecore_okay)
-      if (pic30_ecore_target()) return FALSE;
+    if (pic30_ecore_target()) return FALSE;
     switch (GET_CODE(op))
     {
     case MEM:
@@ -9744,7 +9744,7 @@ int pic30_md_mustsave(rtx reg) {
 **    we can eliminate the frame pointer. In particular, we don't know
 **    if the function needs any local variable space.
 */
-static int pic30_frame_pointer_needed_p(int size) {
+int pic30_frame_pointer_needed_p(int size) {
   int fNeeded;
 
   fNeeded = (frame_pointer_needed || size);
@@ -16800,6 +16800,8 @@ tree pic30_build_variant_type_copy(tree type, int type_quals) {
   if (DECODE_QUAL_ADDR_SPACE(type_quals) == pic30_space_packed) {
     t = build_distinct_type_copy(type);
     set_type_quals(t, type_quals);
+    /* a 'new' type should have no alias set yet */
+    TYPE_ALIAS_SET(t) = -1;
     TYPE_PACKED(t) = 1;
     TYPE_ALIGN(t) = BITS_PER_UNIT;
     /* Normally TYPE_PACKED is applied before finish_<tau> but we don't
@@ -16940,6 +16942,10 @@ void pic30_apply_pragmas(tree decl) {
 #endif
       mchp_pragma_printf_args = 0;
     }
+    if (mchp_pragma_inline) {
+      DECL_DECLARED_INLINE_P(decl) = 1;
+      mchp_pragma_inline = 0;
+    }
   }
 
   if (mchp_pragma_section) {
@@ -16974,6 +16980,10 @@ void pic30_apply_pragmas(tree decl) {
   if (mchp_pragma_printf_args) {
     warning(OPT_Wpragmas, "ignoring #pragma printf_args");
     mchp_pragma_printf_args = 0;
+  }
+  if (mchp_pragma_inline) {
+    warning(OPT_Wpragmas, "ignoring #pragma inline");
+    mchp_pragma_inline = 0;
   }
 }
 

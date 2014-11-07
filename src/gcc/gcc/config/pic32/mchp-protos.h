@@ -43,6 +43,12 @@ extern tree mchp_at_vector_attribute (tree *decl, tree identifier,
 extern tree mchp_address_attribute(tree *decl, tree identifier,
                             tree args, int flags ATTRIBUTE_UNUSED,
                             bool *no_add_attrs);
+extern tree mchp_ramfunc_attribute(tree *decl, tree identifier ATTRIBUTE_UNUSED,
+                            tree args ATTRIBUTE_UNUSED, int flags ATTRIBUTE_UNUSED,
+                            bool *no_add_attrs ATTRIBUTE_UNUSED);
+extern tree mchp_naked_attribute(tree *decl, tree identifier ATTRIBUTE_UNUSED,
+                            tree args ATTRIBUTE_UNUSED, int flags ATTRIBUTE_UNUSED,
+                            bool *no_add_attrs ATTRIBUTE_UNUSED);
 extern tree mchp_space_attribute(tree *decl, tree identifier,
                             tree args, int flags ATTRIBUTE_UNUSED,
                             bool *no_add_attrs);
@@ -87,6 +93,7 @@ extern void pic32_optimization_options (int level, int size ATTRIBUTE_UNUSED);
 extern void mchp_override_options_after_change(void);
 extern void mchp_prepare_function_start (tree fndecl);
 extern bool mchp_subtarget_mips16_enabled (const_tree decl);
+extern void mchp_subtarget_encode_section_info (tree decl, rtx rtl, int first_seen ATTRIBUTE_UNUSED);
 
 extern void mchp_apply_pragmas(tree decl);
 extern void mchp_handle_align_pragma(struct cpp_reader *);
@@ -112,5 +119,8 @@ extern section *mchp_select_section (tree decl, int reloc,
                      unsigned HOST_WIDE_INT align ATTRIBUTE_UNUSED);
 extern unsigned int mchp_section_type_flags(tree decl, const char *name,
                         int reloc ATTRIBUTE_UNUSED);
+extern int set_section_stack(const char *pszSectionName, SECTION_FLAGS_INT pszSectionFlag);
 extern const char *mchp_strip_name_encoding (const char *symbol_name);
+
+extern void mchp_init_cci_builtins(void);
 #endif

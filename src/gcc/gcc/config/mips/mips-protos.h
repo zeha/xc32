@@ -89,8 +89,10 @@ enum mips_symbol_context {
    SYMBOL_TLSGD
    SYMBOL_TLSLDM
    SYMBOL_DTPREL
+   SYMBOL_DTPREL_HI
    SYMBOL_GOTTPREL
    SYMBOL_TPREL
+   SYMBOL_TPREL_HI
        UNSPEC wrappers around SYMBOL_TLS, corresponding to the
        thread-local storage relocation operators.
 
@@ -127,8 +129,10 @@ enum mips_symbol_type {
   SYMBOL_TLSGD,
   SYMBOL_TLSLDM,
   SYMBOL_DTPREL,
+  SYMBOL_DTPREL_HI,
   SYMBOL_GOTTPREL,
   SYMBOL_TPREL,
+  SYMBOL_TPREL_HI,
   SYMBOL_32_HIGH,
   SYMBOL_64_HIGH,
   SYMBOL_64_MID,
@@ -316,11 +320,14 @@ extern const char *mips_output_order_conditional_branch (rtx, rtx *, bool);
 extern const char *mips_output_sync (void);
 extern const char *mips_output_sync_loop (rtx, rtx *);
 extern unsigned int mips_sync_loop_insns (rtx, rtx *);
+extern const char *mips_output_atomic (rtx, rtx *);
 extern const char *mips_output_division (const char *, rtx *);
 extern unsigned int mips_hard_regno_nregs (int, enum machine_mode);
 extern bool mips_linked_madd_p (rtx, rtx);
 extern bool mips_store_data_bypass_p (rtx, rtx);
 extern rtx mips_prefetch_cookie (rtx, rtx);
+extern int mips_mult_madd_chain_bypass_p (rtx, rtx);
+extern int mips_dspalu_bypass_p (rtx, rtx);
 
 extern void irix_asm_output_align (FILE *, unsigned);
 extern const char *current_section_name (void);
@@ -373,6 +380,7 @@ extern bool mips_epilogue_uses (unsigned int);
 extern void mips_final_prescan_insn (rtx, rtx *, int);
 extern int mips_trampoline_code_size (void);
 extern void mips_function_profiler (FILE *);
+extern void mips_output_tls_reloc_directive (rtx, rtx);
 
 typedef rtx (*mulsidi3_gen_fn) (rtx, rtx, rtx);
 #ifdef RTX_CODE

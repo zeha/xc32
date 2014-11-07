@@ -978,6 +978,11 @@ struct gcc_target
        calling the function FN_NAME.  */
     rtx (*libcall_value) (enum machine_mode, const_rtx);
 
+    /* Return mode and signedness to use when an libcall argument or
+       result in the given mode is promoted.  */
+    enum machine_mode (*promote_libcall_mode) (enum machine_mode, int *,
+					       const_tree, int);
+
     /* Return an rtx for the argument pointer incoming to the
        current function.  */
     rtx (*internal_arg_pointer) (void);
@@ -1186,6 +1191,12 @@ struct gcc_target
     /* Function to determine if one function can inline another function.  */
     bool (*can_inline_p) (tree, tree);
   } target_option;
+
+  /* Functions related to alignment.  */
+  struct target_align_hooks {
+    /* Function that returns the log2 of the instruction alignment in bytes.  */
+    int (*align_insns) (void);
+  } target_align;
 
   /* For targets that need to mark extra registers as live on entry to
      the function, they should define this target hook and set their

@@ -15565,6 +15565,7 @@ mips_fix_adjustable (fixS *fixp)
       || fixp->fx_r_type == BFD_RELOC_MICROMIPS_7_PCREL_S1
       || fixp->fx_r_type == BFD_RELOC_MICROMIPS_10_PCREL_S1
       || fixp->fx_r_type == BFD_RELOC_MICROMIPS_16_PCREL_S1)
+
     return 0;
 
   if (fixp->fx_addsy == NULL)

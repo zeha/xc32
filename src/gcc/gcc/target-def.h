@@ -676,6 +676,7 @@
 
 #define TARGET_FUNCTION_VALUE default_function_value
 #define TARGET_LIBCALL_VALUE default_libcall_value
+#define TARGET_PROMOTE_LIBCALL_MODE default_promote_libcall_mode
 #define TARGET_INTERNAL_ARG_POINTER default_internal_arg_pointer
 #define TARGET_UPDATE_STACK_BOUNDARY NULL
 #define TARGET_GET_DRAP_RTX NULL
@@ -702,6 +703,7 @@
    TARGET_INVALID_ARG_FOR_UNPROTOTYPED_FN,			\
    TARGET_FUNCTION_VALUE,					\
    TARGET_LIBCALL_VALUE,					\
+   TARGET_PROMOTE_LIBCALL_MODE,					\
    TARGET_INTERNAL_ARG_POINTER,					\
    TARGET_UPDATE_STACK_BOUNDARY,				\
    TARGET_GET_DRAP_RTX,						\
@@ -924,6 +926,15 @@
     TARGET_CAN_INLINE_P,			\
   }
 
+#ifndef TARGET_ALIGN_INSNS
+#define TARGET_ALIGN_INSNS hook_int_void_0
+#endif
+
+#define TARGET_ALIGN_HOOKS                      \
+  {                                             \
+    TARGET_ALIGN_INSNS                          \
+  }                                             \
+
 /* The whole shebang.  */
 #define TARGET_INITIALIZER			\
 {						\
@@ -1035,6 +1046,7 @@
   TARGET_CXX,					\
   TARGET_EMUTLS,				\
   TARGET_OPTION_HOOKS,				\
+  TARGET_ALIGN_HOOKS,				\
   TARGET_EXTRA_LIVE_ON_ENTRY,			\
   TARGET_WARN_FUNC_RESULT,			\
   TARGET_UNWIND_TABLES_DEFAULT,			\

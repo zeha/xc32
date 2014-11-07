@@ -298,6 +298,14 @@
 	  && type == SYMBOL_GOT_PAGE_OFST);
 })
 
+(define_predicate "tls_reloc_operand"
+  (match_code "const,symbol_ref,label_ref")
+{
+  enum mips_symbol_type type;
+  return (mips_symbolic_constant_p (op, SYMBOL_CONTEXT_LEA, &type)
+	  && (type == SYMBOL_DTPREL || type == SYMBOL_TPREL));
+})
+
 (define_predicate "symbol_ref_operand"
   (match_code "symbol_ref"))
 

@@ -788,6 +788,7 @@ init_optimization_passes (void)
 	  NEXT_PASS (pass_cd_dce);
 	  NEXT_PASS (pass_early_ipa_sra);
 	  NEXT_PASS (pass_tail_recursion);
+	  NEXT_PASS (pass_if_to_switch);
 	  NEXT_PASS (pass_convert_switch);
           NEXT_PASS (pass_cleanup_eh);
           NEXT_PASS (pass_profile);
@@ -846,6 +847,7 @@ init_optimization_passes (void)
       NEXT_PASS (pass_phiprop);
       NEXT_PASS (pass_fre);
       NEXT_PASS (pass_copy_prop);
+      NEXT_PASS (pass_if_to_switch);
       NEXT_PASS (pass_merge_phi);
       NEXT_PASS (pass_vrp);
       NEXT_PASS (pass_dce);
@@ -1014,6 +1016,7 @@ init_optimization_passes (void)
       NEXT_PASS (pass_validate_dsp_instructions);
 #endif
       NEXT_PASS (pass_combine);
+      NEXT_PASS (pass_ee);
       NEXT_PASS (pass_if_after_combine);
       NEXT_PASS (pass_partition_blocks);
       NEXT_PASS (pass_regmove);
@@ -1032,6 +1035,7 @@ init_optimization_passes (void)
 	  struct opt_pass **p = &pass_postreload.pass.sub;
 	  NEXT_PASS (pass_postreload_cse);
 	  NEXT_PASS (pass_gcse2);
+	  NEXT_PASS (pass_cprop_hardreg);
 	  NEXT_PASS (pass_split_after_reload);
 	  NEXT_PASS (pass_branch_target_load_optimize1);
 	  NEXT_PASS (pass_thread_prologue_and_epilogue);
@@ -1040,7 +1044,7 @@ init_optimization_passes (void)
 	  NEXT_PASS (pass_peephole2);
 	  NEXT_PASS (pass_if_after_reload);
 	  NEXT_PASS (pass_regrename);
-	  NEXT_PASS (pass_cprop_hardreg);
+	  NEXT_PASS (pass_cprop_hardreg2);
 	  NEXT_PASS (pass_fast_rtl_dce);
 	  NEXT_PASS (pass_reorder_blocks);
 	  NEXT_PASS (pass_branch_target_load_optimize2);

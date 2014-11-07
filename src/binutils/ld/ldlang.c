@@ -5719,7 +5719,7 @@ lang_set_startof (void)
         {
           h->type = bfd_link_hash_defined;
           h->u.def.value = bfd_get_section_vma (link_info.output_bfd, s) +
-                           TO_ADDR (s->size) - 1;
+                           TO_ADDR (s->size);
           h->u.def.section = bfd_abs_section_ptr;
         }
 

@@ -4254,11 +4254,13 @@ prepare_cmp_insn (rtx x, rtx y, enum rtx_code comparison, rtx size,
 	 result against 1 in the biased case, and zero in the unbiased
 	 case. For unsigned comparisons always compare against 1 after
 	 biasing the unbiased result by adding 1. This gives us a way to
-	 represent LTU. */
+	 represent LTU.
+	 The comparisons in the fixed-point helper library are always
+	 biased.  */
       x = result;
       y = const1_rtx;
 
-      if (!TARGET_LIB_INT_CMP_BIASED)
+      if (!TARGET_LIB_INT_CMP_BIASED && !ALL_FIXED_POINT_MODE_P (mode))
 	{
 	  if (unsignedp)
 	    x = plus_constant (result, 1);
@@ -6705,6 +6707,14 @@ init_optabs (void)
   profile_function_exit_libfunc
     = init_one_libfunc ("__cyg_profile_func_exit");
 
+  /* For call entry/exit instrumentation.  */
+  profile_call_entry_libfunc
+    = init_one_libfunc ("__cyg_profile_call_enter");
+  profile_call_inside_libfunc
+    = init_one_libfunc ("__cyg_profile_call_inside");
+  profile_call_exit_libfunc
+    = init_one_libfunc ("__cyg_profile_call_exit");
+
   gcov_flush_libfunc = init_one_libfunc ("__gcov_flush");
 
   /* Allow the target to add more libcalls or rename some, etc.  */
@@ -7055,6 +7065,7 @@ expand_bool_compare_and_swap (rtx mem, rtx old_val, rtx new_val, rtx target)
   if (icode == CODE_FOR_nothing)
     return NULL_RTX;
 
+  do_pending_stack_adjust ();
   do
     {
       start_sequence ();

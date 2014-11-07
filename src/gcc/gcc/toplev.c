@@ -1940,6 +1940,13 @@ process_options (void)
     sorry ("Graphite loop optimizations cannot be used");
 #endif
 
+  if (flag_strict_volatile_bitfields > 0 && !abi_version_at_least (2))
+    {
+      warning (0, "-fstrict-volatile-bitfield disabled; "
+	       "it is incompatible with ABI versions < 2");
+      flag_strict_volatile_bitfields = 0;
+    }
+
   /* Unrolling all loops implies that standard loop unrolling must also
      be done.  */
   if (flag_unroll_all_loops)

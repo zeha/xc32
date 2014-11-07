@@ -626,8 +626,14 @@ reemit_insn_block_notes (void)
 
 	  this_block = NULL;
 	  for (i = 0; i < XVECLEN (body, 0); i++)
-	    this_block = choose_inner_scope (this_block,
-					 insn_scope (XVECEXP (body, 0, i)));
+	    {
+	      rtx subinsn = XVECEXP (body, 0, i);
+	      if (LABEL_P (subinsn) || DELETED_NOTE_P (subinsn))
+		continue;
+
+	      this_block
+		= choose_inner_scope (this_block, insn_scope (subinsn));
+	    }
 	}
       if (! this_block)
 	continue;
@@ -792,6 +798,7 @@ fixup_reorder_chain (void)
     {
       edge e_fall, e_taken, e;
       rtx bb_end_insn;
+      rtx ret_label = NULL_RTX;
       basic_block nb;
       edge_iterator ei;
 
@@ -811,6 +818,7 @@ fixup_reorder_chain (void)
       bb_end_insn = BB_END (bb);
       if (JUMP_P (bb_end_insn))
 	{
+	  ret_label = JUMP_LABEL (bb_end_insn);
 	  if (any_condjump_p (bb_end_insn))
 	    {
 	      /* This might happen if the conditional jump has side
@@ -925,7 +933,7 @@ fixup_reorder_chain (void)
 	}
 
       /* We got here if we need to add a new jump insn.  */
-      nb = force_nonfallthru (e_fall);
+      nb = force_nonfallthru_and_redirect (e_fall, e_fall->dest, ret_label);
       if (nb)
 	{
 	  nb->il.rtl->visited = 1;
@@ -1144,24 +1152,30 @@ extern bool cfg_layout_can_duplicate_bb_p (const_basic_block);
 bool
 cfg_layout_can_duplicate_bb_p (const_basic_block bb)
 {
+  rtx insn;
+
   /* Do not attempt to duplicate tablejumps, as we need to unshare
      the dispatch table.  This is difficult to do, as the instructions
      computing jump destination may be hoisted outside the basic block.  */
   if (tablejump_p (BB_END (bb), NULL, NULL))
     return false;
 
-  /* Do not duplicate blocks containing insns that can't be copied.  */
-  if (targetm.cannot_copy_insn_p)
+  insn = BB_HEAD (bb);
+  while (1)
     {
-      rtx insn = BB_HEAD (bb);
-      while (1)
-	{
-	  if (INSN_P (insn) && targetm.cannot_copy_insn_p (insn))
-	    return false;
-	  if (insn == BB_END (bb))
-	    break;
-	  insn = NEXT_INSN (insn);
-	}
+      /* Do not duplicate blocks containing insns that can't be copied.  */
+      if (INSN_P (insn) && targetm.cannot_copy_insn_p
+	  && targetm.cannot_copy_insn_p (insn))
+	return false;
+      /* dwarf2out expects that these notes are always paired with a
+	 returnjump or sibling call.  */
+      if (NOTE_P (insn) && NOTE_KIND (insn) == NOTE_INSN_EPILOGUE_BEG
+	  && !returnjump_p (BB_END (bb))
+	  && (!CALL_P (BB_END (bb)) || !SIBLING_CALL_P (BB_END (bb))))
+	return false;
+      if (insn == BB_END (bb))
+	break;
+      insn = NEXT_INSN (insn);
     }
 
   return true;
@@ -1191,8 +1205,24 @@ duplicate_insn_chain (rtx from, rtx to)
 	     moved far from original jump.  */
 	  if (GET_CODE (PATTERN (insn)) == ADDR_VEC
 	      || GET_CODE (PATTERN (insn)) == ADDR_DIFF_VEC)
-	    break;
+	    {
+	      /* Avoid copying following barrier as well if any
+		 (and debug insns in between).  */
+	      rtx next;
+
+	      for (next = NEXT_INSN (insn);
+		   next != NEXT_INSN (to);
+		   next = NEXT_INSN (next))
+		if (!DEBUG_INSN_P (next))
+		  break;
+	      if (next != NEXT_INSN (to) && BARRIER_P (next))
+		insn = next;
+	      break;
+	    }
 	  copy = emit_copy_of_insn_after (insn, get_last_insn ());
+	  if (JUMP_P (insn) && JUMP_LABEL (insn) != NULL_RTX
+	      && ANY_RETURN_P (JUMP_LABEL (insn)))
+	    JUMP_LABEL (copy) = JUMP_LABEL (insn);
           maybe_copy_epilogue_insn (insn, copy);
 	  break;
 

@@ -813,6 +813,10 @@ adjust_reloc_syms (bfd *abfd ATTRIBUTE_UNUSED,
 	   this one?  (E.g. relocations involving function addresses on
 	   the PA.  */
 #ifdef tc_fix_adjustable
+#ifdef TARGET_IS_PIC32MX
+  if (PIC32_IS_ABSOLUTE_ATTR(sec) || PIC32_IS_INFO_ATTR(sec))
+    continue;
+#endif
 	if (! tc_fix_adjustable (fixp))
 	  continue;
 #endif

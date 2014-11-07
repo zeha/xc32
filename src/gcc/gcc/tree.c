@@ -60,6 +60,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "except.h"
 #include "debug.h"
 #include "intl.h"
+#include "ssaexpand.h"
 
 /* Tree code classes.  */
 
@@ -8188,6 +8189,7 @@ decl_type_context (const_tree decl)
 tree
 get_callee_fndecl (const_tree call)
 {
+  gimple def;
   tree addr;
 
   if (call == error_mark_node)
@@ -8200,6 +8202,14 @@ get_callee_fndecl (const_tree call)
   /* The first operand to the CALL is the address of the function
      called.  */
   addr = CALL_EXPR_FN (call);
+
+  /* For SSA_NAMEs during expansion, try to expose the original decl by TER.
+     This is needed for proper expansion of calls to overloaded builtins in
+     certain cases.  */
+  if (TREE_CODE (addr) == SSA_NAME
+      && (def = get_gimple_for_ssa_name (addr))
+      && (gimple_assign_single_p (def) || gimple_assign_unary_nop_p (def)))
+    addr = gimple_assign_rhs1 (def);
 
   STRIP_NOPS (addr);
 

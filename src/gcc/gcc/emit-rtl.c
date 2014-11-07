@@ -2456,6 +2456,8 @@ verify_rtx_sharing (rtx orig, rtx insn)
     case CODE_LABEL:
     case PC:
     case CC0:
+    case RETURN:
+    case SIMPLE_RETURN:
     case SCRATCH:
       return;
       /* SCRATCH must be shared because they represent distinct values.  */
@@ -2554,6 +2556,8 @@ verify_rtl_sharing (void)
 	    for (i = 0; i < XVECLEN (sequence, 0); i++)
 	      {
 		q = XVECEXP (sequence, 0, i);
+		if (LABEL_P (q) || DELETED_NOTE_P (q))
+		  continue;
 		gcc_assert (INSN_P (q));
 		reset_used_flags (PATTERN (q));
 		reset_used_flags (REG_NOTES (q));
@@ -3191,6 +3195,38 @@ prev_nondebug_insn (rtx insn)
   return insn;
 }
 
+/* Return the next insn after INSN that is not a NOTE nor DEBUG_INSN.
+   This routine does not look inside SEQUENCEs.  */
+
+rtx
+next_nonnote_nondebug_insn (rtx insn)
+{
+  while (insn)
+    {
+      insn = NEXT_INSN (insn);
+      if (insn == 0 || (!NOTE_P (insn) && !DEBUG_INSN_P (insn)))
+	break;
+    }
+
+  return insn;
+}
+
+/* Return the previous insn before INSN that is not a NOTE nor DEBUG_INSN.
+   This routine does not look inside SEQUENCEs.  */
+
+rtx
+prev_nonnote_nondebug_insn (rtx insn)
+{
+  while (insn)
+    {
+      insn = PREV_INSN (insn);
+      if (insn == 0 || (!NOTE_P (insn) && !DEBUG_INSN_P (insn)))
+	break;
+    }
+
+  return insn;
+}
+
 /* Return the next INSN, CALL_INSN or JUMP_INSN after INSN;
    or 0, if there is none.  This routine does not look inside
    SEQUENCEs.  */
@@ -3315,13 +3351,16 @@ prev_label (rtx insn)
   return insn;
 }
 
-/* Return the last label to mark the same position as LABEL.  Return null
-   if LABEL itself is null.  */
+/* Return the last label to mark the same position as LABEL.  Return LABEL
+   itself if it is null or any return rtx.  */
 
 rtx
 skip_consecutive_labels (rtx label)
 {
   rtx insn;
+
+  if (label && ANY_RETURN_P (label))
+    return label;
 
   for (insn = label; insn != 0 && !INSN_P (insn); insn = NEXT_INSN (insn))
     if (LABEL_P (insn))
@@ -5207,7 +5246,7 @@ classify_insn (rtx x)
     return CODE_LABEL;
   if (GET_CODE (x) == CALL)
     return CALL_INSN;
-  if (GET_CODE (x) == RETURN)
+  if (GET_CODE (x) == RETURN || GET_CODE (x) == SIMPLE_RETURN)
     return JUMP_INSN;
   if (GET_CODE (x) == SET)
     {
@@ -5713,8 +5752,10 @@ init_emit_regs (void)
   init_reg_modes_target ();
 
   /* Assign register numbers to the globally defined register rtx.  */
-  pc_rtx = gen_rtx_PC (VOIDmode);
-  cc0_rtx = gen_rtx_CC0 (VOIDmode);
+  pc_rtx = gen_rtx_fmt_ (PC, VOIDmode);
+  ret_rtx = gen_rtx_fmt_ (RETURN, VOIDmode);
+  simple_return_rtx = gen_rtx_fmt_ (SIMPLE_RETURN, VOIDmode);
+  cc0_rtx = gen_rtx_fmt_ (CC0, VOIDmode);
   stack_pointer_rtx = gen_raw_REG (Pmode, STACK_POINTER_REGNUM);
   frame_pointer_rtx = gen_raw_REG (Pmode, FRAME_POINTER_REGNUM);
   hard_frame_pointer_rtx = gen_raw_REG (Pmode, HARD_FRAME_POINTER_REGNUM);

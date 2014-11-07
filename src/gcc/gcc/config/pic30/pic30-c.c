@@ -653,6 +653,19 @@ void mchp_handle_optimize_pragma(struct cpp_reader *pfile) {
 }
 
 
-  
+void mchp_handle_inline_pragma (struct cpp_reader *pfile) {
+  int c;
+  tree x;
+
+  mchp_pragma_inline = 1;
+  c = pragma_lex(&x);
+  if (c == EOF) {
+    return;
+  } else if (c == CPP_EQ) {
+    /* forced is not yet supported */
+    warning(OPT_Wpragmas, "arguments to inline pragma are not supported.");
+    return;
+  }
+}
 
 

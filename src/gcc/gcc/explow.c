@@ -789,6 +789,25 @@ promote_function_mode (const_tree type, enum machine_mode mode, int *punsignedp,
       return mode;
     }
 }
+
+/* Return the mode to use to pass or return a scalar of MODE for a libcall.
+   PUNSIGNEDP points to the signedness of the type and may be adjusted
+   to show what signedness to use on extension operations.
+
+   FOR_RETURN is nonzero if the caller is promoting the return value
+   of FNDECL, else it is for promoting args.  */
+
+enum machine_mode
+promote_libcall_mode (enum machine_mode mode, int *punsignedp,
+		      const_tree funtype, int for_return)
+{
+  if (INTEGRAL_MODE_P (mode))
+    return targetm.calls.promote_libcall_mode (mode, punsignedp, funtype,
+					       for_return);
+  else
+    return mode;
+}
+
 /* Return the mode to use to store a scalar of TYPE and MODE.
    PUNSIGNEDP points to the signedness of the type and may be adjusted
    to show what signedness to use on extension operations.  */

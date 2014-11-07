@@ -234,6 +234,7 @@ static int final_addr_vec_align (rtx);
 #ifdef HAVE_ATTR_length
 static int align_fuzz (rtx, rtx, int, unsigned);
 #endif
+static void collect_fn_hard_reg_usage (void);
 
 /* Initialize data in final at the beginning of a compilation.  */
 
@@ -691,6 +692,8 @@ compute_alignments (void)
   int freq_max = 0;
   int freq_threshold = 0;
 
+  collect_fn_hard_reg_usage ();
+
   if (label_align)
     {
       free (label_align);
@@ -1122,7 +1125,9 @@ shorten_branches (rtx first ATTRIBUTE_UNUSED)
 	      int inner_uid = INSN_UID (inner_insn);
 	      int inner_length;
 
-	      if (GET_CODE (body) == ASM_INPUT
+              if (LABEL_P (inner_insn) || DELETED_NOTE_P (inner_insn))
+                inner_length = 0;
+	      else if (GET_CODE (body) == ASM_INPUT
 		  || asm_noperands (PATTERN (XVECEXP (body, 0, i))) >= 0)
 		inner_length = (asm_insn_count (PATTERN (inner_insn))
 				* insn_default_length (inner_insn));
@@ -1132,8 +1137,9 @@ shorten_branches (rtx first ATTRIBUTE_UNUSED)
 	      insn_lengths[inner_uid] = inner_length;
 	      if (const_delay_slots)
 		{
-		  if ((varying_length[inner_uid]
-		       = insn_variable_length_p (inner_insn)) != 0)
+		  if (!(LABEL_P (inner_insn) || DELETED_NOTE_P (inner_insn))
+                      && (varying_length[inner_uid]
+                          = insn_variable_length_p (inner_insn)) != 0)
 		    varying_length[uid] = 1;
 		  INSN_ADDRESSES (inner_uid) = (insn_current_address
 						+ insn_lengths[uid]);
@@ -2307,7 +2313,11 @@ final_scan_insn (rtx insn, FILE *file, int optimize ATTRIBUTE_UNUSED,
 #if defined (DWARF2_UNWIND_INFO)
 	    if (dwarf2out_do_frame ())
 	      for (i = 1; i < XVECLEN (body, 0); i++)
-		dwarf2out_frame_debug (XVECEXP (body, 0, i), false);
+                {
+                  if (LABEL_P (XVECEXP (body, 0, i)) || DELETED_NOTE_P (XVECEXP (body, 0, i)))
+                    continue;
+                  dwarf2out_frame_debug (XVECEXP (body, 0, i), false);
+                }
 #endif
 
 	    /* The first insn in this SEQUENCE might be a JUMP_INSN that will
@@ -2444,7 +2454,7 @@ final_scan_insn (rtx insn, FILE *file, int optimize ATTRIBUTE_UNUSED,
 	        delete_insn (insn);
 		break;
 	      }
-	    else if (GET_CODE (SET_SRC (body)) == RETURN)
+	    else if (ANY_RETURN_P (SET_SRC (body)))
 	      /* Replace (set (pc) (return)) with (return).  */
 	      PATTERN (insn) = body = SET_SRC (body);
 
@@ -2772,6 +2782,12 @@ notice_source_line (rtx insn, bool *is_stmt)
 
   if (filename == NULL)
     return false;
+
+#ifdef HAVE_ATTR_length
+  /* Prevent duplicate line markers at the same location.  */
+  if (get_attr_length (insn) == 0)
+    return false;
+#endif
 
   if (force_source_line
       || filename != last_filename
@@ -3605,8 +3621,7 @@ output_addr_const (FILE *file, rtx x)
       break;
 
     case CONST_FIXED:
-      fprintf (file, HOST_WIDE_INT_PRINT_HEX,
-	       (unsigned HOST_WIDE_INT) CONST_FIXED_VALUE_LOW (x));
+      fprintf (file, HOST_WIDE_INT_PRINT_DEC, CONST_FIXED_VALUE_LOW (x));
       break;
 
     case PLUS:
@@ -4522,3 +4537,190 @@ struct rtl_opt_pass pass_clean_state =
   0                                     /* todo_flags_finish */
  }
 };
+
+struct GTY (()) fn_hard_reg_usage
+{
+  /* Function declaration.  */
+  tree fndecl;
+
+  /* Hardware registers used by this function.  */
+  HARD_REG_SET used_regs;
+};
+
+/* Real hardware register usage for all seen functions.  Hash table is used
+   because there is no suitable structure which is not freed after function
+   compilation.  */
+
+static GTY ((param_is (struct fn_hard_reg_usage))) htab_t fn_hard_reg_usage_htab;
+
+/* Returns a hash value for p.  */
+
+static hashval_t
+fn_hard_reg_usage_hash (const void *p)
+{
+  /* Function declaration pointer is used as a hash index.  */
+  const struct fn_hard_reg_usage *entry =
+    (const struct fn_hard_reg_usage *) p;
+  return (hashval_t) (uintptr_t) entry->fndecl;
+}
+
+/* Used by hashtable to compare two fn_hard_reg_usage entries.  */
+
+static int
+fn_hard_reg_usage_eq (const void *p1, const void *p2)
+{
+  const struct fn_hard_reg_usage *entry1 =
+    (const struct fn_hard_reg_usage *) p1;
+  const struct fn_hard_reg_usage *entry2 =
+    (const struct fn_hard_reg_usage *) p2;
+  return entry1->fndecl == entry2->fndecl;
+}
+
+/* Collect function hard register usage for the current function.  */
+
+static void
+collect_fn_hard_reg_usage (void)
+{
+  basic_block bb;
+  rtx insn;
+  struct fn_hard_reg_usage dummy;
+  void **slot;
+  struct fn_hard_reg_usage *element;
+  int i;
+
+  if (!flag_use_caller_save)
+    return;
+
+  df_analyze ();
+
+  if (!fn_hard_reg_usage_htab)
+    fn_hard_reg_usage_htab = htab_create_ggc (128, fn_hard_reg_usage_hash,
+					      fn_hard_reg_usage_eq, NULL);
+
+  dummy.fndecl = current_function_decl;
+  slot = htab_find_slot (fn_hard_reg_usage_htab, &dummy, INSERT);
+  if (*slot != HTAB_EMPTY_ENTRY)
+    {
+      element = (struct fn_hard_reg_usage *) *slot;
+      gcc_assert (current_function_decl == element->fndecl);
+      return;
+    }
+
+  /* Insert node into hash table.  */
+  element = (struct fn_hard_reg_usage *) GGC_NEW (struct fn_hard_reg_usage);
+  memset (element, 0, sizeof (struct fn_hard_reg_usage));
+  element->fndecl = current_function_decl;
+  *slot = element;
+
+  FOR_EACH_BB (bb)
+  {
+    for (insn = BB_HEAD (bb); insn != NEXT_INSN (BB_END (bb));
+	 insn = NEXT_INSN (insn))
+      {
+	df_ref *def_rec;
+
+	unsigned int uid = INSN_UID (insn);
+
+	if (!NONDEBUG_INSN_P (insn))
+	  continue;
+
+	for (def_rec = DF_INSN_UID_DEFS (uid); *def_rec; def_rec++)
+	  {
+	    df_ref def = *def_rec;
+	    unsigned int dregno = DF_REF_REGNO (def);
+	    if (dregno < FIRST_PSEUDO_REGISTER)
+	      SET_HARD_REG_BIT (element->used_regs, dregno);
+	  }
+      }
+  }
+
+  /* Be conservative - mark fixed and global registers as used.  */
+  IOR_HARD_REG_SET (element->used_regs, fixed_reg_set);
+  for (i = 0; i < FIRST_PSEUDO_REGISTER; i++)
+    if (global_regs[i])
+      SET_HARD_REG_BIT (element->used_regs, i);
+
+#ifdef STACK_REGS
+  /* Handle STACK_REGS conservatively, since the df-framework does not
+     provide accurate information for them.  */
+
+  for (i = FIRST_STACK_REG; i <= LAST_STACK_REG; i++)
+    SET_HARD_REG_BIT (element->used_regs, i);
+#endif
+}
+
+/* Get registers used by given function.  */
+
+static bool
+get_fn_reg_set_usage (tree fndecl, HARD_REG_SET *reg_set)
+{
+  struct fn_hard_reg_usage dummy;
+  void **slot = NULL;
+  struct fn_hard_reg_usage *element;
+
+  dummy.fndecl = fndecl;
+  if (fn_hard_reg_usage_htab)
+    slot = htab_find_slot (fn_hard_reg_usage_htab, &dummy, NO_INSERT);
+
+  if (slot == NULL || !targetm.binds_local_p (fndecl))
+    return FALSE;
+  else
+    {
+      element = (struct fn_hard_reg_usage *) (*slot);
+      COPY_HARD_REG_SET (*reg_set, element->used_regs);
+      return TRUE;
+    }
+}
+
+/* Recursive part of the function get_call_fndecl.  */
+
+static tree
+get_call_fndecl_rec (rtx x)
+{
+  if (GET_CODE (x) == PARALLEL)
+    return get_call_fndecl_rec (XVECEXP (x, 0, 0));
+  if (GET_CODE (x) == SET)
+    return get_call_fndecl_rec (SET_SRC (x));
+  if (GET_CODE (x) == CALL)
+    {
+      if (GET_CODE (XEXP (x, 0)) != MEM)
+	return NULL_TREE;
+
+      if (GET_CODE (XEXP (XEXP (x, 0), 0)) != SYMBOL_REF)
+	return NULL_TREE;
+
+      return SYMBOL_REF_DECL (XEXP (XEXP (x, 0), 0));
+    }
+  return NULL_TREE;
+}
+
+/* Get the declaration of the function called by instruction insn.  */
+
+static bool
+get_call_fndecl (rtx insn, tree *fndecl)
+{
+  *fndecl = get_call_fndecl_rec (PATTERN (insn));
+  if (*fndecl)
+    return true;
+  return false;
+}
+
+/* Get registers used by given function call instruction.  */
+
+void
+get_call_reg_set_usage (rtx insn, HARD_REG_SET *reg_set,
+			HARD_REG_SET default_set)
+{
+  tree fndecl;
+  if (get_call_fndecl (insn, &fndecl))
+    {
+      if (get_fn_reg_set_usage (fndecl, reg_set))
+	AND_HARD_REG_SET (*reg_set, default_set);
+      else
+	COPY_HARD_REG_SET (*reg_set, default_set);
+    }
+  else
+    COPY_HARD_REG_SET (*reg_set, default_set);
+}
+
+#include "gt-final.h"

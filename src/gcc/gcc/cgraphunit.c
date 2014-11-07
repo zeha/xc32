@@ -562,16 +562,15 @@ clone_of_p (struct cgraph_node *node, struct cgraph_node *node2)
   return node2 != NULL;
 }
 
-/* Switch to THIS_CFUN if needed and print STMT to stderr.  */                 
-static void                                                                    
-cgraph_debug_gimple_stmt (struct function *this_cfun, gimple stmt)             
-{                                                                              
-  /* debug_gimple_stmt needs correct cfun */                                   
-  if (cfun != this_cfun)                                                       
-    set_cfun (this_cfun);                                                      
-  debug_gimple_stmt (stmt);                                                    
+/* Switch to THIS_CFUN if needed and print STMT to stderr.  */
+static void
+cgraph_debug_gimple_stmt (struct function *this_cfun, gimple stmt)
+{
+  /* debug_gimple_stmt needs correct cfun */
+  if (cfun != this_cfun)
+    set_cfun (this_cfun);
+  debug_gimple_stmt (stmt);
 }
-
 
 /* Verify cgraph nodes of given cgraph node.  */
 void
@@ -1222,7 +1221,7 @@ cgraph_mark_functions_to_output (void)
 
 /* DECL is FUNCTION_DECL.  Initialize datastructures so DECL is a function
    in lowered gimple form.
-   
+
    Set current_function_decl and cfun to newly constructed empty function body.
    return basic block in the function body.  */
 
@@ -1404,7 +1403,7 @@ assemble_thunk (struct cgraph_node *node)
     {
       const char *fnname;
       tree fn_block;
-      
+
       DECL_RESULT (thunk_fndecl)
 	= build_decl (DECL_SOURCE_LOCATION (thunk_fndecl),
 		      RESULT_DECL, 0, integer_type_node);

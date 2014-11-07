@@ -1,6 +1,6 @@
 /* Convert tree expression to rtl instructions, for GNU compiler.
    Copyright (C) 1988, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
+   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
    Free Software Foundation, Inc.
 
 This file is part of GCC.
@@ -144,7 +144,7 @@ static void store_constructor_field (rtx, unsigned HOST_WIDE_INT,
 				     tree, tree, int, alias_set_type);
 static void store_constructor (tree, rtx, int, HOST_WIDE_INT);
 static rtx store_field (rtx, HOST_WIDE_INT, HOST_WIDE_INT, enum machine_mode,
-			tree, tree, alias_set_type, bool);
+			tree, tree, alias_set_type, bool, bool);
 
 static unsigned HOST_WIDE_INT highest_pow2_factor_for_target (const_tree, const_tree);
 
@@ -2166,7 +2166,7 @@ emit_group_store (rtx orig_dst, rtx src, tree type ATTRIBUTE_UNUSED, int ssize)
 	emit_move_insn (adjust_address (dest, mode, bytepos), tmps[i]);
       else
 	store_bit_field (dest, bytelen * BITS_PER_UNIT, bytepos * BITS_PER_UNIT,
-			 mode, tmps[i]);
+			 false, mode, tmps[i]);
     }
 
   /* Copy from the pseudo into the (probable) hard reg.  */
@@ -2260,7 +2260,7 @@ copy_blkmode_from_reg (rtx tgtblk, rtx srcreg, tree type)
 
       /* Use xbitpos for the source extraction (right justified) and
 	 bitpos for the destination store (left justified).  */
-      store_bit_field (dst, bitsize, bitpos % BITS_PER_WORD, copy_mode,
+      store_bit_field (dst, bitsize, bitpos % BITS_PER_WORD, false, copy_mode,
 		       extract_bit_field (src, bitsize,
 					  xbitpos % BITS_PER_WORD, 1, false,
 					  NULL_RTX, copy_mode, copy_mode));
@@ -2956,7 +2956,7 @@ write_complex_part (rtx cplx, rtx val, bool imag_p)
 	gcc_assert (MEM_P (cplx) && ibitsize < BITS_PER_WORD);
     }
 
-  store_bit_field (cplx, ibitsize, imag_p ? ibitsize : 0, imode, val);
+  store_bit_field (cplx, ibitsize, imag_p ? ibitsize : 0, false, imode, val);
 }
 
 /* Extract one of the components of the complex value CPLX.  Extract the
@@ -4376,9 +4376,19 @@ expand_assignment (tree to, tree from, bool nontemporal)
 					       to_rtx, to, from))
 	    result = NULL;
 	  else
-	    result = store_field (to_rtx, bitsize, bitpos, mode1, from,
-				  TREE_TYPE (tem), get_alias_set (to),
-				  nontemporal);
+	    {
+	      bool packedp = false;
+
+	      if (TREE_CODE(to) == COMPONENT_REF
+		  && (TYPE_PACKED (TREE_TYPE (TREE_OPERAND (to, 0)))
+		      || (TREE_CODE (TREE_OPERAND (to, 1)) == FIELD_DECL
+			  && DECL_PACKED (TREE_OPERAND (to, 1)))))
+		packedp = true;
+
+	      result = store_field (to_rtx, bitsize, bitpos, mode1, from,
+				    TREE_TYPE (tem), get_alias_set (to),
+				    nontemporal, packedp);
+	    }
 	}
 
       if (result)
@@ -5267,7 +5277,8 @@ store_constructor_field (rtx target, unsigned HOST_WIDE_INT bitsize,
       store_constructor (exp, target, cleared, bitsize / BITS_PER_UNIT);
     }
   else
-    store_field (target, bitsize, bitpos, mode, exp, type, alias_set, false);
+    store_field (target, bitsize, bitpos, mode, exp, type, alias_set, false,
+		 false);
 }
 
 /* Store the value of constructor EXP into the rtx TARGET.
@@ -5855,7 +5866,7 @@ store_constructor (tree exp, rtx target, int cleared, HOST_WIDE_INT size)
 static rtx
 store_field (rtx target, HOST_WIDE_INT bitsize, HOST_WIDE_INT bitpos,
 	     enum machine_mode mode, tree exp, tree type,
-	     alias_set_type alias_set, bool nontemporal)
+	     alias_set_type alias_set, bool nontemporal, bool packedp)
 {
   if (TREE_CODE (exp) == ERROR_MARK)
     return const0_rtx;
@@ -5887,7 +5898,7 @@ store_field (rtx target, HOST_WIDE_INT bitsize, HOST_WIDE_INT bitpos,
 	emit_move_insn (object, target);
 
       store_field (blk_object, bitsize, bitpos, mode, exp, type, alias_set,
-		   nontemporal);
+		   nontemporal, false);
 
       emit_move_insn (target, object);
 
@@ -5920,6 +5931,8 @@ store_field (rtx target, HOST_WIDE_INT bitsize, HOST_WIDE_INT bitpos,
 		|| bitpos % GET_MODE_ALIGNMENT (mode))
 	       && SLOW_UNALIGNED_ACCESS (mode, MEM_ALIGN (target)))
 	      || (bitpos % BITS_PER_UNIT != 0)))
+      || (bitsize >= 0 && mode != BLKmode
+	  && GET_MODE_BITSIZE (mode) > bitsize)
       /* If the RHS and field are a constant size and the size of the
 	 RHS isn't the same size as the bitfield, we must use bitfield
 	 operations.  */
@@ -5994,7 +6007,7 @@ store_field (rtx target, HOST_WIDE_INT bitsize, HOST_WIDE_INT bitpos,
 	}
 
       /* Store the value in the bitfield.  */
-      store_bit_field (target, bitsize, bitpos, mode, temp);
+      store_bit_field (target, bitsize, bitpos, packedp, mode, temp);
 
       return const0_rtx;
     }
@@ -7415,7 +7428,7 @@ expand_expr_real_2 (sepops ops, rtx target, enum machine_mode tmode,
 				 * BITS_PER_UNIT),
 				(HOST_WIDE_INT) GET_MODE_BITSIZE (mode)),
 			   0, TYPE_MODE (valtype), treeop0,
-			   type, 0, false);
+			   type, 0, false, false);
 	    }
 
 	  /* Return the entire union.  */
@@ -7716,10 +7729,10 @@ expand_expr_real_2 (sepops ops, rtx target, enum machine_mode tmode,
 	      if (optab_handler (this_optab, mode)->insn_code != CODE_FOR_nothing)
 		{
 		  if (TYPE_UNSIGNED (TREE_TYPE (treeop0)))
-		    expand_operands (treeop0, treeop1, subtarget, &op0, &op1,
+		    expand_operands (treeop0, treeop1, NULL_RTX, &op0, &op1,
 				     EXPAND_NORMAL);
 		  else
-		    expand_operands (treeop0, treeop1, subtarget, &op1, &op0,
+		    expand_operands (treeop0, treeop1, NULL_RTX, &op1, &op0,
 				     EXPAND_NORMAL);
 		  goto binop3;
 		}
@@ -7737,7 +7750,8 @@ expand_expr_real_2 (sepops ops, rtx target, enum machine_mode tmode,
 	  optab other_optab = zextend_p ? smul_widen_optab : umul_widen_optab;
 	  this_optab = zextend_p ? umul_widen_optab : smul_widen_optab;
 
-	  if (mode == GET_MODE_2XWIDER_MODE (innermode))
+	  if (mode == GET_MODE_2XWIDER_MODE (innermode)
+	      && TREE_CODE (treeop0) != INTEGER_CST)
 	    {
 	      if (optab_handler (this_optab, mode)->insn_code != CODE_FOR_nothing)
 		{
@@ -8553,6 +8567,18 @@ expand_expr_real_1 (tree exp, rtx target, enum machine_mode tmode,
       return decl_rtl;
 
     case INTEGER_CST:
+      if (GET_MODE_BITSIZE (mode) > 2 * HOST_BITS_PER_WIDE_INT)
+	{
+	  /* FIXME: We can't generally represent wide integer constants,
+	     but GCC sometimes tries to initialise wide integer values (such
+	     as used by the ARM NEON support) with zero.  Handle that as a
+	     special case here.  */
+	  if (initializer_zerop (exp))
+	    return CONST0_RTX (mode);
+
+	  gcc_unreachable ();
+	}
+
       temp = immed_double_const (TREE_INT_CST_LOW (exp),
 				 TREE_INT_CST_HIGH (exp), mode);
 
@@ -9149,8 +9175,11 @@ expand_expr_real_1 (tree exp, rtx target, enum machine_mode tmode,
 		&& modifier != EXPAND_CONST_ADDRESS
 		&& modifier != EXPAND_INITIALIZER)
 	    /* If the field is volatile, we always want an aligned
-	       access.  */
-	    || (volatilep && flag_strict_volatile_bitfields > 0)
+	       access.  Only do this if the access is not already naturally
+	       aligned, otherwise "normal" (non-bitfield) volatile fields
+	       become non-addressable.  */
+	    || (volatilep && flag_strict_volatile_bitfields > 0
+		&& (bitpos % GET_MODE_ALIGNMENT (mode) != 0))
 	    /* If the field isn't aligned enough to fetch as a memref,
 	       fetch it as a bit field.  */
 	    || (mode1 != BLKmode
@@ -9404,7 +9433,15 @@ expand_expr_real_1 (tree exp, rtx target, enum machine_mode tmode,
 	{
 	  if (GET_CODE (op0) == SUBREG)
 	    op0 = force_reg (GET_MODE (op0), op0);
-	  op0 = gen_lowpart (mode, op0);
+	  temp = gen_lowpart_common (mode, op0);
+	  if (temp)
+	    op0 = temp;
+	  else
+	    {
+	      if (!REG_P (op0) && !MEM_P (op0))
+		op0 = force_reg (GET_MODE (op0), op0);
+	      op0 = gen_lowpart (mode, op0);
+	    }
 	}
       /* If both modes are integral, then we can convert from one to the
 	 other.  */
@@ -9439,10 +9476,32 @@ expand_expr_real_1 (tree exp, rtx target, enum machine_mode tmode,
 	 results.  */
       if (MEM_P (op0))
 	{
+	  enum insn_code icode;
 	  op0 = copy_rtx (op0);
 
 	  if (TYPE_ALIGN_OK (type))
 	    set_mem_align (op0, MAX (MEM_ALIGN (op0), TYPE_ALIGN (type)));
+	  else if (mode != BLKmode
+		   && MEM_ALIGN (op0) < GET_MODE_ALIGNMENT (mode)
+		   /* If the target does have special handling for unaligned
+		      loads of mode then use them.  */
+		   && ((icode = optab_handler (movmisalign_optab,
+					       mode)->insn_code)
+		       != CODE_FOR_nothing))
+	      {
+		rtx reg, insn;
+
+		op0 = adjust_address (op0, mode, 0);
+		/* We've already validated the memory, and we're creating a
+		   new pseudo destination.  The predicates really can't
+		   fail.  */
+		reg = gen_reg_rtx (mode);
+
+		/* Nor can the insn generator.  */
+		insn = GEN_FCN (icode) (reg, op0);
+		emit_insn (insn);
+		return reg;
+	      }
 	  else if (STRICT_ALIGNMENT
 		   && mode != BLKmode
 		   && MEM_ALIGN (op0) < GET_MODE_ALIGNMENT (mode))

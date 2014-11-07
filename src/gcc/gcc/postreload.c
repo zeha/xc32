@@ -1123,7 +1123,7 @@ reload_combine_recognize_pattern (rtx insn)
     {
       enum reg_class index_regs = index_reg_class (VOIDmode);
       rtx base = XEXP (src, 1);
-      rtx prev = prev_nonnote_insn (insn);
+      rtx prev = prev_nonnote_nondebug_insn (insn);
       rtx prev_set = prev ? single_set (prev) : NULL_RTX;
       rtx index_reg = NULL_RTX;
       rtx reg_sum = NULL_RTX;
@@ -1929,7 +1929,7 @@ reload_cse_move2add (rtx first)
 		       && MODES_OK_FOR_MOVE2ADD (GET_MODE (reg),
 						 reg_mode[REGNO (src)]))
 		{
-		  rtx next = next_nonnote_insn (insn);
+		  rtx next = next_nonnote_nondebug_insn (insn);
 		  rtx set = NULL_RTX;
 		  if (next)
 		    set = single_set (next);

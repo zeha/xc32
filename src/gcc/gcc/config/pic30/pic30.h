@@ -1869,6 +1869,7 @@ typedef struct pic30_args
   c_register_pragma(0, "scanf_args", mchp_handle_scanf_args_pragma); \
   c_register_pragma(0, "keep", mchp_handle_keep_pragma); \
   c_register_pragma(0, "optimize", mchp_handle_optimize_pragma); \
+  c_register_pragma(0, "inline", mchp_handle_inline_pragma); \
   }
 
 extern void pic30_cpu_cpp_builtins(void *);

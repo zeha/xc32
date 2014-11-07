@@ -1783,10 +1783,25 @@ mchp_interrupt_attribute (tree *node ATTRIBUTE_UNUSED,
               || (IDENTIFIER_POINTER (TREE_VALUE (args))[3] > '7')
               || (IDENTIFIER_POINTER (TREE_VALUE (args))[3] < '0'))))
     {
-      error ("Interrupt priority must be specified as 'single' or 'IPLn[AUTO|SOFT|SRS]', "
+      error ("Interrupt priority must be specified as 'single' or 'IPLn{AUTO|SOFT|SRS}', "
              "where n is in the range of 0..7, inclusive.");
       *no_add_attrs = 1;
       return NULL_TREE;
+    }
+
+  if ((strlen (IDENTIFIER_POINTER (TREE_VALUE (args))) > strlen("ipl7")) &&
+    (ISDIGIT(IDENTIFIER_POINTER (TREE_VALUE (args))[3]) &&
+     ISDIGIT(IDENTIFIER_POINTER (TREE_VALUE (args))[4])))
+    {
+       error ("Interrupt priority must be specified as 'single' or 'IPLn{AUTO|SOFT|SRS}', "
+              "where n is in the range of 0..7, inclusive.");
+       *no_add_attrs = 1;
+       return NULL_TREE;
+    }
+
+  if (strcasecmp ("IPL7", IDENTIFIER_POINTER (TREE_VALUE (args))) == 0)
+    {
+      warning (0, "Interrupt priority IPL7 is deprecated. Specify as 'IPL7{AUTO|SOFT|SRS}' instead.");
     }
 
   return NULL_TREE;
@@ -1839,7 +1854,80 @@ tree mchp_address_attribute(tree *decl, tree identifier ATTRIBUTE_UNUSED,
             warning(0, "unaligned addresses are not yet permitted, ignoring attribute");
             *no_add_attrs = 1;
           }
+    }
 
+  /* Address attribute implies noinline and noclone */
+  if (TREE_CODE(*decl) == FUNCTION_DECL)
+    {
+      tree attrib_noinline, attrib_noclone;
+      if (lookup_attribute ("noinline", DECL_ATTRIBUTES (*decl)) == NULL)
+        {
+          attrib_noinline = build_tree_list(get_identifier("noinline"), NULL_TREE);
+          attrib_noinline = chainon(DECL_ATTRIBUTES(*decl), attrib_noinline);
+          decl_attributes(decl, attrib_noinline, 0);
+        }
+      if (lookup_attribute ("noclone", DECL_ATTRIBUTES (*decl)) == NULL)
+        {
+          attrib_noclone = build_tree_list(get_identifier("noclone"), NULL_TREE);
+          attrib_noclone = chainon(DECL_ATTRIBUTES(*decl), attrib_noclone);
+          decl_attributes(decl, attrib_noclone, 0);
+        }
+     }
+
+  return NULL_TREE;
+}
+
+/*
+** Return nonzero if IDENTIFIER is a valid attribute.
+*/
+tree mchp_ramfunc_attribute(tree *decl, tree identifier ATTRIBUTE_UNUSED,
+                            tree args ATTRIBUTE_UNUSED, int flags ATTRIBUTE_UNUSED,
+                            bool *no_add_attrs ATTRIBUTE_UNUSED)
+{
+  /* Ramfunc attribute implies noinline and noclone */
+  if (TREE_CODE(*decl) == FUNCTION_DECL)
+    {
+      tree attrib_noinline, attrib_noclone;
+      if (lookup_attribute ("noinline", DECL_ATTRIBUTES (*decl)) == NULL)
+        {
+          attrib_noinline = build_tree_list(get_identifier("noinline"), NULL_TREE);
+          attrib_noinline = chainon(DECL_ATTRIBUTES(*decl), attrib_noinline);
+          decl_attributes(decl, attrib_noinline, 0);
+        }
+      if (lookup_attribute ("noclone", DECL_ATTRIBUTES (*decl)) == NULL)
+        {
+          attrib_noclone = build_tree_list(get_identifier("noclone"), NULL_TREE);
+          attrib_noclone = chainon(DECL_ATTRIBUTES(*decl), attrib_noclone);
+          decl_attributes(decl, attrib_noclone, 0);
+        }
+    }
+
+  return NULL_TREE;
+}
+
+/*
+** Return nonzero if IDENTIFIER is a valid attribute.
+*/
+tree mchp_naked_attribute(tree *decl, tree identifier ATTRIBUTE_UNUSED,
+                            tree args ATTRIBUTE_UNUSED, int flags ATTRIBUTE_UNUSED,
+                            bool *no_add_attrs ATTRIBUTE_UNUSED)
+{
+  /* Naked attribute implies noinline and noclone */
+  if (TREE_CODE(*decl) == FUNCTION_DECL)
+    {
+      tree attrib_noinline, attrib_noclone;
+      if (lookup_attribute ("noinline", DECL_ATTRIBUTES (*decl)) == NULL)
+        {
+          attrib_noinline = build_tree_list(get_identifier("noinline"), NULL_TREE);
+          attrib_noinline = chainon(DECL_ATTRIBUTES(*decl), attrib_noinline);
+          decl_attributes(decl, attrib_noinline, 0);
+        }
+      if (lookup_attribute ("noclone", DECL_ATTRIBUTES (*decl)) == NULL)
+        {
+          attrib_noclone = build_tree_list(get_identifier("noclone"), NULL_TREE);
+          attrib_noclone = chainon(DECL_ATTRIBUTES(*decl), attrib_noclone);
+          decl_attributes(decl, attrib_noclone, 0);
+        }
     }
 
   return NULL_TREE;
@@ -2834,7 +2922,10 @@ mchp_keep_p (tree decl)
 static tree
 get_mchp_absolute_address (tree decl)
 {
-  return lookup_attribute ("address", DECL_ATTRIBUTES (decl));
+  tree retval;
+  retval = lookup_attribute ("address", DECL_ATTRIBUTES (decl));
+
+  return retval;
 }
 
 static tree
@@ -2846,17 +2937,24 @@ get_mchp_space_attribute (tree decl)
 bool
 mchp_ramfunc_type_p (tree decl)
 {
+  bool retval = FALSE;
   tree space = 0;
   if (TREE_CODE(decl) == FUNCTION_DECL)
     {
       if (lookup_attribute ("ramfunc", TYPE_ATTRIBUTES (TREE_TYPE (decl))) != NULL)
-        return TRUE;
+        {
+          retval = TRUE;
+        }
+
       space = lookup_attribute("space", DECL_ATTRIBUTES(decl));
-      if (space && (get_identifier("data") ==
-                    (TREE_VALUE(TREE_VALUE(space)))))
-        return TRUE;
+      if (space)
+        {
+          if (get_identifier("data") == (TREE_VALUE(TREE_VALUE(space))))
+            retval = TRUE;
+        }
     }
-  return FALSE;
+
+  return retval;
 }
 
 /* Utility function to add an entry to the vector dispatch list */
@@ -4460,7 +4558,7 @@ mchp_select_section (tree decl, int reloc,
   if ((TREE_CODE(decl) == FUNCTION_DECL) || (TREE_CODE(decl) == VAR_DECL))
     {
       if (IN_NAMED_SECTION (decl) ||
-          lookup_attribute("address", DECL_ATTRIBUTES(decl)) ||
+          get_mchp_absolute_address(decl) ||
           lookup_attribute("space", DECL_ATTRIBUTES(decl)) ||
           lookup_attribute("persistent", DECL_ATTRIBUTES(decl)) ||
           mchp_ramfunc_type_p(decl)
@@ -4577,8 +4675,7 @@ static const char *default_section_name(tree decl, SECTION_FLAGS_INT flags)
     {
       is_aligned = lookup_attribute("aligned",
                                     DECL_ATTRIBUTES(decl));
-      a = lookup_attribute("address",
-                           DECL_ATTRIBUTES(decl));
+      a = get_mchp_absolute_address (decl);
       p = get_mchp_space_attribute (decl);
       is_rf = mchp_ramfunc_type_p (decl);
 

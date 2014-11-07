@@ -471,7 +471,7 @@ df_scan_start_dump (FILE *file ATTRIBUTE_UNUSED)
 	  }
 	if (DF_REG_EQ_USE_COUNT (i))
 	  {
-	    fprintf (file, "%s%dd", sep, DF_REG_EQ_USE_COUNT (i));
+	    fprintf (file, "%s%de", sep, DF_REG_EQ_USE_COUNT (i));
 	    ecount += DF_REG_EQ_USE_COUNT (i);
 	  }
 	fprintf (file, "} ");
@@ -487,8 +487,10 @@ df_scan_start_dump (FILE *file ATTRIBUTE_UNUSED)
 	    icount++;
 	}
 
-  fprintf (file, "\n;;    total ref usage %d{%dd,%du,%de} in %d{%d regular + %d call} insns.\n",
-	   dcount + ucount + ecount, dcount, ucount, ecount, icount + ccount, icount, ccount);
+  fprintf (file, "\n;;    total ref usage %d{%dd,%du,%de}"
+		 " in %d{%d regular + %d call} insns.\n",
+		 dcount + ucount + ecount, dcount, ucount, ecount,
+		 icount + ccount, icount, ccount);
 }
 
 /* Dump the bb_info for a given basic block. */
@@ -3307,6 +3309,7 @@ df_uses_record (enum df_ref_class cl, struct df_collection_rec *collection_rec,
       }
 
     case RETURN:
+    case SIMPLE_RETURN:
       break;
 
     case ASM_OPERANDS:
@@ -3465,6 +3468,7 @@ df_get_call_refs (struct df_collection_rec * collection_rec,
   unsigned int i;
   df_ref def;
   bitmap defs_generated = BITMAP_ALLOC (&df_bitmap_obstack);
+  HARD_REG_SET fn_reg_set_usage;
 
   /* Do not generate clobbers for registers that are the result of the
      call.  This causes ordering problems in the chain building code
@@ -3516,9 +3520,14 @@ df_get_call_refs (struct df_collection_rec * collection_rec,
 		       VOIDmode);
       }
 
+  get_call_reg_set_usage (insn_info->insn, &fn_reg_set_usage,
+			  regs_invalidated_by_call);
   is_sibling_call = SIBLING_CALL_P (insn_info->insn);
   EXECUTE_IF_SET_IN_BITMAP (regs_invalidated_by_call_regset, 0, ui, bi)
     {
+      if (!TEST_HARD_REG_BIT (fn_reg_set_usage, ui))
+	 continue;
+
       if (!global_regs[ui]
 	  && (!bitmap_bit_p (defs_generated, ui))
 	  && (!is_sibling_call
