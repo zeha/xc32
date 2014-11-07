@@ -181,7 +181,7 @@ cpp_reader *parse_in;		/* Declared in c-pragma.h.  */
 
 */
 
-tree c_global_trees[CTI_MAX];
+tree c_global_trees[CTI_TYPE_MAX];
 
 /* TRUE if a code represents a statement.  The front end init
    langhook should take care of initialization of this array.  */
@@ -235,7 +235,10 @@ int flag_no_nonansi_builtin;
 
 /* Nonzero means give `double' the same size as `float'.  */
 
-int flag_short_double;
+#ifndef TARGET_SHORT_DOUBLE
+#define TARGET_SHORT_DOUBLE 0
+#endif
+int flag_short_double = TARGET_SHORT_DOUBLE;
 
 /* Nonzero means give `wchar_t' the same size as `short'.  */
 

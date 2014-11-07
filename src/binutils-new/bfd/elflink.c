@@ -30,6 +30,16 @@
 #include "libiberty.h"
 #include "objalloc.h"
 
+#if 1 || defined(TARGET_IS_elf32pic32mx)
+#include "pic32-utils.h"
+#endif
+
+#if 1 || defined(TARGET_IS_elf32pic32mx)
+bfd_boolean (*mchp_elf_link_check_archive_element)
+  PARAMS ((char *, bfd *, struct bfd_link_info *));
+extern int pic32_debug;
+#endif
+
 /* This struct is used to pass information to routines called via
    elf_link_hash_traverse which must return failure.  */
 
@@ -3385,6 +3395,11 @@ elf_link_add_object_symbols (bfd *abfd, struct bfd_link_info *info)
   size_t tabsize = 0;
   size_t hashsize = 0;
 
+#if 1
+  if (pic32_debug)
+    printf("\nLoading symbols from %s\n", abfd->filename);
+#endif
+
   htab = elf_hash_table (info);
   bed = get_elf_backend_data (abfd);
 
@@ -4433,6 +4448,20 @@ error_free_dyn:
 	      BFD_ASSERT (ret == 0);
 	    }
 	}
+#if 1
+  /* For PIC32 Smart IO v2 */
+  if (definition == FALSE)
+    {
+      struct mchp_undefsym_entry *usym;
+
+      if (!undefsyms)  /* create the table, if necessary */
+        undefsyms = mchp_undefsym_init(info);
+
+      /* create or load a table entry for this symbol */
+      usym = mchp_undefsym_lookup(undefsyms, name, 1, 0);
+      
+    }
+#endif
     }
 
   if (extversym != NULL)
@@ -4510,6 +4539,8 @@ error_free_dyn:
       free (old_tab);
       old_tab = NULL;
     }
+
+
 
   /* Now that all the symbols from this input file are created, handle
      .symver foo, foo@BAR such that any relocs against foo become foo@BAR.  */
@@ -4873,6 +4904,19 @@ _bfd_elf_archive_symbol_lookup (bfd *abfd,
   return h;
 }
 
+#if 1 || defined(TARGET_IS_elf32pic32mx)
+/*
+ * make common version of this symbol which will be initialized to NIL
+ * unless we are creating the linker where an initialized definition will
+ * be provided
+ *
+ * we only call this function if it is a valid pointer
+ */
+
+unsigned int (*mchp_force_keep_symbol)(char *, char *);
+void (*mchp_smartio_symbols)(struct bfd_link_info*);
+#endif
+
 /* Add symbols from an ELF archive file to the linker hash table.  We
    don't use _bfd_generic_link_add_archive_symbols because of a
    problem which arises on UnixWare.  The UnixWare libc.so is an
@@ -4933,6 +4977,17 @@ elf_link_add_archive_symbols (bfd *abfd, struct bfd_link_info *info)
   if (defined == NULL || included == NULL)
     goto error_return;
 
+#if 1 || defined(TARGET_IS_elf32pic32mx)
+  { static int smartio_run=0;
+    
+    if (smartio_run == 0) {
+      /* look through the undef list and adds those symbols that are smartio
+         to the undefined list */
+      mchp_smartio_symbols(info);
+    }
+  }
+#endif
+
   symdefs = bfd_ardata (abfd)->symdefs;
   bed = get_elf_backend_data (abfd);
   archive_symbol_lookup = bed->elf_backend_archive_symbol_lookup;
@@ -4988,6 +5043,10 @@ elf_link_add_archive_symbols (bfd *abfd, struct bfd_link_info *info)
 	      if (! elf_link_is_defined_archive_symbol (abfd, symdef))
 		continue;
 	    }
+#if 1 || defined(TARGET_IS_elf32pic32mx)
+          else if (h->root.type == bfd_link_hash_new)
+            ; // fprintf(stderr,"New Symbol: %s\n", h->root.string);
+#endif
 	  else if (h->root.type != bfd_link_hash_undefined)
 	    {
 	      if (h->root.type != bfd_link_hash_undefweak)
@@ -5011,6 +5070,13 @@ elf_link_add_archive_symbols (bfd *abfd, struct bfd_link_info *info)
 	      bfd_set_error (bfd_error_bad_value);
 	      goto error_return;
 	    }
+	    
+#if 1 || defined(TARGET_IS_elf32pic32mx)
+          if (mchp_elf_link_check_archive_element &&
+              !mchp_elf_link_check_archive_element (symdef->name, element, 
+                                                     info))
+            continue;
+#endif
 	  element->archive_pass = 1;
 
 	  undefs_tail = info->hash->undefs_tail;

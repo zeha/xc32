@@ -86,6 +86,26 @@ struct bfd_link_hash_entry
   /* Type of this entry.  */
   enum bfd_link_hash_type type;
 
+  /* Undefined and common symbols are kept in a linked list through
+     this field.  This field is not in the union because that would
+     force us to remove entries from the list when we changed their
+     type, which would force the list to be doubly linked, which would
+     waste more memory.  When an undefined or common symbol is
+     created, it should be added to this list, the head of which is in
+     the link hash table itself.  As symbols are defined, they need
+     not be removed from the list; anything which reads the list must
+     doublecheck the symbol type.
+
+     Weak symbols are not kept on this list.
+
+     Defined and defweak symbols use this field as a reference marker.
+     If the field is not NULL, or this structure is the tail of the
+     undefined symbol list, the symbol has been referenced.  If the
+     symbol is undefined and becomes defined, this field will
+     automatically be non-NULL since the symbol will have been on the
+     undefined symbol list.  */
+  struct bfd_link_hash_entry *next;
+
   /* A union of information depending upon the type.  */
   union
     {

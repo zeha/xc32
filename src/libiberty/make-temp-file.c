@@ -1,5 +1,5 @@
 /* Utility to pick a temporary filename prefix.
-   Copyright (C) 1996, 1997, 1998, 2001 Free Software Foundation, Inc.
+   Copyright (C) 1996, 1997, 1998, 2001, 2009 Free Software Foundation, Inc.
 
 This file is part of the libiberty library.
 Libiberty is free software; you can redistribute it and/or
@@ -14,8 +14,8 @@ Library General Public License for more details.
 
 You should have received a copy of the GNU Library General Public
 License along with libiberty; see the file COPYING.LIB.  If not,
-write to the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+write to the Free Software Foundation, Inc., 51 Franklin Street - Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -23,6 +23,7 @@ Boston, MA 02111-1307, USA.  */
 
 #include <stdio.h>	/* May get P_tmpdir.  */
 #include <sys/types.h>
+#include <errno.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -35,6 +36,9 @@ Boston, MA 02111-1307, USA.  */
 #ifdef HAVE_SYS_FILE_H
 #include <sys/file.h>   /* May get R_OK, etc. on some systems.  */
 #endif
+#if defined(_WIN32) && !defined(__CYGWIN__)
+#include <windows.h>
+#endif
 
 #ifndef R_OK
 #define R_OK 4
@@ -43,7 +47,10 @@ Boston, MA 02111-1307, USA.  */
 #endif
 
 #include "libiberty.h"
-extern int mkstemps PARAMS ((char *, int));
+#define XNEWVEC(T,N) ((T *) xmalloc (sizeof (T) * (N)))
+#define XDELETEVEC(P) free ((void*) (P))
+
+extern int mkstemps (char *, int);
 
 /* '/' works just fine on MS-DOS based systems.  */
 #ifndef DIR_SEPARATOR
@@ -55,17 +62,18 @@ extern int mkstemps PARAMS ((char *, int));
 #define TEMP_FILE "ccXXXXXX"
 #define TEMP_FILE_LEN (sizeof(TEMP_FILE) - 1)
 
+#if !defined(_WIN32) || defined(__CYGWIN__)
+
 /* Subroutine of choose_tmpdir.
    If BASE is non-NULL, return it.
    Otherwise it checks if DIR is a usable directory.
    If success, DIR is returned.
    Otherwise NULL is returned.  */
 
-static inline const char *try PARAMS ((const char *, const char *));
+static inline const char *try_dir (const char *, const char *);
 
 static inline const char *
-try (dir, base)
-     const char *dir, *base;
+try_dir (const char *dir, const char *base)
 {
   if (base != 0)
     return base;
@@ -81,6 +89,8 @@ static const char usrtmp[] =
 static const char vartmp[] =
 { DIR_SEPARATOR, 'v', 'a', 'r', DIR_SEPARATOR, 't', 'm', 'p', 0 };
 
+#endif
+
 static char *memoized_tmpdir;
 
 /*
@@ -95,42 +105,70 @@ files in.
 */
 
 char *
-choose_tmpdir ()
+choose_tmpdir (void)
 {
-  const char *base = 0;
-  char *tmpdir;
-  unsigned int len;
-
-  if (memoized_tmpdir)
-    return memoized_tmpdir;
-
-  base = try (getenv ("TMPDIR"), base);
-  base = try (getenv ("TMP"), base);
-  base = try (getenv ("TEMP"), base);
-
+  if (!memoized_tmpdir)
+    {
+#if !defined(_WIN32) || defined(__CYGWIN__)
+      const char *base = 0;
+      char *tmpdir;
+      unsigned int len;
+      
+#ifdef VMS
+      /* Try VMS standard temp logical.  */
+      base = try_dir ("/sys$scratch", base);
+#else
+      base = try_dir (getenv ("TMPDIR"), base);
+      base = try_dir (getenv ("TMP"), base);
+      base = try_dir (getenv ("TEMP"), base);
+#endif
+      
 #ifdef P_tmpdir
-  base = try (P_tmpdir, base);
+      /* We really want a directory name here as if concatenated with say \dir
+	 we do not end up with a double \\ which defines an UNC path.  */
+      if (strcmp (P_tmpdir, "\\") == 0)
+	base = try_dir ("\\.", base);
+      else
+	base = try_dir (P_tmpdir, base);
 #endif
 
-  /* Try /var/tmp, /usr/tmp, then /tmp.  */
-  base = try (vartmp, base);
-  base = try (usrtmp, base);
-  base = try (tmp, base);
- 
-  /* If all else fails, use the current directory!  */
-  if (base == 0)
-    base = ".";
+      /* Try /var/tmp, /usr/tmp, then /tmp.  */
+      base = try_dir (vartmp, base);
+      base = try_dir (usrtmp, base);
+      base = try_dir (tmp, base);
+      
+      /* If all else fails, use the current directory!  */
+      if (base == 0)
+	base = ".";
+      /* Append DIR_SEPARATOR to the directory we've chosen
+	 and return it.  */
+      len = strlen (base);
+      tmpdir = XNEWVEC (char, len + 2);
+      strcpy (tmpdir, base);
+      tmpdir[len] = DIR_SEPARATOR;
+      tmpdir[len+1] = '\0';
+      memoized_tmpdir = tmpdir;
+#else /* defined(_WIN32) && !defined(__CYGWIN__) */
+      DWORD len;
 
-  /* Append DIR_SEPARATOR to the directory we've chosen
-     and return it.  */
-  len = strlen (base);
-  tmpdir = xmalloc (len + 2);
-  strcpy (tmpdir, base);
-  tmpdir[len] = DIR_SEPARATOR;
-  tmpdir[len+1] = '\0';
+      /* Figure out how much space we need.  */
+      len = GetTempPath(0, NULL);
+      if (len)
+	{
+	  memoized_tmpdir = XNEWVEC (char, len);
+	  if (!GetTempPath(len, memoized_tmpdir))
+	    {
+	      XDELETEVEC (memoized_tmpdir);
+	      memoized_tmpdir = NULL;
+	    }
+	}
+      if (!memoized_tmpdir)
+	/* If all else fails, use the current directory.  */
+	memoized_tmpdir = xstrdup (".\\");
+#endif /* defined(_WIN32) && !defined(__CYGWIN__) */
+    }
 
-  memoized_tmpdir = tmpdir;
-  return tmpdir;
+  return memoized_tmpdir;
 }
 
 /*
@@ -146,8 +184,7 @@ string is @code{malloc}ed, and the temporary file has been created.
 */
 
 char *
-make_temp_file (suffix)
-     const char *suffix;
+make_temp_file (const char *suffix)
 {
   const char *base = choose_tmpdir ();
   char *temp_filename;
@@ -160,7 +197,7 @@ make_temp_file (suffix)
   base_len = strlen (base);
   suffix_len = strlen (suffix);
 
-  temp_filename = xmalloc (base_len
+  temp_filename = XNEWVEC (char, base_len
 			   + TEMP_FILE_LEN
 			   + suffix_len + 1);
   strcpy (temp_filename, base);
@@ -168,11 +205,14 @@ make_temp_file (suffix)
   strcpy (temp_filename + base_len + TEMP_FILE_LEN, suffix);
 
   fd = mkstemps (temp_filename, suffix_len);
-  /* If mkstemps failed, then something bad is happening.  Maybe we should
-     issue a message about a possible security attack in progress?  */
+  /* Mkstemps failed.  It may be EPERM, ENOSPC etc.  */
   if (fd == -1)
-    abort ();
-  /* Similarly if we can not close the file.  */
+    {
+      fprintf (stderr, "Cannot create temporary file in %s: %s\n",
+	       base, strerror (errno));
+      abort ();
+    }
+  /* We abort on failed close out of sheer paranoia.  */
   if (close (fd))
     abort ();
   return temp_filename;

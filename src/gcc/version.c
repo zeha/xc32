@@ -5,7 +5,7 @@
    please modify this string to indicate that, e.g. by putting your
    organization's name in parentheses at the end of the string.  */
 
-const char version_string[] = "3.4.4   Microchip MPLAB C Compiler for PIC32 MCUs v1.11-20100413";
+const char version_string[] = "3.4.4   Microchip MPLAB C Compiler for PIC32 MCUs v1.12-20101221";
 
 /* This is the location of the online document giving instructions for
    reporting bugs.  If you distribute a modified version of GCC,
@@ -15,3 +15,4 @@ const char version_string[] = "3.4.4   Microchip MPLAB C Compiler for PIC32 MCUs
    not bugs in your modifications.)  */
 
 const char bug_report_url[] = "<URL:http://support.microchip.com>";
+

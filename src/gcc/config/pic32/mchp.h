@@ -25,9 +25,15 @@ Boston, MA 02111-1307, USA.  */
 #define MCHP_DEBUG 1
 extern const char *mchp_io_size;
 extern       int   mchp_io_size_val;
+extern const char *mchp_legacy_libc;
+extern       int   mchp_legacy_libc_val;
+extern const char *mchp_it_transport;
 
 #undef DEFAULT_SIGNED_CHAR
 #define DEFAULT_SIGNED_CHAR 1
+
+#undef TARGET_SHORT_DOUBLE
+#define TARGET_SHORT_DOUBLE  1
 
 /*
 ** This is how to output a reference to a user-level label named NAME.
@@ -40,7 +46,7 @@ do {                     \
   char * real_name;               \
   real_name = mchp_strip_name_encoding ((NAME));   \
   asm_fprintf (FILE, "%U%s", real_name);      \
-} while (0)           
+} while (0)
 #endif
 
 /* Put at the end of the command given to the linker if -nodefaultlibs or
@@ -51,7 +57,11 @@ do {                     \
  * the -mprocessor option is specified.
  */
 #undef  LIB_SPEC
-#define LIB_SPEC "--start-group -ldebug -lc -lm -le -ldsp %{!mno-peripheral-libs:-lmchp_peripheral %{mprocessor=*:-lmchp_peripheral_%*}} --end-group"
+#define LIB_SPEC "--start-group -ldebug \
+  %{mlegacy-libc:%{!mno-legacy-libc:-llega-c}} %{mno-legacy-libc:-lc} \
+  %{!mlegacy-libc:-lc} \
+ -lm -le -ldsp %{!mno-peripheral-libs:-lmchp_peripheral %{mprocessor=*:-lmchp_peripheral_%*}} --end-group"
+
 
 /* Don't set.  This defaults to crt0.o if not specified. */
 #undef  STARTFILE_SPEC
@@ -132,6 +142,9 @@ do {                     \
 %{mno-float:-fno-builtin-fabs -fno-builtin-fabsf} \
 %{mno-smart-io:-msmart-io=0} \
 %{msmart-io:-msmart-io=1} \
+%{mno-legacy-libc:-mlegacy-libc=0} \
+%{mlegacy-libc:-mlegacy-libc=1} \
+%{!Wno-implicit-function-declaration:-Wimplicit-function-declaration} \
 %(subtarget_cc1_spec)"
 
 /* Preprocessor specs.  */
@@ -149,6 +162,26 @@ do {                     \
 
 /* None of the OPTIONS specified in MULTILIB_OPTIONS are set by default. */
 #undef MULTILIB_DEFAULTS
+
+
+/* define PATH to be used if C_INCLUDE_PATH is not declared
+   (and CPLUS_INCLUDE_PATH for C++, &c).  The directories are all relative
+   to the current executable's directory */
+extern char * mchp_default_include_path(void) __attribute__((weak));
+#define DEFAULT_INCLUDE_PATH (mchp_default_include_path)
+#ifndef TARGET_EXTRA_INCLUDES
+extern void mchp_system_include_paths(const char *root, const char *system,
+                                      int nostdinc);
+
+#define TARGET_EXTRA_INCLUDES mchp_system_include_paths
+#endif
+
+/* By default, the GCC_EXEC_PREFIX_ENV prefix is "GCC_EXEC_PREFIX", however
+   in a cross compiler, another environment variable might want to be used
+   to avoid conflicts with the host any host GCC_EXEC_PREFIX */
+#ifndef GCC_EXEC_PREFIX_ENV
+#define GCC_EXEC_PREFIX_ENV "PIC32_EXEC_PREFIX"
+#endif
 
 /* Used for option processing */
 extern const char *mchp_processor_string;
@@ -227,10 +260,12 @@ extern const char *mchp_config_data_dir;
      N_("Lift restrictions on GOT size") },				\
   {"no-xgot",		 -MASK_XGOT,					\
      N_("Do not lift restrictions on GOT size") },			\
-  {"smart-io",   0,			\
-     N_("Enable smart-IO library call forwarding level 1") }, \
-  {"no-smart-io",   0,			\
-     N_("Disable smart-IO library call forwarding") }, \
+  {"smart-io",   0,							\
+     N_("Enable smart-IO library call forwarding level 1") }, 		\
+  {"no-smart-io",   0,							\
+     N_("Disable smart-IO library call forwarding") }, 			\
+  {"legacy-libc",   0,							\
+     N_("Use legacy lib/include directory") }, 				\
   {"",			  (TARGET_DEFAULT				\
 			   | TARGET_CPU_DEFAULT				\
 			   | TARGET_ENDIAN_DEFAULT),			\
@@ -269,8 +304,12 @@ extern const char *mchp_config_data_dir;
       N_("Specify processor"), 0},                                      \
   { "config-data-dir=", &mchp_config_data_dir,                          \
       0, 0},                                                            \
-  {"smart-io=", &mchp_io_size,                                         \
+  {"smart-io=", &mchp_io_size,                                          \
       N_("Set smart IO library call forwarding level"), 0},             \
+  {"legacy-libc=", &mchp_legacy_libc,                                   \
+      N_("Enable/Disable legacy libc library/include"), 0},             \
+  {"it=", &mchp_it_transport,                                           \
+      N_("Enable instrumented trace for MPLAB REAL ICE"), 0},           \
 }
 
 /* We want to change the default pre-defined macros. Many of these
@@ -288,7 +327,7 @@ extern const char *mchp_config_data_dir;
       fatal_error ("internal error: mips_abi != ABI_32");   \
     builtin_define ("_ABIO32=1");                           \
     builtin_define ("_MIPS_SIM=_ABIO32");                   \
-                                                            \
+    builtin_define_std ("__C32__");                         \
     if (TARGET_INT64)                                       \
       {                                                     \
         builtin_define ("_MIPS_SZINT=64");                  \
@@ -329,6 +368,8 @@ extern const char *mchp_config_data_dir;
         builtin_define ("__SINGLE_FLOAT");                  \
       }                                                     \
                                                             \
+    builtin_define ("__BUILTIN_ITTYPE");                    \
+                                                            \
     builtin_define_std ("PIC32MX");                         \
     if (mchp_processor_string && *mchp_processor_string)    \
       {                                                     \
@@ -361,6 +402,59 @@ extern const char *mchp_config_data_dir;
       {                                                     \
         builtin_define ("__32MXGENERIC__");                 \
       }                                                     \
+      if (1) \
+      { \
+    if (mchp_it_transport && *mchp_it_transport)            \
+      {                                                     \
+        char *mchp_it_define = NULL;                        \
+        if (strlen (mchp_it_transport) > 100)               \
+          {                                                     \
+            warning("-mit=%s invalid; defaulting to -mit=dc",   \
+                    mchp_it_transport);                         \
+            mchp_it_transport = "dc";                           \
+          }                                                     \
+          {                                                 \
+            char *mchp_it_option = NULL;                                           \
+            char *mchp_it_option_arg = NULL;                                       \
+            mchp_it_option = alloca(strlen(mchp_it_transport));                    \
+             if (strchr(mchp_it_transport, '(') < strchr(mchp_it_transport, ')'))  \
+             { \
+              mchp_it_option_arg = alloca(strlen(mchp_it_transport)); \
+              sscanf (mchp_it_transport, "%10[^(](%90[^)])",          \
+                mchp_it_option, mchp_it_option_arg);                  \
+              }                                                       \
+              else                                                    \
+               {                                                      \
+                 mchp_it_option = mchp_it_transport;                  \
+               }                                                      \
+            mchp_it_define =                                          \
+              alloca (strlen ("__IT_TRANSPORT=xx") +            \
+                      strlen(mchp_it_option) + 1);                    \
+            snprintf (mchp_it_define, strlen ("__IT_TRANSPORT= ") +     \
+                      strlen(mchp_it_option) + 1, "__IT_TRANSPORT=%s",  \
+                      mchp_it_option);                                         \
+            builtin_define (mchp_it_define);                          \
+            if (mchp_it_option_arg != NULL) {                         \
+              int i=1;                                                \
+              char *mchp_it_option_define = NULL;                     \
+              char *s,*c;                                             \
+              c = mchp_it_option_arg;                                 \
+              do {                                                    \
+                s = c;                                                \
+                for (; *c && *c != ','; c++);                         \
+                if (*c) *c++ = 0;                                     \
+                mchp_it_option_define =                               \
+                  alloca(strlen("__IT_TRANSPORT_OPTION%d=%s")+        \
+                  strlen(s));                                         \
+                snprintf(mchp_it_option_define,                       \
+                  strlen("__IT_TRANSPORT_OPTION%d=%s")+               \
+                  strlen(s), "__IT_TRANSPORT_OPTION%d=%s",i++,s);     \
+                builtin_define(mchp_it_option_define);                \
+               } while (*c);                                          \
+              }                                                       \
+          }                                                           \
+      }                                                               \
+      }                                                               \
     if (version_string && *version_string)                  \
       {                                                     \
         char *Microchip;                                    \
@@ -392,6 +486,7 @@ extern const char *mchp_config_data_dir;
           }                                                 \
         builtin_define_with_int_value ("__C32_VERSION__", pic32_compiler_version);  \
       }                                                     \
+    builtin_define_with_int_value ("__MCHP_SMARTIO_VALUE__", mchp_io_size_val); \
   } while (0);
 
 /* The Microchip port has a few pragmas to define as well */

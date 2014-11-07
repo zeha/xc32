@@ -1,6 +1,6 @@
 /* Utility to pick a temporary filename prefix.
    Copyright (C) 1996, 1997, 1998, 2001 Free Software Foundation, Inc.
-
+   
 This file is part of the libiberty library.
 Libiberty is free software; you can redistribute it and/or
 modify it under the terms of the GNU Library General Public
@@ -10,7 +10,7 @@ version 2 of the License, or (at your option) any later version.
 Libiberty is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-Library General Public License for more details.
+Library General Public License for more details. 
 
 You should have received a copy of the GNU Library General Public
 License along with libiberty; see the file COPYING.LIB.  If not,

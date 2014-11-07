@@ -112,6 +112,13 @@ extern int getrusage (int, struct rusage *);
 #define TARGET_OBJECT_SUFFIX ".o"
 #endif
 
+/* By default, the GCC_EXEC_PREFIX_ENV prefix is "GCC_EXEC_PREFIX", however
+   in a cross compiler, another environment variable might want to be used
+   to avoid conflicts with the host any host GCC_EXEC_PREFIX */
+#ifndef GCC_EXEC_PREFIX_ENV
+#define GCC_EXEC_PREFIX_ENV "GCC_EXEC_PREFIX"
+#endif
+
 static const char dir_separator_str[] = { DIR_SEPARATOR, 0 };
 
 /* Most every one is fine with LIBRARY_PATH.  For some, it conflicts.  */
@@ -1270,7 +1277,13 @@ translate_options (int *argcp, const char *const **argvp)
 	    }
 	  i++;
 	}
+#if defined(_PIC30_H_) || defined(TARGET_MCHP_PIC32MX)
+      else if (strcmp(argv[i],"-legacy-libc") == 0) {
+        newv[newindex++] = "-mlegacy-libc";
+        i++;
+      }
 
+#endif
       /* Handle old-fashioned options--just copy them through,
 	 with their arguments.  */
       else if (argv[i][0] == '-')
@@ -3177,7 +3190,7 @@ process_command (int argc, const char **argv)
   int j;
 #endif
 
-  GET_ENVIRONMENT (gcc_exec_prefix, "GCC_EXEC_PREFIX");
+  GET_ENVIRONMENT (gcc_exec_prefix, GCC_EXEC_PREFIX_ENV);
 
   n_switches = 0;
   n_infiles = 0;

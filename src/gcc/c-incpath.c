@@ -122,7 +122,9 @@ add_standard_paths (const char *sysroot, const char *iprefix, int cxx_stdinc)
 {
   const struct default_include *p;
   size_t len;
-
+#ifdef TARGET_MCHP_PIC32MX
+  mchp_legacy_libc_option ();
+#endif
   if (iprefix && (len = cpp_GCC_INCLUDE_DIR_len) != 0)
     {
       /* Look for directories that start with the standard prefix.
@@ -139,24 +141,69 @@ add_standard_paths (const char *sysroot, const char *iprefix, int cxx_stdinc)
 		continue;
 	      if (!strncmp (p->fname, cpp_GCC_INCLUDE_DIR, len))
 		{
-		  char *str = concat (iprefix, p->fname + len, NULL);
-		  add_path (str, SYSTEM, p->cxx_aware);
+		  char *str;
+		  char *newfname;
+#ifdef TARGET_MCHP_PIC32MX
+	      if (mchp_legacy_libc_val)
+	        {
+	          newfname = concat (p->fname, "/lega-c", NULL);
+	          str = concat (iprefix, newfname + len, NULL);
+	          free(newfname);
+	          add_path (str, SYSTEM, p->cxx_aware);
+	        }
+#endif
+	      str = concat (iprefix, p->fname + len, NULL);
+	      add_path (str, SYSTEM, p->cxx_aware);
+
 		}
 	    }
 	}
     }
-
+ 
   for (p = cpp_include_defaults; p->fname; p++)
     {
       if (!p->cplusplus || cxx_stdinc)
 	{
 	  char *str;
+	  char *newfname;
 
 	  /* Should this directory start with the sysroot?  */
 	  if (sysroot && p->add_sysroot)
-	    str = concat (sysroot, p->fname, NULL);
+	    {
+
+#ifdef TARGET_MCHP_PIC32MX
+	      if (mchp_legacy_libc_val)
+	        {
+	          newfname = concat (p->fname, "/lega-c", NULL);
+	          str = concat (sysroot, newfname, NULL);
+	          free(newfname);
+	        }
+	      else
+	        {
+	          str = concat (sysroot, p->fname, NULL);
+	        }
+#else
+	      str = concat (sysroot, p->fname, NULL);
+#endif
+	    }
 	  else
-	    str = update_path (p->fname, p->component);
+	    {
+	    
+#ifdef TARGET_MCHP_PIC32MX
+	      if (mchp_legacy_libc_val)
+	        {
+	          newfname = concat (p->fname, "/lega-c", NULL);
+	          str = update_path (newfname, p->component);
+	          free(newfname);
+	        }
+	      else
+	        {
+	          str = update_path (p->fname, p->component);
+	        }
+#else
+	      str = update_path (p->fname, p->component);
+#endif
+	    }
 
 	  add_path (str, SYSTEM, p->cxx_aware);
 	}

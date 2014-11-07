@@ -42,6 +42,7 @@ Boston, MA 02111-1307, USA.  */
 #include "tree.h"
 #include "function.h"
 #include "expr.h"
+#include "c-common.h"
 #include "optabs.h"
 #include "flags.h"
 #include "reload.h"
@@ -64,6 +65,7 @@ void *alloca(size_t);
 #else
 #include <alloca.h>
 #endif
+
 
 /* Enumeration for all of the relational tests, so that we can build
    arrays indexed by the test type, and not worry about the order
@@ -350,6 +352,10 @@ static rtx mips_expand_mxc0 (rtx, unsigned int, tree);
 static rtx mips_expand_bcc0 (rtx, unsigned int, tree);
 static rtx mips_expand_bsc0 (rtx, unsigned int, tree);
 static rtx mips_expand_bcsc0 (rtx, unsigned int, tree);
+#if defined(TARGET_MCHP_PIC32MX)
+static rtx pic32_expand_uniqueid (rtx, unsigned int, tree);
+static rtx pic32_expand_ittype (rtx, unsigned int, tree);
+#endif
 static rtx mips_expand_two_operands_with_immediate (rtx, unsigned int, tree,
     int, int);
 static tree mchp_function_interrupt_p (tree decl);
@@ -1353,7 +1359,9 @@ struct gcc_target targetm = TARGET_INITIALIZER;
 static int       pic32_license_valid = 1;
 static int       mchp_smart_io_warning = 0;
 const  char *    mchp_io_size = NULL;       /* -msmart-io= cmd-line option  */
-int       mchp_io_size_val = 1;
+int              mchp_io_size_val = 1;
+const  char *    mchp_legacy_libc = NULL;   /* -mlegacy-libc= cmd-line option  */
+int              mchp_legacy_libc_val = 0;
 #endif /* TARGET_MCHP_PIC32MX */
 
 /* Return 0 if the attributes for two types are incompatible, 1 if they
@@ -5973,9 +5981,36 @@ tree fndecl;
 #endif
 }
 
+void mchp_legacy_libc_option (void)
+{
+
+  if (mchp_legacy_libc)
+    {
+      mchp_legacy_libc_val = -1;
+      if (*mchp_legacy_libc == '0')
+        {
+          mchp_legacy_libc_val = 0;
+        }
+      else if (*mchp_legacy_libc == '1')
+        {
+          mchp_legacy_libc_val = 1;
+        }
+      if ((mchp_legacy_libc_val == -1) || (mchp_legacy_libc[1] != 0))
+        {
+          warning("-mlegacy-libc=%s invalid; defaulting to -mlegacy-libc=0",
+                  mchp_legacy_libc);
+          mchp_legacy_libc_val = 0;
+        }
+    }
+  else
+    {
+      /* set the default new clib (not legacy) */
+      mchp_legacy_libc_val = 0;
+    }
+}
+
 /* Set up the threshold for data to go into the small data area, instead
    of the normal data area, and detect any conflicts in the switches.  */
-
 void
 override_options (void)
 {
@@ -6014,6 +6049,32 @@ override_options (void)
     {
       /* set the default smartness level */
       mchp_io_size_val = 1;
+    }
+
+  if (mchp_legacy_libc)
+    {
+      mchp_legacy_libc_val = -1;
+      if (*mchp_legacy_libc == '0')
+        {
+          mchp_legacy_libc_val = 0;
+        }
+      else if (*mchp_legacy_libc == '1')
+        {
+          mchp_legacy_libc_val = 1;
+          /* Smart IO has been updated for the new libc */
+          mchp_io_size_val = 0;
+        }
+      if ((mchp_legacy_libc_val == -1) || (mchp_legacy_libc[1] != 0))
+        {
+          warning("-mlegacy-libc=%s invalid; defaulting to -mlegacy-libc=0",
+                  mchp_legacy_libc);
+          mchp_legacy_libc_val = 0;
+        }
+    }
+  else
+    {
+      /* set the default new clib (not legacy) */
+      mchp_legacy_libc_val = 0;
     }
 
   /* PIC32MX cannot use Position Independent Code yet.  */
@@ -6614,6 +6675,10 @@ override_options (void)
   else if (TARGET_MIPS_DSP32 && !ISA_MIPS32R2)
     warning ("-mdsp requires -mips32r2");
 
+  /* Temporary Workaround for Microchip PIC32MX C32-203 */
+  if (mips_base_mips16)
+    flag_section_relative_addressing = 0;
+
   if (!flag_unit_at_a_time)
     /* For section-relative addressing we need full information about
        each variable, which requires unit-at-a-time mode. */
@@ -6710,6 +6775,14 @@ override_options (void)
   mips_base_align_loops = align_loops;
   mips_base_align_jumps = align_jumps;
   mips_base_align_functions = align_functions;
+
+#ifdef TARGET_MCHP_PIC32MX
+  if (optimize_size)
+    {
+      flag_function_sections = 1;
+      flag_data_sections = 1;
+    }
+#endif
 
   /*
    *  On systems where we have a licence manager, call it
@@ -14211,6 +14284,12 @@ static const struct builtin_description mips_bdesc[] =
     { CODE_FOR_mips_bcc0, "__builtin_bcc0", MIPS_BUILTIN_BCC0, MIPS_USI_FTYPE_USI_USI_USI, 0 },
     { CODE_FOR_mips_bsc0, "__builtin_bsc0", MIPS_BUILTIN_BSC0, MIPS_USI_FTYPE_USI_USI_USI, 0 },
     { CODE_FOR_mips_bcsc0, "__builtin_bcsc0", MIPS_BUILTIN_BCSC0, MIPS_USI_FTYPE_USI_USI_USI_USI, 0 },
+    
+#ifdef TARGET_MCHP_PIC32MX
+    { PIC32_BUILTIN_UNIQUEID, "__builtin_unique_id", PIC32_BUILTIN_UNIQUEID, MIPS_USI_FTYPE_CONSTSTRING_SI, 0 },
+    { PIC32_BUILTIN_ITTYPE, "__builtin_ittype", PIC32_BUILTIN_ITTYPE, MIPS_USI_FTYPE_TYPE, 0 },
+#endif
+
   };
 
 /* Expand conditional move builtin functions */
@@ -14799,6 +14878,7 @@ mips_expand_mfc0 (rtx target, unsigned int fcode,
   if (! (*insn_data[icode].operand[2].predicate) (op1, mode1))
     op1 = copy_to_mode_reg (mode1, op1);
 
+  emit_insn (gen_blockage ());
   if (TARGET_MIPS16 || TARGET_MIPS16E)
     {
       emit_insn (gen_mips_switch_isabase());
@@ -14811,9 +14891,9 @@ mips_expand_mfc0 (rtx target, unsigned int fcode,
 
   if (TARGET_MIPS16 || TARGET_MIPS16E)
     {
-      emit_insn (gen_mips_switch_isabase());
+      emit_insn (gen_mips_switch_isabase());    
     }
-
+  emit_insn (gen_blockage ());
   return target;
 }
 
@@ -14916,6 +14996,7 @@ mips_expand_mtc0 (unsigned int fcode,
   if (! (*insn_data[icode].operand[2].predicate) (op2, mode2))
     op2 = copy_to_mode_reg (mode2, op2);
 
+  emit_insn (gen_blockage ());
   if (TARGET_MIPS16 || TARGET_MIPS16E)
     {
       emit_insn (gen_mips_switch_isabase());
@@ -14926,9 +15007,9 @@ mips_expand_mtc0 (unsigned int fcode,
 
   if (TARGET_MIPS16 || TARGET_MIPS16E)
     {
-      emit_insn (gen_mips_switch_isabase());
+      emit_insn (gen_mips_switch_isabase());    
     }
-
+  emit_insn (gen_blockage ());
   return NULL_RTX;
 }
 
@@ -15047,6 +15128,7 @@ mips_expand_mxc0 (rtx target,
   if (! (*insn_data[icode].operand[3].predicate) (op2, mode2))
     op2 = copy_to_mode_reg (mode2, op2);
 
+  emit_insn (gen_blockage ());
   if (TARGET_MIPS16 || TARGET_MIPS16E)
     {
       emit_insn (gen_mips_switch_isabase());
@@ -15070,7 +15152,9 @@ mips_expand_mxc0 (rtx target,
   if (TARGET_MIPS16 || TARGET_MIPS16E)
     {
       emit_insn (gen_mips_switch_isabase());
+      
     }
+  emit_insn (gen_blockage ());
 
   return target;
 }
@@ -15164,6 +15248,7 @@ mips_expand_bcc0 (rtx target,
   if (! (*insn_data[icode].operand[3].predicate) (op2, mode2))
     op2 = copy_to_mode_reg (mode2, op2);
 
+  emit_insn (gen_blockage ());
   if (TARGET_MIPS16 || TARGET_MIPS16E)
     {
       emit_insn (gen_mips_switch_isabase());
@@ -15194,6 +15279,7 @@ mips_expand_bcc0 (rtx target,
     {
       emit_insn (gen_mips_switch_isabase());
     }
+  emit_insn (gen_blockage ());
 
   return target;
 }
@@ -15286,6 +15372,7 @@ mips_expand_bsc0 (rtx target,
   if (! (*insn_data[icode].operand[3].predicate) (op2, mode2))
     op2 = copy_to_mode_reg (mode2, op2);
 
+  emit_insn (gen_blockage ());
   if (TARGET_MIPS16 || TARGET_MIPS16E)
     {
       emit_insn (gen_mips_switch_isabase());
@@ -15312,9 +15399,9 @@ mips_expand_bsc0 (rtx target,
       emit_insn (gen_mips_switch_isabase());
     }
 
+  emit_insn (gen_blockage ());
   return target;
 }
-
 
 
 /* Expand BCSC0 */
@@ -15426,6 +15513,7 @@ mips_expand_bcsc0 (rtx target,
   if (! (*insn_data[icode].operand[4].predicate) (op3, mode3))
     op3 = copy_to_mode_reg (mode3, op3);
 
+  emit_insn (gen_blockage ());
   if (TARGET_MIPS16 || TARGET_MIPS16E)
     {
       emit_insn (gen_mips_switch_isabase());
@@ -15461,9 +15549,118 @@ mips_expand_bcsc0 (rtx target,
     {
       emit_insn (gen_mips_switch_isabase());
     }
+  emit_insn (gen_blockage ());
   return target;
 
 } /* End BCSC0 */
+
+#if defined(TARGET_MCHP_PIC32MX)
+/* Expand uniqueid */
+/* pic32_expand_uniqueid for unsigned int __builtin_unique_id(const char *fmt, int id) */
+static rtx
+pic32_expand_uniqueid (rtx target,
+                   unsigned int fcode,
+                   tree arglist)
+{
+  tree arg0;
+  tree arg1;
+  rtx r1 = 0;
+  char *label_name = 0;
+  const char *fmt = 0;
+  tree sub_arg0 = 0;
+
+  arg0 = TREE_VALUE(arglist);
+  arglist = TREE_CHAIN(arglist);
+  arg1 = TREE_VALUE(arglist);
+  if (TREE_CODE(arg0) == NOP_EXPR) {
+    sub_arg0 = TREE_OPERAND(arg0,0);
+  } else sub_arg0 = arg0;
+
+  if (TREE_CODE(sub_arg0) == NOP_EXPR) {
+    sub_arg0 = TREE_OPERAND(sub_arg0,0);
+  } else sub_arg0 = sub_arg0;
+
+  if (TREE_CODE(sub_arg0) == ADDR_EXPR) {
+    sub_arg0 = TREE_OPERAND(sub_arg0,0);
+
+    if (TREE_CODE(sub_arg0) == ARRAY_REF) {
+      sub_arg0 = TREE_OPERAND(sub_arg0,0);
+    }
+
+    if (TREE_CODE(sub_arg0) == STRING_CST) {
+      if (TREE_STRING_LENGTH(sub_arg0) > 20) {
+         error("__builtin_unique_id argument 0 exceeds maximum length");
+      }
+      label_name = xmalloc(TREE_STRING_LENGTH(sub_arg0) + 5);
+      fmt = TREE_STRING_POINTER(sub_arg0);
+    }
+  }
+  if (fmt == 0) {
+    error("__builtin_unique_id requires string literal for argument 0");
+    return GEN_INT(0);
+  }
+  r1 = expand_expr(arg1, NULL_RTX, SImode, EXPAND_NORMAL);
+  if (GET_CODE(r1) != CONST_INT) {
+    error("__builtin_unique_id requires integer literal for argument 1");
+    return GEN_INT(0);
+  }
+  sprintf(label_name,"%s_%ld", fmt, INTVAL(r1));
+
+  if (!target || !register_operand(target, SImode)) {
+    target = gen_reg_rtx(SImode);
+  }
+
+  if (TARGET_MIPS16 || TARGET_MIPS16E)
+    {
+      emit_insn(gen_pic32_unique_id_16(target,GEN_INT((unsigned int)label_name), r1));
+    }
+  else
+    {
+      emit_insn(gen_pic32_unique_id_32(target,GEN_INT((unsigned int)label_name), r1));
+    }
+
+  return target;
+}
+/* Expand ittype */
+/* pic32_expand_ittype for unsigned int __builtin_ittype(<t> value) */
+static rtx
+pic32_expand_ittype (rtx target,
+                     unsigned int fcode,
+                     tree arglist)
+{
+  tree arg0;
+      int result = 0;
+      tree type;
+      arg0 = TREE_VALUE(arglist);
+      type = TREE_TYPE(arg0);
+      switch (TREE_CODE(type)) {
+        case INTEGER_TYPE:
+          if (TREE_CODE(arg0) == NOP_EXPR) {
+            /* a conversion */
+            tree sub_arg0 = TREE_OPERAND(arg0,0);
+
+            type = TREE_TYPE(sub_arg0);
+          }
+          if (TYPE_UNSIGNED(type))
+            result |= (1 << 4);
+          break;
+        case REAL_TYPE:
+          result |= (1 << 3);
+          break;
+        case CHAR_TYPE:
+          if (TYPE_UNSIGNED(type))
+            result |= (1 << 4);
+          break;
+        case POINTER_TYPE:
+          result |= (1 << 5);
+          break;
+        default:  error("__builtin_ittype() cannot accept an aggregate type");
+      }
+      result |= (TYPE_PRECISION(type) / BITS_PER_UNIT) - 1;
+      return GEN_INT(result);
+}
+
+#endif /* TARGET_MCHP_PIC32MX */
 
 /* The second operand may be (signed/unsigned) immediate with the number
    of bits.  */
@@ -15596,6 +15793,16 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
       /* BCSC0 */
     case MIPS_BUILTIN_BCSC0:
       return mips_expand_bcsc0 (target, fcode, arglist);
+
+#if defined(TARGET_MCHP_PIC32MX)
+      /* unique_id */
+    case PIC32_BUILTIN_UNIQUEID:
+      return pic32_expand_uniqueid (target, fcode, arglist);
+
+      /* ittype */
+    case PIC32_BUILTIN_ITTYPE:
+      return pic32_expand_ittype (target, fcode, arglist);
+#endif
 
     default:
       break;
@@ -16801,6 +17008,8 @@ mips_init_builtins (void)
   tree usi_ftype_usi_usi_usi;
   tree usi_ftype_usi_usi_usi_usi;
 
+  tree usi_ftype_conststring_si;
+
   void_ftype_void
   = build_function_type (void_type_node, void_list_node);
 
@@ -16825,6 +17034,11 @@ mips_init_builtins (void)
   = build_function_type_list (unsigned_intSI_type_node,
                               unsigned_intSI_type_node, unsigned_intSI_type_node,
                               unsigned_intSI_type_node, unsigned_intSI_type_node,
+                              NULL_TREE);
+
+  usi_ftype_conststring_si
+  = build_function_type_list (unsigned_intSI_type_node,
+                              const_string_type_node, intSI_type_node,
                               NULL_TREE);
 
   if (TARGET_PAIRED_SINGLE_FLOAT)
@@ -17649,7 +17863,6 @@ mips_init_builtins (void)
                             d->code, BUILT_IN_MD, NULL, NULL_TREE);
           break;
 
-
         case MIPS_V4QI_FTYPE_V4QI:
           builtin_function (d->name, v4qi_ftype_v4qi,
                             d->code, BUILT_IN_MD, NULL, NULL_TREE);
@@ -17702,6 +17915,16 @@ mips_init_builtins (void)
 
         case MIPS_USI_FTYPE_USI_USI_USI_USI:
           builtin_function (d->name, usi_ftype_usi_usi_usi_usi,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_USI_FTYPE_CONSTSTRING_SI:
+          builtin_function (d->name, usi_ftype_conststring_si,
+                            d->code, BUILT_IN_MD, NULL, NULL_TREE);
+          break;
+
+        case MIPS_USI_FTYPE_TYPE:
+          builtin_function (d->name, build_function_type(unsigned_type_node, NULL_TREE),
                             d->code, BUILT_IN_MD, NULL, NULL_TREE);
           break;
 

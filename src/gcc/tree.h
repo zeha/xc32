@@ -603,6 +603,9 @@ extern void tree_operand_check_failed (int, enum tree_code,
 #define TYPE_TRAP_SIGNED(NODE) \
   (flag_trapv && ! TREE_UNSIGNED (TYPE_CHECK (NODE)))
 
+/* In integral and pointer types, means an unsigned type.  */
+#define TYPE_UNSIGNED(NODE) (TYPE_CHECK (NODE)->common.unsigned_flag)
+
 /* Nonzero in a VAR_DECL means assembler code has been written.
    Nonzero in a FUNCTION_DECL means that the function has been compiled.
    This is interesting in an inline function, since it might not need

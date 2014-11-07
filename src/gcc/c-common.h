@@ -170,7 +170,7 @@ enum c_tree_index
     
     CTI_VOID_ZERO,
 
-    CTI_MAX
+    CTI_TYPE_MAX
 };
 
 #define C_RID_CODE(id)	(((struct c_common_identifier *) (id))->node.rid_code)
@@ -220,7 +220,7 @@ struct c_common_identifier GTY(())
 /* A node for `((void) 0)'.  */
 #define void_zero_node                  c_global_trees[CTI_VOID_ZERO]
 
-extern GTY(()) tree c_global_trees[CTI_MAX];
+extern GTY(()) tree c_global_trees[CTI_TYPE_MAX];
 
 /* In a RECORD_TYPE, a sorted array of the fields of the type, not a
    tree for size reasons.  */

@@ -38,8 +38,9 @@ void *alloca(size_t);
 #include "output.h"
 #include "mchp-protos.h"
 
-const char *    mchp_processor_string;
-const char *    mchp_config_data_dir;
+const char *    mchp_processor_string = NULL;
+const char *    mchp_config_data_dir = NULL;
+const char *    mchp_it_transport = NULL;
 
 #define MCHP_CONFIGURATION_DATA_FILENAME "configuration.data"
 #define MCHP_CONFIGURATION_HEADER_MARKER \
@@ -496,3 +497,5 @@ mchp_output_configuration_words (void)
         }
     }
 }
+
+

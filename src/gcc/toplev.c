@@ -593,11 +593,18 @@ int flag_omit_frame_pointer = 0;
 /* Nonzero means place each function into its own section on those platforms
    which support arbitrary section names and unlimited numbers of sections.  */
 
+#if defined(TARGET_MCHP_PIC32MX) && 0
+int flag_function_sections = 1;
+#else
 int flag_function_sections = 0;
+#endif
 
 /* ... and similar for data.  */
-
+#if defined(TARGET_MCHP_PIC32MX) && 0
+int flag_data_sections = 1;
+#else
 int flag_data_sections = 0;
+#endif
 
 /* Nonzero to inhibit use of define_optimization peephole opts.  */
 

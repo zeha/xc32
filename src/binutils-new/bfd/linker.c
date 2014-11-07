@@ -27,6 +27,19 @@
 #include "bfdlink.h"
 #include "genlink.h"
 
+#if 1 || defined(TARGET_IS_elf32pic32mx)
+/* 
+ * make common version of this symbol which will be initialized to NIL 
+ * unless we are creating the linker where an initialized definition will
+ * be provided by pic30-elf.em or pic30-coff.em
+ *
+ * we only call this function if it is a valid pointer
+ */
+
+unsigned int (*mchp_force_keep_symbol)(char *, char *);
+void (*mchp_smartio_symbols)(struct bfd_link_info*);
+#endif
+
 /*
 SECTION
 	Linker Functions
@@ -982,6 +995,17 @@ _bfd_generic_link_add_archive_symbols
   unsigned int indx;
   struct bfd_link_hash_entry **pundef;
 
+#if 1 || defined(TARGET_IS_elf32pic32mx)
+  { static int smartio_run=0;
+
+    if (smartio_run == 0) {
+      /* look through the undef list and adds those symbols that are smartio
+         to the undefined list */
+      mchp_smartio_symbols(info);
+    }
+  }
+#endif
+
   if (! bfd_has_map (abfd))
     {
       /* An empty archive is a special case.  */
@@ -1199,6 +1223,32 @@ generic_link_check_archive_element (bfd *abfd,
 	 SVR4 ABI, p. 4-27.  */
       h = bfd_link_hash_lookup (info->hash, bfd_asymbol_name (p), FALSE,
 				FALSE, TRUE);
+
+#if 1 || defined(TARGET_IS_elf32pic32mx)
+      /* we may need to pull this symbol in because it is a SMARTIO fn */
+      if (mchp_force_keep_symbol && 
+          mchp_force_keep_symbol((char*)p->name, (char*)abfd->filename)) {
+        /* I hate to duplicate code, but ... we may have no hash table */
+        if (! bfd_is_com_section (p->section))
+          {
+            bfd_size_type symcount;
+            asymbol **symbols;
+  
+            /* This object file defines this symbol, so pull it in.  */
+            if (!(*info->callbacks->add_archive_element) (info, abfd,
+                                                          bfd_asymbol_name (p)))
+              return FALSE;
+            symcount = _bfd_generic_link_get_symcount (abfd);
+            symbols = _bfd_generic_link_get_symbols (abfd);
+            if (! generic_link_add_symbol_list (abfd, info, symcount,
+                                                symbols, collect))
+              return FALSE;
+            *pneeded = TRUE;
+            return TRUE;
+          }
+      }
+#endif
+
       if (h == NULL
 	  || (h->type != bfd_link_hash_undefined
 	      && h->type != bfd_link_hash_common))

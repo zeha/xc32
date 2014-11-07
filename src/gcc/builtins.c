@@ -31,7 +31,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "regs.h"
 #include "hard-reg-set.h"
 #include "except.h"
-#include "function.h"
+#include "function.h"	
 #include "insn-config.h"
 #include "expr.h"
 #include "optabs.h"
@@ -44,6 +44,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "tm_p.h"
 #include "target.h"
 #include "langhooks.h"
+#include "c-common.h"
 
 #define CALLED_AS_BUILT_IN(NODE) \
    (!strncmp (IDENTIFIER_POINTER (DECL_NAME (NODE)), "__builtin_", 10))
@@ -63,7 +64,6 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 /* Define the names of the builtin function types and codes.  */
 const char *const built_in_class_names[4]
 = {"NOT_BUILT_IN", "BUILT_IN_FRONTEND", "BUILT_IN_MD", "BUILT_IN_NORMAL"};
-
 #define DEF_BUILTIN(X, N, C, T, LT, B, F, NA, AT, IM) #X,
 const char *const built_in_names[(int) END_BUILTINS] =
 {
@@ -4693,23 +4693,55 @@ build_string_literal (int len, const char *str)
 }
 
 #ifdef TARGET_MCHP_PIC32MX
+typedef enum mchp_interesting_fn_info_ {
+  info_invalid,
+  info_I,
+  info_O,
+  info_O_v,
+  info_dbl
+} mchp_interesting_fn_info;
+
 typedef enum mchp_conversion_status_
 {
-  conv_state_unknown,
+  conv_state_unknown = 0,
   conv_possible,
   conv_indeterminate,
-  conv_not_possible
+  conv_not_possible,
+  size_L =  0x00007Fu,
+  conv_c =  0x000080u,
+  conv_d =  0x000100u,
+  conv_i =  0x000100u,
+  conv_e =  0x000200u,
+  conv_E =  0x000400u,
+  conv_f =  0x000800u,
+  conv_g =  0x001000u,
+  conv_G =  0x002000u,
+  conv_n =  0x004000u,
+  conv_o =  0x008000u,
+  conv_p =  0x010000u,
+  conv_s =  0x020000u,
+  conv_u =  0x040000u,
+  conv_x =  0x080000u,
+  conv_X =  0x100000u,
+  conv_a =  0x200000u,
+  conv_A =  0x400000u,
+  conv_F =  0x800000u
 } mchp_conversion_status;
+
 static mchp_conversion_status
 mchp_convertable_output_format_string(const char *string);
-#endif
 
+#define CCS_FLAG_MASK (~(conv_c-1))
+#define CCS_STATE_MASK (conv_c-1)
+#define CCS_FLAG(X) ((X) & CCS_FLAG_MASK)
+#define CCS_STATE(X) ((X) & CCS_STATE_MASK)
+#endif /* TARGET_MCHP_PIC32MX */
 
 #ifdef TARGET_MCHP_PIC32MX
-static mchp_conversion_status
-mchp_convertable_output_format_string(const char *string)
-{
+static mchp_conversion_status 
+mchp_convertable_output_format_string(const char *string) {
   const char *c = string;
+  enum mchp_conversion_status_ status = 0;
 
   /* Don't attempt to scan the string if smart-IO is disabled */
   if (mchp_io_size_val == 0)
@@ -4717,79 +4749,360 @@ mchp_convertable_output_format_string(const char *string)
       return conv_not_possible;
     }
   for ( ; *c; c++)
+  {
+    /* quickly deal with the un-interesting cases */
+    if (*c != '%') continue;
+    if (*(++c) == '%')
     {
-      /* quickly deal with the un-interesting cases */
-      if (*c != '%') continue;
-      if (*(++c) == '%')
-        {
-          continue;
-        }
-      /* zero or more flags */
-      while (1)
-        {
-          switch (*c)
-            {
-            case '-':
-            case '+':
-            case ' ':
-            case '#':
-            case '0':
-              c++;
-              continue;
-            default:
-              break;
-            }
-          break;
-        }
-      /* optional field width or * */
-      if (*c == '*') c++;
-      else
-        while (ISDIGIT(*c)) c++;
-      /* optional precision or * */
-      if (*c == '.')
-        {
-          c++;
-          /* an illegal conversion sequence %.g, for example - give up and
-             start looking from the g onwards */
-          if (*c == '*') c++;
-          else
-            {
-              if (!ISDIGIT(*c))
-                {
-                  c--;
-                }
-              while (ISDIGIT(*c)) c++;
-            }
-        }
-      /* optional conversion modifier */
-      switch (*c)
-        {
-        case 'h':
-        case 'l':
-        case 'L':
-          c++;
-          break;
-        default:
-          break;
-        }
-      /* c should point to the conversion character */
-      switch (*c)
-        {
-        case 'a':
-        case 'A':
-        case 'e':
-        case 'E':
-        case 'f':
-        case 'F':
-        case 'g':
-        case 'G':
-          return conv_not_possible;
-        default:   /* we aren't checking for legal format strings */
-          break;
-        }
+      continue;
     }
-  return conv_possible;
+    /* zero or more flags */
+    while (1)
+    {
+      switch (*c)
+      {
+        case '-':
+        case '+':
+        case ' ':
+        case '#':
+        case '0': c++; continue;
+        default: break;
+      }
+      break;
+    }
+    /* optional field width or * */ 
+    if (*c == '*') c++; else
+    while (ISDIGIT(*c)) c++; 
+    /* optional precision or * */
+    if (*c == '.') {
+      c++;
+      /* an illegal conversion sequence %.g, for example - give up and
+         start looking from the g onwards */
+      if (*c == '*') c++; 
+      else {
+        if (!ISDIGIT(*c)) {
+          c--;
+        }
+        while(ISDIGIT(*c)) c++;
+      }
+    }
+    while(!ISALPHA(*c)) c++;
+     
+    /* optional conversion modifier */
+    switch (*c) {
+      case 'h':
+      case 'l': 
+      case 'L':
+        c++; break;
+      default: break;
+    }
+
+    /* c should point to the conversion character */
+    switch (*c) {
+      case 'a': status |= conv_a; break;
+      case 'A': status |= conv_A; break;
+      case 'c': status |= conv_c; break;
+      case 'd': status |= conv_d; break;
+      case 'i': status |= conv_d; break;
+      case 'e': status |= conv_e; break;
+      case 'E': status |= conv_E; break;
+      case 'f': status |= conv_f; break;
+      case 'F': status |= conv_F; break;
+      case 'g': status |= conv_g; break;
+      case 'G': status |= conv_G; break;
+      case 'n': status |= conv_n; break;
+      case 'o': status |= conv_o; break;
+      case 'p': status |= conv_p; break;
+      case 's': status |= conv_s; break;
+      case 'u': status |= conv_u; break;
+      case 'x': status |= conv_x; break;
+      case 'X': status |= conv_X; break;
+      default:   /* we aren't checking for legal format strings */
+                 break;
+    }
+  }
+  return conv_possible | status;
 }
+
+static mchp_conversion_status 
+mchp_convertable_input_format_string(const char *string) {
+  const char *c = string;
+  enum mchp_conversion_status_ status = 0;
+
+  /* Don't attempt to scan the string if smart-IO is disabled */
+  if (mchp_io_size_val == 0)
+    {
+      return conv_not_possible;
+    }
+  for ( ; *c; c++)
+  {
+    /* quickly deal with the un-interesting cases */
+    if (*c != '%') continue;
+    if (*(++c) == '%')
+    {
+      continue;
+    }
+    /* optional assignment suppression */
+    if (*c == '*') c++;
+    /* optional field width */ 
+    while (ISDIGIT(*c)) c++; 
+    /* optional conversion modifier */
+    switch (*c) {
+      case 'L': /* status |= size_L; */
+      case 'h':
+      case 'l': 
+        c++; break;
+      default: break;
+    }
+    /* c should point to the conversion character */
+    switch (*c) {
+      case 'a': status |= conv_a; break;
+      case 'A': status |= conv_A; break;
+      case 'c': status |= conv_c; break;
+      case 'd': status |= conv_d; break;
+      case 'i': status |= conv_d; break;
+      case 'e': status |= conv_e; break;
+      case 'E': status |= conv_E; break;
+      case 'f': status |= conv_f; break;
+      case 'F': status |= conv_F; break;
+      case 'g': status |= conv_g; break;
+      case 'G': status |= conv_G; break;
+      case 'n': status |= conv_n; break;
+      case 'o': status |= conv_o; break;
+      case 'p': status |= conv_p; break;
+      case 'u': status |= conv_u; break;
+      case 'x': status |= conv_x; break;
+      case 'X': status |= conv_X; break;
+      /* string selection expr */
+      case '[': {
+        /* [^]...] or []...] or [...] ; get to the end of the conversion */
+        c++;
+        if (*c == '^') c++;
+        if (*c == ']') c++;
+        while (*c++ != ']');
+      }
+      default:   /* we aren't checking for legal format strings */
+                 break;
+    }
+  }
+  return conv_possible | status;
+}
+
+
+static HOST_WIDE_INT
+mchp_get_smartio_offset (mchp_conversion_status status)
+{
+  char extra_flags[sizeof("_aAcdeEfFgGnopsuxX0")] = "_";
+  char *f = &extra_flags[1];
+  mchp_conversion_status added;
+
+#define JOIN2(X,Y) (X ## Y)
+#define JOIN(X,Y) JOIN2(X,Y)
+#define MCHP_LL(X) JOIN2(X,LL)
+
+#define CCS_ADD_FLAG(FLAG) \
+        if (status & JOIN(conv_,FLAG)) { \
+          *f++=#FLAG[0]; \
+          added |=  JOIN(conv_,FLAG); }
+
+#define CCS_ADD_FLAG_ALT(FLAG,ALT) \
+        if ((status & JOIN(conv_,FLAG)) && \
+            ((added & JOIN(conv_,ALT)) == 0)) {\
+          *f++=#ALT[0]; \
+          added |=  JOIN(conv_,ALT); } 
+
+  /*  order is important here
+   *  add new flags alphabetically with lower case preceding uppercase
+   *    ie _aAcdEfgG not
+   *       _acdfgAEG
+   */
+
+  added = 0;
+  /*  we don't implement all 131K unique combinations, only
+   *  a subset...
+   */
+
+          /* a | A -> aA */
+          CCS_ADD_FLAG(a);
+          CCS_ADD_FLAG_ALT(A,a);
+          CCS_ADD_FLAG(A);
+          CCS_ADD_FLAG_ALT(a,A);
+
+          /* c | d | n | o | p | u | x | X -> cdnopuxX */
+          CCS_ADD_FLAG(c);
+          CCS_ADD_FLAG_ALT(d,c);
+          CCS_ADD_FLAG_ALT(n,c);
+          CCS_ADD_FLAG_ALT(o,c);
+          CCS_ADD_FLAG_ALT(p,c);
+          CCS_ADD_FLAG_ALT(u,c);
+          CCS_ADD_FLAG_ALT(x,c);
+          CCS_ADD_FLAG_ALT(X,c);
+
+          /* c | d | n | o | p | u | x | X -> cdnopuxX */
+          CCS_ADD_FLAG(d);
+          CCS_ADD_FLAG_ALT(c,d);
+          CCS_ADD_FLAG_ALT(n,d);
+          CCS_ADD_FLAG_ALT(o,d);
+          CCS_ADD_FLAG_ALT(p,d);
+          CCS_ADD_FLAG_ALT(u,d);
+          CCS_ADD_FLAG_ALT(x,d);
+          CCS_ADD_FLAG_ALT(X,d);
+ 
+          /* e | E -> eE */
+          CCS_ADD_FLAG(e);
+          CCS_ADD_FLAG_ALT(E,e);
+          CCS_ADD_FLAG(E);
+          CCS_ADD_FLAG_ALT(e,E);
+
+          /* f | F -> fF */
+          CCS_ADD_FLAG(f);
+          CCS_ADD_FLAG_ALT(F,f);
+          CCS_ADD_FLAG(F);
+          CCS_ADD_FLAG_ALT(f,F);
+
+          /* g | G -> gG */
+          CCS_ADD_FLAG(g);
+          CCS_ADD_FLAG_ALT(G,g);
+          CCS_ADD_FLAG(G);
+          CCS_ADD_FLAG_ALT(g,G);
+
+          /* c | d | n | o | p | u | x | X -> cdnopuxX */
+          CCS_ADD_FLAG(n);
+          CCS_ADD_FLAG_ALT(c,n);
+          CCS_ADD_FLAG_ALT(d,n);
+          CCS_ADD_FLAG_ALT(n,n);
+          CCS_ADD_FLAG_ALT(o,n);
+          CCS_ADD_FLAG_ALT(p,n);
+          CCS_ADD_FLAG_ALT(u,n);
+          CCS_ADD_FLAG_ALT(x,n);
+          CCS_ADD_FLAG_ALT(X,n);
+
+          /* c | d | n | o | p | u | x | X -> cdnopuxX */
+          CCS_ADD_FLAG(o);
+          CCS_ADD_FLAG_ALT(c,o);
+          CCS_ADD_FLAG_ALT(d,o);
+          CCS_ADD_FLAG_ALT(n,o);
+          CCS_ADD_FLAG_ALT(o,o);
+          CCS_ADD_FLAG_ALT(p,o);
+          CCS_ADD_FLAG_ALT(u,o);
+          CCS_ADD_FLAG_ALT(x,o);
+          CCS_ADD_FLAG_ALT(X,o);
+
+          CCS_ADD_FLAG(p);
+          CCS_ADD_FLAG_ALT(c,p);
+          CCS_ADD_FLAG_ALT(d,p);
+          CCS_ADD_FLAG_ALT(n,p);
+          CCS_ADD_FLAG_ALT(o,p);
+          CCS_ADD_FLAG_ALT(p,p);
+          CCS_ADD_FLAG_ALT(u,p);
+          CCS_ADD_FLAG_ALT(x,p);
+          CCS_ADD_FLAG_ALT(X,p);
+
+          CCS_ADD_FLAG(s);
+
+          CCS_ADD_FLAG(u);
+          CCS_ADD_FLAG_ALT(c,u);
+          CCS_ADD_FLAG_ALT(d,u);
+          CCS_ADD_FLAG_ALT(n,u);
+          CCS_ADD_FLAG_ALT(o,u);
+          CCS_ADD_FLAG_ALT(p,u);
+          CCS_ADD_FLAG_ALT(u,u);
+          CCS_ADD_FLAG_ALT(x,u);
+          CCS_ADD_FLAG_ALT(X,u);
+
+          CCS_ADD_FLAG(x);
+          CCS_ADD_FLAG_ALT(c,x);
+          CCS_ADD_FLAG_ALT(d,x);
+          CCS_ADD_FLAG_ALT(n,x);
+          CCS_ADD_FLAG_ALT(o,x);
+          CCS_ADD_FLAG_ALT(p,x);
+          CCS_ADD_FLAG_ALT(u,x);
+          CCS_ADD_FLAG_ALT(x,x);
+          CCS_ADD_FLAG_ALT(X,x);
+
+          CCS_ADD_FLAG(X);
+          CCS_ADD_FLAG_ALT(c,X);
+          CCS_ADD_FLAG_ALT(d,X);
+          CCS_ADD_FLAG_ALT(n,X);
+          CCS_ADD_FLAG_ALT(o,X);
+          CCS_ADD_FLAG_ALT(p,X);
+          CCS_ADD_FLAG_ALT(u,X);
+          CCS_ADD_FLAG_ALT(x,X);
+          CCS_ADD_FLAG_ALT(X,X);
+          *f++=0;
+
+  if (strlen(extra_flags) == 1)
+    return 32;
+          
+  /* Order matters. Return value should match offset in builtins.def */
+  /* TODO: We should be able to come up with a more effcient way to handle this 
+   */
+  if (strcmp(extra_flags, "_cdnopuxX") == 0)
+    return 1;
+  if (strcmp(extra_flags, "_cdeEnopuxX") == 0)
+    return 2;
+  if (strcmp(extra_flags, "_cdeEfFnopuxX") == 0)
+    return 3;
+  if (strcmp(extra_flags, "_cdeEfFgGnopuxX") == 0)
+    return 4;
+  if (strcmp(extra_flags, "_cdeEfFgGnopsuxX") == 0)
+    return 5;
+  if (strcmp(extra_flags, "_cdeEfFnopsuxX") == 0)
+    return 6;
+  if (strcmp(extra_flags, "_cdeEgGnopuxX") == 0)
+    return 7;
+  if (strcmp(extra_flags, "_cdeEgGnopsuxX") == 0)
+    return 8;
+  if (strcmp(extra_flags, "_cdeEnopsuxX") == 0)
+    return 9;
+  if (strcmp(extra_flags, "_cdfFnopuxX") == 0)
+    return 10;
+  if (strcmp(extra_flags, "_cdfFgGnopuxX") == 0)
+    return 11;
+  if (strcmp(extra_flags, "_cdfFgGnopsuxX") == 0)
+    return 12;
+  if (strcmp(extra_flags, "_cdfFnopsuxX") == 0)
+    return 13;
+  if (strcmp(extra_flags, "_cdgGnopuxX") == 0)
+    return 14;
+  if (strcmp(extra_flags, "_cdgGnopsuxX") == 0)
+    return 15;
+  if (strcmp(extra_flags, "_cdnopsuxX") == 0)
+    return 16;
+  if (strcmp(extra_flags, "_eE") == 0)
+    return 17;
+  if (strcmp(extra_flags, "_eEfF") == 0)
+    return 18;
+  if (strcmp(extra_flags, "_eEfFgG") == 0)
+    return 19;
+  if (strcmp(extra_flags, "_eEfFgGs") == 0)
+    return 20;
+  if (strcmp(extra_flags, "_eEfFs") == 0)
+    return 21;
+  if (strcmp(extra_flags, "_eEgG") == 0)
+    return 22;
+  if (strcmp(extra_flags, "_eEgGs") == 0)
+    return 23;
+  if (strcmp(extra_flags, "_eEs") == 0)
+    return 24;
+  if (strcmp(extra_flags, "_fF") == 0)
+    return 25;
+  if (strcmp(extra_flags, "_fFgG") == 0)
+    return 26;
+  if (strcmp(extra_flags, "_fFgGs") == 0)
+    return 27;
+  if (strcmp(extra_flags, "_fFs") == 0)
+    return 28;
+  if (strcmp(extra_flags, "_gG") == 0)
+    return 29;
+  if (strcmp(extra_flags, "_gGs") == 0)
+    return 30;
+  if (strcmp(extra_flags, "_s") == 0)
+    return 31;
+  
+  return 0;
+}
+
 #endif
 
 /* Expand a call to vprintf or vprintf_unlocked with argument list ARGLIST.
@@ -4806,10 +5119,6 @@ expand_builtin_vprintf (tree arglist, rtx target, enum machine_mode mode,
                     : implicit_built_in_decls[BUILT_IN_PUTCHAR];
   tree fn_puts = unlocked ? implicit_built_in_decls[BUILT_IN_PUTS_UNLOCKED]
                  : implicit_built_in_decls[BUILT_IN_PUTS];
-#ifdef TARGET_MCHP_PIC32MX
-  tree fn_ivprintf = unlocked ? implicit_built_in_decls[BUILT_IN_IVPRINTF_UNLOCKED]
-                    : implicit_built_in_decls[BUILT_IN_IVPRINTF];
-#endif
 
   const char *fmt_str;
   tree fn, fmt, arg, origarglist;
@@ -4837,7 +5146,8 @@ expand_builtin_vprintf (tree arglist, rtx target, enum machine_mode mode,
           /* Assume that the non-constant string is convertable to the 
              integer-only variant. */
           arglist = origarglist;
-          fn = fn_ivprintf;
+          fn =
+            implicit_built_in_decls[BUILT_IN__VPRINTF_cdnopsuxX];
           return expand_expr (build_function_call_expr (fn, arglist),
                               target, mode, EXPAND_NORMAL);
         }
@@ -4871,15 +5181,25 @@ expand_builtin_vprintf (tree arglist, rtx target, enum machine_mode mode,
 #ifdef TARGET_MCHP_PIC32MX
       if (strchr (fmt_str, '%'))
         {
-          if (mchp_convertable_output_format_string (fmt_str) == conv_not_possible)
+          HOST_WIDE_INT mchp_smartio_builtin_offset = 0;
+          mchp_conversion_status status = 0;
+          status = mchp_convertable_output_format_string (fmt_str);
+          
+          if (status == conv_not_possible)
             {
               return 0;
             }
-          else
+          mchp_smartio_builtin_offset = mchp_get_smartio_offset(status);
+          arglist = origarglist;
+          if (!flag_short_double || ((status & size_L) == size_L))
             {
-              /* Call the integer-only version instead. */
-              arglist = origarglist;
-              fn = fn_ivprintf;
+              fn = implicit_built_in_decls[BUILT_IN__DVPRINTF + 
+                                           mchp_smartio_builtin_offset];
+            }
+          else 
+            {
+              fn = implicit_built_in_decls[BUILT_IN__VPRINTF + 
+                                           mchp_smartio_builtin_offset];
             }
         }
 #else
@@ -4921,9 +5241,10 @@ expand_builtin_vprintf (tree arglist, rtx target, enum machine_mode mode,
               else
                 {
 #ifdef TARGET_MCHP_PIC32MX
-                  /* Call the integer-only version instead. */
+                  /* Call the minimal variant. */
                   arglist = origarglist;
-                  fn = fn_ivprintf;
+                  fn =
+                    implicit_built_in_decls[BUILT_IN__VPRINTF_0];
 #else
                   /* We'd like to arrange to call fputs(string,stdout) here,
                      but we need stdout and don't have a way to get it yet.  */
@@ -4943,9 +5264,10 @@ expand_builtin_vprintf (tree arglist, rtx target, enum machine_mode mode,
     {
 #ifdef TARGET_MCHP_PIC32MX
       /* If the return value of puts or putchar is used, transform to 
-         ivprintf instead.  */
+         _vprintf_cdnopsuxX instead.  */
       arglist = origarglist;
-      fn = fn_ivprintf;
+      fn =
+        implicit_built_in_decls[BUILT_IN__VPRINTF_s];
 #else
       /* If the return value of puts or putchar is used, don't do the
          transformation.  */
@@ -4971,10 +5293,6 @@ expand_builtin_printf (tree arglist, rtx target, enum machine_mode mode,
                     : implicit_built_in_decls[BUILT_IN_PUTCHAR];
   tree fn_puts = unlocked ? implicit_built_in_decls[BUILT_IN_PUTS_UNLOCKED]
                  : implicit_built_in_decls[BUILT_IN_PUTS];
-#ifdef TARGET_MCHP_PIC32MX
-  tree fn_iprintf = unlocked ? implicit_built_in_decls[BUILT_IN_IPRINTF_UNLOCKED]
-                    : implicit_built_in_decls[BUILT_IN_IPRINTF];
-#endif
 
   const char *fmt_str;
   tree fn, fmt, arg, origarglist;
@@ -4999,7 +5317,8 @@ expand_builtin_printf (tree arglist, rtx target, enum machine_mode mode,
           /* Assume that the non-constant string is convertable to the 
              integer-only variant. */
           arglist = origarglist;
-          fn = fn_iprintf;
+          fn = 
+           implicit_built_in_decls[BUILT_IN__PRINTF_cdnopsuxX];
           return expand_expr (build_function_call_expr (fn, arglist),
                               target, mode, EXPAND_NORMAL);
         }
@@ -5033,15 +5352,25 @@ expand_builtin_printf (tree arglist, rtx target, enum machine_mode mode,
 #ifdef TARGET_MCHP_PIC32MX
       if (strchr (fmt_str, '%'))
         {
-          if (mchp_convertable_output_format_string (fmt_str) == conv_not_possible)
+          HOST_WIDE_INT mchp_smartio_builtin_offset ;
+          mchp_conversion_status status = 0;
+          status = mchp_convertable_output_format_string (fmt_str);
+
+          if (status == conv_not_possible)
             {
               return 0;
             }
+          arglist = origarglist;
+          mchp_smartio_builtin_offset = mchp_get_smartio_offset(status);
+          if (!flag_short_double || ((status & size_L) == size_L))
+            {
+              fn = implicit_built_in_decls[BUILT_IN__DPRINTF +
+                                           mchp_smartio_builtin_offset];
+            }
           else
             {
-              /* Call the integer-only version instead. */
-              arglist = origarglist;
-              fn = fn_iprintf;
+              fn = implicit_built_in_decls[BUILT_IN__PRINTF +
+                                           mchp_smartio_builtin_offset];
             }
         }
 #else
@@ -5054,9 +5383,10 @@ expand_builtin_printf (tree arglist, rtx target, enum machine_mode mode,
           if (arglist)
             {
 #ifdef TARGET_MCHP_PIC32MX
-              /* Call the integer-only version instead. */
+              /* Call the minimal variant instead. */
               arglist = origarglist;
-              fn = fn_iprintf;
+              fn  = 
+                implicit_built_in_decls[BUILT_IN__PRINTF_0];
 #else
               return 0;
 #endif
@@ -5094,9 +5424,10 @@ expand_builtin_printf (tree arglist, rtx target, enum machine_mode mode,
               else
                 {
 #ifdef TARGET_MCHP_PIC32MX
-                  /* Call the integer-only version instead. */
+                  /* Call the string-only version instead. */
                   arglist = origarglist;
-                  fn = fn_iprintf;
+                  fn  = 
+                    implicit_built_in_decls[BUILT_IN__PRINTF_s];
 #else
                   /* We'd like to arrange to call fputs(string,stdout) here,
                      but we need stdout and don't have a way to get it yet.  */
@@ -5117,7 +5448,8 @@ expand_builtin_printf (tree arglist, rtx target, enum machine_mode mode,
   if ((target != const0_rtx) && fn)
     {
       arglist = origarglist;
-      fn = fn_iprintf;
+      fn  = 
+        implicit_built_in_decls[BUILT_IN__PRINTF_s];
     }
 #else
   /* If the return value of puts or putchar is used, don't do the transformation.  */
@@ -5138,8 +5470,8 @@ static rtx
 expand_builtin_snprintf (tree arglist, rtx target, enum machine_mode mode)
 {
   const char *fmt_str;
-  tree fmt, dest, sizeval, orig_arglist, fn;
-  orig_arglist = arglist;
+  tree fmt, dest, sizeval, origarglist, fn;
+  origarglist = arglist;
 
 #ifdef TARGET_MCHP_PIC32MX
   /* Verify the required arguments in the original call.  */
@@ -5172,8 +5504,8 @@ expand_builtin_snprintf (tree arglist, rtx target, enum machine_mode mode)
         {
           /* Assume that the non-constant string is convertable to the 
              integer-only variant. */
-          arglist = orig_arglist;
-          fn = implicit_built_in_decls[BUILT_IN_ISNPRINTF];
+          arglist = origarglist;
+          fn = implicit_built_in_decls[BUILT_IN__SNPRINTF_cdnopsuxX];
           return expand_expr (build_function_call_expr (fn, arglist),
                               target, mode, EXPAND_NORMAL);
         }
@@ -5183,18 +5515,22 @@ expand_builtin_snprintf (tree arglist, rtx target, enum machine_mode mode)
       return 0;
 #endif
     }
-
-  if (mchp_convertable_output_format_string (fmt_str) == conv_not_possible)
-    {  
-      return 0;
-    }
   else
-    {
-      arglist = orig_arglist;
-      fn = implicit_built_in_decls[BUILT_IN_ISNPRINTF];
-      return expand_expr (build_function_call_expr (fn, arglist),
-                    target, mode, EXPAND_NORMAL);
-    }
+      {
+        HOST_WIDE_INT mchp_smartio_builtin_offset = 0;
+        mchp_conversion_status status = 0;
+        status = mchp_convertable_output_format_string (fmt_str);
+        if (status == conv_not_possible)
+          {
+            return 0;
+          }
+        arglist = origarglist;
+        mchp_smartio_builtin_offset = mchp_get_smartio_offset(status);
+        fn = implicit_built_in_decls[BUILT_IN__SNPRINTF +
+                                     mchp_smartio_builtin_offset];
+        return expand_expr (build_function_call_expr (fn, arglist),
+                            target, mode, EXPAND_NORMAL);
+       }
   return 0;
 #else
     return 0;
@@ -5211,8 +5547,8 @@ static rtx
 expand_builtin_vsnprintf (tree arglist, rtx target, enum machine_mode mode)
 {
   const char *fmt_str;
-  tree fmt, dest, sizeval, orig_arglist, fn;
-  orig_arglist = arglist;
+  tree fmt, dest, sizeval, origarglist, fn;
+  origarglist = arglist;
 
 #ifdef TARGET_MCHP_PIC32MX
   /* Verify the required arguments in the original call.  */
@@ -5245,8 +5581,8 @@ expand_builtin_vsnprintf (tree arglist, rtx target, enum machine_mode mode)
         {
           /* Assume that the non-constant string is convertable to the 
              integer-only variant. */
-          arglist = orig_arglist;
-          fn = implicit_built_in_decls[BUILT_IN_IVSNPRINTF];
+          arglist = origarglist;
+          fn = implicit_built_in_decls[BUILT_IN__VSNPRINTF_cdnopsuxX];
           return expand_expr (build_function_call_expr (fn, arglist),
                               target, mode, EXPAND_NORMAL);
         }
@@ -5256,17 +5592,21 @@ expand_builtin_vsnprintf (tree arglist, rtx target, enum machine_mode mode)
       return 0;
 #endif
     }
-
-  if (mchp_convertable_output_format_string (fmt_str) == conv_not_possible)
-    {  
-      return 0;
-    }
   else
     {
-      arglist = orig_arglist;
-      fn = implicit_built_in_decls[BUILT_IN_IVSNPRINTF];
-      return expand_expr (build_function_call_expr (fn, arglist),
-                    target, mode, EXPAND_NORMAL);
+        HOST_WIDE_INT mchp_smartio_builtin_offset = 0;
+        mchp_conversion_status status = 0;
+        status = mchp_convertable_output_format_string (fmt_str);
+        if (status == conv_not_possible)
+          {
+            return 0;
+          }
+        arglist = origarglist;
+        mchp_smartio_builtin_offset = mchp_get_smartio_offset(status);
+        fn  = implicit_built_in_decls[BUILT_IN__VSNPRINTF +
+                                      mchp_smartio_builtin_offset];
+        return expand_expr (build_function_call_expr (fn, arglist),
+                            target, mode, EXPAND_NORMAL);
     }
   return 0;
 #else
@@ -5288,9 +5628,7 @@ expand_builtin_fprintf (tree arglist, rtx target, enum machine_mode mode,
                   : implicit_built_in_decls[BUILT_IN_FPUTC];
   tree fn_fputs = unlocked ? implicit_built_in_decls[BUILT_IN_FPUTS_UNLOCKED]
                   : implicit_built_in_decls[BUILT_IN_FPUTS];
-#ifdef TARGET_MCHP_PIC32MX
-  tree fn_ifprintf = implicit_built_in_decls[BUILT_IN_IFPRINTF];
-#endif
+
   const char *fmt_str;
   tree fn, fmt, fp, arg, origarglist;
   fn = NULL_TREE;
@@ -5320,7 +5658,7 @@ expand_builtin_fprintf (tree arglist, rtx target, enum machine_mode mode,
           /* Assume that the non-constant string is convertable to the 
              integer-only variant. */
           arglist = origarglist;
-          fn = fn_ifprintf;
+          fn = implicit_built_in_decls[BUILT_IN__FPRINTF_cdnopsuxX];
           return expand_expr (build_function_call_expr (fn, arglist),
                               target, mode, EXPAND_NORMAL);
         }
@@ -5362,16 +5700,17 @@ expand_builtin_fprintf (tree arglist, rtx target, enum machine_mode mode,
          for floating-point support. */
       if (strchr (fmt_str, '%'))
         {
-          if (mchp_convertable_output_format_string (fmt_str) == conv_not_possible)
+          HOST_WIDE_INT mchp_smartio_builtin_offset = 0;
+          mchp_conversion_status status = 0;
+          status = mchp_convertable_output_format_string (fmt_str);
+          if (status == conv_not_possible)
             {
               return 0;
             }
-          else
-            {
-              /* Call the integer-only version of the function. */
-              arglist = origarglist;
-              fn = fn_ifprintf;
-            }
+          arglist = origarglist;
+          mchp_smartio_builtin_offset = mchp_get_smartio_offset(status);
+          fn = implicit_built_in_decls[BUILT_IN__FPRINTF +
+                                       mchp_smartio_builtin_offset];
         }
 #else
       if (strchr (fmt_str, '%'))
@@ -5402,13 +5741,13 @@ expand_builtin_fprintf (tree arglist, rtx target, enum machine_mode mode,
   if (!fn)
     return 0;
 
-  /* If the return value is used, transform to ivfprintf rather than
+  /* If the return value is used, transform to _fprintf_s rather than
      fputs.  */
   if ((target != const0_rtx) && fn)
     {
 #ifdef TARGET_MCHP_PIC32MX
       arglist = origarglist;
-      fn = fn_ifprintf;
+      fn = implicit_built_in_decls[BUILT_IN__FPRINTF_s];
 #else
       return 0;
 #endif
@@ -5431,9 +5770,7 @@ expand_builtin_vfprintf (tree arglist, rtx target, enum machine_mode mode,
 {
   tree fn_fputs = unlocked ? implicit_built_in_decls[BUILT_IN_FPUTS_UNLOCKED]
                   : implicit_built_in_decls[BUILT_IN_FPUTS];
-#ifdef TARGET_MCHP_PIC32MX
-  tree fn_ivfprintf = implicit_built_in_decls[BUILT_IN_IVFPRINTF];
-#endif
+
   const char *fmt_str;
   tree fn, fmt, fp,  origarglist;
   fn = NULL_TREE;
@@ -5471,7 +5808,7 @@ expand_builtin_vfprintf (tree arglist, rtx target, enum machine_mode mode,
           /* Assume that the non-constant string is convertable to the 
              integer-only variant. */
           arglist = origarglist;
-          fn = fn_ivfprintf;
+          fn = implicit_built_in_decls[BUILT_IN__VFPRINTF_cdnopsuxX];
           return expand_expr (build_function_call_expr (fn, arglist),
                               target, mode, EXPAND_NORMAL);
         }
@@ -5494,16 +5831,19 @@ expand_builtin_vfprintf (tree arglist, rtx target, enum machine_mode mode,
      floating-point support. */
   else if (strchr (fmt_str, '%'))
     {
-      if (mchp_convertable_output_format_string (fmt_str) == conv_not_possible)
-        {
-          return 0;
-        }
-      else
-        {
-          /* Call the integer-only version of this function. */
-          arglist = origarglist;
-          fn = fn_ivfprintf;
-        }
+        HOST_WIDE_INT mchp_smartio_builtin_offset = 0;
+        mchp_conversion_status status = 0;
+        status = mchp_convertable_output_format_string (fmt_str);
+        if (status == conv_not_possible)
+          {
+            return 0;
+          }
+        arglist = origarglist;
+        mchp_smartio_builtin_offset = mchp_get_smartio_offset(status);
+        fn = implicit_built_in_decls[BUILT_IN__VFPRINTF +
+                                     mchp_smartio_builtin_offset];
+        return expand_expr (build_function_call_expr (fn, arglist),
+                            target, mode, EXPAND_NORMAL);
     }
 #else
   else if (strchr (fmt_str, '%'))
@@ -5522,13 +5862,13 @@ expand_builtin_vfprintf (tree arglist, rtx target, enum machine_mode mode,
   if (!fn)
     return 0;
 
-  /* If the return value is used, transform to ivfprintf rather than
+  /* If the return value is used, transform to _vfprintf_s rather than
      fputs.  */
   if ((target != const0_rtx) && fn)
     {
 #ifdef TARGET_MCHP_PIC32MX
       arglist = origarglist;
-      fn = fn_ivfprintf;
+      fn = implicit_built_in_decls[BUILT_IN__VFPRINTF_s];
 #else
       return 0;
 #endif
@@ -5546,10 +5886,10 @@ expand_builtin_vfprintf (tree arglist, rtx target, enum machine_mode mode,
 static rtx
 expand_builtin_sprintf (tree arglist, rtx target, enum machine_mode mode)
 {
-  tree orig_arglist, dest, fmt, fn;
+  tree origarglist, dest, fmt, fn;
   const char *fmt_str;
 
-  orig_arglist = arglist;
+  origarglist = arglist;
 
   /* Verify the required arguments in the original call.  */
   if (! arglist)
@@ -5574,8 +5914,8 @@ expand_builtin_sprintf (tree arglist, rtx target, enum machine_mode mode)
         {
           /* Assume that the non-constant string is convertable to the 
              integer-only variant. */
-          arglist = orig_arglist;
-          fn = implicit_built_in_decls[BUILT_IN_ISPRINTF];
+          arglist = origarglist;
+          fn = implicit_built_in_decls[BUILT_IN__SPRINTF_cdnopsuxX];
           return expand_expr (build_function_call_expr (fn, arglist),
                               target, mode, EXPAND_NORMAL);
         }
@@ -5594,7 +5934,7 @@ expand_builtin_sprintf (tree arglist, rtx target, enum machine_mode mode)
 
       if (arglist || ! fn)
         return 0;
-      expand_expr (build_function_call_expr (fn, orig_arglist),
+      expand_expr (build_function_call_expr (fn, origarglist),
                    const0_rtx, VOIDmode, EXPAND_NORMAL);
       if (target == const0_rtx)
         return const0_rtx;
@@ -5624,8 +5964,8 @@ expand_builtin_sprintf (tree arglist, rtx target, enum machine_mode mode)
             {
 #ifdef TARGET_MCHP_PIC32MX
               /* If the result is used, we can still call ISPRINTF. */
-              arglist = orig_arglist;
-              fn = implicit_built_in_decls[BUILT_IN_ISPRINTF];
+              arglist = origarglist;
+              fn = implicit_built_in_decls[BUILT_IN__SPRINTF_s];
               return expand_expr (build_function_call_expr (fn, arglist),
                                   target, mode, EXPAND_NORMAL);
 #else
@@ -5648,19 +5988,20 @@ expand_builtin_sprintf (tree arglist, rtx target, enum machine_mode mode)
 #ifdef TARGET_MCHP_PIC32MX
   else if (strchr (fmt_str, '%'))
     {
-      tree fn;
-      if (mchp_convertable_output_format_string (fmt_str) == conv_not_possible)
-        {
-          return 0;
-        }
-      else
-        {
-          /* Call the integer-only version of this function. */
-          arglist = orig_arglist;
-          fn = implicit_built_in_decls[BUILT_IN_ISPRINTF];
-          return expand_expr (build_function_call_expr (fn, arglist),
-                              target, mode, EXPAND_NORMAL);
-        }
+        tree fn;
+        HOST_WIDE_INT mchp_smartio_builtin_offset = 0;
+        mchp_conversion_status status = 0;
+        status = mchp_convertable_output_format_string (fmt_str);
+        if (status == conv_not_possible)
+          {
+            return 0;
+          }
+        arglist = origarglist;
+        mchp_smartio_builtin_offset = mchp_get_smartio_offset(status);
+        fn  = implicit_built_in_decls[BUILT_IN__SPRINTF +
+                                      mchp_smartio_builtin_offset];
+        return expand_expr (build_function_call_expr (fn, arglist),
+                            target, mode, EXPAND_NORMAL);
     }
 #endif
 
@@ -5676,10 +6017,10 @@ expand_builtin_sprintf (tree arglist, rtx target, enum machine_mode mode)
 static rtx
 expand_builtin_asprintf (tree arglist, rtx target, enum machine_mode mode)
 {
-  tree orig_arglist, dest, fmt, fn;
+  tree origarglist, dest, fmt, fn;
   const char *fmt_str;
 
-  orig_arglist = arglist;
+  origarglist = arglist;
 
   /* Verify the required arguments in the original call.  */
   if (! arglist)
@@ -5706,8 +6047,8 @@ expand_builtin_asprintf (tree arglist, rtx target, enum machine_mode mode)
         {
           /* Assume that the non-constant string is convertable to the 
              integer-only variant. */
-          arglist = orig_arglist;
-          fn = implicit_built_in_decls[BUILT_IN_IASPRINTF];
+          arglist = origarglist;
+          fn = implicit_built_in_decls[BUILT_IN__ASPRINTF_cdnopsuxX];
           return expand_expr (build_function_call_expr (fn, arglist),
                               target, mode, EXPAND_NORMAL);
         }
@@ -5719,17 +6060,21 @@ expand_builtin_asprintf (tree arglist, rtx target, enum machine_mode mode)
     }
 
 #ifdef TARGET_MCHP_PIC32MX
-  if (mchp_convertable_output_format_string (fmt_str) == conv_not_possible)
-    {
-      return 0;
-    }
   else
     {
-      /* Call the integer-only version of this function. */
-      return expand_expr (
-               build_function_call_expr (
-                 implicit_built_in_decls[BUILT_IN_IASPRINTF], orig_arglist),
-                          target, mode, EXPAND_NORMAL);
+        HOST_WIDE_INT mchp_smartio_builtin_offset = 0;
+        mchp_conversion_status status = 0;
+        status = mchp_convertable_output_format_string (fmt_str);
+        if (status == conv_not_possible)
+          {
+            return 0;
+          }
+        arglist = origarglist;
+        mchp_smartio_builtin_offset = mchp_get_smartio_offset(status);
+        fn = implicit_built_in_decls[BUILT_IN__ASPRINTF +
+                                     mchp_smartio_builtin_offset];
+        return expand_expr (build_function_call_expr (fn, arglist),
+                            target, mode, EXPAND_NORMAL);
     }
 #endif
 
@@ -5746,10 +6091,10 @@ expand_builtin_asprintf (tree arglist, rtx target, enum machine_mode mode)
 static rtx
 expand_builtin_vasprintf (tree arglist, rtx target, enum machine_mode mode)
 {
-  tree orig_arglist, dest, fmt, fn;
+  tree origarglist, dest, fmt, fn;
   const char *fmt_str;
 
-  orig_arglist = arglist;
+  origarglist = arglist;
 
   /* Verify the required arguments in the original call.  */
   if (! arglist)
@@ -5776,8 +6121,8 @@ expand_builtin_vasprintf (tree arglist, rtx target, enum machine_mode mode)
         {
           /* Assume that the non-constant string is convertable to the 
              integer-only variant. */
-          arglist = orig_arglist;
-          fn = implicit_built_in_decls[BUILT_IN_IVASPRINTF];
+          arglist = origarglist;
+          fn = implicit_built_in_decls[BUILT_IN__VASPRINTF_cdnopsuxX];
           return expand_expr (build_function_call_expr (fn, arglist),
                               target, mode, EXPAND_NORMAL);
         }
@@ -5789,17 +6134,21 @@ expand_builtin_vasprintf (tree arglist, rtx target, enum machine_mode mode)
     }
 
 #ifdef TARGET_MCHP_PIC32MX
-  if (mchp_convertable_output_format_string (fmt_str) == conv_not_possible)
-    {
-      return 0;
-    }
   else
     {
-      /* Call the integer-only version of this function. */
-      return expand_expr (
-               build_function_call_expr (
-                 implicit_built_in_decls[BUILT_IN_IVASPRINTF], orig_arglist),
-                          target, mode, EXPAND_NORMAL);
+        HOST_WIDE_INT mchp_smartio_builtin_offset = 0;
+        mchp_conversion_status status = 0;
+        status = mchp_convertable_output_format_string (fmt_str);
+        if (status == conv_not_possible)
+          {
+            return 0;
+          }
+        arglist = origarglist;
+        mchp_smartio_builtin_offset = mchp_get_smartio_offset(status);
+        fn   = implicit_built_in_decls[BUILT_IN__VASPRINTF +
+                                       mchp_smartio_builtin_offset];
+        return expand_expr (build_function_call_expr (fn, arglist),
+                            target, mode, EXPAND_NORMAL);
     }
 #endif
 
@@ -5815,10 +6164,10 @@ expand_builtin_vasprintf (tree arglist, rtx target, enum machine_mode mode)
 static rtx
 expand_builtin_vsprintf (tree arglist, rtx target, enum machine_mode mode)
 {
-  tree orig_arglist, dest, fmt, fn;
+  tree origarglist, dest, fmt, fn;
   const char *fmt_str;
 
-  orig_arglist = arglist;
+  origarglist = arglist;
 
   /* Verify the required arguments in the original call.  */
   if (! arglist)
@@ -5843,8 +6192,8 @@ expand_builtin_vsprintf (tree arglist, rtx target, enum machine_mode mode)
         {
           /* Assume that the non-constant string is convertable to the 
              integer-only variant. */
-          arglist = orig_arglist;
-          fn = implicit_built_in_decls[BUILT_IN_IVSPRINTF];
+          arglist = origarglist;
+          fn = implicit_built_in_decls[BUILT_IN__VSPRINTF_cdnopsuxX];
           return expand_expr (build_function_call_expr (fn, arglist),
                               target, mode, EXPAND_NORMAL);
         }
@@ -5865,7 +6214,7 @@ expand_builtin_vsprintf (tree arglist, rtx target, enum machine_mode mode)
         {
           return 0;
         }
-      expand_expr (build_function_call_expr (fn, orig_arglist),
+      expand_expr (build_function_call_expr (fn, origarglist),
                    const0_rtx, VOIDmode, EXPAND_NORMAL);
       if (target == const0_rtx)
         {
@@ -5898,9 +6247,9 @@ expand_builtin_vsprintf (tree arglist, rtx target, enum machine_mode mode)
           if (! len || TREE_CODE (len) != INTEGER_CST)
             {
 #ifdef TARGET_MCHP_PIC32MX
-              /* If the result is used, we can still call IVSPRINTF. */
-              arglist = orig_arglist;
-              fn = implicit_built_in_decls[BUILT_IN_IVSPRINTF];
+              /* If the result is used, we can still call VSPRINTF_s. */
+              arglist = origarglist;
+              fn = implicit_built_in_decls[BUILT_IN__VSPRINTF_s];
               return expand_expr (build_function_call_expr (fn, arglist),
                                   target, mode, EXPAND_NORMAL);
 #else
@@ -5923,19 +6272,20 @@ expand_builtin_vsprintf (tree arglist, rtx target, enum machine_mode mode)
 #ifdef TARGET_MCHP_PIC32MX
   else if (strchr (fmt_str, '%'))
     {
-      tree fn;
-      if (mchp_convertable_output_format_string (fmt_str) == conv_not_possible)
-        {
-          return 0;
-        }
-      else
-        {
-          /* Call the integer-only version of this function. */
-          arglist = orig_arglist;
-          fn = implicit_built_in_decls[BUILT_IN_IVSPRINTF];
-          return expand_expr (build_function_call_expr (fn, arglist),
-                              target, mode, EXPAND_NORMAL);
-        }
+       tree fn;
+       HOST_WIDE_INT mchp_smartio_builtin_offset = 0;
+       mchp_conversion_status status = 0;
+       status = mchp_convertable_output_format_string (fmt_str);
+        if (status == conv_not_possible)
+          {
+            return 0;
+          }
+        arglist = origarglist;
+        mchp_smartio_builtin_offset = mchp_get_smartio_offset(status);
+        fn   = implicit_built_in_decls[BUILT_IN__VSPRINTF +
+                                       mchp_smartio_builtin_offset];
+        return expand_expr (build_function_call_expr (fn, arglist),
+                            target, mode, EXPAND_NORMAL);
     }
 #endif
 
@@ -5943,60 +6293,6 @@ expand_builtin_vsprintf (tree arglist, rtx target, enum machine_mode mode)
 } /* end vsprintf */
 
 
-#ifdef TARGET_MCHP_PIC32MX
-static mchp_conversion_status 
-mchp_convertable_input_format_string(const char *string)
-{
-  const char *c = string;
-  /* Don't attempt to scan the string if smart-IO is disabled */
-  if (mchp_io_size_val == 0)
-    {
-      return conv_not_possible;
-    }
-  for ( ; *c; c++)
-  {
-    /* quickly deal with the un-interesting cases */
-    if (*c != '%') continue;
-    if (*(++c) == '%')
-    {
-      continue;
-    }
-    /* optional assignment suppression */
-    if (*c == '*') c++;
-    /* optional field width */ 
-    while (ISDIGIT(*c)) c++; 
-    /* optional conversion modifier */
-    switch (*c) {
-      case 'h':
-      case 'l':
-      case 'L': c++; break;
-      default: break;
-    }
-    /* c should point to the conversion character */
-    switch (*c) {
-      case 'a':
-      case 'A':
-      case 'e':
-      case 'E':
-      case 'f':
-      case 'F':
-      case 'g':
-      case 'G':  return conv_not_possible;
-      /* string selection expr */
-      case '[': {
-        /* [^]...] or []...] or [...] ; get to the end of the conversion */
-        c++;
-        if (*c == '^') c++;
-        if (*c == ']') c++;
-        while (*c++ != ']');
-      }
-      default:   /* we aren't checking for legal format strings */
-                 break;
-    }
-  }
-  return conv_possible;
-}
-#endif
 
 /* begin scanf */
 /* Expand a call to scanf with argument list ARGLIST.
@@ -6007,9 +6303,9 @@ static rtx
 expand_builtin_scanf (tree arglist, rtx target, enum machine_mode mode)
 {
   const char *fmt_str;
-  tree fn, fmt, orig_arglist;
+  tree fn, fmt, origarglist;
   fn = NULL_TREE;
-  orig_arglist = arglist;
+  origarglist = arglist;
 
   /* Verify the required arguments in the original call.  */
   if (! arglist)
@@ -6028,8 +6324,8 @@ expand_builtin_scanf (tree arglist, rtx target, enum machine_mode mode)
         {
           /* Assume that the non-constant string is convertable to the 
              integer-only variant. */
-          arglist = orig_arglist;
-          fn = implicit_built_in_decls[BUILT_IN_ISCANF];
+          arglist = origarglist;
+          fn = implicit_built_in_decls[BUILT_IN__SCANF_cdnopsuxX];
           return expand_expr (build_function_call_expr (fn, arglist),
                               target, mode, EXPAND_NORMAL);
         }
@@ -6041,17 +6337,21 @@ expand_builtin_scanf (tree arglist, rtx target, enum machine_mode mode)
     }
 
 #ifdef TARGET_MCHP_PIC32MX
-  if (mchp_convertable_input_format_string (fmt_str) == conv_not_possible)
-    {
-      return 0;
-    }
   else
     {
-      /* Call the integer-only version of this function. */
-      arglist = orig_arglist;
-      fn = implicit_built_in_decls[BUILT_IN_ISCANF];
-      return expand_expr (build_function_call_expr (fn, arglist),
-                          target, mode, EXPAND_NORMAL);
+        HOST_WIDE_INT mchp_smartio_builtin_offset = 0;
+        mchp_conversion_status status = 0;
+        status = mchp_convertable_input_format_string (fmt_str);
+        if (status == conv_not_possible)
+          {
+            return 0;
+          }
+        arglist = origarglist;
+        mchp_smartio_builtin_offset = mchp_get_smartio_offset(status);
+        fn = implicit_built_in_decls[BUILT_IN__SCANF +
+                                     mchp_smartio_builtin_offset];
+        return expand_expr (build_function_call_expr (fn, arglist),
+                            target, mode, EXPAND_NORMAL);
     }
 #endif
   return 0;
@@ -6066,9 +6366,9 @@ static rtx
 expand_builtin_vscanf (tree arglist, rtx target, enum machine_mode mode)
 {
   const char *fmt_str;
-  tree fn, fmt, orig_arglist;
+  tree fn, fmt, origarglist;
   fn = NULL_TREE;
-  orig_arglist = arglist;
+  origarglist = arglist;
 
   /* Verify the required arguments in the original call.  */
   if (! arglist)
@@ -6087,8 +6387,8 @@ expand_builtin_vscanf (tree arglist, rtx target, enum machine_mode mode)
         {
           /* Assume that the non-constant string is convertable to the 
              integer-only variant. */
-          arglist = orig_arglist;
-          fn = implicit_built_in_decls[BUILT_IN_IVSCANF];
+          arglist = origarglist;
+          fn = implicit_built_in_decls[BUILT_IN__VSCANF_cdnopsuxX];
           return expand_expr (build_function_call_expr (fn, arglist),
                               target, mode, EXPAND_NORMAL);
         }
@@ -6100,17 +6400,21 @@ expand_builtin_vscanf (tree arglist, rtx target, enum machine_mode mode)
     }
 
 #ifdef TARGET_MCHP_PIC32MX
-  if (mchp_convertable_input_format_string (fmt_str) == conv_not_possible)
-    {
-      return 0;
-    }
   else
     {
-      /* Call the integer-only version of this function. */
-      arglist = orig_arglist;
-      fn = implicit_built_in_decls[BUILT_IN_IVSCANF];
-      return expand_expr (build_function_call_expr (fn, arglist),
-                          target, mode, EXPAND_NORMAL);
+        HOST_WIDE_INT mchp_smartio_builtin_offset = 0;
+        mchp_conversion_status status = 0;
+        status = mchp_convertable_input_format_string (fmt_str);
+        if (status == conv_not_possible)
+          {
+            return 0;
+          }
+        arglist = origarglist;
+        mchp_smartio_builtin_offset = mchp_get_smartio_offset(status);
+        fn   = implicit_built_in_decls[BUILT_IN__VSCANF +
+                                       mchp_smartio_builtin_offset];
+        return expand_expr (build_function_call_expr (fn, arglist),
+                            target, mode, EXPAND_NORMAL);
     }
 #endif
   return 0;
@@ -6126,9 +6430,9 @@ static rtx
 expand_builtin_fscanf (tree arglist, rtx target, enum machine_mode mode)
 {
   const char *fmt_str;
-  tree fn, fmt, stream, orig_arglist;
+  tree fn, fmt, stream, origarglist;
   fn = NULL_TREE;
-  orig_arglist = arglist;
+  origarglist = arglist;
 
   /* Verify the required arguments in the original call.  */
   if (! arglist)
@@ -6151,8 +6455,8 @@ expand_builtin_fscanf (tree arglist, rtx target, enum machine_mode mode)
         {
           /* Assume that the non-constant string is convertable to the 
              integer-only variant. */
-          arglist = orig_arglist;
-          fn = implicit_built_in_decls[BUILT_IN_IFSCANF];
+          arglist = origarglist;
+          fn = implicit_built_in_decls[BUILT_IN__FSCANF_cdnopsuxX];
           return expand_expr (build_function_call_expr (fn, arglist),
                               target, mode, EXPAND_NORMAL);
         }
@@ -6164,17 +6468,21 @@ expand_builtin_fscanf (tree arglist, rtx target, enum machine_mode mode)
     }
 
 #ifdef TARGET_MCHP_PIC32MX
-  if (mchp_convertable_input_format_string (fmt_str) == conv_not_possible)
-    {
-      return 0;
-    }
   else
     {
-      /* Call the integer-only version of this function. */
-      arglist = orig_arglist;
-      fn = implicit_built_in_decls[BUILT_IN_IFSCANF];
-      return expand_expr (build_function_call_expr (fn, arglist),
-                          target, mode, EXPAND_NORMAL);
+        HOST_WIDE_INT mchp_smartio_builtin_offset = 0;
+        mchp_conversion_status status = 0;
+        status = mchp_convertable_input_format_string (fmt_str);
+        if (status == conv_not_possible)
+          {
+            return 0;
+          }
+        arglist = origarglist;
+        mchp_smartio_builtin_offset = mchp_get_smartio_offset(status);
+        fn = implicit_built_in_decls[BUILT_IN__FSCANF +
+                                     mchp_smartio_builtin_offset];
+        return expand_expr (build_function_call_expr (fn, arglist),
+                            target, mode, EXPAND_NORMAL);
     }
 #endif
   return 0;
@@ -6189,9 +6497,9 @@ static rtx
 expand_builtin_sscanf (tree arglist, rtx target, enum machine_mode mode)
 {
   const char *fmt_str;
-  tree fn, fmt, stream, orig_arglist;
+  tree fn, fmt, stream, origarglist;
   fn = NULL_TREE;
-  orig_arglist = arglist;
+  origarglist = arglist;
 
   /* Verify the required arguments in the original call.  */
   if (! arglist)
@@ -6214,8 +6522,8 @@ expand_builtin_sscanf (tree arglist, rtx target, enum machine_mode mode)
         {
           /* Assume that the non-constant string is convertable to the 
              integer-only variant. */
-          arglist = orig_arglist;
-          fn = implicit_built_in_decls[BUILT_IN_ISSCANF];
+          arglist = origarglist;
+          fn = implicit_built_in_decls[BUILT_IN__SSCANF_cdnopsuxX];
           return expand_expr (build_function_call_expr (fn, arglist),
                               target, mode, EXPAND_NORMAL);
         }
@@ -6227,17 +6535,21 @@ expand_builtin_sscanf (tree arglist, rtx target, enum machine_mode mode)
     }
 
 #ifdef TARGET_MCHP_PIC32MX
-  if (mchp_convertable_input_format_string (fmt_str) == conv_not_possible)
-    {
-      return 0;
-    }
   else
     {
-      /* Call the integer-only version of this function. */
-      arglist = orig_arglist;
-      fn = implicit_built_in_decls[BUILT_IN_ISSCANF];
-      return expand_expr (build_function_call_expr (fn, arglist),
-                          target, mode, EXPAND_NORMAL);
+        HOST_WIDE_INT mchp_smartio_builtin_offset = 0;
+        mchp_conversion_status status = 0;
+        status = mchp_convertable_input_format_string (fmt_str);
+        if (status == conv_not_possible)
+          {
+            return 0;
+          }
+        arglist = origarglist;
+        mchp_smartio_builtin_offset = mchp_get_smartio_offset(status);
+        fn = implicit_built_in_decls[BUILT_IN__SSCANF +
+                                     mchp_smartio_builtin_offset];
+        return expand_expr (build_function_call_expr (fn, arglist),
+                            target, mode, EXPAND_NORMAL);
     }
 #endif
   return 0;
@@ -6252,9 +6564,9 @@ static rtx
 expand_builtin_vfscanf (tree arglist, rtx target, enum machine_mode mode)
 {
   const char *fmt_str;
-  tree fn, fmt, filearg, orig_arglist;
+  tree fn, fmt, filearg, origarglist;
   fn = NULL_TREE;
-  orig_arglist = arglist;
+  origarglist = arglist;
 
   /* Verify the required arguments in the original call.  */
   if (! arglist)
@@ -6277,8 +6589,8 @@ expand_builtin_vfscanf (tree arglist, rtx target, enum machine_mode mode)
         {
           /* Assume that the non-constant string is convertable to the 
              integer-only variant. */
-          arglist = orig_arglist;
-          fn = implicit_built_in_decls[BUILT_IN_IVFSCANF];
+          arglist = origarglist;
+          fn = implicit_built_in_decls[BUILT_IN__VFSCANF_cdnopsuxX];
           return expand_expr (build_function_call_expr (fn, arglist),
                               target, mode, EXPAND_NORMAL);
         }
@@ -6290,17 +6602,21 @@ expand_builtin_vfscanf (tree arglist, rtx target, enum machine_mode mode)
     }
 
 #ifdef TARGET_MCHP_PIC32MX
-  if (mchp_convertable_input_format_string (fmt_str) == conv_not_possible)
-    {
-      return 0;
-    }
   else
     {
-      /* Call the integer-only version of this function. */
-      arglist = orig_arglist;
-      fn = implicit_built_in_decls[BUILT_IN_IVFSCANF];
-      return expand_expr (build_function_call_expr (fn, arglist),
-                          target, mode, EXPAND_NORMAL);
+        HOST_WIDE_INT mchp_smartio_builtin_offset = 0;
+        mchp_conversion_status status = 0;
+        status = mchp_convertable_input_format_string (fmt_str);
+        if (status == conv_not_possible)
+          {
+            return 0;
+          }
+        arglist = origarglist;
+        mchp_smartio_builtin_offset = mchp_get_smartio_offset(status);
+        fn = implicit_built_in_decls[BUILT_IN__VFSCANF +
+                                     mchp_smartio_builtin_offset];
+        return expand_expr (build_function_call_expr (fn, arglist),
+                            target, mode, EXPAND_NORMAL);
     }
 #endif
   return 0;
@@ -6315,9 +6631,9 @@ static rtx
 expand_builtin_vsscanf (tree arglist, rtx target, enum machine_mode mode)
 {
   const char *fmt_str;
-  tree fn, fmt, stream, orig_arglist;
+  tree fn, fmt, stream, origarglist;
   fn = NULL_TREE;
-  orig_arglist = arglist;
+  origarglist = arglist;
 
   /* Verify the required arguments in the original call.  */
   if (! arglist)
@@ -6340,8 +6656,8 @@ expand_builtin_vsscanf (tree arglist, rtx target, enum machine_mode mode)
         {
           /* Assume that the non-constant string is convertable to the 
              integer-only variant. */
-          arglist = orig_arglist;
-          fn = implicit_built_in_decls[BUILT_IN_IVSSCANF];
+          arglist = origarglist;
+          fn = implicit_built_in_decls[BUILT_IN__VSSCANF_cdnopsuxX];
           return expand_expr (build_function_call_expr (fn, arglist),
                               target, mode, EXPAND_NORMAL);
         }
@@ -6353,17 +6669,21 @@ expand_builtin_vsscanf (tree arglist, rtx target, enum machine_mode mode)
     }
 
 #ifdef TARGET_MCHP_PIC32MX
-  if (mchp_convertable_input_format_string (fmt_str) == conv_not_possible)
-    {
-      return 0;
-    }
   else
     {
-      /* Call the integer-only version of this function. */
-      arglist = orig_arglist;
-      fn = implicit_built_in_decls[BUILT_IN_IVSSCANF];
-      return expand_expr (build_function_call_expr (fn, arglist),
-                          target, mode, EXPAND_NORMAL);
+        HOST_WIDE_INT mchp_smartio_builtin_offset = 0;
+        mchp_conversion_status status = 0;
+        status = mchp_convertable_input_format_string (fmt_str);
+        if (status == conv_not_possible)
+          {
+            return 0;
+          }
+        arglist = origarglist;
+        mchp_smartio_builtin_offset = mchp_get_smartio_offset(status);
+        fn   = implicit_built_in_decls[BUILT_IN__VSSCANF +
+                                       mchp_smartio_builtin_offset];
+        return expand_expr (build_function_call_expr (fn, arglist),
+                            target, mode, EXPAND_NORMAL);
     }
 #endif
   return 0;

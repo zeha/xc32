@@ -39,7 +39,7 @@ SHLIB_TEXT_START_ADDR=0
 # this so that it can easily sort all dynamic relocations before the
 # output section has been populated.
 OTHER_GOT_RELOC_SECTIONS="
-  .rel.dyn      0 : { *(.rel.dyn) }
+  /DISCARD/ : { *(.rel.dyn) }
 "
 
 # These symbols will be defined for an executable
@@ -629,21 +629,21 @@ OTHER_SECTIONS="
   /*
    * The actual top of stack should include the gap between the stack
    * section and the beginning of the .ramfunc section caused by the
-   * alignment of the .ramfunc section minus 1 word.  If RAM functions
+   * alignment of the .ramfunc section minus 2 words.  If RAM functions
    * do not exist, then the top of the stack should point to the end of
    * the data memory.
    */
   _stack = (_ramfunc_length > 0)
-         ? _ramfunc_begin - 4
+         ? _ramfunc_begin - 8
          : ORIGIN(${DATA_MEMORY_REGION}) + LENGTH(${DATA_MEMORY_REGION}) ;
   ASSERT((_min_stack_size + _min_heap_size) <= (_stack - _heap),
     \"Not enough space to allocate both stack and heap.  Reduce heap and/or stack size.\")
 
-    /* The .pdf section belongs in the absolute section */
-    .pdr 0 : { *(.pdr) }
+    /* The .pdr section belongs in the absolute section */
+    /DISCARD/ : { *(.pdr) }
     /* We don't load .reginfo onto the target, so don't locate it
      * in real memory 
      */
-    .reginfo 0 : { *(.reginfo) }
+    /DISCARD/ : { *(.reginfo) }
 "
 

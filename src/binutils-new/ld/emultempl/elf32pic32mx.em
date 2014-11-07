@@ -27,6 +27,7 @@ fragment <<EOF
 #include "ctype.h"
 #include "../bfd/pic32-options.h"
 #include "../bfd/pic32-options.c"
+#include "../bfd/pic32-utils.h"
 
 #define is_mips_elf(bfd)				\
   (bfd_get_flavour (bfd) == bfd_target_elf_flavour	\
@@ -36,7 +37,6 @@ fragment <<EOF
 /* Fake input file for stubs.  */
 static lang_input_statement_type *stub_file;
 static bfd *stub_bfd;
-
 
 struct traverse_hash_info
 {
@@ -77,7 +77,7 @@ static bfd_size_type bfd_pic32_report_sections
   PARAMS ((asection *, const lang_memory_region_type *, 
            struct magic_sections_tag *, FILE *));
 
-struct bfd_link_hash_entry *bfd_pic32_is_defined_global_symbol
+struct bfd_link_hash_entry *bfd_mchp_is_defined_global_symbol
   PARAMS ((const char *const));
 
 static bfd_boolean bfd_pic32_undefine_one_symbol_bfd
@@ -86,11 +86,14 @@ static bfd_boolean bfd_pic32_undefine_one_symbol_bfd
 static void bfd_pic32_undefine_symbols_bfd
   PARAMS ((bfd *));
 
-static void bfd_pic32_remove_archive_module
+static void bfd_mchp_remove_archive_module
   PARAMS ((const char *const));
 
 static const char * bfd_pic32_lookup_magic_section_description
   PARAMS ((const char *, struct magic_sections_tag *, const char **));
+
+static bfd_boolean elf_link_check_archive_element
+  PARAMS ((char *, bfd *, struct bfd_link_info *));
 
 /* Declare functions used by various EXTRA_EM_FILEs.  */
 static void gld${EMULATION_NAME}_before_parse (void);
@@ -102,6 +105,8 @@ static lang_output_section_statement_type *gld${EMULATION_NAME}_place_orphan
   (asection *, const char *, int);
 static void gld${EMULATION_NAME}_finish (void);
 
+unsigned force_keep_symbol
+  PARAMS ((char *symbol, char *module_name));
 
 /* Memory Reporting Info */
 static const struct magic_section_description_tag magic_pmdescriptions[] =
@@ -276,69 +281,95 @@ static struct pic32_section *pic32_section_list;
 **    function to be omitted from the final link.
 */
 
+struct reduced_set_list {
+  char *reduced_set;
+  char *module_name;
+  struct reduced_set_list *next;
+};
+
 struct function_pair_type
 {
   char *full_set;
-  char *reduced_set;
-  char *module_name;
+  char *prefix;
+  struct reduced_set_list *rsl;
 };
 
-const struct function_pair_type function_pairs[] =
+  /* With RULES == 2 we put flags after the function name, almost like
+     C++ encoding.  We need to select the function with the minimum set of
+     extra flags at the end */
+struct function_pair_type function_pairs[] =
   {
     /* iprintf() */
-    { "printf",    "_iprintf",   "iprintf.o"    },
+    { "printf",    "_printf",   0  },
+    { "_printf",   "__printf",  0  },
+    { "_putfld",   "__putfld",  0  },
+
+    { "_dprintf",  "_printf",   0  },
+    { "__dprintf", "__printf",  0  },
+    { "__dputfld", "__putfld",  0  },
 
     /* ifprintf() */
-    { "fprintf",   "_ifprintf",  "ifprintf.o"   },
+    { "fprintf",   "_fprintf",  0  },
+    { "_dfprintf", "_fprintf",  0  },
 
     /* isprintf() */
-    { "sprintf",   "_isprintf",  "isprintf.o"   },
+    { "sprintf",   "_sprintf",  0  },
+    { "_dsprintf", "_sprintf",  0  },
 
     /* ivprintf() */
-    { "vprintf",   "_ivprintf",  "ivprintf.o"   },
+    { "vprintf",   "_vprintf",  0  },
+    { "_dvprintf", "_vprintf",  0  },
 
     /* ivfprintf() */
-    { "vfprintf",  "_ivfprintf",  "_idoprnt.o" },
+    { "vfprintf",  "_vfprintf",  0 },
+    { "_dvfprintf","_vfprintf",  0 },
 
     /* ivsprintf() */
-    { "vsprintf",  "_ivsprintf",  "isprintf.o" },
+    { "vsprintf",  "_vsprintf",  0 },
+    { "_dvsprintf","_vsprintf",  0 },
 
     /* isnprintf() */
-    { "snprintf",  "_isnprintf",  "isnprintf.o" },
+    { "snprintf",  "_snprintf",  0 },
+    { "_dsnprintf","_snprintf",  0 },
 
     /* ivsnprintf() */
-    { "vsnprintf", "_ivsnprintf", "ivsnprintf.o" },
+    { "vsnprintf", "_vsnprintf", 0 },
+    { "_dvsnprintf","_vsnprintf",0 },
 
-    /* __vsnprintf() */
-    { "__vsnprintf",  "__ivsnprintf",  "__ivsnprintf.o" },
+    /* isnprintf() */
+    { "asprintf",  "_asprintf",  0 },
+    { "_dasprintf","_asprintf",  0 },
 
-    /* __vasprintf() */
-    { "__vasprintf",  "__ivasprintf",  "__ivasprintf.o" },
-
-    /* vasprintf() */
-    { "vasprintf",  "_ivasprintf",  "ivasprintf.o" },
-
-    /* asprintf() */
-    { "asprintf",  "_iasprintf",  "iasprintf.o" },
-
+    /* ivsnprintf() */
+    { "vasprintf", "_vasprintf", 0 },
+    { "_dvasprintf","_vasprintf",0 },
 
     /* iscanf() */
-    { "scanf",     "_iscanf",     "iscanf.o"    },
+    { "scanf",     "_scanf",     0 },
+    { "_scanf",    "__sscanf",   0 },
+    { "_getfld",   "__getfld",   0 },
+
+    { "_dscanf",   "_scanf",     0 },
+    { "__dscanf",  "__sscanf",   0 },
+    { "__dgetfld", "__getfld",   0 },
 
     /* ifscanf() */
-    { "fscanf",    "_ifscanf",    "iscanf.o"   },
+    { "fscanf",    "_fscanf",    0 },
+    { "_dfscanf",  "_fscanf",    0 },
 
     /* isscanf() */
-    { "sscanf",    "_isscanf",    "isscanf.o"   },
+    { "sscanf",    "_sscanf",    0 },
+    { "_dsscanf",  "_sscanf",    0 },
+    
+    { "vsscanf",    "_vsscanf",    0 },
+    { "_dvsscanf",  "_vsscanf",    0 },
+    
+    { "vscanf",    "_vscanf",    0 },
+    { "_dvscanf",  "_vscanf",    0 },
 
-    /* vfscanf() */
-    { "vfscanf",    "_ivfscanf",    "_idoscan.o"   },
-
-    /* vsscanf() */
-    { "vsscanf",    "_ivsscanf",    "isscanf.o"   },
-
-    /* vscanf() */
-    { "vscanf",    "_ivscanf",    "iscanf.o"   },
+    /* ldtob */
+    { "_ldtob",   "__ldtob",    0 },
+    { "_genld",   "__genld",    0 },
 
     /* null terminator */
     { 0, 0, 0 },
@@ -699,7 +730,7 @@ report_percent_used (used, max, fp)
 ** else return zero.
 */
 struct bfd_link_hash_entry *
-bfd_pic32_is_defined_global_symbol (name)
+bfd_mchp_is_defined_global_symbol (name)
      const char *const name;
 {
     struct bfd_link_hash_entry *h;
@@ -759,7 +790,7 @@ bfd_pic32_undefine_symbols_bfd (target)
 ** Remove an archive module
 */
 static void
-bfd_pic32_remove_archive_module (name)
+bfd_mchp_remove_archive_module (name)
      const char *const name;
 {
   LANG_FOR_EACH_INPUT_STATEMENT (is)
@@ -785,7 +816,7 @@ bfd_pic32_remove_archive_module (name)
           break;
       }
   }
-} /* static void bfd_pic32_remove_archive_module */
+} /* static void bfd_mchp_remove_archive_module */
 
 
 /*****************************************************************************
@@ -841,7 +872,7 @@ pic32_build_section_list (abfd, sect, fp)
   int done = 0;
   if (pic32_debug)
     {
-      fprintf (fp, "DEBUG: Add section to list\n"); 
+      fprintf (stderr, "DEBUG: Add section to list\n"); 
     }
   /* create a new element */
   new = ((struct pic32_section *) 
@@ -968,11 +999,6 @@ bfd_pic32_report_sections (sect, region, magic_sections, fp)
   unsigned long load  = sect->lma;
   unsigned long actual = sect->size;
 
-  if (pic32_debug)
-    {
-      fprintf (fp, "DEBUG: Report Sections\n"); 
-    }
-
   /* 
   ** report SEC_ALLOC sections in memory
   */
@@ -1048,6 +1074,213 @@ static const char * bfd_pic32_lookup_magic_section_description (name, magic_sect
       return *description;
 } /* static void char * bfd_pic32_lookup_magic_section_description (...) */
 
+
+/* match against mchp_smartio_symbol, sorry for the global variable :( */
+char *mchp_smartio_symbol;
+
+struct smartio_sym_list {
+  struct bfd_link_hash_entry *h;
+  unsigned long long cum_mask;
+  struct smartio_sym_list *next;
+} *smartio_fn_list, *smartio_free_list;
+
+static bfd_boolean
+mchp_smartio_fn_list(struct bfd_link_hash_entry *h, PTR p) {
+  struct smartio_sym_list *l;
+
+  if (strncmp(mchp_smartio_symbol, h->root.string,
+              strlen(mchp_smartio_symbol)) == 0) {
+    unsigned long long mask = 0;
+    int bit;
+    const char *c;
+
+    for (c = &h->root.string[strlen(mchp_smartio_symbol)]; *c; c++) {
+      if (*c == '_') continue;
+      if (*c == '0') bit = 0; 
+      else {
+        bit = *c - 'A' + 1;
+        if (bit > 26) bit = 27 + (*c - 'a');
+      }
+      mask |= (1ULL << bit);
+    }
+    if (smartio_free_list) {
+      l = smartio_free_list;
+      smartio_free_list = l->next;
+    } else {
+      l = xmalloc(sizeof(struct smartio_sym_list));
+    }
+    l->h = h;
+    if (smartio_fn_list)  mask |= smartio_fn_list->cum_mask;
+    l->cum_mask = mask;
+    l->next = smartio_fn_list;
+    smartio_fn_list = l;
+  }
+  p = p;
+  return TRUE;  /* continue */
+}
+
+/* search the function pair type information and track special symbols -
+   keep those symbols that match, noting the variant and object file name
+   so that we can later force their removal
+
+   a NULL module_name implies that we are just checking, and we should return
+   trueness */
+
+unsigned
+force_keep_symbol(char *symbol, char *module_name) {
+  struct function_pair_type *fp;
+  struct reduced_set_list *rsl = 0;
+
+  for (fp = function_pairs; fp->full_set; fp++) {
+    if (strncmp(fp->prefix, symbol, strlen(fp->prefix)) == 0) {
+      if (module_name == 0) return 1;
+      /* boing */
+      for (rsl = fp->rsl; rsl; rsl = rsl->next) {
+        /* reduced set already noted, so return true */
+        if (strcmp(rsl->reduced_set, symbol) == 0) return 1;
+      }
+      rsl = xmalloc(sizeof(struct reduced_set_list));
+      rsl->reduced_set = symbol;
+      rsl->module_name = module_name;
+      rsl->next = fp->rsl;
+      fp->rsl = rsl;
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static void
+mchp_release_kept_symbols(char *symbol) {
+  struct function_pair_type *fp;
+  struct reduced_set_list *rsl = 0, *next;
+
+  for (fp = function_pairs; fp->full_set; fp++) {
+    if (strncmp(fp->prefix, symbol, strlen(fp->prefix)) == 0) {
+      for (rsl = fp->rsl; rsl; rsl = next) {
+        next = rsl->next;
+        if (strcmp(rsl->reduced_set, symbol) != 0) {
+          /* this symbol was not used, so release it */
+          bfd_mchp_remove_archive_module(rsl->module_name);
+        }
+        free(rsl);
+      }
+      fp->rsl = 0;
+    }
+  }
+}
+
+static void
+smartio_symbols(struct bfd_link_info *info) {
+  int i = 0;
+  struct bfd_link_hash_entry *undefs = 0;
+  struct bfd_link_hash_entry *newundefs = 0;
+  struct bfd_link_hash_entry *last = 0;
+
+  /* format different for new rules - look for letter combinations
+     for each function and choose the best match */
+  while ( function_pairs[i].full_set )
+    {  struct smartio_sym_list *l;
+       struct bfd_link_hash_entry *u = 0;
+       struct bfd_link_hash_entry *mu = 0;
+       struct bfd_link_hash_entry *full;
+
+       char suffix[] = "_aAcdeEfFgGnopsuxX";
+
+       if (info) {
+         undefs=info->hash->undefs;
+         if (undefs == 0) return;
+       }
+       mchp_smartio_symbol = function_pairs[i].prefix;
+       if (undefs) {
+         /* gather all the stats on undefined functions */
+           if (pic32_debug)
+             {
+               u = undefs;
+               if (u->u.undef.next == NULL)
+                 einfo(_("Warning: undef list incomplete for smart IO merging\n"));
+             }
+         for (u = undefs; u; u = u->next) {
+           for (mu = u; mu; mu = mu->u.undef.next)
+             mchp_smartio_fn_list(mu,0);
+         }
+       } else {
+         bfd_link_hash_traverse(link_info.hash, mchp_smartio_fn_list,
+                                  0 /* not used */);
+       }
+       if (smartio_fn_list) {
+         int letter;
+         int s = 1;
+         char buffer_map_to[256] = "";
+
+         if (smartio_fn_list->cum_mask > 1) {
+           /* this means that we have an accumulated suffix that includes
+              more than just '0' [the wild-card-suffix] */
+           for (letter = 0; letter < 26; letter++) {
+             if (smartio_fn_list->cum_mask & (1ULL << (letter+27)))
+               suffix[s++] = 'a' + letter;
+             if (smartio_fn_list->cum_mask & (1ULL << (letter+1)))
+               suffix[s++] = 'A' + letter;
+           }
+           suffix[s] = 0;
+         } else {
+           sprintf(suffix, "_0");
+         }
+         sprintf(buffer_map_to, "%s%s", function_pairs[i].prefix,
+                 suffix);
+         if (undefs) {
+           /* in this mode we are adding undefined symbols to the end of
+              the list so that the regular mechanism can pull them in */
+           if (bfd_link_hash_lookup(info->hash, buffer_map_to, 0, 0, 0) == 0) {
+             struct bfd_link_hash_entry *new;
+
+             if (pic32_debug) {
+               fprintf(stderr,"Adding %s to undef\n", buffer_map_to);
+               for (l = smartio_fn_list; l; l=l->next)
+                 fprintf(stderr,"  because of: %s\n", l->h->root.string);
+             }
+             new = bfd_link_hash_lookup(info->hash, buffer_map_to, 1, 1 , 1);
+             new->next = newundefs;
+             newundefs=new;
+             if (last == 0) last = new;
+           }
+         } else {
+           full = bfd_mchp_is_defined_global_symbol(buffer_map_to);
+           if (!full) {
+             if (pic32_debug)
+               fprintf(stderr," no hash for %s\n", buffer_map_to);
+           } else {
+             for (l = smartio_fn_list; l; l=l->next) {
+               if (pic32_debug)
+                 printf("\nMapping %s to %s\n", l->h->root.string,
+                                                buffer_map_to);
+               l->h->u.def.value = full->u.def.value;
+               l->h->u.def.section = full->u.def.section;
+             }
+             mchp_release_kept_symbols(buffer_map_to);
+           }
+         }
+         /* free the list */
+         if (!smartio_free_list) {
+           for (l = smartio_fn_list; l->next; l = l->next);
+           l->next = smartio_free_list;
+         }
+         smartio_free_list = smartio_fn_list;
+         smartio_fn_list = 0;
+       }
+       i++;
+    }
+  if (newundefs) {
+    if (info->hash->undefs_tail)
+      info->hash->undefs_tail->next = newundefs;
+    else info->hash->undefs = newundefs;
+    info->hash->undefs_tail = last;
+  }
+}
+
+unsigned int (*mchp_force_keep_symbol)(char *, char *) = force_keep_symbol;
+void (*mchp_smartio_symbols)(struct bfd_link_info *) = smartio_symbols;
+
 /* This is called after all the input files have been opened.  */
 static void
 pic32_after_open(void)
@@ -1058,11 +1291,12 @@ pic32_after_open(void)
   */
   if (pic32_smart_io)
     {
-      int i = 0;
-
       if (pic32_debug)
         printf("\nMerging smart-io functions:\n");
 
+      mchp_smartio_symbols(0);
+
+#if 0
       while ( function_pairs[i].full_set )
 
         {
@@ -1074,8 +1308,8 @@ pic32_after_open(void)
           if (pic32_debug)
             printf("\nLooking for (%s, %s) ...", func1, func2);
 
-          if ((full = bfd_pic32_is_defined_global_symbol (func1)) &&
-              (reduced = bfd_pic32_is_defined_global_symbol (func2)))
+          if ((full = bfd_mchp_is_defined_global_symbol (func1)) &&
+              (reduced = bfd_mchp_is_defined_global_symbol (func2)))
             {
               if (pic32_debug)
                 printf("Found\n\nRedirecting %s -> %s\n", func2, func1);
@@ -1092,6 +1326,7 @@ pic32_after_open(void)
               printf("Not Found\n");
           i++;
         }
+#endif
     } /* pic32_smart_io */
     
     gld${EMULATION_NAME}_after_open();
@@ -1388,6 +1623,26 @@ gld${EMULATION_NAME}_place_orphan (asection *s,
 
   return lang_insert_orphan (s, secname, constraint, after, place, NULL, NULL);
 }
+
+static bfd_boolean
+elf_link_check_archive_element (name, abfd, info)
+     char *name;
+     bfd *abfd;
+     struct bfd_link_info *info;
+{
+  /* we may need to pull this symbol in because it is a SMARTIO fn */
+  if (mchp_force_keep_symbol)
+      (void) mchp_force_keep_symbol(name, (char*)abfd->filename);
+
+  info = info;
+
+  return TRUE;
+} 
+
+bfd_boolean (*mchp_elf_link_check_archive_element)(char *name, bfd *abfd,
+                                                    struct bfd_link_info *) = 
+  elf_link_check_archive_element;
+
 
 EOF
 

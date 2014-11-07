@@ -1730,9 +1730,9 @@ pic32mx-mchp-elf)
 	   # newlib / libgloss 
 	   tmake_file=pic32/t-mchp ;;
 	no)
-	   # MIPS toolkit libraries - use pthreads and libc
+	   # MIPS toolkit libraries - use mipssde instead of pthreads and libc
 	   tmake_file="pic32/t-mchp pic32/t-mchpmtk"
-	   thread_file='posix' 
+	   #thread_file='mipssde' 
 	   with_headers=yes ;;
 	esac
 	case "${host}" in

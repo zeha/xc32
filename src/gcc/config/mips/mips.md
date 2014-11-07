@@ -482,8 +482,10 @@
    (UNSPECV_BCSC0_32                806) ; '__builtin_bcsc0' instruction
    (UNSPECV_SWITCH_ISA1632          807) 
 
-])
+   (UNSPECV_GENLABEL32              808) ; '__builtin_uniqueid' instruction
+   (UNSPECV_GENLABEL16              809) ; '__builtin_uniqueid' instruction
 
+])
 
 
 ;; ....................
@@ -9870,7 +9872,8 @@ ld\\t%2,%1-%S1(%2)\;daddu\\t%2,%2,$31\\n\\t%*j\\t%2%/"
   [(set_attr "type"	"arith")])
 
 (define_insn "mips_switch_isabase"
-  [(unspec_volatile [(const_int 0)] UNSPECV_SWITCH_ISA1632)]
+  [(unspec_volatile [(const_int 0)] UNSPECV_SWITCH_ISA1632)
+   (clobber (reg:SI 31))]
   ""
   {
    static __typeof__(target_flags) saved_target_flags;
@@ -9901,13 +9904,12 @@ ld\\t%2,%1-%S1(%2)\;daddu\\t%2,%2,$31\\n\\t%*j\\t%2%/"
                               INTVAL(operands[1]), 
                               INTVAL(operands[2])); 
 }
-  [(set_attr "type"	"multi")
+  [(set_attr "type"	"mfc")
    (set_attr "mode"	"SI")
-   (set_attr "length"	"4")])
+   (set_attr "length"   "4")])
 
 (define_insn "mips_mtc0"
-  [
-   (unspec_volatile [(match_operand:SI 0 "immediate_operand" "JK")
+  [(unspec_volatile [(match_operand:SI 0 "immediate_operand" "JK")
                      (match_operand:SI 1 "immediate_operand" "JK")
                      (match_operand:SI 2 "register_operand" "d")]
 			    UNSPECV_MTC0_32)]
@@ -9917,9 +9919,9 @@ ld\\t%2,%1-%S1(%2)\;daddu\\t%2,%2,$31\\n\\t%*j\\t%2%/"
                               INTVAL(operands[1]),
                               operands[2]); 
 }
-  [(set_attr "type"	"multi")
-   (set_attr "mode"	"none")
-   (set_attr "length"	"4")])
+  [(set_attr "type"	"mtc")
+   (set_attr "mode"	"SI")
+   (set_attr "length"    "4")])
 
    
 ;; MXC0
@@ -9979,7 +9981,51 @@ ld\\t%2,%1-%S1(%2)\;daddu\\t%2,%2,$31\\n\\t%*j\\t%2%/"
    (set_attr "mode"	"none")
    (set_attr "length"	"8")])
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(define_insn "pic32_unique_id_32"
+  [(set (match_operand:SI 0 "register_operand" "=d")
+   (unspec_volatile:SI [(match_operand:SI 1 "immediate_operand" "i")
+                     (match_operand:SI 2 "immediate_operand" "i")]
+			    UNSPECV_GENLABEL32))]
+  "!TARGET_MIPS16 && !TARGET_MIPS16E"
+  "*
+   {  static char buffer[80];
+      char *label;
+
+      label = (char *)(INTVAL(operands[1]));
+      sprintf(buffer,\".global %s\n%s:\n\tli %%0,%d\",
+              label,label,INTVAL(operands[2]));
+      return buffer;
+   }
+  "
+  [(set_attr "type"	"multi")
+   (set_attr "mode"	"none")
+   (set_attr "length"	"8")])
+
+; pic32_unique_id_16 for mips16 mode
+(define_insn "pic32_unique_id_16"
+  [(set (match_operand:SI 0 "register_operand" "=d")
+   (unspec_volatile [(match_operand:SI 1 "const_int_operand" "i")
+                     (match_operand:HI 2 "const_int_operand" "i")]
+			    UNSPECV_GENLABEL16))]
+  "TARGET_MIPS16 || TARGET_MIPS16E"
+  "*
+   {  static char buffer[80];
+      char *label;
+
+      label = (char *)(INTVAL(operands[1]));
+      sprintf(buffer,\".global %s\n%s:\n\tli %%0,%d\",
+              label,label,INTVAL(operands[2]));
+      return buffer;
+   }
+  "
+  [(set_attr "type"	"multi")
+   (set_attr "mode"	"none")
+   (set_attr "length"	"8")])
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; MIPS4 Conditional move instructions.
 

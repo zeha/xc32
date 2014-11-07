@@ -1111,6 +1111,10 @@ enum mips_builtins
   MIPS_BUILTIN_BSC0,
   MIPS_BUILTIN_BCSC0,
 
+  /* For instrumented trace */
+  PIC32_BUILTIN_UNIQUEID,
+  PIC32_BUILTIN_ITTYPE,
+
   /* THE LAST BUILTIN */
   MIPS_BUILTIN_MAX_BUILTIN
 };
@@ -1209,6 +1213,9 @@ enum mips_function_type
   MIPS_VOID_FTYPE_USI_USI_USI,
   MIPS_USI_FTYPE_USI_USI_USI,
   MIPS_USI_FTYPE_USI_USI_USI_USI,
+
+  MIPS_USI_FTYPE_CONSTSTRING_SI,
+  MIPS_USI_FTYPE_TYPE,
 
   /* The last type */
   MIPS_MAX_FTYPE_MAX
@@ -4645,4 +4652,6 @@ while (0)
 #define SYMBOL_FLAG_MIPS16	(SYMBOL_FLAG_MACH_DEP << 1)
 #define SYMBOL_REF_MIPS16_P(RTX) \
   ((SYMBOL_REF_FLAGS (RTX) & SYMBOL_FLAG_MIPS16) != 0)
+
+extern void mchp_legacy_libc_option (void);
 

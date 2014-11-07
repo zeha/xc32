@@ -2400,6 +2400,13 @@ check_format_types (int *status, format_wanted_type *types)
 	  && (! pedantic || i < 2)
 	  && char_type_flag)
 	continue;
+	
+     /* A short double and a float are equivalent. */
+     if (flag_short_double && 
+         (wanted_type == double_type_node) &&
+         (orig_cur_type == float_type_node))
+       continue;
+	
       /* Now we have a type mismatch.  */
       {
 	const char *this;
