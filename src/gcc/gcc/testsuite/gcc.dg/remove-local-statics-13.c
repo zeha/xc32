@@ -3,7 +3,7 @@
    this.  */
 
 /* { dg-do compile } */
-/* { dg-options "-O2 -fremove-local-statics" } */
+/* { dg-options "-O2" } */
 /* { dg-final { scan-assembler "static1" } } */
 /* { dg-final { scan-assembler-not "static2" } } */
 

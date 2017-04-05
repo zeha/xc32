@@ -190,6 +190,8 @@ AC_DEFUN([CLASSPATH_WITH_GJDOC],
     case ${gjdoc_version} in
       0.7.9) ;;
       0.8*) ;;
+      0.9*) ;;
+      1*) ;;
       *) AC_MSG_ERROR([Building documentation requires GJDoc >= 0.7.9, ${gjdoc_version} found.]) ;;
     esac
   fi
@@ -247,16 +249,6 @@ dnl GCJ LOCAL: Calculate toolexeclibdir
 dnl -----------------------------------------------------------
 AC_DEFUN([CLASSPATH_TOOLEXECLIBDIR],
 [
-  case ${host_alias} in
-    "") host_noncanonical=${build_noncanonical} ;;
-    *) host_noncanonical=${host_alias} ;;
-  esac
-  case ${target_alias} in
-    "") target_noncanonical=${host_noncanonical} ;;
-    *) target_noncanonical=${target_alias} ;;
-  esac
-  AC_SUBST(target_noncanonical)
-
   case ${version_specific_libs} in
     yes)
       # Need the gcc compiler version to know where to install libraries
@@ -269,18 +261,18 @@ AC_DEFUN([CLASSPATH_TOOLEXECLIBDIR],
       ;;
     no)
       if test -n "$with_cross_host" &&
-	 test x"$with_cross_host" != x"no"; then
-	# Install a library built with a cross compiler in tooldir, not libdir.
-	toolexecdir='$(exec_prefix)/$(target_noncanonical)'
-	toolexecmainlibdir='$(toolexecdir)/lib'
+         test x"$with_cross_host" != x"no"; then
+        # Install a library built with a cross compiler in tooldir, not libdir.
+        toolexecdir='$(exec_prefix)/$(target_noncanonical)'
+        toolexecmainlibdir='$(toolexecdir)/lib'
       else
-	toolexecdir='$(libdir)/gcc-lib/$(target_noncanonical)'
-	toolexecmainlibdir='$(libdir)'
+        toolexecdir='$(libdir)/gcc-lib/$(target_noncanonical)'
+        toolexecmainlibdir='$(libdir)'
       fi
       multi_os_directory=`$CC -print-multi-os-directory`
       case $multi_os_directory in
-	.) toolexeclibdir=$toolexecmainlibdir ;; # Avoid trailing /.
-	*) toolexeclibdir=$toolexecmainlibdir/$multi_os_directory ;;
+        .) toolexeclibdir=$toolexecmainlibdir ;; # Avoid trailing /.
+        *) toolexeclibdir=$toolexecmainlibdir/$multi_os_directory ;;
       esac
       ;;
   esac

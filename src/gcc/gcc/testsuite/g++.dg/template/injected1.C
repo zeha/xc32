@@ -1,6 +1,6 @@
 // PR c++/13950, DR 176
 
-template <class T> struct Base { }; // { dg-error "" } candidate
+template <class T> struct Base { }; // { dg-message "" } candidate
 
 struct D1: Base<void>
 {
@@ -30,4 +30,4 @@ struct D4: Base<T>, Base<T*> {
   typename D4::Base* p1;	// { dg-error "" }
   typename D4::template Base<double>* p2;
 };
-template struct D4<void>;	// { dg-message "instantiated" }
+template struct D4<void>;	// { dg-message "required" }

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2009, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2012, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -52,65 +52,61 @@ package Exp_Disp is
    --      type. Constructs of the form Prefix'Size are converted into
    --      Prefix._Size.
 
-   --      _Alignment (2) - implementation of the attribute 'Alignment for
-   --      any tagged type. Constructs of the form Prefix'Alignment are
-   --      converted into Prefix._Alignment.
-
-   --      TSS_Stream_Read (3) - implementation of the stream attribute Read
+   --      TSS_Stream_Read (2) - implementation of the stream attribute Read
    --      for any tagged type.
 
-   --      TSS_Stream_Write (4) - implementation of the stream attribute Write
+   --      TSS_Stream_Write (3) - implementation of the stream attribute Write
    --      for any tagged type.
 
-   --      TSS_Stream_Input (5) - implementation of the stream attribute Input
+   --      TSS_Stream_Input (4) - implementation of the stream attribute Input
    --      for any tagged type.
 
-   --      TSS_Stream_Output (6) - implementation of the stream attribute
+   --      TSS_Stream_Output (5) - implementation of the stream attribute
    --      Output for any tagged type.
 
-   --      Op_Eq (7) - implementation of the equality operator for any non-
+   --      Op_Eq (6) - implementation of the equality operator for any non-
    --      limited tagged type.
 
-   --      _Assign (8) - implementation of the assignment operator for any
+   --      _Assign (7) - implementation of the assignment operator for any
    --      non-limited tagged type.
 
-   --      TSS_Deep_Adjust (9) - implementation of the finalization operation
+   --      TSS_Deep_Adjust (8) - implementation of the finalization operation
    --      Adjust for any non-limited tagged type.
 
-   --      TSS_Deep_Finalize (10) - implementation of the finalization
+   --      TSS_Deep_Finalize (9) - implementation of the finalization
    --      operation Finalize for any non-limited tagged type.
 
-   --      _Disp_Asynchronous_Select (11) - used in the expansion of ATC with
+   --      _Disp_Asynchronous_Select (10) - used in the expansion of ATC with
    --      dispatching triggers. Null implementation for limited interfaces,
    --      full body generation for types that implement limited interfaces,
    --      not generated for the rest of the cases. See Expand_N_Asynchronous_
    --      Select in Exp_Ch9 for more information.
 
-   --      _Disp_Conditional_Select (12) - used in the expansion of conditional
+   --      _Disp_Conditional_Select (11) - used in the expansion of conditional
    --      selects with dispatching triggers. Null implementation for limited
    --      interfaces, full body generation for types that implement limited
    --      interfaces, not generated for the rest of the cases. See Expand_N_
    --      Conditional_Entry_Call in Exp_Ch9 for more information.
 
-   --      _Disp_Get_Prim_Op_Kind (13) - helper routine used in the expansion
+   --      _Disp_Get_Prim_Op_Kind (12) - helper routine used in the expansion
    --      of ATC with dispatching triggers. Null implementation for limited
    --      interfaces, full body generation for types that implement limited
    --      interfaces, not generated for the rest of the cases.
 
-   --      _Disp_Get_Task_Id (14) - helper routine used in the expansion of
+   --      _Disp_Get_Task_Id (13) - helper routine used in the expansion of
    --      Abort, attributes 'Callable and 'Terminated for task interface
    --      class-wide types. Full body generation for task types, null
    --      implementation for limited interfaces, not generated for the rest
    --      of the cases. See Expand_N_Attribute_Reference in Exp_Attr and
    --      Expand_N_Abort_Statement in Exp_Ch9 for more information.
 
-   --      _Disp_Requeue (15) - used in the expansion of dispatching requeue
+   --      _Disp_Requeue (14) - used in the expansion of dispatching requeue
    --      statements. Null implementation is provided for protected, task
    --      and synchronized interfaces. Protected and task types implementing
    --      concurrent interfaces receive full bodies. See Expand_N_Requeue_
    --      Statement in Exp_Ch9 for more information.
 
-   --      _Disp_Timed_Select (16) - used in the expansion of timed selects
+   --      _Disp_Timed_Select (15) - used in the expansion of timed selects
    --      with dispatching triggers. Null implementation for limited
    --      interfaces, full body generation for types that implement limited
    --      interfaces, not generated for the rest of the cases. See Expand_N_
@@ -186,6 +182,37 @@ package Exp_Disp is
    --  bodies they are added to the end of the list of declarations of the
    --  package body.
 
+   function Convert_Tag_To_Interface
+     (Typ : Entity_Id; Expr : Node_Id) return Node_Id;
+   pragma Inline (Convert_Tag_To_Interface);
+   --  This function is used in class-wide interface conversions; the expanded
+   --  code generated to convert a tagged object to a class-wide interface type
+   --  involves referencing the tag component containing the secondary dispatch
+   --  table associated with the interface. Given the expression Expr that
+   --  references a tag component, we cannot generate an unchecked conversion
+   --  to leave the expression decorated with the class-wide interface type Typ
+   --  because an unchecked conversion cannot be seen as a no-op. An unchecked
+   --  conversion is conceptually a function call and therefore the RM allows
+   --  the backend to obtain a copy of the value of the actual object and store
+   --  it in some other place (like a register); in such case the interface
+   --  conversion is not equivalent to a displacement of the pointer to the
+   --  interface and any further displacement fails. Although the functionality
+   --  of this function is simple and could be done directly, the purpose of
+   --  this routine is to leave well documented in the sources these
+   --  occurrences.
+
+   --  If Expr is an N_Selected_Component that references a tag generate:
+   --     type ityp is non null access Typ;
+   --     ityp!(Expr'Address).all
+
+   --  if Expr is an N_Function_Call to Ada.Tags.Displace then generate:
+   --     type ityp is non null access Typ;
+   --     ityp!(Expr).all
+
+   function CPP_Num_Prims (Typ : Entity_Id) return Nat;
+   --  Return the number of primitives of the C++ part of the dispatch table.
+   --  For types that are not derivations of CPP types return 0.
+
    procedure Expand_Dispatching_Call (Call_Node : Node_Id);
    --  Expand the call to the operation through the dispatch table and perform
    --  the required tag checks when appropriate. For CPP types tag checks are
@@ -214,6 +241,12 @@ package Exp_Disp is
    --  generate the thunk then Thunk_Id and Thunk_Code are set to Empty.
    --  Otherwise they are set to the defining identifier and the subprogram
    --  body of the generated thunk.
+
+   function Has_CPP_Constructors (Typ : Entity_Id) return Boolean;
+   --  Returns true if the type has CPP constructors
+
+   function Is_Expanded_Dispatching_Call (N : Node_Id) return Boolean;
+   --  Returns true if N is the expanded code of a dispatching call
 
    function Is_Predefined_Dispatching_Operation (E : Entity_Id) return Boolean;
    --  Ada 2005 (AI-251): Determines if E is a predefined primitive operation
@@ -306,13 +339,17 @@ package Exp_Disp is
    --  Ada 2005 (AI-345): Create and populate the auxiliary table in the TSD
    --  of Typ used for dispatching in asynchronous, conditional and timed
    --  selects. Generate code to set the primitive operation kinds and entry
-   --  indices of primitive operations and primitive wrappers.
+   --  indexes of primitive operations and primitive wrappers.
 
    function Make_Tags (Typ : Entity_Id) return List_Id;
    --  Generate the entities associated with the primary and secondary tags of
    --  Typ and fill the contents of Access_Disp_Table. In case of library level
    --  tagged types this routine imports the forward declaration of the tag
    --  entity, that will be declared and exported by Make_DT.
+
+   function Make_VM_TSD (Typ : Entity_Id) return List_Id;
+   --  Build the Type Specific Data record associated with tagged type Typ.
+   --  Invoked only when generating code for VM targets.
 
    function Register_Primitive
      (Loc     : Source_Ptr;

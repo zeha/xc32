@@ -1,6 +1,6 @@
 // -*- C++ -*-
 
-// Copyright (C) 2005, 2006, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2005-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the terms
@@ -48,7 +48,7 @@ namespace __gnu_pbds
     typedef
     __gnu_pbds::test::hash_common_types<
       int,
-      __gnu_pbds::null_mapped_type>::tl
+      __gnu_pbds::null_type>::tl
     hash_set_tl_t;
 
     template<typename Cntnr_T>
@@ -72,7 +72,7 @@ namespace __gnu_pbds
     typedef
     __gnu_pbds::test::tree_common_types<
       int,
-      __gnu_pbds::null_mapped_type>::tl
+      __gnu_pbds::null_type>::tl
     tree_set_tl_t;
 
     template<typename Cntnr_T>

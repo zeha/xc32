@@ -1,5 +1,5 @@
 /* Set operations on pointers
-   Copyright (C) 2004, 2007 Free Software Foundation, Inc.
+   Copyright (C) 2004-2013 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -29,8 +29,6 @@ int pointer_set_insert (struct pointer_set_t *pset, const void *p);
 void pointer_set_traverse (const struct pointer_set_t *,
 			   bool (*) (const void *, void *),
 			   void *);
-size_t pointer_set_n_elements (struct pointer_set_t *);
-void pointer_set_clear (struct pointer_set_t *);
 
 struct pointer_map_t;
 struct pointer_map_t *pointer_map_create (void);
@@ -40,7 +38,5 @@ void **pointer_map_contains (const struct pointer_map_t *pmap, const void *p);
 void **pointer_map_insert (struct pointer_map_t *pmap, const void *p);
 void pointer_map_traverse (const struct pointer_map_t *,
 			   bool (*) (const void *, void **, void *), void *);
-size_t pointer_map_n_elements (struct pointer_map_t *);
-void pointer_map_clear (struct pointer_map_t *);
 
 #endif  /* POINTER_SET_H  */

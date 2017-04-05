@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2009, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2012, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -23,10 +23,13 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
---  Program to check consistency of sinfo.ads and sinfo.adb. Checks that field
---  name usage is consistent and that assertion cross-reference lists are
---  correct, as well as making sure that all the comments on field name usage
---  are consistent.
+--  Check consistency of sinfo.ads and sinfo.adb. Checks that field name usage
+--  is consistent and that assertion cross-reference lists are correct, as well
+--  as making sure that all the comments on field name usage are consistent.
+
+--  Note that this is used both as a standalone program, and as a procedure
+--  called by XSinfo. This raises an unhandled exception if it finds any
+--  errors; we don't attempt any sophisticated error recovery.
 
 with Ada.Strings.Unbounded;         use Ada.Strings.Unbounded;
 with Ada.Strings.Unbounded.Text_IO; use Ada.Strings.Unbounded.Text_IO;
@@ -196,34 +199,36 @@ begin
    --  by Csinfo, since they are specially handled. This means that any field
    --  definition or subprogram with a matching name is ignored.
 
-   Set (Special, "Analyzed",                  True);
-   Set (Special, "Assignment_OK",             True);
-   Set (Special, "Associated_Node",           True);
-   Set (Special, "Cannot_Be_Constant",        True);
-   Set (Special, "Chars",                     True);
-   Set (Special, "Comes_From_Source",         True);
-   Set (Special, "Do_Overflow_Check",         True);
-   Set (Special, "Do_Range_Check",            True);
-   Set (Special, "Entity",                    True);
-   Set (Special, "Entity_Or_Associated_Node", True);
-   Set (Special, "Error_Posted",              True);
-   Set (Special, "Etype",                     True);
-   Set (Special, "Evaluate_Once",             True);
-   Set (Special, "First_Itype",               True);
-   Set (Special, "Has_Dynamic_Itype",         True);
-   Set (Special, "Has_Dynamic_Range_Check",   True);
-   Set (Special, "Has_Dynamic_Length_Check",  True);
-   Set (Special, "Has_Private_View",          True);
-   Set (Special, "Is_Controlling_Actual",     True);
-   Set (Special, "Is_Overloaded",             True);
-   Set (Special, "Is_Static_Expression",      True);
-   Set (Special, "Left_Opnd",                 True);
-   Set (Special, "Must_Not_Freeze",           True);
-   Set (Special, "Nkind_In",                  True);
-   Set (Special, "Parens",                    True);
-   Set (Special, "Pragma_Name",               True);
-   Set (Special, "Raises_Constraint_Error",   True);
-   Set (Special, "Right_Opnd",                True);
+   Set (Special, "Analyzed",                         True);
+   Set (Special, "Assignment_OK",                    True);
+   Set (Special, "Associated_Node",                  True);
+   Set (Special, "Cannot_Be_Constant",               True);
+   Set (Special, "Chars",                            True);
+   Set (Special, "Comes_From_Source",                True);
+   Set (Special, "Do_Overflow_Check",                True);
+   Set (Special, "Do_Range_Check",                   True);
+   Set (Special, "Entity",                           True);
+   Set (Special, "Entity_Or_Associated_Node",        True);
+   Set (Special, "Error_Posted",                     True);
+   Set (Special, "Etype",                            True);
+   Set (Special, "Evaluate_Once",                    True);
+   Set (Special, "First_Itype",                      True);
+   Set (Special, "Has_Aspect_Specifications",        True);
+   Set (Special, "Has_Dynamic_Itype",                True);
+   Set (Special, "Has_Dynamic_Range_Check",          True);
+   Set (Special, "Has_Dynamic_Length_Check",         True);
+   Set (Special, "Has_Private_View",                 True);
+   Set (Special, "Implicit_With_From_Instantiation", True);
+   Set (Special, "Is_Controlling_Actual",            True);
+   Set (Special, "Is_Overloaded",                    True);
+   Set (Special, "Is_Static_Expression",             True);
+   Set (Special, "Left_Opnd",                        True);
+   Set (Special, "Must_Not_Freeze",                  True);
+   Set (Special, "Nkind_In",                         True);
+   Set (Special, "Parens",                           True);
+   Set (Special, "Pragma_Name",                      True);
+   Set (Special, "Raises_Constraint_Error",          True);
+   Set (Special, "Right_Opnd",                       True);
 
    --  Loop to acquire information from node definitions in sinfo.ads,
    --  checking for consistency in Op/Flag assignments to each synonym
@@ -622,7 +627,6 @@ begin
 
    declare
       List : constant TV.Table_Array := Convert_To_Array (Fields1);
-
    begin
       if List'Length /= 0 then
          Put_Line ("Missing procedure Set_" & List (1).Name & " in body");
@@ -633,9 +637,5 @@ begin
    Put_Line ("     OK");
    New_Line;
    Put_Line ("All tests completed successfully, no errors detected");
-
-exception
-   when Done =>
-      null;
 
 end CSinfo;

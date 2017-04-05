@@ -1,6 +1,6 @@
 /* { dg-do run } */
 /* { dg-options "-fdump-tree-alias" } */
-/* { dg-skip-if "" { *-*-* } { "-O0" } { "" } } */
+/* { dg-skip-if "" { *-*-* } { "-O0" "-fno-fat-lto-objects" } { "" } } */
 
 volatile int i;
 int ** __attribute__((noinline,pure)) foo(int **p) { i; return p; }
@@ -21,5 +21,5 @@ int main()
   return 0;
 }
 
-/* { dg-final { scan-tree-dump "p.._., points-to vars: { i j }" "alias" } } */
+/* { dg-final { scan-tree-dump "p.._. = { i j }" "alias" } } */
 /* { dg-final { cleanup-tree-dump "alias" } } */

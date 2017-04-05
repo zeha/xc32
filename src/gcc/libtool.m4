@@ -1232,7 +1232,14 @@ s390*-*linux*|s390*-*tpf*|sparc*-*linux*)
 	    LD="${LD-ld} -m elf_i386_fbsd"
 	    ;;
 	  x86_64-*linux*)
-	    LD="${LD-ld} -m elf_i386"
+	    case `/usr/bin/file conftest.o` in
+	      *x86-64*)
+		LD="${LD-ld} -m elf32_x86_64"
+		;;
+	      *)
+		LD="${LD-ld} -m elf_i386"
+		;;
+	    esac
 	    ;;
 	  ppc64-*linux*|powerpc64-*linux*)
 	    LD="${LD-ld} -m elf32ppclinux"
@@ -2266,10 +2273,6 @@ dgux*)
   shlibpath_var=LD_LIBRARY_PATH
   ;;
 
-freebsd1*)
-  dynamic_linker=no
-  ;;
-
 freebsd* | dragonfly*)
   # DragonFly does not have aout.  When/if they implement a new
   # versioning mechanism, adjust this.
@@ -2277,7 +2280,7 @@ freebsd* | dragonfly*)
     objformat=`/usr/bin/objformat`
   else
     case $host_os in
-    freebsd[[123]]*) objformat=aout ;;
+    freebsd[[23]].*) objformat=aout ;;
     *) objformat=elf ;;
     esac
   fi
@@ -2295,7 +2298,7 @@ freebsd* | dragonfly*)
   esac
   shlibpath_var=LD_LIBRARY_PATH
   case $host_os in
-  freebsd2*)
+  freebsd2.*)
     shlibpath_overrides_runpath=yes
     ;;
   freebsd3.[[01]]* | freebsdelf3.[[01]]*)
@@ -2510,21 +2513,6 @@ newsos6)
   shlibpath_overrides_runpath=yes
   ;;
 
-nucleus*)
-  case $host_vendor in
-    samsung)
-      version_type=linux
-      library_names_spec='${libname}${release}${shared_ext}$versuffix $libname${shared_ext}'
-      soname_spec='$libname${shared_ext}$major'
-      shlibpath_var=LD_LIBRARY_PATH
-      hardcode_into_libs=yes
-      ;;
-    *)
-      dynamic_linker=no
-      ;;
-  esac
-  ;;
-
 *nto* | *qnx*)
   version_type=qnx
   need_lib_prefix=no
@@ -2610,14 +2598,6 @@ sunos4*)
     need_lib_prefix=no
   fi
   need_version=yes
-  ;;
-
-symbian*)
-  version_type=windows
-  shrext_cmds=".dll"
-  need_version=no
-  need_lib_prefix=no
-  library_names_spec='${libname}.dll'
   ;;
 
 sysv4 | sysv4.3*)
@@ -3041,10 +3021,6 @@ cegcc*)
   lt_cv_file_magic_cmd='$OBJDUMP -f'
   ;;
 
-nucleuseabi*)
-  lt_cv_deplibs_check_method=pass_all
-  ;;
-
 darwin* | rhapsody*)
   lt_cv_deplibs_check_method=pass_all
   ;;
@@ -3146,10 +3122,6 @@ rdos*)
   ;;
 
 solaris*)
-  lt_cv_deplibs_check_method=pass_all
-  ;;
-
-symbian*)
   lt_cv_deplibs_check_method=pass_all
   ;;
 
@@ -3608,6 +3580,7 @@ m4_if([$1], [CXX], [
 	# AIX 5 now supports IA64 processor
 	_LT_TAGVAR(lt_prog_compiler_static, $1)='-Bstatic'
       fi
+      _LT_TAGVAR(lt_prog_compiler_pic, $1)='-fPIC'
       ;;
 
     amigaos*)
@@ -3653,10 +3626,6 @@ m4_if([$1], [CXX], [
     interix[[3-9]]*)
       # Interix 3.x gcc -fpic/-fPIC options generate broken code.
       # Instead, we relocate shared libraries at runtime.
-      ;;
-    symbian*)
-      # symbian does not have PIC, the loader relocates non-pic shared objects
-      _LT_TAGVAR(lt_prog_compiler_pic, $1)=
       ;;
     sysv4*MP*)
       if test -d /usr/nec; then
@@ -3923,6 +3892,7 @@ m4_if([$1], [CXX], [
 	# AIX 5 now supports IA64 processor
 	_LT_TAGVAR(lt_prog_compiler_static, $1)='-Bstatic'
       fi
+      _LT_TAGVAR(lt_prog_compiler_pic, $1)='-fPIC'
       ;;
 
     amigaos*)
@@ -4831,10 +4801,6 @@ _LT_EOF
       _LT_TAGVAR(hardcode_shlibpath_var, $1)=no
       ;;
 
-    freebsd1*)
-      _LT_TAGVAR(ld_shlibs, $1)=no
-      ;;
-
     # FreeBSD 2.2.[012] allows us to include c++rt0.o to get C++ constructor
     # support.  Future versions do this automatically, but an explicit c++rt0.o
     # does not break anything, and helps significantly (at the cost of a little
@@ -4847,7 +4813,7 @@ _LT_EOF
       ;;
 
     # Unfortunately, older versions of FreeBSD 2 do not have this feature.
-    freebsd2*)
+    freebsd2.*)
       _LT_TAGVAR(archive_cmds, $1)='$LD -Bshareable -o $lib $libobjs $deplibs $linker_flags'
       _LT_TAGVAR(hardcode_direct, $1)=yes
       _LT_TAGVAR(hardcode_minus_L, $1)=yes
@@ -5794,7 +5760,7 @@ if test "$_lt_caught_CXX_error" != yes; then
         esac
         ;;
 
-      freebsd[[12]]*)
+      freebsd2.*)
         # C++ shared libraries reported to be fairly broken before
 	# switch to ELF
         _LT_TAGVAR(ld_shlibs, $1)=no

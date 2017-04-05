@@ -74,7 +74,7 @@
   (sec)->flags &= ~(SEC_LOAD | SEC_DATA);}
 #define PIC32_SET_MEMORY_ATTR(sec) \
   { (sec)->memory = 1;             \
-  (sec)->flags |= (SEC_HAS_CONTENTS | SEC_ALLOC); }
+  /*(sec)->flags |= (SEC_HAS_CONTENTS | SEC_ALLOC);*/ }
 #define PIC32_SET_HEAP_ATTR(sec) \
   { (sec)->heap = 1;             \
   (sec)->flags |= SEC_ALLOC;     \
@@ -119,7 +119,8 @@
 ** Macros used to query section attributes
 */
 #define PIC32_IS_CODE_ATTR(sec) \
-  (((sec)->flags & (SEC_CODE | SEC_ALLOC)) == (SEC_CODE | SEC_ALLOC))
+  ((((sec)->flags & (SEC_CODE | SEC_ALLOC)) == (SEC_CODE | SEC_ALLOC))&& \
+   ((sec)->memory !=1))
 #define PIC32_IS_DATA_ATTR(sec) \
   ((((sec)->flags & (SEC_DATA | SEC_ALLOC)) == (SEC_DATA | SEC_ALLOC)) && \
    ((sec)->memory !=1))
@@ -130,9 +131,18 @@
 #define PIC32_IS_PERSIST_ATTR(sec) \
   ((((sec)->flags & (SEC_ALLOC|SEC_LOAD|SEC_CODE|SEC_DATA|SEC_HAS_CONTENTS)) == SEC_ALLOC) && \
    ((sec)->persistent == 1))
-#define PIC32_IS_MEMORY_ATTR(sec) \
+/*#define PIC32_IS_MEMORY_ATTR(sec) \
   ((((sec)->flags & (SEC_ALLOC|SEC_LOAD|SEC_CODE|SEC_DATA)) == SEC_ALLOC) && \
-  ((sec)->memory == 1))
+  ((sec)->memory == 1))*/
+#define PIC32_IS_MEMORY_ATTR(sec) \
+  ((sec)->memory == 1)
+#define PIC32_IS_DATA_ATTR_WITH_MEMORY_ATTR(sec) \
+  ((((sec)->flags & (SEC_DATA | SEC_ALLOC)) == (SEC_DATA | SEC_ALLOC)) && \
+   ((sec)->memory ==1))
+#define PIC32_IS_BSS_ATTR_WITH_MEMORY_ATTR(sec) \
+  ((((sec)->flags & (SEC_ALLOC|SEC_LOAD|SEC_CODE|SEC_DATA|SEC_HAS_CONTENTS)) == SEC_ALLOC) && \
+   ((sec)->persistent != 1) && ((sec)->memory ==1) && \
+   ((sec)->heap != 1) && ((sec)->stack !=1))
 #define PIC32_IS_HEAP_ATTR(sec) \
   ((((sec)->flags & (SEC_ALLOC|SEC_LOAD|SEC_CODE|SEC_DATA|SEC_HAS_CONTENTS)) == SEC_ALLOC) && \
   ((sec)->heap == 1))

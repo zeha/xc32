@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2009, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2012, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -76,11 +76,11 @@ package body Debug is
    --  dJ   Output debugging trace info for JGNAT (Java VM version of GNAT)
    --  dK   Kill all error messages
    --  dL   Output trace information on elaboration checking
-   --  dM   Asssume all variables are modified (no current values)
+   --  dM   Assume all variables are modified (no current values)
    --  dN   No file name information in exception messages
    --  dO   Output immediate error messages
    --  dP   Do not check for controlled objects in preelaborable packages
-   --  dQ
+   --  dQ   Do not generate runtime check for duplicated external tag
    --  dR   Bypass check for correct version of s-rpc
    --  dS   Never convert numbers to machine numbers in Sem_Eval
    --  dT   Convert to machine numbers only for constant declarations
@@ -92,57 +92,57 @@ package body Debug is
    --  dZ   Generate listing showing the contents of the dispatch tables
 
    --  d.a  Force Target_Strict_Alignment mode to True
-   --  d.b
+   --  d.b  Dump backend types
    --  d.c  Generate inline concatenation, do not call procedure
-   --  d.d
-   --  d.e
+   --  d.d  Disable atomic synchronization
+   --  d.e  Enable atomic synchronization
    --  d.f  Inhibit folding of static expressions
    --  d.g  Enable conversion of raise into goto
    --  d.h
    --  d.i  Ignore Warnings pragmas
-   --  d.j
-   --  d.k
+   --  d.j  Generate listing of frontend inlined calls
+   --  d.k  Enable new support for frontend inlining
    --  d.l  Use Ada 95 semantics for limited function returns
    --  d.m  For -gnatl, print full source only for main unit
    --  d.n  Print source file names
-   --  d.o
-   --  d.p
+   --  d.o  Generate .NET listing of CIL code
+   --  d.p  Enable the .NET CIL verifier
    --  d.q
    --  d.r  Enable OK_To_Reorder_Components in non-variant records
    --  d.s  Disable expansion of slice move, use memmove
    --  d.t  Disable static allocation of library level dispatch tables
    --  d.u
    --  d.v  Enable OK_To_Reorder_Components in variant records
-   --  d.w  Do not check for infinite while loops
+   --  d.w  Do not check for infinite loops
    --  d.x  No exception handlers
    --  d.y
    --  d.z
 
-   --  d.A
+   --  d.A  Read/write Aspect_Specifications hash table to tree
    --  d.B
    --  d.C  Generate concatenation call, do not generate inline code
-   --  d.D
-   --  d.E
-   --  d.F
-   --  d.G
-   --  d.H
+   --  d.D  Strict Alfa mode
+   --  d.E  Force Alfa mode for gnat2why
+   --  d.F  Alfa mode
+   --  d.G  Precondition only mode for gnat2why
+   --  d.H  Standard package only mode for gnat2why
    --  d.I  SCIL generation mode
-   --  d.J  Parallel SCIL generation mode
-   --  d.K
-   --  d.L
+   --  d.J  Disable parallel SCIL generation mode
+   --  d.K  Alfa detection only mode for gnat2why
+   --  d.L  Depend on back end for limited types in if and case expressions
    --  d.M
-   --  d.N
+   --  d.N  Add node to all entities
    --  d.O  Dump internal SCO tables
-   --  d.P
+   --  d.P  Previous (non-optimized) handling of length comparisons
    --  d.Q
-   --  d.R
+   --  d.R  Restrictions in ali files in positional form
    --  d.S  Force Optimize_Alignment (Space)
    --  d.T  Force Optimize_Alignment (Time)
-   --  d.U
-   --  d.V
+   --  d.U  Ignore indirect calls for static elaboration
+   --  d.V  Extensions for formal verification
    --  d.W  Print out debugging information for Walk_Library_Items
-   --  d.X
-   --  d.Y
+   --  d.X  Use Expression_With_Actions
+   --  d.Y  Do not use Expression_With_Actions
    --  d.Z
 
    --  d1   Error msgs have node numbers where possible
@@ -153,7 +153,7 @@ package body Debug is
    --  d6   Default access unconstrained to thin pointers
    --  d7   Do not output version & file time stamp in -gnatv or -gnatl mode
    --  d8   Force opposite endianness in packed stuff
-   --  d9
+   --  d9   Allow lock free implementation
 
    --  Debug flags for binder (GNATBIND)
 
@@ -193,12 +193,12 @@ package body Debug is
    --  de
    --  df  Only output file names, not path names, in log
    --  dg
-   --  dh
+   --  dh  Generate listing showing loading of name table hash chains
    --  di
    --  dj
    --  dk
    --  dl
-   --  dm
+   --  dm  Display the number of maximum simultaneous compilations
    --  dn  Do not delete temp files created by gnatmake
    --  do
    --  dp  Prints the contents of the Q used by Make.Compile_Sources
@@ -428,6 +428,12 @@ package body Debug is
    --       in preelaborable packages, but this restriction is a huge pain,
    --       especially in the predefined library units.
 
+   --  dQ   Eliminate check for duplicate external tags. This check was added
+   --       as per AI 0113, and causes some backward compatibility problems.
+   --       It is never legitimate to have duplicate external tags, so the
+   --       check is certainly valid, but this debug switch can be useful for
+   --       enabling previous behavior of ignoring this problem.
+
    --  dR   Bypass the check for a proper version of s-rpc being present
    --       to use the -gnatz? switch. This allows debugging of the use
    --       of stubs generation without needing to have GLADE (or some
@@ -500,9 +506,19 @@ package body Debug is
    --       would normally be false. Can be used for testing strict alignment
    --       circuitry in the compiler.
 
+   --  d.b  Dump back end types. During Create_Standard, the back end is
+   --       queried for all available types. This option shows them.
+
    --  d.c  Generate inline concatenation, instead of calling one of the
    --       System.Concat_n.Str_Concat_n routines in cases where the latter
    --       routines would normally be called.
+
+   --  d.d  Disable atomic synchronization for all atomic variable references.
+   --       Pragma Enable_Atomic_Synchronization is ignored.
+
+   --  d.e  Enable atomic synchronization for all atomic variable references.
+   --       Pragma Disable_Atomic_Synchronization is ignored, and also the
+   --       compiler switch -gnated is ignored.
 
    --  d.f  Suppress folding of static expressions. This of course results
    --       in seriously non-conforming behavior, but is useful sometimes
@@ -517,6 +533,13 @@ package body Debug is
    --       be used in particular to disable Warnings (Off) to check if any of
    --       these statements are inappropriate.
 
+   --  d.j  Generate listing of frontend inlined calls and inline calls passed
+   --       to the backend. This is useful to locate skipped calls that must be
+   --       inlined by the frontend.
+
+   --  d.k  Enable new semantics of frontend inlining.  This is useful to test
+   --       this new feature in all the platforms.
+
    --  d.l  Use Ada 95 semantics for limited function returns. This may be
    --       used to work around the incompatibility introduced by AI-318-2.
    --       It is useful only in -gnat05 mode.
@@ -530,6 +553,13 @@ package body Debug is
    --  d.n  Print source file names as they are loaded. This is useful if the
    --       compiler has a bug -- these are the files that need to be included
    --       in a bug report.
+
+   --  d.o  Generate listing showing the IL instructions generated by the .NET
+   --       compiler for each subprogram.
+
+   --  d.p  Enable the .NET CIL verifier. During development the verifier is
+   --       disabled by default and this flag is used to enable it. In the
+   --       future we will reverse this functionality.
 
    --  d.r  Forces the flag OK_To_Reorder_Components to be set in all record
    --       base types that have no discriminants.
@@ -548,8 +578,13 @@ package body Debug is
    --  d.v  Forces the flag OK_To_Reorder_Components to be set in all record
    --       base types that have at least one discriminant (v = variant).
 
-   --  d.w  This flag turns off the scanning of while loops to detect possible
+   --  d.w  This flag turns off the scanning of loops to detect possible
    --       infinite loops.
+
+   --  d.A  There seems to be a problem with ASIS if we activate the circuit
+   --       for reading and writing the aspect specification hash table, so
+   --       for now, this is controlled by the debug flag d.A. The hash table
+   --       is only written and read if this flag is set.
 
    --  d.x  No exception handlers in generated code. This causes exception
    --       handlers to be eliminated from the generated code. They are still
@@ -559,25 +594,89 @@ package body Debug is
    --  d.C  Generate call to System.Concat_n.Str_Concat_n routines in cases
    --       where we would normally generate inline concatenation code.
 
+   --  d.D  Strict Alfa mode. Interpret compiler permissions as strictly as
+   --       possible in Alfa mode.
+
+   --  d.E  Force Alfa mode for gnat2why. In this mode, errors are issued for
+   --       all violations of Alfa in user code, and warnings are issued for
+   --       constructs not yet implemented in gnat2why.
+
+   --  d.F  Alfa mode. Generate AST in a form suitable for formal verification,
+   --       as well as additional cross reference information in ALI files to
+   --       compute effects of subprograms.
+
+   --  d.G  Precondition only mode for gnat2why. In this mode, gnat2why will
+   --       only generate Why code that checks for the well-guardedness of
+   --       preconditions.
+
+   --  d.H  Standard package only mode for gnat2why. In this mode, gnat2why
+   --       will only generate Why code for package Standard. Any given input
+   --       file will be ignored.
+
    --  d.I  Generate SCIL mode. Generate intermediate code for the sake of
    --       of static analysis tools, and ensure additional tree consistency
    --       between different compilations of specs.
 
-   --  d.J  Ensure the SCIL generated is compatible with parallel builds.
-   --       This means in particular not writing the same files under the
-   --       same directory.
+   --  d.J  Disable parallel SCIL generation. Normally SCIL file generation is
+   --       done in parallel to speed processing. This switch disables this
+   --       behavior.
+
+   --  d.K  Alfa detection only mode for gnat2why. In this mode, gnat2why
+   --       will only generate the .alfa file, but no Why code.
+
+   --  d.L  Normally the front end generates special expansion for conditional
+   --       expressions of a limited type. This debug flag removes this special
+   --       case expansion, leaving it up to the back end to handle conditional
+   --       expressions correctly.
+
+   --  d.N  Enlarge entities by one node (but don't attempt to use this extra
+   --       node for storage of any flags or fields). This can be used to do
+   --       experiments on the impact of increasing entity sizes.
 
    --  d.O  Dump internal SCO tables. Before outputting the SCO information to
    --       the ALI file, the internal SCO tables (SCO_Table/SCO_Unit_Table)
    --       are dumped for debugging purposes.
 
+   --  d.P  Previous non-optimized handling of length comparisons. Setting this
+   --       flag inhibits the effect of Optimize_Length_Comparison in Exp_Ch4.
+   --       This is there in case we find a situation where the optimization
+   --       malfunctions, to provide a work around.
+
+   --  d.R  As documented in lib-writ.ads, restrictions in the ali file can
+   --       have two forms, positional and named. The named notation is the
+   --       current preferred form, but the use of this debug switch will force
+   --       the use of the obsolescent positional form.
+
    --  d.S  Force Optimize_Alignment (Space) mode as the default
 
    --  d.T  Force Optimize_Alignment (Time) mode as the default
 
+   --  d.U  Ignore indirect calls for static elaboration. The static
+   --       elaboration model is conservative, especially regarding indirect
+   --       calls. If you say Proc'Access, it will assume you might call
+   --       Proc. This can cause elaboration cycles at bind time. This flag
+   --       reverts to the behavior of earlier compilers, which ignored
+   --       indirect calls.
+
+   --  d.V  Extensions for formal verification. New attributes/aspects/pragmas
+   --       defined in GNAT for formal verification with the tool GNATprove are
+   --       only accepted under this switch.
+
    --  d.W  Print out debugging information for Walk_Library_Items, including
-   --       the order in which units are walked. This is primarily for SofCheck
-   --       Inspector.
+   --       the order in which units are walked. This is primarily for use in
+   --       debugging CodePeer mode.
+
+   --  d.X  By default, the compiler uses an elaborate rewriting framework for
+   --       short-circuited forms where the right hand condition generates
+   --       actions to be inserted. With the gcc backend, we now use the new
+   --       N_Expression_With_Actions node for this expansion, but we still use
+   --       the old method for other backends and in SCIL mode. This debug flag
+   --       forces use of the new N_Expression_With_Actions node in these other
+   --       cases and is intended for transitional use.
+
+   --  d.Y  Prevents the use of the N_Expression_With_Actions node even in the
+   --       case of the gcc back end. Provided as a back up in case the new
+   --       scheme has problems.
 
    --  d1   Error messages have node numbers where possible. Normally error
    --       messages have only source locations. This option is useful when
@@ -619,6 +718,9 @@ package body Debug is
    --  d8   This forces the packed stuff to generate code assuming the
    --       opposite endianness from the actual correct value. Useful in
    --       testing out code generation from the packed routines.
+
+   --  d9   This allows lock free implementation for protected objects
+   --       (see Exp_Ch9).
 
    ------------------------------------------
    -- Documentation for Binder Debug Flags --
@@ -668,6 +770,12 @@ package body Debug is
    --------------------------------------------
 
    --  df  Only output file names, not path names, in log
+
+   --  dh  Generate listing showing loading of name table hash chains,
+   --      same as for the compiler.
+
+   --  dm  Issue a message indicating the maximum number of simultaneous
+   --      compilations.
 
    --  dn  Do not delete temporary files created by gnatmake at the end
    --      of execution, such as temporary config pragma files, mapping

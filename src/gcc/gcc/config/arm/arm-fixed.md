@@ -1,4 +1,4 @@
-;; Copyright 2011 Free Software Foundation, Inc.
+;; Copyright (C) 2011-2013 Free Software Foundation, Inc.
 ;;
 ;; This file is part of GCC.
 ;;
@@ -17,21 +17,6 @@
 ;; <http://www.gnu.org/licenses/>.
 ;;
 ;; This file contains ARM instructions that support fixed-point operations.
-
-(define_mode_iterator FIXED [QQ HQ SQ UQQ UHQ USQ HA SA UHA USA])
-
-(define_mode_iterator ADDSUB [V4QQ V2HQ V2HA])
-
-(define_mode_iterator UQADDSUB [V4UQQ V2UHQ UQQ UHQ V2UHA UHA])
-
-(define_mode_iterator QADDSUB [V4QQ V2HQ QQ HQ V2HA HA SQ SA])
-
-(define_mode_iterator QMUL [HQ HA])
-
-(define_mode_attr qaddsub_suf [(V4UQQ "8") (V2UHQ "16") (UQQ "8") (UHQ "16")
-			       (V2UHA "16") (UHA "16")
-			       (V4QQ "8") (V2HQ "16") (QQ "8") (HQ "16")
-			       (V2HA "16") (HA "16") (SQ "") (SA "")])
 
 (define_insn "add<mode>3"
   [(set (match_operand:FIXED 0 "s_register_operand" "=r")
@@ -389,6 +374,8 @@
   "TARGET_32BIT && arm_arch6"
   "ssat%?\\t%0, #16, %2%S1"
   [(set_attr "predicable" "yes")
+   (set_attr "insn" "sat")
+   (set_attr "shift" "1")
    (set_attr "type" "alu_shift")])
 
 (define_insn "arm_usatsihi"
@@ -396,4 +383,5 @@
 	(us_truncate:HI (match_operand:SI 1 "s_register_operand")))]
   "TARGET_INT_SIMD"
   "usat%?\\t%0, #16, %1"
-  [(set_attr "predicable" "yes")])
+  [(set_attr "predicable" "yes")
+   (set_attr "insn" "sat")])

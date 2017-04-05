@@ -1,6 +1,6 @@
 // -*- C++ -*-
 
-// Copyright (C) 2005, 2006, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2005-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the terms
@@ -125,8 +125,8 @@ main()
   typedef
     cc_hash_table<
     string,
-    null_mapped_type,
-    null_hash_fn,
+    null_type,
+    null_type,
     equal_to<string>,
     simple_string_ranged_hash_fn>
     set_t;

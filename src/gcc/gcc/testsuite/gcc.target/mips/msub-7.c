@@ -1,5 +1,6 @@
-/* -mlong32 added because of PR target/38598.  */
-/* { dg-options "-O2 -march=5kc -mlong32" } */
+/* { dg-options "-march=5kc" } */
+/* { dg-skip-if "code quality test" { *-*-* } { "-O0" } { "" } } */
+/* { dg-skip-if "requires -fira-region=all or =mixed" { *-*-* } { "-Os" } { "" } } */
 /* { dg-final { scan-assembler-not "\tmul\t" } } */
 /* { dg-final { scan-assembler "\tmsub\t" } } */
 

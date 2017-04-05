@@ -1,7 +1,7 @@
-/* Implementation of the CPU_TIME intrinsic.
-   Copyright (C) 2003, 2007, 2009 Free Software Foundation, Inc.
+/* Wrappers for platform timing functions.
+   Copyright (C) 2003-2013 Free Software Foundation, Inc.
 
-This file is part of the GNU Fortran 95 runtime library (libgfortran).
+This file is part of the GNU Fortran runtime library (libgfortran).
 
 Libgfortran is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public
@@ -29,6 +29,8 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #include <unistd.h>
 #endif
 
+#include <errno.h>
+
 /* The time related intrinsics (DTIME, ETIME, CPU_TIME) to "compare
    different algorithms on the same computer or discover which parts
    are the most expensive", need a way to get the CPU time with the
@@ -38,18 +40,11 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
    As usual with UNIX systems, unfortunately no single way is
    available for all systems.  */
 
-#ifdef TIME_WITH_SYS_TIME
-#  include <sys/time.h>
-#  include <time.h>
-#else
-#  if HAVE_SYS_TIME_H
-#    include <sys/time.h>
-#  else
-#    ifdef HAVE_TIME_H
-#      include <time.h>
-#    endif
-#  endif
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
 #endif
+
+#include <time.h>
 
 #ifdef HAVE_SYS_TYPES_H
      #include <sys/types.h>
@@ -60,16 +55,50 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #  include <sys/resource.h>
 #endif  /* HAVE_GETRUSAGE && HAVE_SYS_RESOURCE_H  */
 
-#if defined (__GNUC__) && (__GNUC__ >= 3)
-#  define ATTRIBUTE_ALWAYS_INLINE __attribute__ ((__always_inline__))
-#else
-#  define ATTRIBUTE_ALWAYS_INLINE
+/* The most accurate way to get the CPU time is getrusage ().
+   If we have times(), that's good enough, too.  */
+#if !defined (HAVE_GETRUSAGE) || !defined (HAVE_SYS_RESOURCE_H)
+/* For times(), we _must_ know the number of clock ticks per second.  */
+#  if defined (HAVE_TIMES) && (defined (HZ) || defined (_SC_CLK_TCK) || defined (CLK_TCK))
+#    ifdef HAVE_SYS_PARAM_H
+#      include <sys/param.h>
+#    endif
+#    if defined (HAVE_SYS_TIMES_H)
+#      include <sys/times.h>
+#    endif
+#    ifndef HZ
+#      if defined _SC_CLK_TCK
+#        define HZ  sysconf(_SC_CLK_TCK)
+#      else
+#        define HZ  CLK_TCK
+#      endif
+#    endif
+#  endif  /* HAVE_TIMES etc.  */
+#endif  /* !HAVE_GETRUSAGE || !HAVE_SYS_RESOURCE_H  */
+
+
+/* If the re-entrant version of localtime is not available, provide a
+   fallback implementation.  On some targets where the _r version is
+   not available, localtime uses thread-local storage so it's
+   threadsafe.  */
+
+#ifndef HAVE_LOCALTIME_R
+/* If _POSIX is defined localtime_r gets defined by mingw-w64 headers.  */
+#ifdef localtime_r
+#undef localtime_r
 #endif
 
-static inline int __time_1 (long *, long *, long *, long *) ATTRIBUTE_ALWAYS_INLINE;
+static inline struct tm *
+localtime_r (const time_t * timep, struct tm * result)
+{
+  *result = *localtime (timep);
+  return result;
+}
+#endif
+
 
 /* Helper function for the actual implementation of the DTIME, ETIME and
-   CPU_TIME intrinsics.  Returns a CPU time in microseconds or -1 if no
+   CPU_TIME intrinsics.  Returns 0 for success or -1 if no
    CPU time could be computed.  */
 
 #ifdef __MINGW32__
@@ -77,8 +106,8 @@ static inline int __time_1 (long *, long *, long *, long *) ATTRIBUTE_ALWAYS_INL
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
-static int
-__time_1 (long *user_sec, long *user_usec, long *system_sec, long *system_usec)
+static inline int
+gf_cputime (long *user_sec, long *user_usec, long *system_sec, long *system_usec)
 {
   union {
     FILETIME ft;
@@ -112,29 +141,100 @@ __time_1 (long *user_sec, long *user_usec, long *system_sec, long *system_usec)
 #else
 
 static inline int
-__time_1 (long *user_sec, long *user_usec, long *system_sec, long *system_usec)
+gf_cputime (long *user_sec, long *user_usec, long *system_sec, long *system_usec)
 {
 #if defined (HAVE_GETRUSAGE) && defined (HAVE_SYS_RESOURCE_H)
   struct rusage usage;
-  getrusage (RUSAGE_SELF, &usage);
+  int err;
+  err = getrusage (RUSAGE_SELF, &usage);
 
   *user_sec = usage.ru_utime.tv_sec;
   *user_usec = usage.ru_utime.tv_usec;
   *system_sec = usage.ru_stime.tv_sec;
   *system_usec = usage.ru_stime.tv_usec;
+  return err;
+
+#elif defined HAVE_TIMES
+  struct tms buf;
+  clock_t err;
+  err = times (&buf);
+  long hz = HZ;
+  *user_sec = buf.tms_utime / hz;
+  *user_usec = (buf.tms_utime % hz) * (1000000. / hz);
+  *system_sec = buf.tms_stime / hz;
+  *system_usec = (buf.tms_stime % hz) * (1000000. / hz);
+  if ((err == (clock_t) -1) && errno != 0)
+    return -1;
   return 0;
 
-#else /* ! HAVE_GETRUSAGE || ! HAVE_SYS_RESOURCE_H  */
+#elif defined(HAVE_CLOCK_GETTIME) && (defined(CLOCK_PROCESS_CPUTIME_ID) \
+				      || defined(CLOCK_THREAD_CPUTIME_ID))
+  /* Newer versions of VxWorks have CLOCK_THREAD_CPUTIME_ID giving
+     per-thread CPU time.  CLOCK_PROCESS_CPUTIME_ID would be better
+     but is not available.  */
+#ifndef CLOCK_PROCESS_CPUTIME_ID
+#define CLOCK_PROCESS_CPUTIME_ID CLOCK_THREAD_CPUTIME_ID
+#endif
+  struct timespec ts;
+  int err = clock_gettime (CLOCK_PROCESS_CPUTIME_ID, &ts);
+  *user_sec = ts.tv_sec;
+  *user_usec = ts.tv_nsec / 1000;
+  *system_sec = *system_usec = 0;
+  return err;
 
-  /* We have nothing to go on.  Return -1.  */
-  *user_sec = *system_sec = 0;
-  *user_usec = *system_usec = 0;
-  return -1;
+#else 
+  clock_t c = clock ();
+  *user_sec = c / CLOCKS_PER_SEC;
+  *user_usec = (c % CLOCKS_PER_SEC) * (1000000. / CLOCKS_PER_SEC);
+  *system_sec = *system_usec = 0;
+  if (c == (clock_t) -1)
+    return -1;
+  return 0;
 
 #endif
 }
 
 #endif
+
+
+/* Realtime clock with microsecond resolution, falling back to other
+   functions if the target does not support gettimeofday().
+
+   Arguments:
+   secs     - OUTPUT, seconds
+   usecs    - OUTPUT, microseconds
+
+   The OUTPUT arguments shall represent the number of seconds and
+   microseconds since the Epoch.
+
+   Return value: 0 for success, -1 for error. In case of error, errno
+   is set.
+*/
+static inline int
+gf_gettime (time_t * secs, long * usecs)
+{
+#ifdef HAVE_GETTIMEOFDAY
+  struct timeval tv;
+  int err;
+  err = gettimeofday (&tv, NULL);
+  *secs = tv.tv_sec;
+  *usecs = tv.tv_usec;
+  return err;
+#elif defined(HAVE_CLOCK_GETTIME)
+  struct timespec ts;
+  int err = clock_gettime (CLOCK_REALTIME, &ts);
+  *secs = ts.tv_sec;
+  *usecs = ts.tv_nsec / 1000;
+  return err;
+#else
+  time_t t = time (NULL);
+  *secs = t;
+  *usecs = 0;
+  if (t == ((time_t)-1))
+    return -1;
+  return 0;
+#endif
+}
 
 
 #endif /* LIBGFORTRAN_TIME_H */

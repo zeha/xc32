@@ -1,4 +1,4 @@
-/* EndElement.java -- 
+/* EndElement.java --
    Copyright (C) 2005  Free Software Foundation, Inc.
 
 This file is part of GNU Classpath.
@@ -55,8 +55,7 @@ public interface EndElement
   /**
    * Returns the namespaces that have gone out of scope.
    */
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings("rawtypes")
   Iterator getNamespaces();
-  
-}
 
+}

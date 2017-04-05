@@ -104,6 +104,9 @@ struct pic32_symbol
 
 bfd_boolean need_layout;
 
+static void bfd_pic32_report_memory_sections
+  PARAMS ((const char *, asection *, FILE *));
+
 void bfd_pic32_report_memory_usage
   PARAMS ((FILE *));
 
@@ -118,6 +121,9 @@ static void pic32_build_section_list_vma
 
 static void pic32_init_section_list
   PARAMS ((struct pic32_section **));
+
+static bfd_boolean pic32_name_in_section_list
+  PARAMS ((struct pic32_section *, const char *));
 
 static void bfd_pic32_finish
   PARAMS ((void));
@@ -183,6 +189,9 @@ static int allocate_program_memory
 static int allocate_data_memory
   PARAMS ((void));
 
+static int allocate_user_memory
+  PARAMS ((void));
+
 static void build_free_block_list
   PARAMS ((struct memory_region_struct *, unsigned int));
 
@@ -232,6 +241,9 @@ static bfd_size_type bfd_pic32_report_sections
   PARAMS ((struct pic32_section *, const lang_memory_region_type *,
            struct magic_sections_tag *, FILE *));
 
+static bfd_size_type bfd_pic32_collect_section_size
+  PARAMS ((struct pic32_section *, const lang_memory_region_type *));
+
 struct bfd_link_hash_entry *bfd_mchp_is_defined_global_symbol
   PARAMS ((const char *const));
 
@@ -267,8 +279,8 @@ static void pic32_create_unused_program_sections
 void pic32_report_crypto_sections
   PARAMS((void));
 
-void pic32_output_ide_dashboard_xml
-  PARAMS((void));
+void bfd_pic32_memory_summary
+  PARAMS((char *));
 
 int fill_section_count = 0;
 int dinit_size = 0;
@@ -439,9 +451,17 @@ static bfd_size_type total_data_memory = 0;
 static bfd_size_type actual_prog_memory_used = 0;
 static bfd_size_type data_memory_used = 0;
 static bfd_size_type region_data_memory_used = 0;
+static bfd_size_type external_memory_used = 0;
+
+/* User-defined memory regions */
+static bfd_boolean has_user_defined_memory = FALSE;
+const char *memory_region_prefix = "__memory_";
+static struct pic32_section *memory_region_list;
+static struct pic32_section *user_memory_sections;
 
 /* Section Lists */
 static struct pic32_section *pic32_section_list;
+struct pic32_section *unassigned_sections;
 
 
 /*
@@ -960,6 +980,52 @@ bfd_pic32_report_memory_usage (fp)
              (unsigned long)(stack_limit-stack_base), "Reserved for stack");
   fprintf( fp, "\n        --------------------------------------------------------------------------\n");
   
+
+  /* 
+     Report user-defined memory sections...
+     They require some extra effort to organize by
+     external memory region 
+   */
+   
+  if (has_user_defined_memory) {
+    struct pic32_section *r, *rnext, *s;
+    const char *region_name;
+    
+    /* Loop through any user-defined regions */
+    for (r = memory_region_list; r != NULL; r = rnext) {
+        rnext = r->next;
+
+      if (r->sec == 0) continue;
+    
+      region_name = r->sec->name + strlen(memory_region_prefix);
+      fprintf( fp, "\nExternal Memory %s"
+               "  [Origin = 0x%lx, Length = 0x%lx]\n\n",
+                region_name, r->sec->vma, r->sec->lma);
+
+
+      fprintf( fp, "section                    address  length [bytes]      (dec)  Description\n");
+      fprintf( fp, "-------                 ----------  -------------------------  -----------\n");
+
+
+      external_memory_used = 0;
+      for (s = pic32_section_list; s != NULL; s = s->next)
+        if (s->sec)
+          bfd_pic32_report_memory_sections (region_name, s->sec, fp);
+
+
+      /* -------------------- */
+      /*  print data summary  */
+      /* -------------------- */
+
+      fprintf( fp, "\n        --------------------------------------------------------------------------\n");
+      fprintf( fp,     "         Total External Memory used :  %#10lx  %10ld  ",
+                                   (unsigned long)external_memory_used, (unsigned long)external_memory_used);
+      if (external_memory_used > 0)
+        report_percent_used (external_memory_used, r->sec->lma, fp);
+      fprintf( fp, "\n        --------------------------------------------------------------------------\n");
+    }
+  }
+
   fflush (fp);
 #undef NAME_MAX_LEN
 #undef NAME_FIELD_LEN
@@ -989,45 +1055,228 @@ void pic32_report_crypto_sections()
     free(crypto_file);
 }
 
-void pic32_output_ide_dashboard_xml() 
+void bfd_pic32_memory_summary(char *arg) 
 {
-  const char *file_name = "memory.xml";
-  FILE *fp;
-
-  fp = fopen (file_name, "w");
-   
-  if (!fp){
-     fprintf(stderr,"Error: %s file cannot be opened.\n", file_name );
-     xexit(1);
-   }
- 
-  fprintf( fp, "<?xml version=\"1.0\" encoding=\"UTF-8\"?> \n");
-  fprintf( fp, "<project>                                  \n");
-  fprintf( fp, "  <executable name=\"%s\">                 \n",
-                                                          output_filename ); 
-  fprintf( fp, "    <memory name=\"program\">                 \n");
-  fprintf( fp, "      <units>bytes</units>                 \n");
-  fprintf( fp, "      <length>%ld</length>                 \n",
-                                          (unsigned long)total_prog_memory);
-  fprintf( fp, "      <used>%ld</used>                     \n",
-                                    (unsigned long)actual_prog_memory_used);
-  fprintf( fp, "      <free>%ld</free>                     \n",
-              (unsigned long)(total_prog_memory - actual_prog_memory_used));
-  fprintf( fp, "    </memory>                              \n");
-  fprintf( fp, "    <memory name=\"data\">              \n");
-  fprintf( fp, "      <units>bytes</units>                 \n");
-  fprintf( fp, "      <length>%ld</length>                 \n",
-                                          (unsigned long)total_data_memory);
-  fprintf( fp, "      <used>%ld</used>                     \n",
-                                          (unsigned long)data_memory_used );
-  fprintf( fp, "      <free>%ld</free>                     \n",
-                     (unsigned long)(total_data_memory - data_memory_used));
-  fprintf( fp, "    </memory>                              \n");
-  fprintf( fp, "  </executable>                            \n");
-  fprintf( fp, "</project>                                 \n");
+  FILE *memory_summary_file;
   
-  fclose(fp);
+  bfd_size_type region_prog_memory_used;
+  lang_memory_region_type *region;
+  unsigned int region_index, region_count;
+  struct pic32_section *s;
+  struct region_report_tag {
+    char *name;
+    char *title;
+    char *total;
+  };
+  struct region_report_tag pmregions_to_report[] =
+    {{"kseg0_program_mem",
+      "kseg0 Program-Memory Usage",
+      "      Total kseg0_program_mem used"},
+     {"kseg0_boot_mem",
+      "kseg0 Boot-Memory Usage",
+      "         Total kseg0_boot_mem used"},
+     {"exception_mem",
+      "Exception-Memory Usage ",
+      "          Total exception_mem used"},
+     {"kseg1_boot_mem",
+      "kseg1 Boot-Memory Usage",
+      "         Total kseg1_boot_mem used"}};
+
+  struct region_report_tag dmregions_to_report[] =
+    {{"kseg0_data_mem",
+      "kseg0 Data-Memory Usage",
+      "         Total kseg0_data_mem used"},
+      {"kseg1_data_mem",
+      "kseg1 Data-Memory Usage",
+      "         Total kseg1_data_mem used"}
+    };
+
+
+  memory_summary_file = fopen (arg, "w");
+   
+  if (memory_summary_file == NULL){
+     fprintf(stderr,"Warning: Could not open %s.\n", arg );
+     return;
+   }
+  else {
+     /*Calculate and output memory summary file*/
+
+     /* clear the counters */
+     actual_prog_memory_used = 0;
+     data_memory_used = 0;
+     region_prog_memory_used = 0;
+     region_data_memory_used = 0;
+     total_data_memory = total_prog_memory = 0;
+  
+     /* build an ordered list of output sections */
+     pic32_init_section_list(&pic32_section_list);
+     bfd_map_over_sections(link_info.output_bfd, &pic32_build_section_list, NULL);
+
+     region_count = sizeof(pmregions_to_report)/sizeof(pmregions_to_report[0]);
+     magic_pm.count = sizeof(magic_pmdescriptions)/sizeof(magic_pmdescriptions[0]);
+     magic_pm.start = magic_pm.index = 0;
+     for (region_index = 0; region_index < region_count; region_index++)
+     {  
+        if (!lang_memory_region_exist(pmregions_to_report[region_index].name))
+          continue;
+
+        region = region_lookup(pmregions_to_report[region_index].name);
+
+        /* collect code sections */
+        for (s = pic32_section_list; s != NULL; s = s->next)
+          if (s->sec)
+          {
+            region_prog_memory_used += bfd_pic32_collect_section_size (s, region);
+          }
+ 
+        total_prog_memory += region->length;
+        actual_prog_memory_used += region_prog_memory_used;
+        region_prog_memory_used = 0;
+     }
+ 
+ 
+     /* DATA MEMORY */
+ 
+     region_count = sizeof(dmregions_to_report)/sizeof(dmregions_to_report[0]);
+     magic_dm.count = sizeof(magic_dmdescriptions)/sizeof(magic_dmdescriptions[0]);
+     magic_dm.start = magic_dm.index = 0;
+     for (region_index = 0; region_index < region_count; region_index++)
+     {
+        if (!lang_memory_region_exist(dmregions_to_report[region_index].name))
+          continue;
+          
+        region = region_lookup(dmregions_to_report[region_index].name);
+ 
+        /* collect data sections */
+        for (s = pic32_section_list; s != NULL; s = s->next)
+          if (s->sec)
+          {
+            region_data_memory_used += bfd_pic32_collect_section_size (s, region);
+          }
+ 
+        total_data_memory += region->length;
+        data_memory_used += region_data_memory_used;
+        region_data_memory_used = 0;
+     }
+
+     /*Do not change the output xml format as it might throw the IDE off*/
+
+     fprintf( memory_summary_file, "<?xml version=\"1.0\" encoding=\"UTF-8\"?> \n");
+     fprintf( memory_summary_file, "<project>                                  \n");
+     fprintf( memory_summary_file, "  <executable name=\"%s\">                 \n",
+                                                          output_filename ); 
+     fprintf( memory_summary_file, "    <memory name=\"program\">                 \n");
+     fprintf( memory_summary_file, "      <units>bytes</units>                 \n");
+     fprintf( memory_summary_file, "      <length>%ld</length>                 \n",
+                                          (unsigned long)total_prog_memory);
+     fprintf( memory_summary_file, "      <used>%ld</used>                     \n",
+                                    (unsigned long)actual_prog_memory_used);
+     fprintf( memory_summary_file, "      <free>%ld</free>                     \n",
+              (unsigned long)(total_prog_memory - actual_prog_memory_used));
+     fprintf( memory_summary_file, "    </memory>                              \n");
+     fprintf( memory_summary_file, "    <memory name=\"data\">              \n");
+     fprintf( memory_summary_file, "      <units>bytes</units>                 \n");
+     fprintf( memory_summary_file, "      <length>%ld</length>                 \n",
+                                          (unsigned long)total_data_memory);
+     fprintf( memory_summary_file, "      <used>%ld</used>                     \n",
+                                          (unsigned long)data_memory_used );
+     fprintf( memory_summary_file, "      <free>%ld</free>                     \n",
+                     (unsigned long)(total_data_memory - data_memory_used));
+     fprintf( memory_summary_file, "    </memory>                              \n");
+     fprintf( memory_summary_file, "  </executable>                            \n");
+     fprintf( memory_summary_file, "</project>                                 \n");
+  
+     fclose(memory_summary_file);
+  }
 }
+
+
+/*
+** Utility routine: bfd_pic32_report_memory_sections()
+**
+** - show memory usage of sections in user-defined regions
+*/ 
+static void
+bfd_pic32_report_memory_sections (region, sect, fp) 
+     const char *region;
+     asection *sect;
+     FILE *fp;
+{
+  unsigned long start = sect->vma;
+  unsigned int opb = bfd_octets_per_byte (link_info.output_bfd);
+  bfd_size_type total = sect->rawsize / opb; /* ignore phantom bytes */
+
+  if (PIC32_IS_MEMORY_ATTR(sect)) {
+    const char *c1, *c2;
+    struct pic32_section *s;
+    unsigned int n;
+
+    /* loop through the list of memory-type sections */
+    for (s = user_memory_sections; s != NULL; s = s->next) {
+      if (!s->file || !s->sec) continue;
+      if (strcmp((char *)s->file, region) != 0) continue;
+      
+      c1 = (const char *) s->sec;  /* name is stored here! */
+      c2 = strchr(c1, '%');        /* avoid the %n terminator */
+      n = c2 ? c2 - c1 : strlen(c1);
+      if (strncmp(c1, sect->name, n) == 0) {
+        char *c, *name = xmalloc(strlen(sect->name) + 1);
+        strcpy(name, sect->name);  /* make a local copy of the name */
+        c = strchr(name, '%');
+        if (c) *c = (char) NULL;   /* remove the %n terminator */
+        
+        fprintf( fp, "%-24s%#10lx     %#10lx  %10ld \n", name, start, total, total);
+ 
+        external_memory_used += total;
+        free(name);
+        break;
+      }
+    }
+  }
+  return;
+} /* static void bfd_pic32_report_memory_sections (...)*/
+
+/*
+** Utility routine: bfd_pic32_collect_section_size()
+**
+** - calculate memory usage of SEC_ALLOC-flagged sections in memory
+*/
+static bfd_size_type
+bfd_pic32_collect_section_size (s, region )
+     struct pic32_section *s;
+     const lang_memory_region_type *region;
+{
+  bfd_size_type region_used = 0;
+  unsigned long start = s->sec->vma;
+  unsigned long load  = s->sec->lma;
+  unsigned long actual = s->sec->size;
+
+  if (PIC32_IS_COHERENT_ATTR(s->sec)) {
+    start &= 0xdfffffff;
+    load &= 0xdfffffff;
+  }
+    
+  /*
+  ** report SEC_ALLOC sections in memory
+  */
+  if ((s->sec->flags & SEC_ALLOC)
+  &&  (s->sec->size > 0))
+    {
+      if ((start >= region->origin) &&
+          ((start + actual) <= (region->origin + region->length)))
+      {
+         region_used = actual;
+      }
+      else if ((load >= region->origin) &&
+          ((load + actual) <= (region->origin + region->length)) &&
+           (s->sec->flags & (SEC_HAS_CONTENTS)))
+      {
+         region_used = actual;
+      }
+    }
+  return region_used;
+} /* static bfd_size_type bfd_pic32_collect_section_size (...) */
+
 
 static void
 report_percent_used (used, max, fp)
@@ -1271,6 +1520,24 @@ pic32_build_section_list (abfd, sect, fp)
       new->next = NULL;
     }
 } /* static void pic32_build_section_list (...) */
+
+
+/*
+** Search a section list by name
+*/
+static bfd_boolean
+pic32_name_in_section_list (lst, name)
+     struct pic32_section *lst;
+     const char *name; 
+{
+  struct pic32_section *s, *next;
+  for (s = lst; s != NULL; s = next) {
+    next = s->next;
+    if (s->sec && strcmp(s->sec->name, name) == 0)
+      return TRUE;
+  }
+  return FALSE;
+}
 
 
 /*
@@ -1772,13 +2039,13 @@ bfd_pic32_process_bfd_after_open (abfd, info)
   for (sec = abfd->sections; sec != 0; sec = sec->next)
   {
     /* if section has extended attributes, apply them */
-   if (has_extended_attributes) {
-    int c;
-    for (c=0; c < pic32_symbol_count; c++) {
-      if (strcmp(sec->name, pic32_symbol_list[c].name) == 0)
-        pic32_set_attributes(sec, pic32_symbol_list[c].value, 0);
-     }
-   }
+    if (has_extended_attributes) {
+      int c;
+      for (c=0; c < pic32_symbol_count; c++) {
+        if (strcmp(sec->name, pic32_symbol_list[c].name) == 0)
+          pic32_set_attributes(sec, pic32_symbol_list[c].value, 0);
+      }
+    }
 
     /* if section has HEAP attribute, record that fact */
     if (PIC32_IS_HEAP_ATTR(sec) && (sec->size > 0)) {
@@ -1795,9 +2062,87 @@ bfd_pic32_process_bfd_after_open (abfd, info)
                    sec->size );
       }
     }
- }
+
+    struct bfd_link_hash_entry *h;
+    flagword old_flags = sec->flags;
+    bfd_boolean is_memory_region;
+    static unsigned int region_index = 0;
+    const char *region_name = 0;
+
+    /* If section represents a memory region, record it */
+
+    is_memory_region = FALSE;
+    if (PIC32_IS_INFO_ATTR(sec) &&
+        strncmp(sec->name, memory_region_prefix, 
+                strlen(memory_region_prefix)) == 0 &&
+	strchr(sec->name, '@') == NULL) 
+  {
+      region_name = sec->name + strlen(memory_region_prefix);
+
+      is_memory_region = TRUE;
+      region_index++;
+      h = bfd_pic32_is_defined_global_symbol(region_name);
+      if (h == NULL) 
+      {
+        if (pic32_debug)
+          printf("  ..creating global symbol for user-defined memory %s\n",
+                 region_name);
+
+        _bfd_generic_link_add_one_symbol (info, abfd,
+                                          region_name, BSF_GLOBAL,
+                                          bfd_abs_section_ptr, region_index,
+                                          region_name, 1, 0, 0);
+      }
+    }
+    
+    /* process input section flags here, if necessary */
+    if ((sec->flags & (SEC_ALLOC | SEC_LOAD | SEC_DATA)) ==
+         (SEC_ALLOC | SEC_LOAD | SEC_DATA))
+      sec->flags |= SEC_HAS_CONTENTS;  /* elf linker needs this */
+
+    /* report if flags were changed */
+    if ((pic32_debug) && (sec->flags != old_flags))
+      printf("   adjust flags: %s %x --> %x\n", sec->name, old_flags, sec->flags);
+
+    if (PIC32_IS_INFO_ATTR(sec) &&
+        strncmp(sec->name, memory_region_prefix, 
+                strlen(memory_region_prefix)) == 0 &&
+	strchr(sec->name, '@') != NULL) 
+    {
+ 	char *ext_mem_sec_region_name = xstrdup(sec->name);
+ 	size_t ext_mem_sec_region_len = strlen(ext_mem_sec_region_name);
+ 	
+	const char *atdelim = strchr(ext_mem_sec_region_name,'@');
+	
+	int atdelim_index  = 0;
+ 	int mem_prefix_len = 0;
+ 	
+	atdelim_index  = (int) (atdelim - ext_mem_sec_region_name) ;
+	mem_prefix_len = strlen(memory_region_prefix);
+	
+	int ext_sec_name_len = 0 ;
+	int ext_reg_name_len = 0 ;
+
+	ext_reg_name_len = atdelim_index - mem_prefix_len;
+	ext_sec_name_len = ext_mem_sec_region_len - atdelim_index - 1 ;
+
+	char *region_name = xmalloc(ext_reg_name_len+1);
+	strncpy(region_name, ext_mem_sec_region_name+mem_prefix_len, ext_reg_name_len);
+	region_name[ext_reg_name_len] = '\0';
+	
+	char *sec_name    = xmalloc(ext_sec_name_len+1);
+	strncpy(sec_name, ext_mem_sec_region_name+atdelim_index+1, ext_sec_name_len);
+	sec_name[ext_sec_name_len] = '\0';
+
+        pic32_append_section_to_list (user_memory_sections,
+                                       (lang_input_statement_type *) region_name,
+                                       (asection *) sec_name);
+
+	free(ext_mem_sec_region_name); 
+    }
+  }
   if (symbols) free(symbols);
-  return(TRUE);
+    return(TRUE);
  }
 }
 
@@ -1995,6 +2340,11 @@ pic32_after_open(void)
 
     gld${EMULATION_NAME}_after_open();
 
+    /* Prepare a list for sections in user-defined regions */
+    if (user_memory_sections)
+      pic32_free_section_list(&user_memory_sections);
+    pic32_init_section_list(&user_memory_sections);
+
   {
     /* loop through all of the input bfds */
     LANG_FOR_EACH_INPUT_STATEMENT (is)
@@ -2021,7 +2371,9 @@ pic32_after_open(void)
              sec != (asection *) NULL;
              sec = sec->next)
           if (((sec->size > 0) && (PIC32_IS_DATA_ATTR(sec)))
-              || (PIC32_IS_BSS_ATTR(sec)) || PIC32_IS_RAMFUNC_ATTR(sec)) {
+              || (PIC32_IS_BSS_ATTR(sec)) || PIC32_IS_RAMFUNC_ATTR(sec)
+              || ((sec->size > 0) && (PIC32_IS_DATA_ATTR_WITH_MEMORY_ATTR(sec)))
+              || (PIC32_IS_BSS_ATTR_WITH_MEMORY_ATTR(sec))) {
             /* fix for xc32-146 */
             if (PIC32_IS_DATA_ATTR(sec) &&
                 (strcmp(sec->name, ".rodata") == 0)) {
@@ -2086,8 +2438,8 @@ pic32_finish(void)
     pic32_report_crypto_sections();
 
   /* Output memory descriptor file for IDE */
-  if (pic32_generate_dashboard_xml)
-   pic32_output_ide_dashboard_xml();  
+  if (pic32_memory_summary)
+   bfd_pic32_memory_summary(memory_summary_arg);  
 
   finish_default();
 } /* static void pic32_finish ()*/
@@ -2104,6 +2456,21 @@ gldelf32pic32mx_place_orphan (lang_input_statement_type *file,
   int was_placed = 0;
 
   if (pic32_allocate) {  /* if best-fit allocator enabled */
+
+    /* if this section represents a memory region,
+       we don't want it allocated or its relocations
+       processed. */
+    if ( PIC32_IS_INFO_ATTR(sec) &&
+         strncmp(sec->name, memory_region_prefix, strlen(memory_region_prefix)) == 0 &&
+         strchr(sec->name, '@') == NULL) {
+      if (!memory_region_list)
+        pic32_init_section_list(&memory_region_list);
+
+      if (!pic32_name_in_section_list(memory_region_list, sec->name))
+        pic32_append_section_to_list(memory_region_list, file, sec);
+      has_user_defined_memory = TRUE;
+      return 1;
+    }
 
    if (((sec->flags & SEC_DEBUGGING) == SEC_DEBUGGING)
         || ((sec->flags & SEC_ALLOC) == 0))
@@ -2522,7 +2889,7 @@ bfd_pic32_scan_data_section (sect, p)
    /*
   ** process BSS-type sections
   */
-  if (PIC32_SECTION_IS_BSS_TYPE(sect) &&
+  if ((PIC32_SECTION_IS_BSS_TYPE(sect) || PIC32_IS_BSS_ATTR_WITH_MEMORY_ATTR(sect)) &&
       (sect->size > 0))
   {
       *data_size += DATA_RECORD_HEADER_SIZE;
@@ -2535,7 +2902,7 @@ bfd_pic32_scan_data_section (sect, p)
   /*
   ** process DATA-type sections
   */
-  if ((PIC32_IS_DATA_ATTR(sect) || PIC32_IS_RAMFUNC_ATTR(sect)) && (sect->size > 0))
+  if ((PIC32_IS_DATA_ATTR(sect) || PIC32_IS_DATA_ATTR_WITH_MEMORY_ATTR(sect) || PIC32_IS_RAMFUNC_ATTR(sect)) && (sect->size > 0))
   {
     /* Analyze initialization data now and find out what the after compression
        size of the data initialization template */
@@ -2644,15 +3011,17 @@ pic32_strip_sections (abfd)
   if ((sec == NULL) || (sec->next == NULL))
     return;
 
+  if (sec->flags & (SEC_KEEP | SEC_LINKER_CREATED))
+    return; 
+    
   prev = sec;
   sec = sec->next; /* never strip the first section */
-
   /* loop through the sections in this bfd */
   for (; sec != NULL; sec = sec->next)
     {
       /* remove sections with size = 0 */
       if (sec->size == 0)
-        {
+      {
         prev->next = sec->next;
         if (sec->next)
           sec->next->prev = prev; 
@@ -2665,7 +3034,7 @@ pic32_strip_sections (abfd)
           printf("  Stripping section %s\n", sec->name);
         }
       else
-        prev = sec;
+          prev = sec;
     }
   return;
 } /* static void pic32_strip_sections (...)*/
@@ -2696,7 +3065,6 @@ bfd_pic32_finish(void)
     else
       pic32_stack_size = h->u.def.value;
   }
-
 
    /* if heap is required, make sure one is specified */
   if (pic32_heap_required && !heap_section_defined && !pic32_has_heap_option &&
@@ -2774,16 +3142,16 @@ bfd_pic32_finish(void)
             addr_tree->value.type.node_class = etree_value;
             addr_tree->value.value = stack_sec->vma;
             os->addr_tree = addr_tree;
+            if (pic32_debug)
+              printf("Creating _stack = %x\n", stack_limit);
+            _bfd_generic_link_add_one_symbol (&link_info, stack_sec->owner, "_stack",
+                                              BSF_GLOBAL, bfd_abs_section_ptr,
+                                              stack_limit, "_stack", 1, 0, 0);
+                                              
           }
           else
             fprintf( stderr, "Link Error: Unable to allocate stack\n");
         }
-
-      if (pic32_debug)
-        printf("Creating _stack = %x\n", stack_limit);
-      _bfd_generic_link_add_one_symbol (&link_info, link_info.output_bfd, "_stack",
-                                        BSF_GLOBAL, bfd_abs_section_ptr,
-                                        stack_limit, "_stack", 1, 0, 0);
 
   }
 
@@ -2915,12 +3283,43 @@ elf_link_check_archive_element (name, abfd, sec_info)
      bfd *abfd;
      struct bfd_link_info *sec_info;
 {
+  obj_attribute *archive_attr;
+  obj_attribute *out_attr;
+
   /* we may need to pull this symbol in because it is a SMARTIO fn */
   if (mchp_force_keep_symbol)
       (void) mchp_force_keep_symbol(name, (char*)abfd->filename);
 
-  sec_info = sec_info;
+  if (!elf_known_obj_attributes_proc (link_info.output_bfd)[0].i)
+    {
+      /* This is the first object.  Copy the attributes.  */
+      _bfd_elf_copy_obj_attributes (abfd, link_info.output_bfd);
 
+      /* Use the Tag_null value to indicate the attributes have been
+	     initialized.  */
+      elf_known_obj_attributes_proc (link_info.output_bfd)[0].i = 1;
+
+      /* Check for conflicting Tag_GNU_MIPS_ABI_FP attributes and merge
+         non-conflicting ones.  */
+      archive_attr = elf_known_obj_attributes (abfd)[OBJ_ATTR_GNU];
+      out_attr = elf_known_obj_attributes (link_info.output_bfd)[OBJ_ATTR_GNU];
+
+      if (pic32_has_hardfloat_option || 
+         (global_PROCESSOR && pic32_is_fltpt_machine(global_PROCESSOR) && !pic32_has_softfloat_option ))
+      {
+        out_attr[Tag_GNU_MIPS_ABI_FP].i = 4;
+        if (4 != archive_attr[Tag_GNU_MIPS_ABI_FP].i)
+          return FALSE;
+      }
+
+      if (pic32_has_softfloat_option || 
+         (global_PROCESSOR && !pic32_is_fltpt_machine(global_PROCESSOR) && !pic32_has_hardfloat_option ))
+      {
+        out_attr[Tag_GNU_MIPS_ABI_FP].i = 3;
+        if (3 != archive_attr[Tag_GNU_MIPS_ABI_FP].i)
+          return FALSE;
+      }
+    }
   return TRUE;
 }
 

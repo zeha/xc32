@@ -6,7 +6,7 @@
  *                                                                          *
  *                                  Body                                    *
  *                                                                          *
- *          Copyright (C) 1992-2009, Free Software Foundation, Inc.         *
+ *          Copyright (C) 1992-2012, Free Software Foundation, Inc.         *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -54,8 +54,13 @@
 #define ADA_LONG_TYPE_SIZE LONG_TYPE_SIZE
 #endif
 
+/* If we don't have a target definition of WIDEST_HARDWARE_FP_SIZE, assume
+   DOUBLE_TYPE_SIZE.  We used to default to LONG_DOUBLE_TYPE_SIZE, which now
+   most often maps 128 bits implemented with very inefficient software
+   emulations so is incorrect as a hardware size estimate.  */
+
 #ifndef WIDEST_HARDWARE_FP_SIZE
-#define WIDEST_HARDWARE_FP_SIZE LONG_DOUBLE_TYPE_SIZE
+#define WIDEST_HARDWARE_FP_SIZE DOUBLE_TYPE_SIZE
 #endif
 
 /* The following provide a functional interface for the front end Ada code
@@ -149,7 +154,7 @@ get_target_maximum_default_alignment (void)
   return BIGGEST_ALIGNMENT / BITS_PER_UNIT;
 }
 
-/* Standard'Default_Allocator_Alignment.  Alignment guaranteed to be honored
+/* Standard'System_Allocator_Alignment.  Alignment guaranteed to be honored
    by the default allocator (System.Memory.Alloc or malloc if we have no
    run-time library at hand).
 
@@ -172,7 +177,7 @@ get_target_maximum_default_alignment (void)
 #endif
 
 Pos
-get_target_default_allocator_alignment (void)
+get_target_system_allocator_alignment (void)
 {
   return MALLOC_ALIGNMENT / BITS_PER_UNIT;
 }

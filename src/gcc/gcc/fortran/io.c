@@ -1,6 +1,5 @@
 /* Deal with I/O statements & related stuff.
-   Copyright (C) 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009
-   Free Software Foundation, Inc.
+   Copyright (C) 2000-2013 Free Software Foundation, Inc.
    Contributed by Andy Vaught
 
 This file is part of GCC.
@@ -21,6 +20,7 @@ along with GCC; see the file COPYING3.  If not see
 
 #include "config.h"
 #include "system.h"
+#include "coretypes.h"
 #include "flags.h"
 #include "gfortran.h"
 #include "match.h"
@@ -95,7 +95,8 @@ static const io_tag
 	tag_eor		= {"EOR", " eor =", " %l", BT_UNKNOWN},
 	tag_id		= {"ID", " id =", " %v", BT_INTEGER},
 	tag_pending	= {"PENDING", " pending =", " %v", BT_LOGICAL},
-	tag_newunit	= {"NEWUNIT", " newunit =", " %v", BT_INTEGER};
+	tag_newunit	= {"NEWUNIT", " newunit =", " %v", BT_INTEGER},
+	tag_s_iqstream	= {"STREAM", " stream =", " %v", BT_CHARACTER};
 
 static gfc_dt *current_dt;
 
@@ -135,7 +136,7 @@ mode;
 /* Return the next character in the format string.  */
 
 static char
-next_char (int in_string)
+next_char (gfc_instring in_string)
 {
   static gfc_char_t c;
 
@@ -196,7 +197,7 @@ next_char_not_space (bool *error)
   char c;
   do
     {
-      error_element = c = next_char (0);
+      error_element = c = next_char (NONSTRING);
       if (c == '\t')
 	{
 	  if (gfc_option.allow_std & GFC_STD_GNU)
@@ -241,6 +242,8 @@ format_lex (void)
     {
     case '-':
       negative_flag = 1;
+      /* Falls through.  */
+
     case '+':
       c = next_char_not_space (&error);
       if (!ISDIGIT (c))
@@ -373,7 +376,7 @@ format_lex (void)
 
       for (;;)
 	{
-	  c = next_char (1);
+	  c = next_char (INSTRING_WARN);
 	  if (c == '\0')
 	    {
 	      token = FMT_END;
@@ -382,7 +385,7 @@ format_lex (void)
 
 	  if (c == delim)
 	    {
-	      c = next_char (1);
+	      c = next_char (INSTRING_NOWARN);
 
 	      if (c == '\0')
 		{
@@ -449,14 +452,14 @@ format_lex (void)
       c = next_char_not_space (&error);
       if (c == 'P')
 	{
-	  if (gfc_notify_std (GFC_STD_F2003, "Fortran 2003: DP format "
+	  if (gfc_notify_std (GFC_STD_F2003, "DP format "
 	      "specifier not allowed at %C") == FAILURE)
 	    return FMT_ERROR;
 	  token = FMT_DP;
 	}
       else if (c == 'C')
 	{
-	  if (gfc_notify_std (GFC_STD_F2003, "Fortran 2003: DC format "
+	  if (gfc_notify_std (GFC_STD_F2003, "DC format "
 	      "specifier not allowed at %C") == FAILURE)
 	    return FMT_ERROR;
 	  token = FMT_DC;
@@ -645,7 +648,7 @@ format_item_1:
       /* X requires a prior number if we're being pedantic.  */
       if (mode != MODE_FORMAT)
 	format_locus.nextc += format_string_pos;
-      if (gfc_notify_std (GFC_STD_GNU, "Extension: X descriptor "
+      if (gfc_notify_std (GFC_STD_GNU, "X descriptor "
 			  "requires leading space count at %L", &format_locus)
 	  == FAILURE)
 	return FAILURE;
@@ -675,7 +678,7 @@ format_item_1:
       if (t == FMT_ERROR)
 	goto fail;
 
-      if (gfc_notify_std (GFC_STD_GNU, "Extension: $ descriptor at %L",
+      if (gfc_notify_std (GFC_STD_GNU, "$ descriptor at %L",
 	  &format_locus) == FAILURE)
 	return FAILURE;
       if (t != FMT_RPAREN || level > 0)
@@ -729,7 +732,7 @@ data_desc:
       t = format_lex ();
       if (t == FMT_ERROR)
 	goto fail;
-      if (gfc_option.allow_std < GFC_STD_F2003 && t != FMT_COMMA
+      if (!(gfc_option.allow_std & GFC_STD_F2003) && t != FMT_COMMA
 	  && t != FMT_F && t != FMT_E && t != FMT_EN && t != FMT_ES
 	  && t != FMT_D && t != FMT_G && t != FMT_RPAREN && t != FMT_SLASH)
 	{
@@ -822,7 +825,7 @@ data_desc:
 	      error = zero_width;
 	      goto syntax;
 	    }
-	  if (gfc_notify_std (GFC_STD_F2008, "Fortran 2008: 'G0' in "
+	  if (gfc_notify_std (GFC_STD_F2008, "'G0' in "
 			      "format at %L", &format_locus) == FAILURE)
 	    return FAILURE;
 	  u = format_lex ();
@@ -850,11 +853,11 @@ data_desc:
       if (u != FMT_POSINT)
 	{
 	  format_locus.nextc += format_string_pos;
-	  gfc_error_now ("Positive width required in format "
+	  gfc_error ("Positive width required in format "
 			 "specifier %s at %L", token_to_string (t),
 			 &format_locus);
 	  saved_token = u;
-	  goto finished;
+	  goto fail;
 	}
 
       u = format_lex ();
@@ -866,11 +869,11 @@ data_desc:
 	  format_locus.nextc += format_string_pos;
 	  if (gfc_option.warn_std != 0)
 	    {
-	      gfc_error_now ("Period required in format "
+	      gfc_error ("Period required in format "
 			     "specifier %s at %L", token_to_string (t),
 			     &format_locus);
 	      saved_token = u;
-	      goto finished;
+              goto fail;
 	    }
 	  else
 	    gfc_warning ("Period required in format "
@@ -970,17 +973,17 @@ data_desc:
 	  gfc_warning ("The H format specifier at %L is"
 		       " a Fortran 95 deleted feature", &format_locus);
 	}
-
       if (mode == MODE_STRING)
 	{
 	  format_string += value;
 	  format_length -= value;
+          format_string_pos += repeat;
 	}
       else
 	{
 	  while (repeat >0)
 	   {
-	     next_char (1);
+	     next_char (INSTRING_WARN);
 	     repeat -- ;
 	   }
 	}
@@ -1055,7 +1058,7 @@ between_desc:
     default:
       if (mode != MODE_FORMAT)
 	format_locus.nextc += format_string_pos - 1;
-      if (gfc_notify_std (GFC_STD_GNU, "Extension: Missing comma at %L",
+      if (gfc_notify_std (GFC_STD_GNU, "Missing comma at %L",
 	  &format_locus) == FAILURE)
 	return FAILURE;
       /* If we do not actually return a failure, we need to unwind this
@@ -1118,7 +1121,7 @@ extension_optional_comma:
     default:
       if (mode != MODE_FORMAT)
 	format_locus.nextc += format_string_pos;
-      if (gfc_notify_std (GFC_STD_GNU, "Extension: Missing comma at %L",
+      if (gfc_notify_std (GFC_STD_GNU, "Missing comma at %L",
 	  &format_locus) == FAILURE)
 	return FAILURE;
       /* If we do not actually return a failure, we need to unwind this
@@ -1152,6 +1155,8 @@ finished:
 static gfc_try
 check_format_string (gfc_expr *e, bool is_input)
 {
+  gfc_try rv;
+  int i;
   if (!e || e->ts.type != BT_CHARACTER || e->expr_type != EXPR_CONSTANT)
     return SUCCESS;
 
@@ -1162,8 +1167,20 @@ check_format_string (gfc_expr *e, bool is_input)
      format string that has been calculated, but that's probably not worth the
      effort.  */
   format_locus = e->where;
-
-  return check_format (is_input);
+  rv = check_format (is_input);
+  /* check for extraneous characters at the end of an otherwise valid format
+     string, like '(A10,I3)F5'
+     start at the end and move back to the last character processed,
+     spaces are OK */
+  if (rv == SUCCESS && e->value.character.length > format_string_pos)
+    for (i=e->value.character.length-1;i>format_string_pos-1;i--)
+      if (e->value.character.string[i] != ' ')
+        {
+          format_locus.nextc += format_length + 1; 
+          gfc_warning ("Extraneous characters in format at %L", &format_locus); 
+          break;
+        }
+  return rv;
 }
 
 
@@ -1215,14 +1232,9 @@ gfc_match_format (void)
   new_st.loc = start;
   new_st.op = EXEC_NOP;
 
-  e = gfc_get_expr();
-  e->expr_type = EXPR_CONSTANT;
-  e->ts.type = BT_CHARACTER;
-  e->ts.kind = gfc_default_character_kind;
-  e->where = start;
-  e->value.character.string = format_string
-			    = gfc_get_wide_string (format_length + 1);
-  e->value.character.length = format_length;
+  e = gfc_get_character_expr (gfc_default_character_kind, &start,
+			      NULL, format_length);
+  format_string = e->value.character.string;
   gfc_statement_label->format = e;
 
   mode = MODE_COPY;
@@ -1305,6 +1317,9 @@ match_vtag (const io_tag *tag, gfc_expr **v)
       return MATCH_ERROR;
     }
 
+  if (gfc_implicit_pure (NULL) && gfc_impure_variable (result->symtree->n.sym))
+    gfc_current_ns->proc_name->attr.implicit_pure = 0;
+
   *v = result;
   return MATCH_YES;
 }
@@ -1381,15 +1396,17 @@ resolve_tag_format (const gfc_expr *e)
 	  || e->symtree->n.sym->as == NULL
 	  || e->symtree->n.sym->as->rank == 0))
     {
-      if (e->ts.type != BT_CHARACTER && e->ts.type != BT_INTEGER)
+      if ((e->ts.type != BT_CHARACTER
+	   || e->ts.kind != gfc_default_character_kind)
+	  && e->ts.type != BT_INTEGER)
 	{
-	  gfc_error ("FORMAT tag at %L must be of type CHARACTER or INTEGER",
-		     &e->where);
+	  gfc_error ("FORMAT tag at %L must be of type default-kind CHARACTER "
+		     "or of INTEGER", &e->where);
 	  return FAILURE;
 	}
       else if (e->ts.type == BT_INTEGER && e->expr_type == EXPR_VARIABLE)
 	{
-	  if (gfc_notify_std (GFC_STD_F95_DEL, "Deleted feature: ASSIGNED "
+	  if (gfc_notify_std (GFC_STD_F95_DEL, "ASSIGNED "
 			      "variable in FORMAT tag at %L", &e->where)
 	      == FAILURE)
 	    return FAILURE;
@@ -1414,7 +1431,7 @@ resolve_tag_format (const gfc_expr *e)
      It may be assigned an Hollerith constant.  */
   if (e->ts.type != BT_CHARACTER)
     {
-      if (gfc_notify_std (GFC_STD_LEGACY, "Extension: Non-character "
+      if (gfc_notify_std (GFC_STD_LEGACY, "Non-character "
 			  "in FORMAT tag at %L", &e->where) == FAILURE)
 	return FAILURE;
 
@@ -1465,6 +1482,13 @@ resolve_tag (const io_tag *tag, gfc_expr *e)
       return FAILURE;
     }
 
+  if (e->ts.type == BT_CHARACTER && e->ts.kind != gfc_default_character_kind)
+    {
+      gfc_error ("%s tag at %L must be a character string of default kind",
+		 tag->name, &e->where);
+      return FAILURE;
+    }
+
   if (e->rank != 0)
     {
       gfc_error ("%s tag at %L must be scalar", tag->name, &e->where);
@@ -1473,7 +1497,7 @@ resolve_tag (const io_tag *tag, gfc_expr *e)
 
   if (tag == &tag_iomsg)
     {
-      if (gfc_notify_std (GFC_STD_F2003, "Fortran 2003: IOMSG tag at %L",
+      if (gfc_notify_std (GFC_STD_F2003, "IOMSG tag at %L",
 			  &e->where) == FAILURE)
 	return FAILURE;
     }
@@ -1487,13 +1511,39 @@ resolve_tag (const io_tag *tag, gfc_expr *e)
 	return FAILURE;
     }
 
-  if (tag == &tag_convert)
+  if (tag == &tag_exist && e->ts.kind != gfc_default_logical_kind)
     {
-      if (gfc_notify_std (GFC_STD_GNU, "Extension: CONVERT tag at %L",
-			  &e->where) == FAILURE)
+      if (gfc_notify_std (GFC_STD_F2008, "Nondefault LOGICAL "
+			  "in %s tag at %L", tag->name, &e->where)
+	  == FAILURE)
+	return FAILURE;
+    }
+
+  if (tag == &tag_newunit)
+    {
+      if (gfc_notify_std (GFC_STD_F2008, "NEWUNIT specifier"
+			  " at %L", &e->where) == FAILURE)
+	return FAILURE;
+    }
+
+  /* NEWUNIT, IOSTAT, SIZE and IOMSG are variable definition contexts.  */
+  if (tag == &tag_newunit || tag == &tag_iostat
+      || tag == &tag_size || tag == &tag_iomsg)
+    {
+      char context[64];
+
+      sprintf (context, _("%s tag"), tag->name);
+      if (gfc_check_vardef_context (e, false, false, false, context) == FAILURE)
 	return FAILURE;
     }
   
+  if (tag == &tag_convert)
+    {
+      if (gfc_notify_std (GFC_STD_GNU, "CONVERT tag at %L",
+			  &e->where) == FAILURE)
+	return FAILURE;
+    }
+
   return SUCCESS;
 }
 
@@ -1601,7 +1651,7 @@ gfc_free_open (gfc_open *open)
   gfc_free_expr (open->convert);
   gfc_free_expr (open->asynchronous);
   gfc_free_expr (open->newunit);
-  gfc_free (open);
+  free (open);
 }
 
 
@@ -1683,7 +1733,7 @@ compare_to_allowed_values (const char *specifier, const char *allowed[],
 	else
 	  if (n == ERROR)
 	    {
-	      gfc_notify_std (GFC_STD_F2003, "Fortran 2003: %s specifier in "
+	      gfc_notify_std (GFC_STD_F2003, "%s specifier in "
 			      "%s statement at %C has value '%s'", specifier,
 			      statement, allowed_f2003[i]);
 	      return 0;
@@ -1710,7 +1760,7 @@ compare_to_allowed_values (const char *specifier, const char *allowed[],
 	else
 	  if (n == ERROR)
 	    {
-	      gfc_notify_std (GFC_STD_GNU, "Extension: %s specifier in "
+	      gfc_notify_std (GFC_STD_GNU, "%s specifier in "
 			      "%s statement at %C has value '%s'", specifier,
 			      statement, allowed_gnu[i]);
 	      return 0;
@@ -1725,7 +1775,7 @@ compare_to_allowed_values (const char *specifier, const char *allowed[],
       char *s = gfc_widechar_to_char (value, -1);
       gfc_warning ("%s specifier in %s statement at %C has invalid value '%s'",
 		   specifier, statement, s);
-      gfc_free (s);
+      free (s);
       return 1;
     }
   else
@@ -1733,7 +1783,7 @@ compare_to_allowed_values (const char *specifier, const char *allowed[],
       char *s = gfc_widechar_to_char (value, -1);
       gfc_error ("%s specifier in %s statement at %C has invalid value '%s'",
 		 specifier, statement, s);
-      gfc_free (s);
+      free (s);
       return 0;
     }
 }
@@ -1761,8 +1811,6 @@ gfc_match_open (void)
   if (m == MATCH_NO)
     {
       m = gfc_match_expr (&open->unit);
-      if (m == MATCH_NO)
-	goto syntax;
       if (m == MATCH_ERROR)
 	goto cleanup;
     }
@@ -1790,6 +1838,9 @@ gfc_match_open (void)
       goto cleanup;
     }
 
+  if (gfc_implicit_pure (NULL))
+    gfc_current_ns->proc_name->attr.implicit_pure = 0;
+
   warn = (open->err || open->iostat) ? true : false;
 
   /* Checks on NEWUNIT specifier.  */
@@ -1809,6 +1860,11 @@ gfc_match_open (void)
 		     "or STATUS='scratch' at %C");
 	  goto cleanup;
 	}
+    }
+  else if (!open->unit)
+    {
+      gfc_error ("OPEN statement at %C must have UNIT or NEWUNIT specified");
+      goto cleanup;
     }
 
   /* Checks on the ACCESS specifier.  */
@@ -1839,7 +1895,7 @@ gfc_match_open (void)
   /* Checks on the ASYNCHRONOUS specifier.  */
   if (open->asynchronous)
     {
-      if (gfc_notify_std (GFC_STD_F2003, "Fortran 2003: ASYNCHRONOUS= at %C "
+      if (gfc_notify_std (GFC_STD_F2003, "ASYNCHRONOUS= at %C "
 	  "not allowed in Fortran 95") == FAILURE)
 	goto cleanup;
 
@@ -1857,7 +1913,7 @@ gfc_match_open (void)
   /* Checks on the BLANK specifier.  */
   if (open->blank)
     {
-      if (gfc_notify_std (GFC_STD_F2003, "Fortran 2003: BLANK= at %C "
+      if (gfc_notify_std (GFC_STD_F2003, "BLANK= at %C "
 	  "not allowed in Fortran 95") == FAILURE)
 	goto cleanup;
 
@@ -1875,7 +1931,7 @@ gfc_match_open (void)
   /* Checks on the DECIMAL specifier.  */
   if (open->decimal)
     {
-      if (gfc_notify_std (GFC_STD_F2003, "Fortran 2003: DECIMAL= at %C "
+      if (gfc_notify_std (GFC_STD_F2003, "DECIMAL= at %C "
 	  "not allowed in Fortran 95") == FAILURE)
 	goto cleanup;
 
@@ -1893,10 +1949,6 @@ gfc_match_open (void)
   /* Checks on the DELIM specifier.  */
   if (open->delim)
     {
-      if (gfc_notify_std (GFC_STD_F2003, "Fortran 2003: DELIM= at %C "
-	  "not allowed in Fortran 95") == FAILURE)
-	goto cleanup;
-
       if (open->delim->expr_type == EXPR_CONSTANT)
 	{
 	  static const char *delim[] = { "APOSTROPHE", "QUOTE", "NONE", NULL };
@@ -1911,7 +1963,7 @@ gfc_match_open (void)
   /* Checks on the ENCODING specifier.  */
   if (open->encoding)
     {
-      if (gfc_notify_std (GFC_STD_F2003, "Fortran 2003: ENCODING= at %C "
+      if (gfc_notify_std (GFC_STD_F2003, "ENCODING= at %C "
 	  "not allowed in Fortran 95") == FAILURE)
 	goto cleanup;
     
@@ -1962,7 +2014,7 @@ gfc_match_open (void)
   /* Checks on the ROUND specifier.  */
   if (open->round)
     {
-      if (gfc_notify_std (GFC_STD_F2003, "Fortran F2003: ROUND= at %C "
+      if (gfc_notify_std (GFC_STD_F2003, "ROUND= at %C "
 	  "not allowed in Fortran 95") == FAILURE)
       goto cleanup;
 
@@ -1982,7 +2034,7 @@ gfc_match_open (void)
   /* Checks on the SIGN specifier.  */
   if (open->sign) 
     {
-      if (gfc_notify_std (GFC_STD_F2003, "Fortran 2003: SIGN= at %C "
+      if (gfc_notify_std (GFC_STD_F2003, "SIGN= at %C "
 	  "not allowed in Fortran 95") == FAILURE)
 	goto cleanup;
 
@@ -2040,7 +2092,7 @@ gfc_match_open (void)
 					  -1);
 	  warn_or_error ("The STATUS specified in OPEN statement at %C is "
 			 "'%s' and no FILE specifier is present", s);
-	  gfc_free (s);
+	  free (s);
 	}
 
       /* F2003, 9.4.5: If the STATUS= specifier has the value SCRATCH,
@@ -2117,7 +2169,7 @@ gfc_free_close (gfc_close *close)
   gfc_free_expr (close->iomsg);
   gfc_free_expr (close->iostat);
   gfc_free_expr (close->status);
-  gfc_free (close);
+  free (close);
 }
 
 
@@ -2199,6 +2251,9 @@ gfc_match_close (void)
       goto cleanup;
     }
 
+  if (gfc_implicit_pure (NULL))
+    gfc_current_ns->proc_name->attr.implicit_pure = 0;
+
   warn = (close->iostat || close->err) ? true : false;
 
   /* Checks on the STATUS specifier.  */
@@ -2238,6 +2293,24 @@ gfc_resolve_close (gfc_close *close)
   if (gfc_reference_st_label (close->err, ST_LABEL_TARGET) == FAILURE)
     return FAILURE;
 
+  if (close->unit == NULL)
+    {
+      /* Find a locus from one of the arguments to close, when UNIT is
+	 not specified.  */
+      locus loc = gfc_current_locus;
+      if (close->status)
+	loc = close->status->where;
+      else if (close->iostat)
+	loc = close->iostat->where;
+      else if (close->iomsg)
+	loc = close->iomsg->where;
+      else if (close->err)
+	loc = close->err->where;
+
+      gfc_error ("CLOSE statement at %L requires a UNIT number", &loc);
+      return FAILURE;
+    }
+
   if (close->unit->expr_type == EXPR_CONSTANT
       && close->unit->ts.type == BT_INTEGER
       && mpz_sgn (close->unit->value.integer) < 0)
@@ -2258,7 +2331,7 @@ gfc_free_filepos (gfc_filepos *fp)
   gfc_free_expr (fp->unit);
   gfc_free_expr (fp->iomsg);
   gfc_free_expr (fp->iostat);
-  gfc_free (fp);
+  free (fp);
 }
 
 
@@ -2346,6 +2419,9 @@ done:
       goto cleanup;
     }
 
+  if (gfc_implicit_pure (NULL))
+    gfc_current_ns->proc_name->attr.implicit_pure = 0;
+
   new_st.op = op;
   new_st.ext.filepos = fp;
   return MATCH_YES;
@@ -2404,7 +2480,7 @@ gfc_match_rewind (void)
 match
 gfc_match_flush (void)
 {
-  if (gfc_notify_std (GFC_STD_F2003, "Fortran 2003: FLUSH statement at %C")
+  if (gfc_notify_std (GFC_STD_F2003, "FLUSH statement at %C")
       == FAILURE)
     return MATCH_ERROR;
 
@@ -2425,7 +2501,7 @@ default_unit (io_kind k)
   else
     unit = 6;
 
-  return gfc_int_expr (unit);
+  return gfc_get_int_expr (gfc_default_integer_kind, NULL, unit);
 }
 
 
@@ -2488,17 +2564,31 @@ match_dt_format (gfc_dt *dt)
 
   if ((m = gfc_match_st_label (&label)) == MATCH_YES)
     {
-      if (dt->format_expr != NULL || dt->format_label != NULL)
+      char c;
+
+      /* Need to check if the format label is actually either an operand
+	 to a user-defined operator or is a kind type parameter.  That is,
+	 print 2.ip.8      ! .ip. is a user-defined operator return CHARACTER.
+	 print 1_'(I0)', i ! 1_'(I0)' is a default character string.  */
+
+      gfc_gobble_whitespace ();
+      c = gfc_peek_ascii_char ();
+      if (c == '.' || c == '_')
+	gfc_current_locus = where;
+      else
 	{
-	  gfc_free_st_label (label);
-	  goto conflict;
+	  if (dt->format_expr != NULL || dt->format_label != NULL)
+	    {
+	      gfc_free_st_label (label);
+	      goto conflict;
+	    }
+
+	  if (gfc_reference_st_label (label, ST_LABEL_FORMAT) == FAILURE)
+	    return MATCH_ERROR;
+
+	  dt->format_label = label;
+	  return MATCH_YES;
 	}
-
-      if (gfc_reference_st_label (label, ST_LABEL_FORMAT) == FAILURE)
-	return MATCH_ERROR;
-
-      dt->format_label = label;
-      return MATCH_YES;
     }
   else if (m == MATCH_ERROR)
     /* The label was zero or too large.  Emit the correct diagnosis.  */
@@ -2686,9 +2776,10 @@ gfc_free_dt (gfc_dt *dt)
   gfc_free_expr (dt->round);
   gfc_free_expr (dt->blank);
   gfc_free_expr (dt->decimal);
-  gfc_free_expr (dt->extra_comma);
   gfc_free_expr (dt->pos);
-  gfc_free (dt);
+  gfc_free_expr (dt->dt_io_kind);
+  /* dt->extra_comma is a link to dt_io_kind if it is set.  */
+  free (dt);
 }
 
 
@@ -2698,6 +2789,11 @@ gfc_try
 gfc_resolve_dt (gfc_dt *dt, locus *loc)
 {
   gfc_expr *e;
+  io_kind k;
+
+  /* This is set in any case.  */
+  gcc_assert (dt->dt_io_kind);
+  k = dt->dt_io_kind->value.iokind;
 
   RESOLVE_TAG (&tag_format, dt->format_expr);
   RESOLVE_TAG (&tag_rec, dt->rec);
@@ -2740,16 +2836,13 @@ gfc_resolve_dt (gfc_dt *dt, locus *loc)
 	     type character, we assume its really the "format" form of the I/O
 	     statement.  We set the io_unit to the default unit and format to
 	     the character expression.  See F95 Standard section 9.4.  */
-	  io_kind k;
-	  k = dt->extra_comma->value.iokind;
 	  if (e->ts.type == BT_CHARACTER && (k == M_READ || k == M_PRINT))
 	    {
 	      dt->format_expr = dt->io_unit;
 	      dt->io_unit = default_unit (k);
 
-	      /* Free this pointer now so that a warning/error is not triggered
-		 below for the "Extension".  */
-	      gfc_free_expr (dt->extra_comma);
+	      /* Nullify this pointer now so that a warning/error is not
+		 triggered below for the "Extension".  */
 	      dt->extra_comma = NULL;
 	    }
 
@@ -2769,6 +2862,13 @@ gfc_resolve_dt (gfc_dt *dt, locus *loc)
 	  gfc_error ("Internal unit with vector subscript at %L", &e->where);
 	  return FAILURE;
 	}
+
+      /* If we are writing, make sure the internal unit can be changed.  */
+      gcc_assert (k != M_PRINT);
+      if (k == M_WRITE
+	  && gfc_check_vardef_context (e, false, false, false,
+				       _("internal unit in WRITE")) == FAILURE)
+	return FAILURE;
     }
 
   if (e->rank && e->ts.type != BT_CHARACTER)
@@ -2780,12 +2880,38 @@ gfc_resolve_dt (gfc_dt *dt, locus *loc)
   if (e->expr_type == EXPR_CONSTANT && e->ts.type == BT_INTEGER
       && mpz_sgn (e->value.integer) < 0)
     {
-      gfc_error ("UNIT number in statement at %L must be non-negative", &e->where);
+      gfc_error ("UNIT number in statement at %L must be non-negative",
+		 &e->where);
       return FAILURE;
     }
 
+  /* If we are reading and have a namelist, check that all namelist symbols
+     can appear in a variable definition context.  */
+  if (k == M_READ && dt->namelist)
+    {
+      gfc_namelist* n;
+      for (n = dt->namelist->namelist; n; n = n->next)
+	{
+	  gfc_expr* e;
+	  gfc_try t;
+
+	  e = gfc_get_variable_expr (gfc_find_sym_in_symtree (n->sym));
+	  t = gfc_check_vardef_context (e, false, false, false, NULL);
+	  gfc_free_expr (e);
+
+	  if (t == FAILURE)
+	    {
+	      gfc_error ("NAMELIST '%s' in READ statement at %L contains"
+			 " the symbol '%s' which may not appear in a"
+			 " variable definition context",
+			 dt->namelist->name, loc, n->sym->name);
+	      return FAILURE;
+	    }
+	}
+    }
+
   if (dt->extra_comma
-      && gfc_notify_std (GFC_STD_GNU, "Extension: Comma before i/o "
+      && gfc_notify_std (GFC_STD_GNU, "Comma before i/o "
 			 "item list at %L", &dt->extra_comma->where) == FAILURE)
     return FAILURE;
 
@@ -2833,6 +2959,7 @@ gfc_resolve_dt (gfc_dt *dt, locus *loc)
 		 &dt->format_label->where);
       return FAILURE;
     }
+
   return SUCCESS;
 }
 
@@ -2991,50 +3118,8 @@ match_io_element (io_kind k, gfc_code **cpp)
 		   io_kind_name (k));
     }
 
-  if (m == MATCH_YES)
-    switch (k)
-      {
-      case M_READ:
-	if (expr->symtree->n.sym->attr.intent == INTENT_IN)
-	  {
-	    gfc_error ("Variable '%s' in input list at %C cannot be "
-		       "INTENT(IN)", expr->symtree->n.sym->name);
-	    m = MATCH_ERROR;
-	  }
-
-	if (gfc_pure (NULL)
-	    && gfc_impure_variable (expr->symtree->n.sym)
-	    && current_dt->io_unit
-	    && current_dt->io_unit->ts.type == BT_CHARACTER)
-	  {
-	    gfc_error ("Cannot read to variable '%s' in PURE procedure at %C",
-		       expr->symtree->n.sym->name);
-	    m = MATCH_ERROR;
-	  }
-
-	if (gfc_check_do_variable (expr->symtree))
-	  m = MATCH_ERROR;
-
-	break;
-
-      case M_WRITE:
-	if (current_dt->io_unit
-	    && current_dt->io_unit->ts.type == BT_CHARACTER
-	    && gfc_pure (NULL)
-	    && current_dt->io_unit->expr_type == EXPR_VARIABLE
-	    && gfc_impure_variable (current_dt->io_unit->symtree->n.sym))
-	  {
-	    gfc_error ("Cannot write to internal file unit '%s' at %C "
-		       "inside a PURE procedure",
-		       current_dt->io_unit->symtree->n.sym->name);
-	    m = MATCH_ERROR;
-	  }
-
-	break;
-
-      default:
-	break;
-      }
+  if (m == MATCH_YES && k == M_READ && gfc_check_do_variable (expr->symtree))
+    m = MATCH_ERROR;
 
   if (m != MATCH_YES)
     {
@@ -3045,6 +3130,8 @@ match_io_element (io_kind k, gfc_code **cpp)
   cp = gfc_get_code ();
   cp->op = EXEC_TRANSFER;
   cp->expr1 = expr;
+  if (k != M_INQUIRE)
+    cp->ext.dt = current_dt;
 
   *cpp = cp;
   return MATCH_YES;
@@ -3170,7 +3257,7 @@ if (condition) \
 
       if (dt->namelist != NULL)
 	{
-	  if (gfc_notify_std (GFC_STD_F2003, "Fortran 2003: Internal file "
+	  if (gfc_notify_std (GFC_STD_F2003, "Internal file "
 			      "at %L with namelist", &expr->where)
 	      == FAILURE)
 	    m = MATCH_ERROR;
@@ -3188,6 +3275,10 @@ if (condition) \
 		     "IO UNIT in %s statement at %C must be "
 		     "an internal file in a PURE procedure",
 		     io_kind_name (k));
+
+      if (gfc_implicit_pure (NULL) && (k == M_READ || k == M_WRITE))
+	gfc_current_ns->proc_name->attr.implicit_pure = 0;
+
     }
 
   if (k != M_READ)
@@ -3250,7 +3341,7 @@ if (condition) \
 
   if (dt->decimal)
     {
-      if (gfc_notify_std (GFC_STD_F2003, "Fortran 2003: DECIMAL= at %C "
+      if (gfc_notify_std (GFC_STD_F2003, "DECIMAL= at %C "
 	  "not allowed in Fortran 95") == FAILURE)
 	return MATCH_ERROR;
 
@@ -3271,7 +3362,7 @@ if (condition) \
   
   if (dt->blank)
     {
-      if (gfc_notify_std (GFC_STD_F2003, "Fortran 2003: BLANK= at %C "
+      if (gfc_notify_std (GFC_STD_F2003, "BLANK= at %C "
 	  "not allowed in Fortran 95") == FAILURE)
 	return MATCH_ERROR;
 
@@ -3292,7 +3383,7 @@ if (condition) \
 
   if (dt->pad)
     {
-      if (gfc_notify_std (GFC_STD_F2003, "Fortran 2003: PAD= at %C "
+      if (gfc_notify_std (GFC_STD_F2003, "PAD= at %C "
 	  "not allowed in Fortran 95") == FAILURE)
 	return MATCH_ERROR;
 
@@ -3313,7 +3404,7 @@ if (condition) \
 
   if (dt->round)
     {
-      if (gfc_notify_std (GFC_STD_F2003, "Fortran 2003: ROUND= at %C "
+      if (gfc_notify_std (GFC_STD_F2003, "ROUND= at %C "
 	  "not allowed in Fortran 95") == FAILURE)
 	return MATCH_ERROR;
 
@@ -3333,7 +3424,7 @@ if (condition) \
   if (dt->sign)
     {
       /* When implemented, change the following to use gfc_notify_std F2003.
-      if (gfc_notify_std (GFC_STD_F2003, "Fortran 2003: SIGN= at %C "
+      if (gfc_notify_std (GFC_STD_F2003, "SIGN= at %C "
 	  "not allowed in Fortran 95") == FAILURE)
 	return MATCH_ERROR;  */
       if (dt->sign->expr_type == EXPR_CONSTANT)
@@ -3358,7 +3449,7 @@ if (condition) \
 
   if (dt->delim)
     {
-      if (gfc_notify_std (GFC_STD_F2003, "Fortran 2003: DELIM= at %C "
+      if (gfc_notify_std (GFC_STD_F2003, "DELIM= at %C "
 	  "not allowed in Fortran 95") == FAILURE)
 	return MATCH_ERROR;
 
@@ -3636,23 +3727,14 @@ get_io_list:
   /* Used in check_io_constraints, where no locus is available.  */
   spec_end = gfc_current_locus;
 
+  /* Save the IO kind for later use.  */
+  dt->dt_io_kind = gfc_get_iokind_expr (&gfc_current_locus, k);
+
   /* Optional leading comma (non-standard).  We use a gfc_expr structure here
      to save the locus.  This is used later when resolving transfer statements
      that might have a format expression without unit number.  */
   if (!comma_flag && gfc_match_char (',') == MATCH_YES)
-    {
-      dt->extra_comma = gfc_get_expr ();
-
-      /* Set the types to something compatible with iokind. This is needed to
-	 get through gfc_free_expr later since iokind really has no Basic Type,
-	 BT, of its own.  */
-      dt->extra_comma->expr_type = EXPR_CONSTANT;
-      dt->extra_comma->ts.type = BT_LOGICAL;
-
-      /* Save the iokind and locus for later use in resolution.  */
-      dt->extra_comma->value.iokind = k;
-      dt->extra_comma->where = gfc_current_locus;
-    }
+    dt->extra_comma = dt->dt_io_kind;
 
   io_code = NULL;
   if (gfc_match_eos () != MATCH_YES)
@@ -3727,6 +3809,9 @@ gfc_match_print (void)
       return MATCH_ERROR;
     }
 
+  if (gfc_implicit_pure (NULL))
+    gfc_current_ns->proc_name->attr.implicit_pure = 0;
+
   return MATCH_YES;
 }
 
@@ -3776,7 +3861,7 @@ gfc_free_inquire (gfc_inquire *inquire)
   gfc_free_expr (inquire->sign);
   gfc_free_expr (inquire->size);
   gfc_free_expr (inquire->round);
-  gfc_free (inquire);
+  free (inquire);
 }
 
 
@@ -3826,6 +3911,7 @@ match_inquire_element (gfc_inquire *inquire)
   RETM m = match_out_tag (&tag_strm_out, &inquire->strm_pos);
   RETM m = match_vtag (&tag_pending, &inquire->pending);
   RETM m = match_vtag (&tag_id, &inquire->id);
+  RETM m = match_vtag (&tag_s_iqstream, &inquire->iqstream);
   RETM return MATCH_NO;
 }
 
@@ -3883,6 +3969,9 @@ gfc_match_inquire (void)
 	  return MATCH_ERROR;
 	}
 
+      if (gfc_implicit_pure (NULL))
+	gfc_current_ns->proc_name->attr.implicit_pure = 0;
+
       new_st.block = gfc_get_code ();
       new_st.block->op = EXEC_IOLENGTH;
       terminate_io (code);
@@ -3933,6 +4022,9 @@ gfc_match_inquire (void)
       gfc_error ("INQUIRE statement not allowed in PURE procedure at %C");
       goto cleanup;
     }
+
+  if (gfc_implicit_pure (NULL))
+    gfc_current_ns->proc_name->attr.implicit_pure = 0;
   
   if (inquire->id != NULL && inquire->pending == NULL)
     {
@@ -3961,40 +4053,56 @@ gfc_resolve_inquire (gfc_inquire *inquire)
 {
   RESOLVE_TAG (&tag_unit, inquire->unit);
   RESOLVE_TAG (&tag_file, inquire->file);
-  RESOLVE_TAG (&tag_iomsg, inquire->iomsg);
-  RESOLVE_TAG (&tag_iostat, inquire->iostat);
-  RESOLVE_TAG (&tag_exist, inquire->exist);
-  RESOLVE_TAG (&tag_opened, inquire->opened);
-  RESOLVE_TAG (&tag_number, inquire->number);
-  RESOLVE_TAG (&tag_named, inquire->named);
-  RESOLVE_TAG (&tag_name, inquire->name);
-  RESOLVE_TAG (&tag_s_access, inquire->access);
-  RESOLVE_TAG (&tag_sequential, inquire->sequential);
-  RESOLVE_TAG (&tag_direct, inquire->direct);
-  RESOLVE_TAG (&tag_s_form, inquire->form);
-  RESOLVE_TAG (&tag_formatted, inquire->formatted);
-  RESOLVE_TAG (&tag_unformatted, inquire->unformatted);
-  RESOLVE_TAG (&tag_s_recl, inquire->recl);
-  RESOLVE_TAG (&tag_nextrec, inquire->nextrec);
-  RESOLVE_TAG (&tag_s_blank, inquire->blank);
-  RESOLVE_TAG (&tag_s_position, inquire->position);
-  RESOLVE_TAG (&tag_s_action, inquire->action);
-  RESOLVE_TAG (&tag_read, inquire->read);
-  RESOLVE_TAG (&tag_write, inquire->write);
-  RESOLVE_TAG (&tag_readwrite, inquire->readwrite);
-  RESOLVE_TAG (&tag_s_delim, inquire->delim);
-  RESOLVE_TAG (&tag_s_pad, inquire->pad);
-  RESOLVE_TAG (&tag_s_encoding, inquire->encoding);
-  RESOLVE_TAG (&tag_s_round, inquire->round);
-  RESOLVE_TAG (&tag_iolength, inquire->iolength);
-  RESOLVE_TAG (&tag_convert, inquire->convert);
-  RESOLVE_TAG (&tag_strm_out, inquire->strm_pos);
-  RESOLVE_TAG (&tag_s_async, inquire->asynchronous);
-  RESOLVE_TAG (&tag_s_sign, inquire->sign);
-  RESOLVE_TAG (&tag_s_round, inquire->round);
-  RESOLVE_TAG (&tag_pending, inquire->pending);
-  RESOLVE_TAG (&tag_size, inquire->size);
   RESOLVE_TAG (&tag_id, inquire->id);
+
+  /* For INQUIRE, all tags except FILE, ID and UNIT are variable definition
+     contexts.  Thus, use an extended RESOLVE_TAG macro for that.  */
+#define INQUIRE_RESOLVE_TAG(tag, expr) \
+  RESOLVE_TAG (tag, expr); \
+  if (expr) \
+    { \
+      char context[64]; \
+      sprintf (context, _("%s tag with INQUIRE"), (tag)->name); \
+      if (gfc_check_vardef_context ((expr), false, false, false, \
+				    context) == FAILURE) \
+	return FAILURE; \
+    }
+  INQUIRE_RESOLVE_TAG (&tag_iomsg, inquire->iomsg);
+  INQUIRE_RESOLVE_TAG (&tag_iostat, inquire->iostat);
+  INQUIRE_RESOLVE_TAG (&tag_exist, inquire->exist);
+  INQUIRE_RESOLVE_TAG (&tag_opened, inquire->opened);
+  INQUIRE_RESOLVE_TAG (&tag_number, inquire->number);
+  INQUIRE_RESOLVE_TAG (&tag_named, inquire->named);
+  INQUIRE_RESOLVE_TAG (&tag_name, inquire->name);
+  INQUIRE_RESOLVE_TAG (&tag_s_access, inquire->access);
+  INQUIRE_RESOLVE_TAG (&tag_sequential, inquire->sequential);
+  INQUIRE_RESOLVE_TAG (&tag_direct, inquire->direct);
+  INQUIRE_RESOLVE_TAG (&tag_s_form, inquire->form);
+  INQUIRE_RESOLVE_TAG (&tag_formatted, inquire->formatted);
+  INQUIRE_RESOLVE_TAG (&tag_unformatted, inquire->unformatted);
+  INQUIRE_RESOLVE_TAG (&tag_s_recl, inquire->recl);
+  INQUIRE_RESOLVE_TAG (&tag_nextrec, inquire->nextrec);
+  INQUIRE_RESOLVE_TAG (&tag_s_blank, inquire->blank);
+  INQUIRE_RESOLVE_TAG (&tag_s_position, inquire->position);
+  INQUIRE_RESOLVE_TAG (&tag_s_action, inquire->action);
+  INQUIRE_RESOLVE_TAG (&tag_read, inquire->read);
+  INQUIRE_RESOLVE_TAG (&tag_write, inquire->write);
+  INQUIRE_RESOLVE_TAG (&tag_readwrite, inquire->readwrite);
+  INQUIRE_RESOLVE_TAG (&tag_s_delim, inquire->delim);
+  INQUIRE_RESOLVE_TAG (&tag_s_pad, inquire->pad);
+  INQUIRE_RESOLVE_TAG (&tag_s_encoding, inquire->encoding);
+  INQUIRE_RESOLVE_TAG (&tag_s_round, inquire->round);
+  INQUIRE_RESOLVE_TAG (&tag_iolength, inquire->iolength);
+  INQUIRE_RESOLVE_TAG (&tag_convert, inquire->convert);
+  INQUIRE_RESOLVE_TAG (&tag_strm_out, inquire->strm_pos);
+  INQUIRE_RESOLVE_TAG (&tag_s_async, inquire->asynchronous);
+  INQUIRE_RESOLVE_TAG (&tag_s_sign, inquire->sign);
+  INQUIRE_RESOLVE_TAG (&tag_s_round, inquire->round);
+  INQUIRE_RESOLVE_TAG (&tag_pending, inquire->pending);
+  INQUIRE_RESOLVE_TAG (&tag_size, inquire->size);
+  INQUIRE_RESOLVE_TAG (&tag_s_decimal, inquire->decimal);
+  INQUIRE_RESOLVE_TAG (&tag_s_iqstream, inquire->iqstream);
+#undef INQUIRE_RESOLVE_TAG
 
   if (gfc_reference_st_label (inquire->err, ST_LABEL_TARGET) == FAILURE)
     return FAILURE;
@@ -4013,6 +4121,7 @@ gfc_free_wait (gfc_wait *wait)
   gfc_free_expr (wait->iostat);
   gfc_free_expr (wait->iomsg);
   gfc_free_expr (wait->id);
+  free (wait);
 }
 
 
@@ -4093,7 +4202,7 @@ gfc_match_wait (void)
 	goto syntax;
     }
 
-  if (gfc_notify_std (GFC_STD_F2003, "Fortran 2003: WAIT at %C "
+  if (gfc_notify_std (GFC_STD_F2003, "WAIT at %C "
 	  "not allowed in Fortran 95") == FAILURE)
     goto cleanup;
 
@@ -4102,6 +4211,9 @@ gfc_match_wait (void)
       gfc_error ("WAIT statement not allowed in PURE procedure at %C");
       goto cleanup;
     }
+
+  if (gfc_implicit_pure (NULL))
+    gfc_current_ns->proc_name->attr.implicit_pure = 0;
 
   new_st.op = EXEC_WAIT;
   new_st.ext.wait = wait;

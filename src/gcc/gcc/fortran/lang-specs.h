@@ -1,7 +1,6 @@
 /* Contribution to the specs for the GNU Compiler Collection
    from GNU Fortran 95 compiler.
-   Copyright (C) 2002, 2003, 2004, 2005, 2006, 2007, 2008
-   Free Software Foundation, Inc.
+   Copyright (C) 2002-2013 Free Software Foundation, Inc.
 
    This file is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,7 +29,7 @@
 /* Options that f951 should know about, even if not preprocessing.  */
 #define CPP_FORWARD_OPTIONS "%{i*} %{I*} %{M*}"
 
-#define F951_CPP_OPTIONS    "%{!nocpp: -cpp %g.f90 %{E} %(cpp_unique_options) \
+#define F951_CPP_OPTIONS    "%{!nocpp: -cpp=%g.f90 %{E} %(cpp_unique_options) \
 			     %{E|M|MM:%(cpp_debug_options) " CPP_ONLY_OPTIONS \
 			     " -fsyntax-only};: " CPP_FORWARD_OPTIONS "}"
 #define F951_OPTIONS        "%(cc1_options) %{J*} \

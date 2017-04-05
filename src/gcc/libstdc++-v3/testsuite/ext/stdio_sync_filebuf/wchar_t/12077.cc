@@ -1,6 +1,6 @@
-// { dg-require-namedlocale "" }
+// { dg-require-namedlocale "is_IS.UTF-8" }
 
-// Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009 Free Software Foundation
+// Copyright (C) 2004-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -64,7 +64,7 @@ void test01()
   fputs(str, file);
   fclose(file);
   
-  freopen(name, "r", stdin);
+  VERIFY( freopen(name, "r", stdin) );
   
   streamsize n = wcin.rdbuf()->in_avail();
   while (n--)

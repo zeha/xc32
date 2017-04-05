@@ -1,7 +1,7 @@
 /* { dg-do run } */
 /* { dg-require-effective-target stdint_types } */
 /* { dg-options "-fdump-tree-alias" } */
-/* { dg-skip-if "" { *-*-* } { "-O0" } { "" } } */
+/* { dg-skip-if "" { *-*-* } { "-O0" "-fno-fat-lto-objects" } { "" } } */
 
 #include <stdint.h>
 
@@ -30,5 +30,6 @@ int main()
   return 0;
 }
 
-/* { dg-final { scan-tree-dump "y.._., points-to vars: { i }" "alias" } } */
+/* { dg-final { scan-tree-dump "y.._. = { i }" "alias" } } */
+/* { dg-final { scan-tree-dump "y.._., points-to vars: { D..... }" "alias" } } */
 /* { dg-final { cleanup-tree-dump "alias" } } */

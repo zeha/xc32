@@ -1,6 +1,6 @@
 // 2003-02-26  Carlo Wood  <carlo@alinoe.com>
 
-// Copyright (C) 2003, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2003-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -27,7 +27,7 @@ int main()
   using namespace __gnu_test;
 
   // cplus-dem CORE
-  verify_demangle("_GLOBAL__I__Z2fnv", "global constructors keyed to _Z2fnv");
+  verify_demangle("_GLOBAL__I__Z2fnv", "global constructors keyed to fn()");
 
   return 0;
 }

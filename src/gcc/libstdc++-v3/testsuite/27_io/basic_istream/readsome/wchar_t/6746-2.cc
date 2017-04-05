@@ -1,4 +1,4 @@
-// Copyright (C) 2004, 2009 Free Software Foundation
+// Copyright (C) 2004-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -20,6 +20,7 @@
 // { dg-do run { xfail arm*-*-elf arm*-*-eabi } }
 
 // { dg-require-binary-io "" }
+// { dg-require-fileio "" }
 
 // 27.6.1.3 unformatted input functions
 // @require@ %-*.tst %-*.txt

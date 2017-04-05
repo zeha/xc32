@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1999-2009, Free Software Foundation, Inc.         --
+--          Copyright (C) 1999-2012, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -33,11 +33,11 @@
 --  Second_Duration and Day_Of_Week and Day_In_Year from Calendar.Time.
 --  Second_Duration precision depends on the target clock precision.
 --
---  GNAT.Calendar provides the same kind of abstraction found in
---  Ada.Calendar. It provides Split and Time_Of to build and split a Time
---  data. And it provides accessor functions to get only one of Hour, Minute,
---  Second, Second_Duration. Other functions are to access more advanced
---  values like Day_Of_Week, Day_In_Year and Week_In_Year.
+--  GNAT.Calendar provides the same kind of abstraction found in Ada.Calendar.
+--  It provides Split and Time_Of to build and split a Time data. And it
+--  provides accessor functions to get only one of Hour, Minute, Second,
+--  Second_Duration. Other functions are to access more advanced values like
+--  Day_Of_Week, Day_In_Year and Week_In_Year.
 
 with Ada.Calendar;
 with Interfaces.C;
@@ -46,6 +46,7 @@ package GNAT.Calendar is
 
    type Day_Name is
      (Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday);
+   pragma Ordered (Day_Name);
 
    subtype Hour_Number         is Natural range 0 .. 23;
    subtype Minute_Number       is Natural range 0 .. 59;
@@ -82,8 +83,25 @@ package GNAT.Calendar is
       Minute     : out Minute_Number;
       Second     : out Second_Number;
       Sub_Second : out Second_Duration);
-   --  Split the standard Ada.Calendar.Time data in date data (Year, Month,
-   --  Day) and Time data (Hour, Minute, Second, Sub_Second)
+   --  Split a standard Ada.Calendar.Time value in date data (Year, Month, Day)
+   --  and Time data (Hour, Minute, Second, Sub_Second).
+
+   procedure Split_At_Locale
+     (Date       : Ada.Calendar.Time;
+      Year       : out Ada.Calendar.Year_Number;
+      Month      : out Ada.Calendar.Month_Number;
+      Day        : out Ada.Calendar.Day_Number;
+      Hour       : out Hour_Number;
+      Minute     : out Minute_Number;
+      Second     : out Second_Number;
+      Sub_Second : out Second_Duration);
+   --  Split a standard Ada.Calendar.Time value in date data (Year, Month, Day)
+   --  and Time data (Hour, Minute, Second, Sub_Second). This version of Split
+   --  utilizes the time zone and DST bias of the locale (equivalent to Clock).
+   --  Due to this simplified behavior, the implementation does not require
+   --  expensive system calls on targets such as Windows.
+   --  WARNING: Split_At_Locale is no longer aware of historic events and may
+   --  produce inaccurate results over DST changes which occurred in the past.
 
    function Time_Of
      (Year       : Ada.Calendar.Year_Number;
@@ -94,6 +112,22 @@ package GNAT.Calendar is
       Second     : Second_Number;
       Sub_Second : Second_Duration := 0.0) return Ada.Calendar.Time;
    --  Return an Ada.Calendar.Time data built from the date and time values
+
+   function Time_Of_At_Locale
+     (Year       : Ada.Calendar.Year_Number;
+      Month      : Ada.Calendar.Month_Number;
+      Day        : Ada.Calendar.Day_Number;
+      Hour       : Hour_Number;
+      Minute     : Minute_Number;
+      Second     : Second_Number;
+      Sub_Second : Second_Duration := 0.0) return Ada.Calendar.Time;
+   --  Return an Ada.Calendar.Time data built from the date and time values.
+   --  This version of Time_Of utilizes the time zone and DST bias of the
+   --  locale (equivalent to Clock). Due to this simplified behavior, the
+   --  implementation does not require expensive system calls on targets such
+   --  as Windows.
+   --  WARNING: Split_At_Locale is no longer aware of historic events and may
+   --  produce inaccurate results over DST changes which occurred in the past.
 
    function Week_In_Year (Date : Ada.Calendar.Time) return Week_In_Year_Number;
    --  Return the week number as defined in ISO 8601. A week always starts on

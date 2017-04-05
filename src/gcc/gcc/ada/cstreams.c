@@ -6,7 +6,7 @@
  *                                                                          *
  *              Auxiliary C functions for Interfaces.C.Streams              *
  *                                                                          *
- *          Copyright (C) 1992-2009, Free Software Foundation, Inc.         *
+ *          Copyright (C) 1992-2012, Free Software Foundation, Inc.         *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -29,7 +29,7 @@
  *                                                                          *
  ****************************************************************************/
 
-/* Routines required for implementing routines in Interfaces.C.Streams */
+/* Routines required for implementing routines in Interfaces.C.Streams.  */
 
 #ifdef __vxworks
 #include "vxWorks.h"
@@ -45,6 +45,10 @@
 #endif
 
 #include "adaint.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #ifdef VMS
 #include <unixlib.h>
@@ -64,6 +68,16 @@
 #  undef stdout
 #endif
 
+#endif
+
+/* Don't use macros versions of this functions on VxWorks since they cause
+   imcompatible changes in some VxWorks versions */
+#ifdef __vxworks
+#undef getchar
+#undef putchar
+#undef feof
+#undef ferror
+#undef fileno
 #endif
 
 /* The _IONBF value in MINGW32 stdio.h is wrong.  */
@@ -97,15 +111,6 @@ __gnat_is_regular_file_fd (int fd)
 {
   int ret;
   GNAT_STRUCT_STAT statbuf;
-
-#ifdef __EMX__
-  /* Programs using screen I/O may need to reset the FPU after
-     initialization of screen-handling related DLL's, so force
-     DLL initialization by doing a null-write and then reset the FPU */
-
-  DosWrite (0, &ret, 0, &ret);
-  __gnat_init_float();
-#endif
 
   ret = GNAT_FSTAT (fd, &statbuf);
   return (!ret && S_ISREG (statbuf.st_mode));
@@ -166,9 +171,9 @@ __gnat_full_name (char *nam, char *buffer)
   else
     buffer[0] = '\0';
 
-#elif defined(__EMX__) || defined (__MINGW32__)
-  /* If this is a device file return it as is; under Windows NT and
-     OS/2 a device file end with ":".  */
+#elif defined (__MINGW32__)
+  /* If this is a device file return it as is;
+     under Windows NT a device file ends with ":".  */
   if (nam[strlen (nam) - 1] == ':')
     strcpy (buffer, nam);
   else
@@ -182,10 +187,7 @@ __gnat_full_name (char *nam, char *buffer)
 	  *p = '\\';
     }
 
-#elif defined (MSDOS)
-  _fixpath (nam, buffer);
-
-#elif defined (sgi) || defined (__FreeBSD__)
+#elif defined (__FreeBSD__)
 
   /* Use realpath function which resolves links and references to . and ..
      on those Unix systems that support it. Note that GNU/Linux provides it but
@@ -254,3 +256,36 @@ __gnat_full_name (char *nam, char *buffer)
 
   return buffer;
 }
+
+#ifdef _WIN64
+  /* On Windows 64 we want to use the fseek/fteel supporting large files. This
+     issue is due to the fact that a long on Win64 is still a 32 bits value */
+__int64
+__gnat_ftell64 (FILE *stream)
+{
+  return _ftelli64 (stream);
+}
+
+int
+__gnat_fseek64 (FILE *stream, __int64 offset, int origin)
+{
+  return _fseeki64 (stream, offset, origin);
+}
+
+#else
+long
+__gnat_ftell64 (FILE *stream)
+{
+  return ftell (stream);
+}
+
+int
+__gnat_fseek64 (FILE *stream, long offset, int origin)
+{
+  return fseek (stream, offset, origin);
+}
+#endif
+
+#ifdef __cplusplus
+}
+#endif

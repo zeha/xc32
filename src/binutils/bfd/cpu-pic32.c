@@ -89,6 +89,7 @@ const bfd_arch_info_type * pic32_get_machine (const char * const name);
 int pic32_proc_family(const bfd_arch_info_type *);
 void pic32_update_resource(const char *resource);
 int pic32_is_l1cache_machine(const bfd_arch_info_type *);
+int pic32_is_fltpt_machine(const bfd_arch_info_type *);
 void pic32_processor_option(char *);
 
 void process_resource_file(unsigned int, int);
@@ -394,6 +395,27 @@ pic32_is_l1cache_machine(const bfd_arch_info_type *proc)
   return rc;
 }
 
+/*
+** Query machine for Hardware Floating-Point support
+*/
+int
+pic32_is_fltpt_machine(const bfd_arch_info_type *proc)
+{
+  int rc = 0;
+  struct pic32_resource_info *f;
+
+  if (proc == NULL)
+    return rc;
+
+  for (f = arch_flags_head[0].next; f != NULL; f = f->next)
+    if (proc == f->arch_info) {
+      rc = 0;
+      if (f->flags & HAS_FLTPT) rc = 1;
+    }
+
+  return rc;
+}
+
 bfd_boolean pic32_is_known_proc(char *opt_arg)
 {
   char *c;
@@ -427,10 +449,10 @@ void pic32_processor_option(char *optarg)
    const char *proc_option_err = "unknown processor";
   const char *proc_option_warn = "multiple processor options specified\n";
   if (pic32_is_known_proc(optarg)) {
+        if (pic32_has_processor_option && strcmp(device_name, optarg))
+          fprintf(stderr,"Warning: %s\n", proc_option_warn);
         device_name = xmalloc(strlen(optarg) + 1);
         sprintf(device_name, "%s", optarg);
-        if (pic32_has_processor_option)
-          fprintf(stderr,"Warning: %s\n", proc_option_warn);
         pic32_has_processor_option = TRUE;
         pic32_update_resource(program_name);
       }

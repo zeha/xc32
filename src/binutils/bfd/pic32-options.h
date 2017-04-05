@@ -37,7 +37,8 @@
 */
 
 extern bfd_boolean pic32_report_mem;
-extern bfd_boolean pic32_generate_dashboard_xml;
+extern bfd_boolean pic32_memory_summary;
+extern char *memory_summary_arg;
 extern bfd_boolean pic32_debug;
 extern bfd_boolean pic32_smart_io;
 extern bfd_boolean pic32_has_smart_io_option;
@@ -56,6 +57,8 @@ extern unsigned int pic32_heap_size;
 extern bfd_boolean pic32_has_crypto_option;
 extern const char * crypto_file;
 extern bfd_boolean pic32_has_processor_option;
+extern bfd_boolean pic32_has_hardfloat_option;
+extern bfd_boolean pic32_has_softfloat_option;
 
 static void gldelf32pic32mx_list_options
    PARAMS ((FILE *));
@@ -77,7 +80,9 @@ enum elfpic32mx_options {
   FILL_OPTION,
   CRYPTO_OPTION,
   MEMRESERVE_OPTION,
-  DASHBOARD_XML_OPTION 
+  HARDFLOAT_OPTION,
+  MEMORY_SUMMARY,
+  SOFTFLOAT_OPTION
 };
 
 static struct option longopts[] =
@@ -86,12 +91,14 @@ static struct option longopts[] =
   { "smart-io", no_argument, NULL, SMART_IO_OPTION },
   { "no-smart-io", no_argument, NULL, NO_SMART_IO_OPTION },
   { "report-mem", no_argument, NULL, REPORT_MEM_OPTION },
-  { "ide-dashboard", no_argument, NULL, DASHBOARD_XML_OPTION },
+  { "memorysummary", required_argument, NULL, MEMORY_SUMMARY },
   { "data-init", no_argument, NULL, DATA_INIT_OPTION },
   { "no-data-init", no_argument, NULL, NO_DATA_INIT_OPTION },
   { "fill", required_argument, NULL, FILL_OPTION },
   { "crypto", required_argument, NULL, CRYPTO_OPTION },
   { "mreserve", required_argument, NULL, MEMRESERVE_OPTION },
+  { "hard-float", no_argument, NULL, HARDFLOAT_OPTION },
+  { "soft-float", no_argument, NULL, SOFTFLOAT_OPTION },  
   { NULL,        no_argument,       NULL, 0                }
 };
 #endif

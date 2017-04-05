@@ -53,7 +53,5 @@ contains
 end module 
 
 
-! { dg-final { scan-tree-dump-times "__builtin_free" 5 "original" } }
-
-! { dg-final { cleanup-modules "automatic_deallocation" } }
+! { dg-final { scan-tree-dump-times "__builtin_free" 4 "original" } }
 ! { dg-final { cleanup-tree-dump "original" } }

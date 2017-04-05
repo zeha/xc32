@@ -1,4 +1,4 @@
-/* Copyright 2008, 2009 Free Software Foundation, Inc.
+/* Copyright (C) 2008-2013 Free Software Foundation, Inc.
    Contributed by Paul Brook <paul@nowt.org>
 
 This file is part of the GNU Fortran 95 runtime library (libgfortran).
@@ -40,7 +40,7 @@ selected_char_kind (gfc_charlen_type name_len, char *name)
       || (len == 7 && strncasecmp (name, "default", 7) == 0))
     return 1;
   else if (len == 9 && strncasecmp (name, "iso_10646", 9) == 0)
-    return 1;
+    return 4;
   else
     return -1;
 }

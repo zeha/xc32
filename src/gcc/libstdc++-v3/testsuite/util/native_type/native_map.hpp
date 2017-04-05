@@ -1,6 +1,6 @@
 // -*- C++ -*-
 
-// Copyright (C) 2005, 2006, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2005-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the terms
@@ -50,10 +50,10 @@ namespace __gnu_pbds
   {
 #define PB_DS_BASE_C_DEC \
     std::map<Key, Data, Cmp_Fn,	\
-typename Allocator::template rebind<std::pair<const Key, Data > >::other >
+typename _Alloc::template rebind<std::pair<const Key, Data > >::other >
 
     template<typename Key, typename Data, class Cmp_Fn = std::less<Key>,
-	     class Allocator = std::allocator<char> >
+	     typename _Alloc = std::allocator<char> >
     class native_map : public PB_DS_BASE_C_DEC
     {
     private:

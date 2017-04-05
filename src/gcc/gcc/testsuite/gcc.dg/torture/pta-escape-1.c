@@ -1,6 +1,6 @@
 /* { dg-do run } */
 /* { dg-options "-fdump-tree-alias" } */
-/* { dg-skip-if "" { *-*-* } { "-O0" } { "" } } */
+/* { dg-skip-if "" { *-*-* } { "-O0" "-fno-fat-lto-objects" } { "" } } */
 
 int *p;
 void __attribute__((noinline,noclone))
@@ -9,7 +9,7 @@ bar (void)
   *p = 1;
 }
 int __attribute__((noinline,noclone))
-foo (__SIZE_TYPE__ addr)
+foo (__INTPTR_TYPE__ addr)
 {
   int i;
   /* q points to ANYTHING */
@@ -25,7 +25,7 @@ extern void abort (void);
 int
 main()
 {
-  if (foo ((__SIZE_TYPE__)&p) != 1)
+  if (foo ((__INTPTR_TYPE__)&p) != 1)
     abort ();
   return 0;
 }

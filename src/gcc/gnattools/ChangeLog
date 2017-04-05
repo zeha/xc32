@@ -1,14 +1,64 @@
-2010-12-16  Release Manager
+2013-12-12  Eric Botcazou  <ebotcazou@adacore.com>
+	    Iain Sandoe  <iain@codesourcery.com>
 
-	* GCC 4.5.2 released.
+	PR ada/55946
+	* Makefile.in (host): Define.
+	(host_alias): Likewise.
+	(TOOLS_FLAGS_TO_PASS_RE): Add LDFLAGS.
+	(GNATMAKE_FOR_HOST): Define.
+	(GNATLINK_FOR_HOST): Likewise.
+	(GNATBIND_FOR_HOST): Likewise.
+	(GNATLS_FOR_HOST): Likewise.
+	(RTS_DIR): Move around and use GNATLS_FOR_HOST.
+	(TOOLS_FLAGS_TO_PASS_CROSS): Use the other *_HOST variables.
 
-2010-07-31  Release Manager
+2013-12-04  Eric Botcazou  <ebotcazou@adacore.com>
 
-	* GCC 4.5.1 released.
+	PR ada/59382
+	* configure.ac (target parameterization): Rewrite.
+	* configure: Regenerate.
 
-2010-04-14  Release Manager
+2013-10-16  Release Manager
 
-	* GCC 4.5.0 released.
+	* GCC 4.8.2 released.
+
+2013-05-31  Release Manager
+
+	* GCC 4.8.1 released.
+
+2013-03-22  Release Manager
+
+	* GCC 4.8.0 released.
+
+2012-03-14  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	* configure.ac (mips-sgi-irix*): Remove.
+	* configure: Regenerate.
+
+2011-10-12  Eric Botcazou  <ebotcazou@adacore.com>
+
+	* Makefile.in (LOOSE_WARN): Delete.
+	(GCC_WARN_CFLAGS): Set to -W -Wall.
+	(TOOLS_FLAGS_TO_PASS_1): Delete.
+	(TOOLS_FLAGS_TO_PASS_1re): Rename into...
+	(TOOLS_FLAGS_TO_PASS_RE): ...this.
+	(gnattools-native): Use TOOLS_FLAGS_TO_PASS_NATIVE.
+	(regnattools): Use TOOLS_FLAGS_TO_PASS_RE.
+
+2011-07-07  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	PR target/39150
+	* configure.ac (*86-*-solaris2*): Also accept
+	x86_64-*-solaris2.1[0-9]*.
+	* configure: Regenerate.
+
+2010-11-20  Ralf Wildenhues  <Ralf.Wildenhues@gmx.de>
+
+	PR other/46202
+	* Makefile.in (install-strip): New phony target.
+	(check, installcheck, info, dvi, pdf, html, install)
+	(install-info, install-pdf, install-html, mostlyclean)
+	(clean, distclean, maintainer-clean): Mark phony.
 
 2010-01-09  Simon Wright  <simon@pushface.org>
 

@@ -1,5 +1,5 @@
 /* VMFloat.java -- VM Specific Float methods
-   Copyright (C) 2003 Free Software Foundation
+   Copyright (C) 2003, 2010  Free Software Foundation, Inc.
 
 This file is part of GNU Classpath.
 
@@ -46,7 +46,7 @@ import gnu.classpath.Configuration;
  */
 
 /**
- * Code relocated from java.lang.Float by 
+ * Code relocated from java.lang.Float by
  * @author Dave Grove <groved@us.ibm.com>
  */
 final class VMFloat
@@ -62,6 +62,8 @@ final class VMFloat
         System.loadLibrary("javalang");
       }
   }
+
+  private VMFloat() {} // Prohibits instantiation.
 
   /**
    * Convert the float to the IEEE 754 floating-point "single format" bit

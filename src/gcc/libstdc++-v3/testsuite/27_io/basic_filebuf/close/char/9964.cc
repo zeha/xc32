@@ -1,8 +1,7 @@
 // { dg-require-fork "" }
 // { dg-require-mkfifo "" }
 
-// Copyright (C) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2009
-// Free Software Foundation, Inc.
+// Copyright (C) 2001-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -69,14 +68,14 @@ bool test_07()
   
   filebuf fb;
   filebuf* ret = fb.open(name, ios_base::in | ios_base::out);
-  VERIFY( ret != NULL );
+  VERIFY( ret != 0 );
   VERIFY( fb.is_open() );
   s1.signal();
   s2.wait();
   fb.sputc('a');
 
   ret = fb.close();
-  VERIFY( ret != NULL );
+  VERIFY( ret != 0 );
   VERIFY( !fb.is_open() );
 
   return test;

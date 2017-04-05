@@ -42,13 +42,15 @@ gldelf32pic32mx_list_options (FILE * file)
 /*  -D or --debug is intended for internal use. It is not for use by end customers.
     So, don't output the option in the help screen.
 */
-
-//  fprintf (file, _("  -D,--debug           Produce linker debugging messages\n"));
+  fprintf (file, _("  --hard-float         Use library objects utilizing FR64 floating-point"
+                   "instructions\n"));
+  fprintf (file, _("  --soft-float         Use library objects utilizing software floating-"
+                   "point emulation\n"));
+  fprintf (file, _("  -p,--processor PROC  Specify the target processor"
+                   " (e.g., 32MX795F512L)\n"));
   fprintf (file, _("  --report-mem         Report memory usage to console\n"));
   fprintf (file, _("  --smart-io           Merge I/O library functions (default)\n"));
   fprintf (file, _("  --no-smart-io        Don't merge I/O library functions\n"));
-  fprintf (file, _("  -p,--processor PROC  Specify the target processor"
-                   " (e.g., 32MX795F512L)\n"));
 } /* static void elf32pic32mx_list_options () */
 
 static void pic32_init_fill_option_list (struct pic32_fill_option **lst)
@@ -254,6 +256,7 @@ gldelf32pic32mx_parse_args (int argc, char ** argv)
 
   const char *smart_io_option_err  = "--smart-io and --no-smart-io";
   const char *option_err = " options can not be used together\n";
+  const char *hardsoftfloat_option_err  = "--hard-float and --soft-float";
   const char *data_init_option_err = "--data-init and --no-data-init";
   if (lastoptind != optind)
     opterr = 0;
@@ -287,8 +290,9 @@ gldelf32pic32mx_parse_args (int argc, char ** argv)
     case REPORT_MEM_OPTION:
       pic32_report_mem = TRUE;
       break;
-    case DASHBOARD_XML_OPTION:
-      pic32_generate_dashboard_xml = TRUE;
+    case MEMORY_SUMMARY:
+      pic32_memory_summary= TRUE;
+      memory_summary_arg = optarg;
       break;
     case DATA_INIT_OPTION:
       if (pic32_has_data_init_option && (!pic32_data_init))
@@ -318,7 +322,16 @@ gldelf32pic32mx_parse_args (int argc, char ** argv)
     case 'p':
       pic32_processor_option(optarg);
       break;
-      
+    case HARDFLOAT_OPTION:
+      if (pic32_has_softfloat_option)
+        einfo(_("%P%F: Error: %s%s"), hardsoftfloat_option_err, option_err);
+      pic32_has_hardfloat_option = TRUE;
+      break;
+    case SOFTFLOAT_OPTION:
+      if (pic32_has_hardfloat_option)
+        einfo(_("%P%F: Error: %s%s"), hardsoftfloat_option_err, option_err);
+      pic32_has_softfloat_option = TRUE;
+      break;    
 #endif /* TARGET_IS_PIC32MX */
     }
 

@@ -39,5 +39,3 @@
       end subroutine
 
     END PROGRAM TEST
-
-

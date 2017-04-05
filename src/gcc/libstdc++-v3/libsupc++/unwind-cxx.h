@@ -1,6 +1,5 @@
 // -*- C++ -*- Exception handling and frame unwind runtime interface routines.
-// Copyright (C) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009
-// Free Software Foundation, Inc.
+// Copyright (C) 2001-2013 Free Software Foundation, Inc.
 //
 // This file is part of GCC.
 //
@@ -36,6 +35,20 @@
 #include <cstddef>
 #include "unwind.h"
 #include <bits/atomic_word.h>
+#include <cxxabi.h>
+
+#ifdef _GLIBCXX_HAVE_SYS_SDT_H
+#include <sys/sdt.h>
+/* We only want to use stap probes starting with v3.  Earlier versions
+   added too much startup cost.  */
+#if defined (STAP_PROBE2) && _SDT_NOTE_TYPE >= 3
+#define PROBE2(name, arg1, arg2) STAP_PROBE2 (libstdcxx, name, arg1, arg2)
+#endif
+#endif
+
+#ifndef PROBE2
+#define PROBE2(name, arg1, arg2)
+#endif
 
 #pragma GCC visibility push(default)
 
@@ -50,7 +63,7 @@ struct __cxa_exception
 {
   // Manage the exception object itself.
   std::type_info *exceptionType;
-  void (*exceptionDestructor)(void *); 
+  void (_GLIBCXX_CDTOR_CALLABI *exceptionDestructor)(void *);
 
   // The C++ standard has entertaining rules wrt calling set_terminate
   // and set_unexpected in the middle of the exception cleanup process.
@@ -143,45 +156,14 @@ struct __cxa_eh_globals
 #endif
 };
 
-
-// The __cxa_eh_globals for the current thread can be obtained by using
-// either of the following functions.  The "fast" version assumes at least
-// one prior call of __cxa_get_globals has been made from the current
-// thread, so no initialization is necessary.
-extern "C" __cxa_eh_globals *__cxa_get_globals () throw() __attribute__ ((__const__));
-extern "C" __cxa_eh_globals *__cxa_get_globals_fast () throw() __attribute__ ((__const__));
-
-// Allocate memory for the primary exception plus the thrown object.
-extern "C" void *__cxa_allocate_exception(std::size_t thrown_size) throw();
-
-// Free the space allocated for the primary exception.
-extern "C" void __cxa_free_exception(void *thrown_exception) throw();
-
-// Allocate memory for a dependent exception.
-extern "C" __cxa_dependent_exception*
-__cxa_allocate_dependent_exception() throw();
-
-// Free the space allocated for the dependent exception.
-extern "C" void
-__cxa_free_dependent_exception(__cxa_dependent_exception *ex) throw();
-
-// Throw the exception.
-extern "C" void __cxa_throw (void *thrown_exception,
-			     std::type_info *tinfo,
-			     void (*dest) (void *))
-     __attribute__((noreturn));
-
-// Used to implement exception handlers.
-extern "C" void *__cxa_get_exception_ptr (void *) throw() __attribute__ ((__pure__));
-extern "C" void *__cxa_begin_catch (void *) throw();
-extern "C" void __cxa_end_catch ();
-extern "C" void __cxa_rethrow () __attribute__((noreturn));
-
-// These facilitate code generation for recurring situations.
-extern "C" void __cxa_bad_cast () __attribute__((__noreturn__));
-extern "C" void __cxa_bad_typeid () __attribute__((__noreturn__));
-
 // @@@ These are not directly specified by the IA-64 C++ ABI.
+
+// Handles re-checking the exception specification if unexpectedHandler
+// throws, and if bad_exception needs to be thrown.  Called from the
+// compiler.
+extern "C" void __cxa_call_unexpected (void *) __attribute__((__noreturn__));
+extern "C" void __cxa_call_terminate (_Unwind_Exception*) throw ()
+  __attribute__((__noreturn__));
 
 #ifdef __ARM_EABI_UNWINDER__
 // Arm EABI specified routines.
@@ -190,55 +172,26 @@ typedef enum {
   ctm_succeeded = 1,
   ctm_succeeded_with_ptr_to_base = 2
 } __cxa_type_match_result;
-extern "C" __cxa_type_match_result
-__cxa_type_match(_Unwind_Exception*, const std::type_info*, bool, void**);
+extern "C" __cxa_type_match_result __cxa_type_match(_Unwind_Exception*,
+						    const std::type_info*,
+						    bool, void**);
 extern "C" bool __cxa_begin_cleanup (_Unwind_Exception*);
 extern "C" void __cxa_end_cleanup (void);
-#define __gnu_cxa_call_arg _Unwind_Control_Block*
-#else
-#define __gnu_cxa_call_arg void*
 #endif
 
-// Handles re-checking the exception specification if unexpectedHandler
-// throws, and if bad_exception needs to be thrown.  Called from the
-// compiler.
-#define __cxa_call_arg
-extern "C" void
-__cxa_call_unexpected (__gnu_cxa_call_arg) __attribute__((noreturn));
-extern "C" void
-__cxa_call_terminate (__gnu_cxa_call_arg) throw () __attribute__((noreturn));
+// Handles cleanup from transactional memory restart.
+extern "C" void __cxa_tm_cleanup (void *, void *, unsigned int) throw();
 
 // Invokes given handler, dying appropriately if the user handler was
 // so inconsiderate as to return.
-extern void __terminate(std::terminate_handler) throw () __attribute__((__noreturn__));
-extern void __unexpected(std::unexpected_handler) __attribute__((noreturn));
+extern void __terminate(std::terminate_handler) throw () 
+  __attribute__((__noreturn__));
+extern void __unexpected(std::unexpected_handler)
+  __attribute__((__noreturn__));
 
 // The current installed user handlers.
 extern std::terminate_handler __terminate_handler;
 extern std::unexpected_handler __unexpected_handler;
-
-#ifdef __symbian__
-extern "C" void __init_terminate_handler(void);
-extern "C" void __init_unexpected_handler(void);
-#endif
-
-static inline std::terminate_handler __get_terminate_handler(void)
-{
-#ifdef __symbian__
-  if (!__terminate_handler)
-    __init_terminate_handler();
-#endif
-  return __terminate_handler;
-}
-
-static inline std::unexpected_handler __get_unexpected_handler(void)
-{
-#ifdef __symbian__
-  if (!__unexpected_handler)
-    __init_unexpected_handler();
-#endif
-  return __unexpected_handler;
-}
 
 // These are explicitly GNU C++ specific.
 
@@ -402,6 +355,16 @@ __is_dependent_exception(_Unwind_Exception_Class c)
 
 // GNU C++ personality routine, Version 0.
 extern "C" _Unwind_Reason_Code __gxx_personality_v0
+     (int, _Unwind_Action, _Unwind_Exception_Class,
+      struct _Unwind_Exception *, struct _Unwind_Context *);
+
+// GNU C++ compact eh personality routine.
+extern "C" _Unwind_Reason_Code __gnu_compact_pr2
+     (int, _Unwind_Action, _Unwind_Exception_Class,
+      struct _Unwind_Exception *, struct _Unwind_Context *);
+
+// GNU C++ compact eh personality routine.
+extern "C" _Unwind_Reason_Code __gnu_compact_pr3
      (int, _Unwind_Action, _Unwind_Exception_Class,
       struct _Unwind_Exception *, struct _Unwind_Context *);
 

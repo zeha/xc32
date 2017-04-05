@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2009, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2012, Free Software Foundation, Inc.         --
 --                                                                          --
 -- This specification is derived from the Ada Reference Manual for use with --
 -- GNAT. The copyright notice above, and the license provisions that follow --
@@ -35,7 +35,8 @@
 
 --  This version of Ada.Exceptions is a full Ada 95 version. It omits Ada 2005
 --  features such as the additional definitions of Exception_Name returning
---  Wide_[Wide_]String.
+--  Wide_[Wide_]String. It differs from the Ada 95 version only in that it is
+--  declared Preelaborate (see declaration below for why this is done).
 
 --  It is used for building the compiler and the basic tools, since these
 --  builds may be done with bootstrap compilers that cannot handle these
@@ -56,12 +57,10 @@ with System.Standard_Library;
 with System.Traceback_Entries;
 
 package Ada.Exceptions is
-   pragma Warnings (Off);
-   pragma Preelaborate_05;
-   pragma Warnings (On);
-   --  We make this preelaborable in Ada 2005 mode. If we did not do this, then
-   --  run time units used by the compiler (e.g. s-soflin.ads) would run
-   --  into trouble. Conformance is not an issue, since this version is used
+   pragma Preelaborate;
+   --  We make this preelaborable. If we did not do this, then run time units
+   --  used by the compiler (e.g. s-soflin.ads) would run into trouble.
+   --  Conformance with Ada 95 is not an issue, since this version is used
    --  only by the compiler.
 
    type Exception_Id is private;
@@ -201,8 +200,18 @@ private
    procedure Raise_From_Controlled_Operation
      (X : Ada.Exceptions.Exception_Occurrence);
    pragma No_Return (Raise_From_Controlled_Operation);
-   --  Raise Program_Error, providing information about X (an exception
-   --  raised during a controlled operation) in the exception message.
+   pragma Export
+     (Ada, Raise_From_Controlled_Operation,
+           "__gnat_raise_from_controlled_operation");
+   --  Raise Program_Error, providing information about X (an exception raised
+   --  during a controlled operation) in the exception message.
+
+   procedure Reraise_Library_Exception_If_Any;
+   pragma Export
+     (Ada, Reraise_Library_Exception_If_Any,
+           "__gnat_reraise_library_exception_if_any");
+   --  If there was an exception raised during library-level finalization,
+   --  reraise the exception.
 
    procedure Reraise_Occurrence_Always (X : Exception_Occurrence);
    pragma No_Return (Reraise_Occurrence_Always);
@@ -217,6 +226,10 @@ private
    --  before the call and the parameter X is known not to be the null
    --  occurrence. This is used in generated code when it is known that
    --  abort is already deferred.
+
+   function Triggered_By_Abort return Boolean;
+   --  Determine whether the current exception (if it exists) is an instance of
+   --  Standard'Abort_Signal.
 
    -----------------------
    -- Polling Interface --
@@ -258,22 +271,12 @@ private
    type Exception_Occurrence is record
       Id : Exception_Id;
       --  Exception_Identity for this exception occurrence
-      --  WARNING System.System.Finalization_Implementation.Finalize_List
-      --  relies on the fact that this field is always first in the exception
-      --  occurrence
 
       Msg_Length : Natural := 0;
       --  Length of message (zero = no message)
 
       Msg : String (1 .. Exception_Msg_Max_Length);
       --  Characters of message
-
-      Cleanup_Flag : Boolean := False;
-      --  The cleanup flag is normally False, it is set True for an exception
-      --  occurrence passed to a cleanup routine, and will still be set True
-      --  when the cleanup routine does a Reraise_Occurrence call using this
-      --  exception occurrence. This is used to avoid recording a bogus trace
-      --  back entry from this reraise call.
 
       Exception_Raised : Boolean := False;
       --  Set to true to indicate that this exception occurrence has actually
@@ -292,11 +295,6 @@ private
 
       Tracebacks : Tracebacks_Array;
       --  Stored tracebacks (in Tracebacks (1 .. Num_Tracebacks))
-
-      Private_Data : System.Address := System.Null_Address;
-      --  Field used by low level exception mechanism to store specific data.
-      --  Currently used by the GCC exception mechanism to store a pointer to
-      --  a GNAT_GCC_Exception.
    end record;
 
    function "=" (Left, Right : Exception_Occurrence) return Boolean
@@ -314,11 +312,9 @@ private
      Id               => null,
      Msg_Length       => 0,
      Msg              => (others => ' '),
-     Cleanup_Flag     => False,
      Exception_Raised => False,
      Pid              => 0,
      Num_Tracebacks   => 0,
-     Tracebacks       => (others => TBE.Null_TB_Entry),
-     Private_Data     => System.Null_Address);
+     Tracebacks       => (others => TBE.Null_TB_Entry));
 
 end Ada.Exceptions;

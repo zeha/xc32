@@ -1,7 +1,6 @@
 /* { dg-require-effective-target vect_int } */
 
 #include <stdarg.h>
-#include <stdio.h>
 #include "tree-vect.h"
 
 #define M00 100
@@ -69,11 +68,12 @@ int main (int argc, const char* argv[])
       if (input[i] > 200)
         abort();
       output[i] = 0;
+      __asm__ volatile ("");
     }
 
   foo (input, output);
 
-  for (i = 0; i < N - N; i++)
+  for (i = 0; i < N; i++)
     if (output[i] != check_results[i])
       abort ();
 
@@ -81,7 +81,7 @@ int main (int argc, const char* argv[])
 }
 
 /* { dg-final { scan-tree-dump-times "vectorized 1 loops" 0 "vect"  } } */
-/* { dg-final { scan-tree-dump-times "permutation requires at least three vectors" 1 "vect" { target vect_perm } } } */
+/* { dg-final { scan-tree-dump "permutation requires at least three vectors" "vect" { target vect_perm} } } */
 /* { dg-final { scan-tree-dump-times "vectorizing stmts using SLP" 0 "vect"  } } */
 /* { dg-final { cleanup-tree-dump "vect" } } */
 

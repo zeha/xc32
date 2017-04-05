@@ -205,12 +205,12 @@ public final class Integer extends Number implements Comparable<Integer>
 
         // When the value is MIN_VALUE, it overflows when made positive
         if (num < 0)
-	  {
+          {
             i = size = stringSize(MAX_VALUE, radix) + 2;
             buffer = new char[size];
-	    buffer[--i] = digits[(int) (-(num + radix) % radix)];
-	    num = -(num / radix);
-	  }
+            buffer[--i] = digits[(int) (-(num + radix) % radix)];
+            num = -(num / radix);
+          }
         else
           {
             i = size = stringSize(num, radix) + 1;
@@ -586,6 +586,23 @@ public final class Integer extends Number implements Comparable<Integer>
   }
 
   /**
+   * Compares two unboxed int values.
+   * The result is positive if the first is greater, negative if the second
+   * is greater, and 0 if the two are equal.
+   *
+   * @param x First value to compare.
+   * @param y Second value to compare.
+   *
+   * @return positive int if the first value is greater, negative if the second
+   * is greater, and 0 if the two are equal.
+   * @since 1.7
+   */
+  public static int compare(int x, int y)
+  {
+    return Integer.valueOf(x).compareTo(Integer.valueOf(y));
+  }
+
+  /**
    * Return the number of bits set in x.
    * @param x value to examine
    * @since 1.5
@@ -704,9 +721,9 @@ public final class Integer extends Number implements Comparable<Integer>
   public static int reverseBytes(int val)
   {
     return (  ((val >> 24) & 0xff)
-	    | ((val >> 8) & 0xff00)
-	    | ((val << 8) & 0xff0000)
-	    | ((val << 24) & 0xff000000));
+            | ((val >> 8) & 0xff00)
+            | ((val << 8) & 0xff0000)
+            | ((val << 24) & 0xff000000));
   }
 
   /**
@@ -786,15 +803,15 @@ public final class Integer extends Number implements Comparable<Integer>
     if (ch == '-')
       {
         if (len == 1)
-	  throw new NumberFormatException("pure '-'");
+          throw new NumberFormatException("pure '-'");
         isNeg = true;
         ch = str.charAt(++index);
       }
     else if (ch == '+')
       {
-	if (len == 1)
-	  throw new NumberFormatException("pure '+'");
-	ch = str.charAt(++index);
+        if (len == 1)
+          throw new NumberFormatException("pure '+'");
+        ch = str.charAt(++index);
       }
     if (decode)
       {
@@ -828,8 +845,8 @@ public final class Integer extends Number implements Comparable<Integer>
     int val = 0;
     while (index < len)
       {
-	if (val < 0 || val > max)
-	  throw new NumberFormatException("number overflow (pos=" + index + ") : " + str);
+        if (val < 0 || val > max)
+          throw new NumberFormatException("number overflow (pos=" + index + ") : " + str);
 
         ch = Character.digit(str.charAt(index++), radix);
         val = val * radix + ch;

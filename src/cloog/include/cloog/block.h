@@ -14,19 +14,20 @@
  *                                                                            *
  * Copyright (C) 2001-2005 Cedric Bastoul                                     *
  *                                                                            *
- * This is free software; you can redistribute it and/or modify it under the  *
- * terms of the GNU General Public License as published by the Free Software  *
- * Foundation; either version 2 of the License, or (at your option) any later *
- * version.                                                                   *
+ * This library is free software; you can redistribute it and/or              *
+ * modify it under the terms of the GNU Lesser General Public                 *
+ * License as published by the Free Software Foundation; either               *
+ * version 2.1 of the License, or (at your option) any later version.         *
  *                                                                            *
- * This software is distributed in the hope that it will be useful, but       *
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY *
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License   *
- * for more details.                                                          *
+ * This library is distributed in the hope that it will be useful,            *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *
+ * Lesser General Public License for more details.                            *
  *                                                                            *
- * You should have received a copy of the GNU General Public License along    *
- * with software; if not, write to the Free Software Foundation, Inc.,        *
- * 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA                     *
+ * You should have received a copy of the GNU Lesser General Public           *
+ * License along with this library; if not, write to the Free Software        *
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor,                         *
+ * Boston, MA  02110-1301  USA                                                *
  *                                                                            *
  * CLooG, the Chunky Loop Generator                                           *
  * Written by Cedric Bastoul, Cedric.Bastoul@inria.fr                         *
@@ -57,67 +58,19 @@ extern "C"
  * the active reference counter and actually free it if its value is zero.
  */
 struct cloogblock
-{ CloogStatement * _statement ;  /**< The list of statements in the block. */
-  int  _nb_scaldims ;            /**< Number of scalar dimensions. */
-  Value * scaldims ;            /**< Scalar dimension values. */
-  int _depth ;                   /**< Original block depth (outer loop number).*/
-  int _references ;              /**< Number of references to this structure. */
-  void * _usr;		        /**< User field, for library user convenience.
+{
+  CloogState *state;            /**< State. */
+  CloogStatement * statement ;  /**< The list of statements in the block. */
+  int  nb_scaldims ;            /**< Number of scalar dimensions. */
+  cloog_int_t *scaldims;        /**< Scalar dimension values. */
+  int depth ;                   /**< Original block depth (outer loop number).*/
+  int references ;              /**< Number of references to this structure. */
+  void * usr;		        /**< User field, for library user convenience.
 				 *   This pointer is not freed when the
 				 *   CloogBlock structure is freed.
 			         */
 } ;
 typedef struct cloogblock CloogBlock ;
-
-static inline CloogStatement *cloog_block_stmt (CloogBlock *b)
-{
-  return b->_statement;
-}
-
-static inline void cloog_block_set_stmt (CloogBlock *b, CloogStatement *s)
-{
-  b->_statement = s;
-}
-
-static inline int cloog_block_nb_scaldims (CloogBlock *b)
-{
-  return b->_nb_scaldims;
-}
-
-static inline void cloog_block_set_nb_scaldims (CloogBlock *b, int n)
-{
-  b->_nb_scaldims = n;
-}
-
-static inline Value *cloog_block_scaldims (CloogBlock *b)
-{
-  return b->scaldims;
-}
-
-static inline void cloog_block_set_scaldims (CloogBlock *b, Value *s)
-{
-  b->scaldims = s;
-}
-
-static inline int cloog_block_depth (CloogBlock *b)
-{
-  return b->_depth;
-}
-
-static inline void cloog_block_set_depth (CloogBlock *b, int n)
-{
-  b->_depth = n;
-}
-
-static inline void *cloog_block_usr (CloogBlock *b)
-{
-  return b->_usr;
-}
-
-static inline void cloog_block_set_usr (CloogBlock *b, void *u)
-{
-  b->_usr = u;
-}
 
 
 /**
@@ -125,30 +78,10 @@ static inline void cloog_block_set_usr (CloogBlock *b, void *u)
  * this structure reprensents a node of a linked list of CloogBlock structures.
  */
 struct cloogblocklist
-{ CloogBlock * _block ;          /**< An element of the list. */
-  struct cloogblocklist * _next ;/**< Pointer to the next element of the list.*/
+{ CloogBlock * block ;          /**< An element of the list. */
+  struct cloogblocklist * next ;/**< Pointer to the next element of the list.*/
 } ;
 typedef struct cloogblocklist CloogBlockList ;
-
-static inline CloogBlockList *cloog_block_list_next (CloogBlockList *s)
-{
-  return s->_next;
-}
-
-static inline void cloog_block_list_set_next (CloogBlockList *s, CloogBlockList *n)
-{
-  s->_next = n;
-}
-
-static inline CloogBlock *cloog_block_list_block (CloogBlockList *s)
-{
-  return s->_block;
-}
-
-static inline void cloog_block_list_set_block (CloogBlockList *s, CloogBlock *n)
-{
-  s->_block = n;
-}
 
 
 /******************************************************************************
@@ -169,8 +102,9 @@ void cloog_block_list_free(CloogBlockList *) ;
 /******************************************************************************
  *                            Processing functions                            *
  ******************************************************************************/
-CloogBlock     * cloog_block_malloc(void);
-CloogBlock     * cloog_block_alloc(CloogStatement*,int,Value*,int);
+CloogBlock     * cloog_block_malloc(CloogState *state);
+CloogBlock     * cloog_block_alloc(CloogStatement *statement, int nb_scaldims,
+				    cloog_int_t *scaldims, int depth);
 CloogBlockList * cloog_block_list_malloc(void);
 CloogBlockList * cloog_block_list_alloc(CloogBlock *) ;
 CloogBlock     * cloog_block_copy(CloogBlock * block) ;

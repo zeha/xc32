@@ -1,4 +1,4 @@
-! { dg-do "compile" }
+! { dg-do compile }
 
 ! Abstract Types.
 ! Check for correct handling of abstract-typed base object references.
@@ -43,4 +43,3 @@ CONTAINS
   END SUBROUTINE test
 
 END MODULE m
-! { dg-final { cleanup-modules "m" } }

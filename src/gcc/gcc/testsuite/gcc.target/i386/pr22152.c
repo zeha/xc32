@@ -1,11 +1,12 @@
 /* { dg-do compile } */
 /* { dg-options "-O2 -msse2" } */
-/* { dg-require-effective-target sse2 } */
+/* { dg-options "-O2 -msse2 -mno-vect8-ret-in-mem" { target i?86-*-solaris2.9 *-*-vxworks* } } */
+/* { dg-additional-options "-mabi=sysv" { target x86_64-*-mingw* } } */
 
 #include <mmintrin.h>
 
 __m64
-unsigned_add3 (const __m64 * a, const __m64 * b, unsigned long count)
+unsigned_add3 (const __m64 * a, const __m64 * b, unsigned int count)
 {
   __m64 sum;
   unsigned int i;
@@ -16,4 +17,4 @@ unsigned_add3 (const __m64 * a, const __m64 * b, unsigned long count)
   return sum;
 }
 
-/* { dg-final { scan-assembler-times "movq\[ \\t\]+.*%mm" 1 } } */
+/* { dg-final { scan-assembler-times "movq\[ \\t\]+\[^\n\]*%mm" 1 } } */

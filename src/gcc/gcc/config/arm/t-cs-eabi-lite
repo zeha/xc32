@@ -8,7 +8,6 @@ MULTILIB_OPTIONS     = mthumb
 MULTILIB_DIRNAMES    = thumb
 MULTILIB_EXCEPTIONS  =
 MULTILIB_MATCHES     =
-MULTILIB_ALIASES     =
 
 MULTILIB_OPTIONS      += march=armv7/march=armv6-m
 MULTILIB_DIRNAMES     += v7 v6-m
@@ -17,6 +16,7 @@ MULTILIB_MATCHES      += march?armv7=march?armv7-a
 MULTILIB_MATCHES      += march?armv7=march?armv7-r
 MULTILIB_MATCHES      += march?armv7=march?armv7-m
 MULTILIB_MATCHES      += march?armv7=march?armv7e-m
+MULTILIB_MATCHES      += march?armv7=mcpu?cortex-a15
 MULTILIB_MATCHES      += march?armv7=mcpu?cortex-a9
 MULTILIB_MATCHES      += march?armv7=mcpu?cortex-a8
 MULTILIB_MATCHES      += march?armv7=mcpu?cortex-a5
@@ -41,7 +41,11 @@ MULTILIB_EXCEPTIONS   += mfix-cortex-m3-ldrd
 MULTILIB_EXCEPTIONS   += mthumb/mfix-cortex-m3-ldrd
 MULTILIB_EXCEPTIONS   += *march=armv6-m*mfix-cortex-m3-ldrd
 
-MULTILIB_ALIASES      += mthumb/march?armv7/mfix-cortex-m3-ldrd=mthumb/march?armv7
+MULTILIB_REQUIRED      = mthumb
+MULTILIB_REQUIRED     += mthumb/march=armv7/mfix-cortex-m3-ldrd
+MULTILIB_REQUIRED     += mthumb/march=armv6-m
+
+MULTILIB_REUSE         = mthumb/march.armv7/mfix-cortex-m3-ldrd=mthumb/march.armv7
 
 # As of at least 4.2, gcc passes the wrong -L options if some multilibs are
 # omitted from MULTILIB_OSDIRNAMES

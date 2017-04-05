@@ -1,7 +1,6 @@
 /* { dg-require-effective-target vect_int } */
 
 #include <stdarg.h>
-#include <stdio.h>
 #include "tree-vect.h"
 
 #define N 16 
@@ -27,6 +26,9 @@ main1 (unsigned int x, unsigned int y)
   *pout++ = a2 * x;
   *pout++ = a3 * y;
 
+  if (x)
+    __asm__ volatile ("" : : : "memory");
+
   /* Check results.  */
   if (out[0] != (in[0] + 23) * x
       || out[1] != (in[1] + 142) * y
@@ -46,7 +48,6 @@ int main (void)
   return 0;
 }
 
-/* { dg-final { scan-tree-dump-times "basic block vectorized using SLP" 0 "slp" } } */
-/* { dg-final { scan-tree-dump-times "SLP with multiple types" 1 "slp" } } */
+/* { dg-final { scan-tree-dump-times "basic block vectorized using SLP" 1 "slp" { target vect64 } } } */
 /* { dg-final { cleanup-tree-dump "slp" } } */
   

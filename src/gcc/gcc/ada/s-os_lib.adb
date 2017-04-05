@@ -6,25 +6,23 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---                     Copyright (C) 1995-2009, AdaCore                     --
+--                     Copyright (C) 1995-2013, AdaCore                     --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
--- ware  Foundation;  either version 2,  or (at your option) any later ver- --
+-- ware  Foundation;  either version 3,  or (at your option) any later ver- --
 -- sion.  GNAT is distributed in the hope that it will be useful, but WITH- --
 -- OUT ANY WARRANTY;  without even the  implied warranty of MERCHANTABILITY --
--- or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License --
--- for  more details.  You should have  received  a copy of the GNU General --
--- Public License  distributed with GNAT;  see file COPYING.  If not, write --
--- to  the  Free Software Foundation,  51  Franklin  Street,  Fifth  Floor, --
--- Boston, MA 02110-1301, USA.                                              --
+-- or FITNESS FOR A PARTICULAR PURPOSE.                                     --
 --                                                                          --
--- As a special exception,  if other files  instantiate  generics from this --
--- unit, or you link  this unit with other files  to produce an executable, --
--- this  unit  does not  by itself cause  the resulting  executable  to  be --
--- covered  by the  GNU  General  Public  License.  This exception does not --
--- however invalidate  any other reasons why  the executable file  might be --
--- covered by the  GNU Public License.                                      --
+-- As a special exception under Section 7 of GPL version 3, you are granted --
+-- additional permissions described in the GCC Runtime Library Exception,   --
+-- version 3.1, as published by the Free Software Foundation.               --
+--                                                                          --
+-- You should have received a copy of the GNU General Public License and    --
+-- a copy of the GCC Runtime Library Exception along with this program;     --
+-- see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see    --
+-- <http://www.gnu.org/licenses/>.                                          --
 --                                                                          --
 -- GNAT was originally developed  by the GNAT team at  New York University. --
 -- Extensive contributions were provided by Ada Core Technologies Inc.      --
@@ -33,12 +31,12 @@
 
 pragma Compiler_Unit;
 
-with System.Case_Util;
-with System.CRTL;
-with System.Soft_Links;
 with Ada.Unchecked_Conversion;
 with Ada.Unchecked_Deallocation;
 with System; use System;
+with System.Case_Util;
+with System.CRTL;
+with System.Soft_Links;
 
 package body System.OS_Lib is
 
@@ -1481,7 +1479,7 @@ package body System.OS_Lib is
          if not Is_Absolute_Path (Result.all) then
             declare
                Absolute_Path : constant String :=
-                                 Normalize_Pathname (Result.all);
+                 Normalize_Pathname (Result.all, Resolve_Links => False);
             begin
                Free (Result);
                Result := new String'(Absolute_Path);
@@ -1658,7 +1656,7 @@ package body System.OS_Lib is
    procedure Normalize_Arguments (Args : in out Argument_List) is
 
       procedure Quote_Argument (Arg : in out String_Access);
-      --  Add quote around argument if it contains spaces
+      --  Add quote around argument if it contains spaces (or HT characters)
 
       C_Argument_Needs_Quote : Integer;
       pragma Import (C, C_Argument_Needs_Quote, "__gnat_argument_needs_quote");
@@ -1690,21 +1688,30 @@ package body System.OS_Lib is
                   Res (J) := '"';
                   Quote_Needed := True;
 
-               elsif Arg (K) = ' ' then
+               elsif Arg (K) = ' ' or else Arg (K) = ASCII.HT then
                   Res (J) := Arg (K);
                   Quote_Needed := True;
 
                else
                   Res (J) := Arg (K);
                end if;
-
             end loop;
 
             if Quote_Needed then
 
-               --  If null terminated string, put the quote before
+               --  Case of null terminated string
 
                if Res (J) = ASCII.NUL then
+
+                  --  If the string ends with \, double it
+
+                  if Res (J - 1) = '\' then
+                     Res (J) := '\';
+                     J := J + 1;
+                  end if;
+
+                  --  Put a quote just before the null at the end
+
                   Res (J) := '"';
                   J := J + 1;
                   Res (J) := ASCII.NUL;
@@ -2133,8 +2140,8 @@ package body System.OS_Lib is
             Start := Last;
             loop
                Start := Start - 1;
-               exit when Start < 1 or else
-                 Path_Buffer (Start) = Directory_Separator;
+               exit when Start < 1
+                 or else Path_Buffer (Start) = Directory_Separator;
             end loop;
 
             if Start <= 1 then
@@ -2309,8 +2316,11 @@ package body System.OS_Lib is
       N  : Integer) return Integer
    is
    begin
-      return Integer (System.CRTL.read
-        (System.CRTL.int (FD), System.CRTL.chars (A), System.CRTL.int (N)));
+      return
+        Integer (System.CRTL.read
+                   (System.CRTL.int (FD),
+                    System.CRTL.chars (A),
+                    System.CRTL.size_t (N)));
    end Read;
 
    -----------------
@@ -2718,8 +2728,11 @@ package body System.OS_Lib is
       N  : Integer) return Integer
    is
    begin
-      return Integer (System.CRTL.write
-        (System.CRTL.int (FD), System.CRTL.chars (A), System.CRTL.int (N)));
+      return
+        Integer (System.CRTL.write
+                   (System.CRTL.int (FD),
+                    System.CRTL.chars (A),
+                    System.CRTL.size_t (N)));
    end Write;
 
 end System.OS_Lib;

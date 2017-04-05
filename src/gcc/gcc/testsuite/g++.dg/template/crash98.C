@@ -1,12 +1,14 @@
-// PR c++/44039
+// PR c++/43630
 
-struct locale {  };
+template < typename > struct A;
 
-template<class charT>
-  void
-  foo()
-  { locale::locale(); } // { dg-error "cannot call|function-style" }
+template < typename > struct A < int > // { dg-error "not used|template\\-parameter|declaration" }
+{
+  int i;
+  int f ();
+};
 
-void
-bar()
-{ foo<char>(); }
+int A < int >::f () // { dg-error "incomplete type" }
+{
+  return i;
+}

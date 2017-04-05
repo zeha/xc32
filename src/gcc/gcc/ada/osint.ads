@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2009, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -29,9 +29,14 @@
 with Namet; use Namet;
 with Types; use Types;
 
-with System.Storage_Elements;
-with System.OS_Lib;           use System.OS_Lib;
 with System;                  use System;
+
+pragma Warnings (Off);
+--  This package is used also by gnatcoll
+with System.OS_Lib;           use System.OS_Lib;
+pragma Warnings (On);
+
+with System.Storage_Elements;
 
 pragma Elaborate_All (System.OS_Lib);
 --  For the call to function Get_Target_Object_Suffix in the private part
@@ -39,9 +44,8 @@ pragma Elaborate_All (System.OS_Lib);
 package Osint is
 
    Multi_Unit_Index_Character : Character := '~';
-   --  The character before the index of the unit in a multi-unit source, in
-   --  ALI and object file names. This is not a constant, because it is changed
-   --  to '$' on VMS.
+   --  The character before the index of the unit in a multi-unit source in ALI
+   --  and object file names. Changed to '$' on VMS.
 
    Ada_Include_Path          : constant String := "ADA_INCLUDE_PATH";
    Ada_Objects_Path          : constant String := "ADA_OBJECTS_PATH";
@@ -69,7 +73,7 @@ package Osint is
    --  found. Note that for the special case of gnat.adc, only the compilation
    --  environment directory is searched, i.e. the directory where the ali and
    --  object files are written. Another special case is Debug_Generated_Code
-   --  set and the file name ends on ".dg", in which case we look for the
+   --  set and the file name ends in ".dg", in which case we look for the
    --  generated file only in the current directory, since that is where it is
    --  always built.
 
@@ -80,7 +84,7 @@ package Osint is
                                  Get_File_Names_Case_Sensitive /= 0;
    --  Set to indicate whether the operating system convention is for file
    --  names to be case sensitive (e.g., in Unix, set True), or non case
-   --  sensitive (e.g., in OS/2, set False).
+   --  sensitive (e.g., in Windows, set False).
 
    procedure Canonical_Case_File_Name (S : in out String);
    --  Given a file name, converts it to canonical case form. For systems
@@ -89,6 +93,23 @@ package Osint is
    --  the file "xyz.adb", you can refer to it as XYZ.adb or XyZ.AdB), then
    --  this call converts the given string to canonical all lower case form,
    --  so that two file names compare equal if they refer to the same file.
+
+   function Get_Env_Vars_Case_Sensitive return Int;
+   pragma Import (C, Get_Env_Vars_Case_Sensitive,
+                  "__gnat_get_env_vars_case_sensitive");
+   Env_Vars_Case_Sensitive : constant Boolean :=
+                                 Get_Env_Vars_Case_Sensitive /= 0;
+   --  Set to indicate whether the operating system convention is for
+   --  environment variable names to be case sensitive (e.g., in Unix, set
+   --  True), or non case sensitive (e.g., in Windows, set False).
+
+   procedure Canonical_Case_Env_Var_Name (S : in out String);
+   --  Given an environment variable name, converts it to canonical case form.
+   --  For systems where environment variable names are case sensitive, this
+   --  procedure has no effect. If environment variable names are not case
+   --  sensitive, then this call converts the given string to canonical all
+   --  lower case form, so that two environment variable names compare equal if
+   --  they refer to the same environment variable.
 
    function Number_Of_Files return Int;
    --  Gives the total number of filenames found on the command line
@@ -303,7 +324,8 @@ package Osint is
 
    procedure Add_Default_Search_Dirs;
    --  This routine adds the default search dirs indicated by the environment
-   --  variables and sdefault package.
+   --  variables and sdefault package, as well as the library search dirs set
+   --  by option -gnateO for GNAT2WHY.
 
    procedure Add_Lib_Search_Dir (Dir : String);
    --  Add Dir at the end of the library file search path
@@ -615,6 +637,7 @@ package Osint is
    --  Set_Exit_Status as the last action of the program.
 
    procedure OS_Exit_Through_Exception (Status : Integer);
+   pragma No_Return (OS_Exit_Through_Exception);
    --  Set the Current_Exit_Status, then raise Types.Terminate_Program
 
    type Exit_Code_Type is (
@@ -741,7 +764,7 @@ private
    --  the need for either mapping the struct exactly or importing the sizeof
    --  from C, which would result in dynamic code). However, it does waste
    --  space (e.g. when a component of this type appears in a record, if it is
-   --  unnecessarily large.
+   --  unnecessarily large).
 
    type File_Attributes is
      array (1 .. File_Attributes_Size)

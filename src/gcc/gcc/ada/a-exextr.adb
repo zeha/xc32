@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2009, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2012, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -53,8 +53,7 @@ package body Exception_Traces is
    pragma Export
      (Ada, Raise_Hook_Initialized, "__gnat_exception_actions_initialized");
 
-   procedure Last_Chance_Handler
-     (Except :  Exception_Occurrence);
+   procedure Last_Chance_Handler (Except : Exception_Occurrence);
    pragma Import (C, Last_Chance_Handler, "__gnat_last_chance_handler");
    pragma No_Return (Last_Chance_Handler);
    --  Users can replace the default version of this routine,
@@ -73,17 +72,6 @@ package body Exception_Traces is
    --  latter case because Notify_Handled_Exception may be called for an
    --  actually unhandled occurrence in the Front-End-SJLJ case.
 
-   --------------------------------
-   -- Import Run-Time C Routines --
-   --------------------------------
-
-   --  The purpose of the following pragma Import is to ensure that we
-   --  generate appropriate subprogram descriptors for all C routines in
-   --  the standard GNAT library that can raise exceptions. This ensures
-   --  that the exception propagation can properly find these routines
-
-   pragma Propagate_Exceptions;
-
    ----------------------
    -- Notify_Exception --
    ----------------------
@@ -93,11 +81,6 @@ package body Exception_Traces is
       --  Output the exception information required by the Exception_Trace
       --  configuration. Take care not to output information about internal
       --  exceptions.
-
-      --  ??? In the Front-End ZCX case, the traceback entries we have at this
-      --  point only include the ones we stored while walking up the stack *up
-      --  to the handler*. All the frames above the subprogram in which the
-      --  handler is found are missing.
 
       if not Excep.Id.Not_Handled_By_Others
         and then
@@ -138,18 +121,16 @@ package body Exception_Traces is
    -- Notify_Handled_Exception --
    ------------------------------
 
-   procedure Notify_Handled_Exception is
+   procedure Notify_Handled_Exception (Excep : EOA) is
    begin
-      Notify_Exception (Get_Current_Excep.all, Is_Unhandled => False);
+      Notify_Exception (Excep, Is_Unhandled => False);
    end Notify_Handled_Exception;
 
    --------------------------------
    -- Notify_Unhandled_Exception --
    --------------------------------
 
-   procedure Notify_Unhandled_Exception is
-      Excep : constant EOA := Get_Current_Excep.all;
-
+   procedure Notify_Unhandled_Exception (Excep : EOA) is
    begin
       --  Check whether there is any termination handler to be executed for
       --  the environment task, and execute it if needed. Here we handle both
@@ -167,15 +148,19 @@ package body Exception_Traces is
    -- Unhandled_Exception_Terminate --
    -----------------------------------
 
-   procedure Unhandled_Exception_Terminate is
-      Excep : constant EOA := Save_Occurrence (Get_Current_Excep.all.all);
+   procedure Unhandled_Exception_Terminate (Excep : EOA) is
+      Occ : Exception_Occurrence;
       --  This occurrence will be used to display a message after finalization.
       --  It is necessary to save a copy here, or else the designated value
       --  could be overwritten if an exception is raised during finalization
-      --  (even if that exception is caught).
+      --  (even if that exception is caught). The occurrence is saved on the
+      --  stack to avoid dynamic allocation (if this exception is due to lack
+      --  of space in the heap, we therefore avoid a second failure). We assume
+      --  that there is enough room on the stack however.
 
    begin
-      Last_Chance_Handler (Excep.all);
+      Save_Occurrence (Occ, Excep.all);
+      Last_Chance_Handler (Occ);
    end Unhandled_Exception_Terminate;
 
    ------------------------------------

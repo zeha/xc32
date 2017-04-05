@@ -1,6 +1,6 @@
 // Locale support -*- C++ -*-
 
-// Copyright (C) 2000, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2000-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -30,18 +30,9 @@
 
 // Support for Solaris 2.5.1
   
-_GLIBCXX_BEGIN_NAMESPACE(std)
-
-#if !defined(_U) && defined(_UP)
-#define _U _UP
-#define _L _LO
-#define _N _DI
-#define _X _XD
-#define _P _PU
-#define _C _CN
-#define _B _BB
-#define _S _SP
-#endif
+namespace std _GLIBCXX_VISIBILITY(default)
+{
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
 
   /// @brief  Base class for ctype.
   struct ctype_base
@@ -65,4 +56,5 @@ _GLIBCXX_BEGIN_NAMESPACE(std)
     static const mask alnum 	= _U | _L | _N;
   };
 
-_GLIBCXX_END_NAMESPACE
+_GLIBCXX_END_NAMESPACE_VERSION
+} // namespace

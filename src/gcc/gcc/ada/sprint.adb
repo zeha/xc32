@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2009, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -23,6 +23,7 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
+with Aspects;  use Aspects;
 with Atree;    use Atree;
 with Casing;   use Casing;
 with Csets;    use Csets;
@@ -65,11 +66,14 @@ package body Sprint is
    --  Set True if the -gnatdo (dump original tree) flag is set
 
    Dump_Generated_Only : Boolean;
-   --  Set True if the -gnatG (dump generated tree) debug flag is set
+   --  Set True if the -gnatdG (dump generated tree) debug flag is set
    --  or for Print_Generated_Code (-gnatG) or Dump_Generated_Code (-gnatD).
 
    Dump_Freeze_Null : Boolean;
-   --  Set True if freeze nodes and non-source null statements output
+   --  Set True if empty freeze nodes and non-source null statements output.
+   --  Note that freeze nodes containing freeze actions are always output,
+   --  as are freeze nodes for itypes, which in general have the effect of
+   --  causing elaboration of the itype.
 
    Freeze_Indent : Int := 0;
    --  Keep track of freeze indent level (controls output of blank lines before
@@ -181,6 +185,17 @@ package body Sprint is
 
    procedure Sprint_And_List (List : List_Id);
    --  Print the given list with items separated by vertical "and"
+
+   procedure Sprint_Aspect_Specifications
+     (Node      : Node_Id;
+      Semicolon : Boolean);
+   --  Node is a declaration node that has aspect specifications (Has_Aspects
+   --  flag set True). It outputs the aspect specifications. For the case
+   --  of Semicolon = True, it is called after outputting the terminating
+   --  semicolon for the related node. The effect is to remove the semicolon
+   --  and print the aspect specifications followed by a terminating semicolon.
+   --  For the case of Semicolon False, no semicolon is removed or output, and
+   --  all the aspects are printed on a single line.
 
    procedure Sprint_Bar_List (List : List_Id);
    --  Print the given list with items separated by vertical bars
@@ -403,11 +418,12 @@ package body Sprint is
    procedure pg (Arg : Union_Id) is
    begin
       Dump_Generated_Only := True;
-      Dump_Original_Only := False;
+      Dump_Original_Only  := False;
+      Dump_Freeze_Null    := True;
       Current_Source_File := No_Source_File;
 
       if Arg in List_Range then
-         Sprint_Node_List (List_Id (Arg));
+         Sprint_Node_List (List_Id (Arg), New_Lines => True);
 
       elsif Arg in Node_Range then
          Sprint_Node (Node_Id (Arg));
@@ -430,7 +446,7 @@ package body Sprint is
       Current_Source_File := No_Source_File;
 
       if Arg in List_Range then
-         Sprint_Node_List (List_Id (Arg));
+         Sprint_Node_List (List_Id (Arg), New_Lines => True);
 
       elsif Arg in Node_Range then
          Sprint_Node (Node_Id (Arg));
@@ -477,7 +493,7 @@ package body Sprint is
       Current_Source_File := No_Source_File;
 
       if Arg in List_Range then
-         Sprint_Node_List (List_Id (Arg));
+         Sprint_Node_List (List_Id (Arg), New_Lines => True);
 
       elsif Arg in Node_Range then
          Sprint_Node (Node_Id (Arg));
@@ -617,6 +633,58 @@ package body Sprint is
          end loop;
       end if;
    end Sprint_And_List;
+
+   ----------------------------------
+   -- Sprint_Aspect_Specifications --
+   ----------------------------------
+
+   procedure Sprint_Aspect_Specifications
+     (Node      : Node_Id;
+      Semicolon : Boolean)
+   is
+      AS : constant List_Id := Aspect_Specifications (Node);
+      A  : Node_Id;
+
+   begin
+      if Semicolon then
+         Write_Erase_Char (';');
+         Indent := Indent + 2;
+         Write_Indent;
+         Write_Str ("with ");
+         Indent := Indent + 5;
+
+      else
+         Write_Str (" with ");
+      end if;
+
+      A := First (AS);
+      loop
+         Sprint_Node (Identifier (A));
+
+         if Class_Present (A) then
+            Write_Str ("'Class");
+         end if;
+
+         if Present (Expression (A)) then
+            Write_Str (" => ");
+            Sprint_Node (Expression (A));
+         end if;
+
+         Next (A);
+
+         exit when No (A);
+         Write_Char (',');
+
+         if Semicolon then
+            Write_Indent;
+         end if;
+      end loop;
+
+      if Semicolon then
+         Indent := Indent - 7;
+         Write_Char (';');
+      end if;
+   end Sprint_Aspect_Specifications;
 
    ---------------------
    -- Sprint_Bar_List --
@@ -800,7 +868,6 @@ package body Sprint is
       --  Select print circuit based on node kind
 
       case Nkind (Node) is
-
          when N_Abort_Statement =>
             Write_Indent_Str_Sloc ("abort ");
             Sprint_Comma_List (Names (Node));
@@ -998,12 +1065,15 @@ package body Sprint is
             Write_Str_Sloc (" and then ");
             Sprint_Right_Opnd (Node);
 
-         when N_At_Clause =>
-            Write_Indent_Str_Sloc ("for ");
-            Write_Id (Identifier (Node));
-            Write_Str_With_Col_Check (" use at ");
+         --  Note: the following code for N_Aspect_Specification is not
+         --  normally used, since we deal with aspects as part of a
+         --  declaration, but it is here in case we deliberately try
+         --  to print an N_Aspect_Speficiation node (e.g. from GDB).
+
+         when N_Aspect_Specification =>
+            Sprint_Node (Identifier (Node));
+            Write_Str (" => ");
             Sprint_Node (Expression (Node));
-            Write_Char (';');
 
          when N_Assignment_Statement =>
             Write_Indent;
@@ -1024,6 +1094,13 @@ package body Sprint is
             Write_Indent_Str ("then ");
             Sprint_Node (Abortable_Part (Node));
             Write_Indent_Str ("end select;");
+
+         when N_At_Clause =>
+            Write_Indent_Str_Sloc ("for ");
+            Write_Id (Identifier (Node));
+            Write_Str_With_Col_Check (" use at ");
+            Sprint_Node (Expression (Node));
+            Write_Char (';');
 
          when N_Attribute_Definition_Clause =>
             Write_Indent_Str_Sloc ("for ");
@@ -1082,6 +1159,43 @@ package body Sprint is
             end if;
 
             Write_Char (';');
+
+         when N_Case_Expression =>
+            declare
+               Has_Parens : constant Boolean := Paren_Count (Node) > 0;
+               Alt        : Node_Id;
+
+            begin
+               --  The syntax for case_expression does not include parentheses,
+               --  but sometimes parentheses are required, so unconditionally
+               --  generate them here unless already present.
+
+               if not Has_Parens then
+                  Write_Char ('(');
+               end if;
+
+               Write_Str_With_Col_Check_Sloc ("case ");
+               Sprint_Node (Expression (Node));
+               Write_Str_With_Col_Check (" is");
+
+               Alt := First (Alternatives (Node));
+               loop
+                  Sprint_Node (Alt);
+                  Next (Alt);
+                  exit when No (Alt);
+                  Write_Char (',');
+               end loop;
+
+               if not Has_Parens then
+                  Write_Char (')');
+               end if;
+            end;
+
+         when N_Case_Expression_Alternative =>
+            Write_Str_With_Col_Check (" when ");
+            Sprint_Bar_List (Discrete_Choices (Node));
+            Write_Str (" => ");
+            Sprint_Node (Expression (Node));
 
          when N_Case_Statement =>
             Write_Indent_Str_Sloc ("case ");
@@ -1220,27 +1334,18 @@ package body Sprint is
             Sprint_Indented_List (Else_Statements (Node));
             Write_Indent_Str ("end select;");
 
-         when N_Conditional_Expression =>
-            declare
-               Condition : constant Node_Id := First (Expressions (Node));
-               Then_Expr : constant Node_Id := Next (Condition);
-               Else_Expr : constant Node_Id := Next (Then_Expr);
-            begin
-               Write_Str_With_Col_Check_Sloc ("(if ");
-               Sprint_Node (Condition);
-               Write_Str_With_Col_Check (" then ");
-               Sprint_Node (Then_Expr);
-               Write_Str_With_Col_Check (" else ");
-               Sprint_Node (Else_Expr);
-               Write_Char (')');
-            end;
-
          when N_Constrained_Array_Definition =>
             Write_Str_With_Col_Check_Sloc ("array ");
             Sprint_Paren_Comma_List (Discrete_Subtype_Definitions (Node));
             Write_Str (" of ");
 
             Sprint_Node (Component_Definition (Node));
+
+         --  A contract node should not appear in the tree. It is a semantic
+         --  node attached to entry and [generic] subprogram entities.
+
+         when N_Contract =>
+            raise Program_Error;
 
          when N_Decimal_Fixed_Point_Definition =>
             Write_Str_With_Col_Check_Sloc (" delta ");
@@ -1299,7 +1404,7 @@ package body Sprint is
                Write_Str_With_Col_Check ("abstract ");
             end if;
 
-            Write_Str_With_Col_Check_Sloc ("new ");
+            Write_Str_With_Col_Check ("new ");
 
             --  Ada 2005 (AI-231)
 
@@ -1508,6 +1613,29 @@ package body Sprint is
             Write_Char_Sloc ('.');
             Write_Str_Sloc ("all");
 
+         when N_Expression_With_Actions =>
+            Indent_Begin;
+            Write_Indent_Str_Sloc ("do ");
+            Indent_Begin;
+            Sprint_Node_List (Actions (Node));
+            Indent_End;
+            Write_Indent;
+            Write_Str_With_Col_Check_Sloc ("in ");
+            Sprint_Node (Expression (Node));
+            Write_Str_With_Col_Check (" end");
+            Indent_End;
+            Write_Indent;
+
+         when N_Expression_Function =>
+            Write_Indent;
+            Sprint_Node_Sloc (Specification (Node));
+            Write_Str (" is");
+            Indent_Begin;
+            Write_Indent;
+            Sprint_Node (Expression (Node));
+            Write_Char (';');
+            Indent_End;
+
          when N_Extended_Return_Statement =>
             Write_Indent_Str_Sloc ("return ");
             Sprint_Node_List (Return_Object_Declarations (Node));
@@ -1666,6 +1794,11 @@ package body Sprint is
 
             Write_Str_With_Col_Check_Sloc ("private");
 
+         when N_Formal_Incomplete_Type_Definition =>
+            if Tagged_Present (Node) then
+               Write_Str_With_Col_Check ("is tagged ");
+            end if;
+
          when N_Formal_Signed_Integer_Type_Definition =>
             Write_Str_With_Col_Check_Sloc ("range <>");
 
@@ -1679,7 +1812,12 @@ package body Sprint is
                Write_Str_With_Col_Check ("(<>)");
             end if;
 
-            Write_Str_With_Col_Check (" is ");
+            if Nkind (Formal_Type_Definition (Node)) /=
+                N_Formal_Incomplete_Type_Definition
+            then
+               Write_Str_With_Col_Check (" is ");
+            end if;
+
             Sprint_Node (Formal_Type_Definition (Node));
             Write_Char (';');
 
@@ -1692,7 +1830,15 @@ package body Sprint is
             if Dump_Original_Only then
                null;
 
-            elsif Present (Actions (Node)) or else Dump_Freeze_Null then
+            --  A freeze node is output if it has some effect (i.e. non-empty
+            --  actions, or freeze node for an itype, which causes elaboration
+            --  of the itype), and is also always output if Dump_Freeze_Null
+            --  is set True.
+
+            elsif Present (Actions (Node))
+              or else Is_Itype (Entity (Node))
+              or else Dump_Freeze_Null
+            then
                Write_Indent;
                Write_Rewrite_Str ("<<<");
                Write_Str_With_Col_Check_Sloc ("freeze ");
@@ -1833,6 +1979,40 @@ package body Sprint is
             Set_Debug_Sloc;
             Write_Id (Node);
 
+         when N_If_Expression =>
+            declare
+               Has_Parens : constant Boolean := Paren_Count (Node) > 0;
+               Condition  : constant Node_Id := First (Expressions (Node));
+               Then_Expr  : constant Node_Id := Next (Condition);
+
+            begin
+               --  The syntax for if_expression does not include parentheses,
+               --  but sometimes parentheses are required, so unconditionally
+               --  generate them here unless already present.
+
+               if not Has_Parens then
+                  Write_Char ('(');
+               end if;
+               Write_Str_With_Col_Check_Sloc ("if ");
+               Sprint_Node (Condition);
+               Write_Str_With_Col_Check (" then ");
+
+               --  Defense against junk here!
+
+               if Present (Then_Expr) then
+                  Sprint_Node (Then_Expr);
+
+                  if Present (Next (Then_Expr)) then
+                     Write_Str_With_Col_Check (" else ");
+                     Sprint_Node (Next (Then_Expr));
+                  end if;
+               end if;
+
+               if not Has_Parens then
+                  Write_Char (')');
+               end if;
+            end;
+
          when N_If_Statement =>
             Write_Indent_Str_Sloc ("if ");
             Sprint_Node (Condition (Node));
@@ -1901,10 +2081,36 @@ package body Sprint is
                Sprint_Node (Condition (Node));
             else
                Write_Str_With_Col_Check_Sloc ("for ");
-               Sprint_Node (Loop_Parameter_Specification (Node));
+
+               if Present (Iterator_Specification (Node)) then
+                  Sprint_Node (Iterator_Specification (Node));
+               else
+                  Sprint_Node (Loop_Parameter_Specification (Node));
+               end if;
             end if;
 
             Write_Char (' ');
+
+         when N_Iterator_Specification =>
+            Set_Debug_Sloc;
+            Write_Id (Defining_Identifier (Node));
+
+            if Present (Subtype_Indication (Node)) then
+               Write_Str_With_Col_Check (" : ");
+               Sprint_Node (Subtype_Indication (Node));
+            end if;
+
+            if Of_Present (Node) then
+               Write_Str_With_Col_Check (" of ");
+            else
+               Write_Str_With_Col_Check (" in ");
+            end if;
+
+            if Reverse_Present (Node) then
+               Write_Str_With_Col_Check ("reverse ");
+            end if;
+
+            Sprint_Node (Name (Node));
 
          when N_Itype_Reference =>
             Write_Indent_Str_Sloc ("reference ");
@@ -2291,6 +2497,14 @@ package body Sprint is
          when N_Package_Specification =>
             Write_Str_With_Col_Check_Sloc ("package ");
             Sprint_Node (Defining_Unit_Name (Node));
+
+            if Nkind (Parent (Node)) = N_Package_Declaration
+              and then Has_Aspects (Parent (Node))
+            then
+               Sprint_Aspect_Specifications
+                 (Parent (Node), Semicolon => False);
+            end if;
+
             Write_Str (" is");
             Sprint_Indented_List (Visible_Declarations (Node));
 
@@ -2351,6 +2565,48 @@ package body Sprint is
          when N_Pop_Storage_Error_Label =>
             Write_Indent_Str ("%pop_storage_error_label");
 
+         when N_Private_Extension_Declaration =>
+            Write_Indent_Str_Sloc ("type ");
+            Write_Id (Defining_Identifier (Node));
+
+            if Present (Discriminant_Specifications (Node)) then
+               Write_Discr_Specs (Node);
+            elsif Unknown_Discriminants_Present (Node) then
+               Write_Str_With_Col_Check ("(<>)");
+            end if;
+
+            Write_Str_With_Col_Check (" is new ");
+            Sprint_Node (Subtype_Indication (Node));
+
+            if Present (Interface_List (Node)) then
+               Write_Str_With_Col_Check (" and ");
+               Sprint_And_List (Interface_List (Node));
+            end if;
+
+            Write_Str_With_Col_Check (" with private;");
+
+         when N_Private_Type_Declaration =>
+            Write_Indent_Str_Sloc ("type ");
+            Write_Id (Defining_Identifier (Node));
+
+            if Present (Discriminant_Specifications (Node)) then
+               Write_Discr_Specs (Node);
+            elsif Unknown_Discriminants_Present (Node) then
+               Write_Str_With_Col_Check ("(<>)");
+            end if;
+
+            Write_Str (" is ");
+
+            if Tagged_Present (Node) then
+               Write_Str_With_Col_Check ("tagged ");
+            end if;
+
+            if Limited_Present (Node) then
+               Write_Str_With_Col_Check ("limited ");
+            end if;
+
+            Write_Str_With_Col_Check ("private;");
+
          when N_Push_Constraint_Error_Label =>
             Write_Indent_Str ("%push_constraint_error_label (");
 
@@ -2398,48 +2654,6 @@ package body Sprint is
             end if;
 
             Sprint_Node (Expression (Node));
-
-         when N_Private_Type_Declaration =>
-            Write_Indent_Str_Sloc ("type ");
-            Write_Id (Defining_Identifier (Node));
-
-            if Present (Discriminant_Specifications (Node)) then
-               Write_Discr_Specs (Node);
-            elsif Unknown_Discriminants_Present (Node) then
-               Write_Str_With_Col_Check ("(<>)");
-            end if;
-
-            Write_Str (" is ");
-
-            if Tagged_Present (Node) then
-               Write_Str_With_Col_Check ("tagged ");
-            end if;
-
-            if Limited_Present (Node) then
-               Write_Str_With_Col_Check ("limited ");
-            end if;
-
-            Write_Str_With_Col_Check ("private;");
-
-         when N_Private_Extension_Declaration =>
-            Write_Indent_Str_Sloc ("type ");
-            Write_Id (Defining_Identifier (Node));
-
-            if Present (Discriminant_Specifications (Node)) then
-               Write_Discr_Specs (Node);
-            elsif Unknown_Discriminants_Present (Node) then
-               Write_Str_With_Col_Check ("(<>)");
-            end if;
-
-            Write_Str_With_Col_Check (" is new ");
-            Sprint_Node (Subtype_Indication (Node));
-
-            if Present (Interface_List (Node)) then
-               Write_Str_With_Col_Check (" and ");
-               Sprint_And_List (Interface_List (Node));
-            end if;
-
-            Write_Str_With_Col_Check (" with private;");
 
          when N_Procedure_Call_Statement =>
             Write_Indent;
@@ -2515,11 +2729,39 @@ package body Sprint is
 
             if Paren_Count (Expression (Node)) /= 0 then
                Sprint_Node (Expression (Node));
+
             else
                Write_Char ('(');
                Sprint_Node (Expression (Node));
+
+               --  Odd case, for the qualified expressions used in machine
+               --  code the argument may be a procedure call, resulting in
+               --  a junk semicolon before the right parent, get rid of it.
+
+               Write_Erase_Char (';');
+
+               --  Now we can add the terminating right paren
+
                Write_Char (')');
             end if;
+
+         when N_Quantified_Expression =>
+            Write_Str (" for");
+
+            if All_Present (Node) then
+               Write_Str (" all ");
+            else
+               Write_Str (" some ");
+            end if;
+
+            if Present (Iterator_Specification (Node)) then
+               Sprint_Node (Iterator_Specification (Node));
+            else
+               Sprint_Node (Loop_Parameter_Specification (Node));
+            end if;
+
+            Write_Str (" => ");
+            Sprint_Node (Condition (Node));
 
          when N_Raise_Constraint_Error =>
 
@@ -2643,9 +2885,6 @@ package body Sprint is
          --  Doc of this extended syntax belongs in sinfo.ads and/or
          --  sprint.ads ???
 
-         when N_SCIL_Dispatch_Table_Object_Init =>
-            Write_Indent_Str ("[N_SCIL_Dispatch_Table_Object_Init]");
-
          when N_SCIL_Dispatch_Table_Tag_Init =>
             Write_Indent_Str ("[N_SCIL_Dispatch_Table_Tag_Init]");
 
@@ -2654,9 +2893,6 @@ package body Sprint is
 
          when N_SCIL_Membership_Test =>
             Write_Indent_Str ("[N_SCIL_Membership_Test]");
-
-         when N_SCIL_Tag_Init =>
-            Write_Indent_Str ("[N_SCIL_Dispatch_Table_Tag_Init]");
 
          when N_Simple_Return_Statement =>
             if Present (Expression (Node)) then
@@ -2745,7 +2981,13 @@ package body Sprint is
             end if;
 
             Write_Indent;
-            Sprint_Node_Sloc (Specification (Node));
+
+            if Present (Corresponding_Spec (Node)) then
+               Sprint_Node_Sloc (Parent (Corresponding_Spec (Node)));
+            else
+               Sprint_Node_Sloc (Specification (Node));
+            end if;
+
             Write_Str (" is");
 
             Sprint_Indented_List (Declarations (Node));
@@ -2873,7 +3115,6 @@ package body Sprint is
 
          when N_Terminate_Alternative =>
             Sprint_Node_List (Pragmas_Before (Node));
-
             Write_Indent;
 
             if Present (Condition (Node)) then
@@ -3031,8 +3272,14 @@ package body Sprint is
                   Write_Char (';');
                end if;
             end if;
-
       end case;
+
+      --  Print aspects, except for special case of package declaration,
+      --  where the aspects are printed inside the package specification.
+
+      if Has_Aspects (Node) and Nkind (Node) /= N_Package_Declaration then
+         Sprint_Aspect_Specifications (Node, Semicolon => True);
+      end if;
 
       if Nkind (Node) in N_Subexpr
         and then Do_Range_Check (Node)
@@ -3051,7 +3298,7 @@ package body Sprint is
    -- Sprint_Node_List --
    ----------------------
 
-   procedure Sprint_Node_List (List : List_Id) is
+   procedure Sprint_Node_List (List : List_Id; New_Lines : Boolean := False) is
       Node : Node_Id;
 
    begin
@@ -3063,6 +3310,10 @@ package body Sprint is
             Next (Node);
             exit when Node = Empty;
          end loop;
+      end if;
+
+      if New_Lines and then Column /= 1 then
+         Write_Eol;
       end if;
    end Sprint_Node_List;
 
@@ -3427,11 +3678,13 @@ package body Sprint is
          end if;
 
       --  Case of selector of an expanded name where the expanded name
-      --  has an associated entity, output this entity.
+      --  has an associated entity, output this entity. Check that the
+      --  entity or associated node is of the right kind, see above.
 
       elsif Nkind (Parent (N)) = N_Expanded_Name
         and then Selector_Name (Parent (N)) = N
-        and then Present (Entity (Parent (N)))
+        and then Present (Entity_Or_Associated_Node (Parent (N)))
+        and then Nkind (Entity (Parent (N))) in N_Entity
       then
          Write_Id (Entity (Parent (N)));
 
@@ -3718,12 +3971,15 @@ package body Sprint is
 
                   when Access_Kind =>
                      Write_Header (Ekind (Typ) = E_Access_Type);
+
+                     if Can_Never_Be_Null (Typ) then
+                        Write_Str ("not null ");
+                     end if;
+
                      Write_Str ("access ");
 
                      if Is_Access_Constant (Typ) then
                         Write_Str ("constant ");
-                     elsif Can_Never_Be_Null (Typ) then
-                        Write_Str ("not null ");
                      end if;
 
                      Write_Id (Directly_Designated_Type (Typ));
@@ -3839,7 +4095,7 @@ package body Sprint is
 
                   when E_Modular_Integer_Type =>
                      Write_Header;
-                     Write_Str (" mod ");
+                     Write_Str ("mod ");
                      Write_Uint_With_Col_Check (Modulus (Typ), Auto);
 
                   --  Floating point types and subtypes
@@ -3889,7 +4145,7 @@ package body Sprint is
 
                   --  Record subtypes
 
-                  when E_Record_Subtype =>
+                  when E_Record_Subtype | E_Record_Subtype_With_Private =>
                      Write_Header (False);
                      Write_Str ("record");
                      Indent_Begin;
@@ -3914,7 +4170,7 @@ package body Sprint is
 
                   when E_Class_Wide_Type    |
                        E_Class_Wide_Subtype =>
-                     Write_Header;
+                     Write_Header (Ekind (Typ) = E_Class_Wide_Type);
                      Write_Name_With_Col_Check (Chars (Etype (Typ)));
                      Write_Str ("'Class");
 
@@ -4322,12 +4578,10 @@ package body Sprint is
    procedure Write_Ureal_With_Col_Check_Sloc (U : Ureal) is
       D : constant Uint := Denominator (U);
       N : constant Uint := Numerator (U);
-
    begin
-      Col_Check
-        (UI_Decimal_Digits_Hi (D) + UI_Decimal_Digits_Hi (N) + 4);
+      Col_Check (UI_Decimal_Digits_Hi (D) + UI_Decimal_Digits_Hi (N) + 4);
       Set_Debug_Sloc;
-      UR_Write (U);
+      UR_Write (U, Brackets => True);
    end Write_Ureal_With_Col_Check_Sloc;
 
 end Sprint;

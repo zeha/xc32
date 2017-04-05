@@ -1,5 +1,5 @@
 /* VMCPStringBuilder.java -- Growable strings without locking or copying
-   Copyright (C) 2008 Free Software Foundation, Inc.
+   Copyright (C) 2008, 2010  Free Software Foundation, Inc.
 
 This file is part of GNU Classpath.
 
@@ -59,18 +59,20 @@ final class VMCPStringBuilder
   {
     try
       {
-	cons = String.class.getDeclaredConstructor(new Class[] { char[].class,
-								 Integer.TYPE,
-								 Integer.TYPE,
-								 Boolean.TYPE });
-	cons.setAccessible(true);
+        cons = String.class.getDeclaredConstructor(new Class[] { char[].class,
+                                                                 Integer.TYPE,
+                                                                 Integer.TYPE,
+                                                                 Boolean.TYPE });
+        cons.setAccessible(true);
       }
     catch (NoSuchMethodException e)
       {
-	throw (Error) 
-	  new InternalError("Could not get no-copy String constructor").initCause(e);
+        throw (Error)
+          new InternalError("Could not get no-copy String constructor").initCause(e);
       }
   }
+
+  private VMCPStringBuilder() {} // Prohibits instantiation.
 
   /**
    * Convert this <code>StringBuilder</code> to a <code>String</code>. The
@@ -87,25 +89,25 @@ final class VMCPStringBuilder
   {
     try
       {
-	return (String)
-	  cons.newInstance(new Object[] { value, Integer.valueOf(startIndex),
-					  Integer.valueOf(count),
-					  Boolean.valueOf(true) });
+        return (String)
+          cons.newInstance(new Object[] { value, Integer.valueOf(startIndex),
+                                          Integer.valueOf(count),
+                                          Boolean.valueOf(true) });
       }
     catch (InstantiationException e)
       {
-	throw (Error) 
-	  new InternalError("Could not instantiate no-copy String constructor").initCause(e);
+        throw (Error)
+          new InternalError("Could not instantiate no-copy String constructor").initCause(e);
       }
     catch (IllegalAccessException e)
       {
-	throw (Error) 
-	  new InternalError("Could not access no-copy String constructor").initCause(e);
+        throw (Error)
+          new InternalError("Could not access no-copy String constructor").initCause(e);
       }
     catch (InvocationTargetException e)
       {
-	throw (Error) 
-	  new InternalError("Error calling no-copy String constructor").initCause(e);
+        throw (Error)
+          new InternalError("Error calling no-copy String constructor").initCause(e);
       }
   }
 

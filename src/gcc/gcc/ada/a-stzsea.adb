@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2009, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2012, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -71,8 +71,7 @@ package body Ada.Strings.Wide_Wide_Search is
      (Source  : Wide_Wide_String;
       Pattern : Wide_Wide_String;
       Mapping : Wide_Wide_Maps.Wide_Wide_Character_Mapping :=
-                  Wide_Wide_Maps.Identity)
-      return Natural
+        Wide_Wide_Maps.Identity) return Natural
    is
       PL1 : constant Integer := Pattern'Length - 1;
       Num : Natural;
@@ -194,6 +193,40 @@ package body Ada.Strings.Wide_Wide_Search is
    procedure Find_Token
      (Source : Wide_Wide_String;
       Set    : Wide_Wide_Maps.Wide_Wide_Character_Set;
+      From   : Positive;
+      Test   : Membership;
+      First  : out Positive;
+      Last   : out Natural)
+   is
+   begin
+      for J in From .. Source'Last loop
+         if Belongs (Source (J), Set, Test) then
+            First := J;
+
+            for K in J + 1 .. Source'Last loop
+               if not Belongs (Source (K), Set, Test) then
+                  Last := K - 1;
+                  return;
+               end if;
+            end loop;
+
+            --  Here if J indexes first char of token, and all chars after J
+            --  are in the token.
+
+            Last := Source'Last;
+            return;
+         end if;
+      end loop;
+
+      --  Here if no token found
+
+      First := From;
+      Last  := 0;
+   end Find_Token;
+
+   procedure Find_Token
+     (Source : Wide_Wide_String;
+      Set    : Wide_Wide_Maps.Wide_Wide_Character_Set;
       Test   : Membership;
       First  : out Positive;
       Last   : out Natural)
@@ -233,8 +266,7 @@ package body Ada.Strings.Wide_Wide_Search is
       Pattern : Wide_Wide_String;
       Going   : Direction := Forward;
       Mapping : Wide_Wide_Maps.Wide_Wide_Character_Mapping :=
-                  Wide_Wide_Maps.Identity)
-      return Natural
+        Wide_Wide_Maps.Identity) return Natural
    is
       PL1 : constant Integer := Pattern'Length - 1;
       Cur : Natural;
@@ -445,8 +477,7 @@ package body Ada.Strings.Wide_Wide_Search is
       From    : Positive;
       Going   : Direction := Forward;
       Mapping : Wide_Wide_Maps.Wide_Wide_Character_Mapping :=
-                  Wide_Wide_Maps.Identity)
-      return Natural
+        Wide_Wide_Maps.Identity) return Natural
    is
    begin
       if Going = Forward then

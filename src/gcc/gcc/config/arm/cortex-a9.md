@@ -1,5 +1,5 @@
 ;; ARM Cortex-A9 pipeline description
-;; Copyright (C) 2008, 2009 Free Software Foundation, Inc.
+;; Copyright (C) 2008-2013 Free Software Foundation, Inc.
 ;; Originally written by CodeSourcery for VFP.
 ;;
 ;; Rewritten by Ramana Radhakrishnan <ramana.radhakrishnan@arm.com>
@@ -68,7 +68,8 @@ cortex_a9_p1_e2 + cortex_a9_p0_e1 + cortex_a9_p1_e1")
   "cortex_a9_mac_m1*2, cortex_a9_mac_m2, cortex_a9_p0_wb")
 (define_reservation "cortex_a9_mac"
   "cortex_a9_multcycle1*2 ,cortex_a9_mac_m2, cortex_a9_p0_wb")
-
+(define_reservation "cortex_a9_mult_long"
+  "cortex_a9_mac_m1*3, cortex_a9_mac_m2, cortex_a9_p0_wb")
 
 ;; Issue at the same time along the load store pipeline and
 ;; the VFP / Neon pipeline is not possible.
@@ -79,16 +80,17 @@ cortex_a9_p1_e2 + cortex_a9_p0_e1 + cortex_a9_p1_e1")
 ;; which can go down E2 without any problem.
 (define_insn_reservation "cortex_a9_dp" 2
   (and (eq_attr "tune" "cortexa9")
-       (ior (eq_attr "type" "alu")
-	    (ior (and (eq_attr "type" "alu_shift_reg, alu_shift")
-		 (eq_attr "insn" "mov"))
-		 (eq_attr "neon_type" "none"))))
+         (ior (and (eq_attr "type" "alu_reg,simple_alu_imm")
+                        (eq_attr "neon_type" "none"))
+	      (and (and (eq_attr "type" "alu_shift_reg, simple_alu_shift,alu_shift")
+			(eq_attr "insn" "mov"))
+                 (eq_attr "neon_type" "none"))))
   "cortex_a9_p0_default|cortex_a9_p1_default")
 
 ;; An instruction using the shifter will go down E1.
 (define_insn_reservation "cortex_a9_dp_shift" 3
    (and (eq_attr "tune" "cortexa9")
-	(and (eq_attr "type" "alu_shift_reg, alu_shift")
+	(and (eq_attr "type" "alu_shift_reg, simple_alu_shift,alu_shift")
 	     (not (eq_attr "insn" "mov"))))
    "cortex_a9_p0_shift | cortex_a9_p1_shift")
 
@@ -138,16 +140,20 @@ cortex_a9_p1_e2 + cortex_a9_p0_e1 + cortex_a9_p1_e1")
        (eq_attr "insn" "smlaxy"))
   "cortex_a9_mac16")
 
-
 (define_insn_reservation "cortex_a9_multiply" 4
   (and (eq_attr "tune" "cortexa9")
-       (eq_attr "insn" "mul"))
+       (eq_attr "insn" "mul,smmul,smmulr"))
        "cortex_a9_mult")
 
 (define_insn_reservation "cortex_a9_mac" 4
   (and (eq_attr "tune" "cortexa9")
-       (eq_attr "insn" "mla"))
+       (eq_attr "insn" "mla,smmla"))
        "cortex_a9_mac")
+
+(define_insn_reservation "cortex_a9_multiply_long" 5
+  (and (eq_attr "tune" "cortexa9")
+       (eq_attr "insn" "smull,umull,smulls,umulls,smlal,smlals,umlal,umlals"))
+       "cortex_a9_mult_long")
 
 ;; An instruction with a result in E2 can be forwarded
 ;; to E2 or E1 or M1 or the load store unit in the next cycle.
@@ -155,12 +161,14 @@ cortex_a9_p1_e2 + cortex_a9_p0_e1 + cortex_a9_p1_e1")
 (define_bypass 1 "cortex_a9_dp"
                  "cortex_a9_dp_shift, cortex_a9_multiply,
  cortex_a9_load1_2, cortex_a9_dp, cortex_a9_store1_2,
- cortex_a9_mult16, cortex_a9_mac16, cortex_a9_mac, cortex_a9_store3_4, cortex_a9_load3_4")
+ cortex_a9_mult16, cortex_a9_mac16, cortex_a9_mac, cortex_a9_store3_4, cortex_a9_load3_4, 
+ cortex_a9_multiply_long")
 
 (define_bypass 2 "cortex_a9_dp_shift"
                  "cortex_a9_dp_shift, cortex_a9_multiply,
  cortex_a9_load1_2, cortex_a9_dp, cortex_a9_store1_2,
- cortex_a9_mult16, cortex_a9_mac16, cortex_a9_mac, cortex_a9_store3_4, cortex_a9_load3_4")
+ cortex_a9_mult16, cortex_a9_mac16, cortex_a9_mac, cortex_a9_store3_4, cortex_a9_load3_4,
+ cortex_a9_multiply_long")
 
 ;; An instruction in the load store pipeline can provide
 ;; read access to a DP instruction in the P0 default pipeline
@@ -195,7 +203,7 @@ cortex_a9_store3_4, cortex_a9_store1_2,  cortex_a9_load3_4")
 ;; Pipeline   Instruction Classification.
 ;; FPS - fcpys, ffariths, ffarithd,r_2_f,f_2_r
 ;; FP_ADD   - fadds, faddd, fcmps (1)
-;; FPMUL   - fmul{s,d}, fmac{s,d}
+;; FPMUL   - fmul{s,d}, fmac{s,d}, ffma{s,d}
 ;; FPDIV - fdiv{s,d}
 (define_cpu_unit "ca9fps" "cortex_a9")
 (define_cpu_unit "ca9fp_add1, ca9fp_add2, ca9fp_add3, ca9fp_add4" "cortex_a9")
@@ -211,7 +219,7 @@ cortex_a9_store3_4, cortex_a9_store1_2,  cortex_a9_load3_4")
 
 (define_bypass 1
   "cortex_a9_fps"
-  "cortex_a9_fadd, cortex_a9_fps, cortex_a9_fcmp, cortex_a9_dp, cortex_a9_dp_shift, cortex_a9_multiply")
+  "cortex_a9_fadd, cortex_a9_fps, cortex_a9_fcmp, cortex_a9_dp, cortex_a9_dp_shift, cortex_a9_multiply, cortex_a9_multiply_long")
 
 ;; Scheduling on the FP_ADD pipeline.
 (define_reservation "ca9fp_add" "ca9_issue_vfp_neon + ca9fp_add1, ca9fp_add2, ca9fp_add3, ca9fp_add4")
@@ -245,12 +253,12 @@ cortex_a9_store3_4, cortex_a9_store1_2,  cortex_a9_load3_4")
 
 (define_insn_reservation "cortex_a9_fmacs" 8
   (and (eq_attr "tune" "cortexa9")
-       (eq_attr "type" "fmacs"))
+       (eq_attr "type" "fmacs,ffmas"))
   "ca9fmuls, ca9fp_add")
 
 (define_insn_reservation "cortex_a9_fmacd" 9
   (and (eq_attr "tune" "cortexa9")
-       (eq_attr "type" "fmacd"))
+       (eq_attr "type" "fmacd,ffmad"))
   "ca9fmuld, ca9fp_add")
 
 ;; Division pipeline description.
@@ -263,3 +271,6 @@ cortex_a9_store3_4, cortex_a9_store1_2,  cortex_a9_load3_4")
   (and (eq_attr "tune" "cortexa9")
        (eq_attr "type" "fdivd"))
   "ca9fp_ds1 + ca9_issue_vfp_neon, nothing*24")
+
+;; Include Neon pipeline description
+(include "cortex-a9-neon.md")

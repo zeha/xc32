@@ -584,6 +584,7 @@ size_seg (bfd *abfd, asection *sec, void *xxx ATTRIBUTE_UNUSED)
   /*  (see similar test in bfd/coffgen.c )                       */
   if ((size > 0) &&
       !PIC32_IS_BSS_ATTR(sec) &&
+      !PIC32_IS_BSS_ATTR_WITH_MEMORY_ATTR(sec) &&
       !PIC32_IS_PERSIST_ATTR(sec) &&
       !PIC32_IS_STACK_ATTR(sec) &&
       !PIC32_IS_HEAP_ATTR(sec))

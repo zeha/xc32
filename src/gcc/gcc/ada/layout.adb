@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2001-2009, Free Software Foundation, Inc.         --
+--          Copyright (C) 2001-2012, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -108,6 +108,12 @@ package body Layout is
    --  Standard.Unsigned. Takes care of the case where the operands
    --  are of an enumeration type (so that the subtraction cannot be
    --  done directly) by applying the Pos operator to Hi/Lo first.
+
+   procedure Compute_Size_Depends_On_Discriminant (E : Entity_Id);
+   --  Given an array type or an array subtype E, compute whether its size
+   --  depends on the value of one or more discriminants and set the flag
+   --  Size_Depends_On_Discriminant accordingly. This need not be called
+   --  in front end layout mode since it does the computation on its own.
 
    function Expr_From_SO_Ref
      (Loc  : Source_Ptr;
@@ -620,7 +626,7 @@ package body Layout is
                    Name                   => New_Occurrence_Of (Ent, Loc),
                    Parameter_Associations => New_List (
                      Make_Selected_Component (Loc,
-                       Prefix        => Make_Identifier (Loc, Chars => Vname),
+                       Prefix        => Make_Identifier (Loc, Vname),
                        Selector_Name => New_Occurrence_Of (Comp, Loc))));
 
             else
@@ -628,7 +634,7 @@ package body Layout is
                  Make_Function_Call (Loc,
                    Name                   => New_Occurrence_Of (Ent, Loc),
                    Parameter_Associations => New_List (
-                     Make_Identifier (Loc, Chars => Vname)));
+                     Make_Identifier (Loc, Vname)));
             end if;
 
          else
@@ -727,7 +733,7 @@ package body Layout is
          Size := (Dynamic, Expr_From_SO_Ref (Loc, Component_Size (E)));
       end if;
 
-      --  Loop through indices
+      --  Loop through indexes
 
       Indx := First_Index (E);
       while Present (Indx) loop
@@ -988,7 +994,7 @@ package body Layout is
 
             N :=
               Make_Selected_Component (Loc,
-                Prefix        => Make_Identifier (Loc, Chars => Vname),
+                Prefix        => Make_Identifier (Loc, Vname),
                 Selector_Name => New_Occurrence_Of (Entity (N), Loc));
 
             --  Set the Etype attributes of the selected name and its prefix.
@@ -1059,7 +1065,7 @@ package body Layout is
          Size := (Dynamic, Expr_From_SO_Ref (Loc, Component_Size (E)));
       end if;
 
-      --  Loop to process array indices
+      --  Loop to process array indexes
 
       Indx := First_Index (E);
       while Present (Indx) loop
@@ -1274,8 +1280,8 @@ package body Layout is
             end;
          end if;
 
-         --  Now set the dynamic size (the Value_Size is always the same
-         --  as the Object_Size for arrays whose length is dynamic).
+         --  Now set the dynamic size (the Value_Size is always the same as the
+         --  Object_Size for arrays whose length is dynamic).
 
          --  ??? If Size.Status = Dynamic, Vtyp will not have been set.
          --  The added initialization sets it to Empty now, but is this
@@ -1288,6 +1294,51 @@ package body Layout is
          Set_RM_Size (E, Esize (E));
       end if;
    end Layout_Array_Type;
+
+   ------------------------------------------
+   -- Compute_Size_Depends_On_Discriminant --
+   ------------------------------------------
+
+   procedure Compute_Size_Depends_On_Discriminant (E : Entity_Id) is
+      Indx : Node_Id;
+      Ityp : Entity_Id;
+      Lo   : Node_Id;
+      Hi   : Node_Id;
+      Res  : Boolean := False;
+
+   begin
+      --  Loop to process array indexes
+
+      Indx := First_Index (E);
+      while Present (Indx) loop
+         Ityp := Etype (Indx);
+
+         --  If an index of the array is a generic formal type then there is
+         --  no point in determining a size for the array type.
+
+         if Is_Generic_Type (Ityp) then
+            return;
+         end if;
+
+         Lo := Type_Low_Bound (Ityp);
+         Hi := Type_High_Bound (Ityp);
+
+         if (Nkind (Lo) = N_Identifier
+              and then Ekind (Entity (Lo)) = E_Discriminant)
+           or else
+            (Nkind (Hi) = N_Identifier
+              and then Ekind (Entity (Hi)) = E_Discriminant)
+         then
+            Res := True;
+         end if;
+
+         Next_Index (Indx);
+      end loop;
+
+      if Res then
+         Set_Size_Depends_On_Discriminant (E);
+      end if;
+   end Compute_Size_Depends_On_Discriminant;
 
    -------------------
    -- Layout_Object --
@@ -1913,11 +1964,11 @@ package body Layout is
          pragma Warnings (Off, SO_Ref);
 
          RM_Siz_Expr : Node_Id := Empty;
-         --  Expression for the evolving RM_Siz value. This is typically a
-         --  conditional expression which involves tests of discriminant values
-         --  that are formed as references to the entity V. At the end of
-         --  scanning all the components, a suitable function is constructed
-         --  in which V is the parameter.
+         --  Expression for the evolving RM_Siz value. This is typically an if
+         --  expression which involves tests of discriminant values that are
+         --  formed as references to the entity V. At the end of scanning all
+         --  the components, a suitable function is constructed in which V is
+         --  the parameter.
 
          -----------------------
          -- Local Subprograms --
@@ -1990,7 +2041,7 @@ package body Layout is
                        Make_Function_Call (Loc,
                          Name => New_Occurrence_Of (RMS_Ent, Loc),
                          Parameter_Associations => New_List (
-                           Make_Identifier (Loc, Chars => Vname)));
+                           Make_Identifier (Loc, Vname)));
 
                   --  If the size is represented by a constant, then the
                   --  expression we want is a reference to this constant
@@ -2084,7 +2135,18 @@ package body Layout is
                      --  others case.
 
                      if No (RM_Siz_Expr) then
-                        RM_Siz_Expr := Bits_To_SU (RM_SizV);
+
+                        --  If this is the only variant and the size is a
+                        --  literal, then use bit size as is, otherwise convert
+                        --  to storage units and continue to the next variant.
+
+                        if No (Prev (Var))
+                          and then Nkind (RM_SizV) = N_Integer_Literal
+                        then
+                           RM_Siz_Expr := RM_SizV;
+                        else
+                           RM_Siz_Expr := Bits_To_SU (RM_SizV);
+                        end if;
 
                      --  Otherwise construct the appropriate test
 
@@ -2104,7 +2166,7 @@ package body Layout is
                            Discrim :=
                              Make_Selected_Component (Loc,
                                Prefix        =>
-                                 Make_Identifier (Loc, Chars => Vname),
+                                 Make_Identifier (Loc, Vname),
                                Selector_Name =>
                                  New_Occurrence_Of
                                    (Entity (Name (Vpart)), Loc));
@@ -2130,10 +2192,9 @@ package body Layout is
                               Append (
                                 Make_Selected_Component (Loc,
                                   Prefix        =>
-                                    Make_Identifier (Loc, Chars => Vname),
+                                    Make_Identifier (Loc, Vname),
                                   Selector_Name =>
-                                    New_Occurrence_Of
-                                      (D_Entity, Loc)),
+                                    New_Occurrence_Of (D_Entity, Loc)),
                                 D_List);
 
                               D_Entity := Next_Discriminant (D_Entity);
@@ -2151,7 +2212,7 @@ package body Layout is
                         end if;
 
                         RM_Siz_Expr :=
-                          Make_Conditional_Expression (Loc,
+                          Make_If_Expression (Loc,
                             Expressions =>
                               New_List
                                 (Dtest, Bits_To_SU (RM_SizV), RM_Siz_Expr));
@@ -2374,7 +2435,7 @@ package body Layout is
                  Convention (E) = Convention_CPP)
             then
                Error_Msg_N
-                 ("?this access type does not correspond to C pointer", E);
+                 ("?x?this access type does not correspond to C pointer", E);
             end if;
 
          --  If the designated type is a limited view it is unanalyzed. We can
@@ -2387,22 +2448,27 @@ package body Layout is
             and then
               Nkind (Type_Definition (Parent (Desig_Type)))
                  = N_Unconstrained_Array_Definition
+            and then not Debug_Flag_6
          then
             Init_Size (E, 2 * System_Address_Size);
 
          --  When the target is AAMP, access-to-subprogram types are fat
-         --  pointers consisting of the subprogram address and a static link
-         --  (with the exception of library-level access types, where a simple
-         --  subprogram address is used).
+         --  pointers consisting of the subprogram address and a static link,
+         --  with the exception of library-level access types (including
+         --  library-level anonymous access types, such as for components),
+         --  where a simple subprogram address is used.
 
          elsif AAMP_On_Target
            and then
-             (Ekind (E) = E_Anonymous_Access_Subprogram_Type
-               or else (Ekind (E) = E_Access_Subprogram_Type
-                         and then Present (Enclosing_Subprogram (E))))
+             ((Ekind (E) = E_Access_Subprogram_Type
+                  and then Present (Enclosing_Subprogram (E)))
+                or else
+                  (Ekind (E) = E_Anonymous_Access_Subprogram_Type
+                    and then
+                      (not Is_Local_Anonymous_Access (E)
+                        or else Present (Enclosing_Subprogram (E)))))
          then
             Init_Size (E, 2 * System_Address_Size);
-
          else
             Init_Size (E, System_Address_Size);
          end if;
@@ -2524,27 +2590,11 @@ package body Layout is
             end;
          end if;
 
-         --  If RM_Size is known, set Esize if not known
-
-         if Known_RM_Size (E) and then Unknown_Esize (E) then
-
-            --  If the alignment is known, we bump the Esize up to the next
-            --  alignment boundary if it is not already on one.
-
-            if Known_Alignment (E) then
-               declare
-                  A : constant Uint   := Alignment_In_Bits (E);
-                  S : constant SO_Ref := RM_Size (E);
-               begin
-                  Set_Esize (E, (S + A - 1) / A * A);
-               end;
-            end if;
-
          --  If Esize is set, and RM_Size is not, RM_Size is copied from Esize.
          --  At least for now this seems reasonable, and is in any case needed
          --  for compatibility with old versions of gigi.
 
-         elsif Known_Esize (E) and then Unknown_RM_Size (E) then
+         if Known_Esize (E) and then Unknown_RM_Size (E) then
             Set_RM_Size (E, Esize (E));
          end if;
 
@@ -2560,22 +2610,17 @@ package body Layout is
 
             begin
                --  For some reasons, access types can cause trouble, So let's
-               --  just do this for discrete types ???
+               --  just do this for scalar types ???
 
                if Present (CT)
-                 and then Is_Discrete_Type (CT)
+                 and then Is_Scalar_Type (CT)
                  and then Known_Static_Esize (CT)
                then
                   declare
                      S : constant Uint := Esize (CT);
-
                   begin
-                     if S = 8  or else
-                        S = 16 or else
-                        S = 32 or else
-                        S = 64
-                     then
-                        Set_Component_Size (E, Esize (CT));
+                     if Addressable (S) then
+                        Set_Component_Size (E, S);
                      end if;
                   end;
                end if;
@@ -2637,6 +2682,15 @@ package body Layout is
                   Set_Alignment (E, Uint_1);
                end if;
             end if;
+
+            --  We need to know whether the size depends on the value of one
+            --  or more discriminants to select the return mechanism. Skip if
+            --  errors are present, to prevent cascaded messages.
+
+            if Serious_Errors_Detected = 0 then
+               Compute_Size_Depends_On_Discriminant (E);
+            end if;
+
          end if;
       end if;
 
@@ -2736,8 +2790,7 @@ package body Layout is
       begin
          if Spec < Min then
             Error_Msg_Uint_1 := Min;
-            Error_Msg_NE
-              ("size for & too small, minimum allowed is ^", SC, E);
+            Error_Msg_NE ("size for & too small, minimum allowed is ^", SC, E);
             Init_Esize   (E);
             Init_RM_Size (E);
          end if;
@@ -2751,7 +2804,7 @@ package body Layout is
       begin
          if Spec > Max then
             Error_Msg_Uint_1 := Spec - Max;
-            Error_Msg_NE ("?^ bits of & unused", SC, E);
+            Error_Msg_NE ("??^ bits of & unused", SC, E);
          end if;
       end Check_Unused_Bits;
 
@@ -2820,15 +2873,61 @@ package body Layout is
       --  Alignment is not known, see if we can set it, taking into account
       --  the setting of the Optimize_Alignment mode.
 
-      --  If Optimize_Alignment is set to Space, then packed records always
-      --  have an alignment of 1. But don't do anything for atomic records
-      --  since we may need higher alignment for indivisible access.
+      --  If Optimize_Alignment is set to Space, then we try to give packed
+      --  records an aligmment of 1, unless there is some reason we can't.
 
       if Optimize_Alignment_Space (E)
         and then Is_Record_Type (E)
         and then Is_Packed (E)
-        and then not Is_Atomic (E)
       then
+         --  No effect for record with atomic components
+
+         if Is_Atomic (E) then
+            Error_Msg_N ("Optimize_Alignment has no effect for &??", E);
+            Error_Msg_N ("\pragma ignored for atomic record??", E);
+            return;
+         end if;
+
+         --  No effect if independent components
+
+         if Has_Independent_Components (E) then
+            Error_Msg_N ("Optimize_Alignment has no effect for &??", E);
+            Error_Msg_N
+              ("\pragma ignored for record with independent components??", E);
+            return;
+         end if;
+
+         --  No effect if any component is atomic or is a by reference type
+
+         declare
+            Ent : Entity_Id;
+         begin
+            Ent := First_Component_Or_Discriminant (E);
+            while Present (Ent) loop
+               if Is_By_Reference_Type (Etype (Ent))
+                 or else Is_Atomic (Etype (Ent))
+                 or else Is_Atomic (Ent)
+               then
+                  Error_Msg_N ("Optimize_Alignment has no effect for &??", E);
+                  Error_Msg_N
+                    ("\pragma is ignored if atomic components present??", E);
+                  return;
+               else
+                  Next_Component_Or_Discriminant (Ent);
+               end if;
+            end loop;
+         end;
+
+         --  Optimize_Alignment has no effect on variable length record
+
+         if not Size_Known_At_Compile_Time (E) then
+            Error_Msg_N ("Optimize_Alignment has no effect for &??", E);
+            Error_Msg_N ("\pragma is ignored for variable length record??", E);
+            return;
+         end if;
+
+         --  All tests passed, we can set alignment to 1
+
          Align := 1;
 
       --  Not a record, or not packed
@@ -3051,15 +3150,38 @@ package body Layout is
       end if;
 
       --  Here we calculate the alignment as the largest power of two multiple
-      --  of System.Storage_Unit that does not exceed either the actual size of
+      --  of System.Storage_Unit that does not exceed either the object size of
       --  the type, or the maximum allowed alignment.
 
       declare
-         S             : constant Int := UI_To_Int (Esize (E)) / SSU;
-         A             : Nat;
+         S : Int;
+         A : Nat;
+
          Max_Alignment : Nat;
 
       begin
+         --  The given Esize may be larger that int'last because of a previous
+         --  error, and the call to UI_To_Int will fail, so use default.
+
+         if Esize (E) / SSU > Ttypes.Maximum_Alignment then
+            S := Ttypes.Maximum_Alignment;
+
+         --  If this is an access type and the target doesn't have strict
+         --  alignment and we are not doing front end layout, then cap the
+         --  alignment to that of a regular access type. This will avoid
+         --  giving fat pointers twice the usual alignment for no practical
+         --  benefit since the misalignment doesn't really matter.
+
+         elsif Is_Access_Type (E)
+           and then not Target_Strict_Alignment
+           and then not Frontend_Layout_On_Target
+         then
+            S := System_Address_Size / SSU;
+
+         else
+            S := UI_To_Int (Esize (E)) / SSU;
+         end if;
+
          --  If the default alignment of "double" floating-point types is
          --  specifically capped, enforce the cap.
 
@@ -3089,21 +3211,101 @@ package body Layout is
             A := 2 * A;
          end loop;
 
-         --  Now we think we should set the alignment to A, but we skip this if
-         --  an alignment is already set to a value greater than A (happens for
-         --  derived types).
+         --  If alignment is currently not set, then we can safetly set it to
+         --  this new calculated value.
 
-         --  However, if the alignment is known and too small it must be
-         --  increased, this happens in a case like:
-
-         --     type R is new Character;
-         --     for R'Size use 16;
-
-         --  Here the alignment inherited from Character is 1, but it must be
-         --  increased to 2 to reflect the increased size.
-
-         if Unknown_Alignment (E) or else Alignment (E) < A then
+         if Unknown_Alignment (E) then
             Init_Alignment (E, A);
+
+         --  Cases where we have inherited an alignment
+
+         --  For constructed types, always reset the alignment, these are
+         --  Generally invisible to the user anyway, and that way we are
+         --  sure that no constructed types have weird alignments.
+
+         elsif not Comes_From_Source (E) then
+            Init_Alignment (E, A);
+
+         --  If this inherited alignment is the same as the one we computed,
+         --  then obviously everything is fine, and we do not need to reset it.
+
+         elsif Alignment (E) = A then
+            null;
+
+         --  Now we come to the difficult cases where we have inherited an
+         --  alignment and size, but overridden the size but not the alignment.
+
+         elsif Has_Size_Clause (E) or else Has_Object_Size_Clause (E) then
+
+            --  This is tricky, it might be thought that we should try to
+            --  inherit the alignment, since that's what the RM implies, but
+            --  that leads to complex rules and oddities. Consider for example:
+
+            --    type R is new Character;
+            --    for R'Size use 16;
+
+            --  It seems quite bogus in this case to inherit an alignment of 1
+            --  from the parent type Character. Furthermore, if that's what the
+            --  programmer really wanted for some odd reason, then they could
+            --  specify the alignment they wanted.
+
+            --  Furthermore we really don't want to inherit the alignment in
+            --  the case of a specified Object_Size for a subtype, since then
+            --  there would be no way of overriding to give a reasonable value
+            --  (we don't have an Object_Subtype attribute). Consider:
+
+            --    subtype R is new Character;
+            --    for R'Object_Size use 16;
+
+            --  If we inherit the alignment of 1, then we have an odd
+            --  inefficient alignment for the subtype, which cannot be fixed.
+
+            --  So we make the decision that if Size (or Object_Size) is given
+            --  (and, in the case of a first subtype, the alignment is not set
+            --  with a specific alignment clause). We reset the alignment to
+            --  the appropriate value for the specified size. This is a nice
+            --  simple rule to implement and document.
+
+            --  There is one slight glitch, which is that a confirming size
+            --  clause can now change the alignment, which, if we really think
+            --  that confirming rep clauses should have no effect, is a no-no.
+
+            --    type R is new Character;
+            --    for R'Alignment use 2;
+            --    type S is new R;
+            --    for S'Size use Character'Size;
+
+            --  Now the alignment of S is 1 instead of 2, as a result of
+            --  applying the above rule to the confirming rep clause for S. Not
+            --  clear this is worth worrying about. If we recorded whether a
+            --  size clause was confirming we could avoid this, but right now
+            --  we have no way of doing that or easily figuring it out, so we
+            --  don't bother.
+
+            --  Historical note. In versions of GNAT prior to Nov 6th, 2010, an
+            --  odd distinction was made between inherited alignments greater
+            --  than the computed alignment (where the larger alignment was
+            --  inherited) and inherited alignments smaller than the computed
+            --  alignment (where the smaller alignment was overridden). This
+            --  was a dubious fix to get around an ACATS problem which seems
+            --  to have disappeared anyway, and in any case, this peculiarity
+            --  was never documented.
+
+            Init_Alignment (E, A);
+
+         --  If no Size (or Object_Size) was specified, then we inherited the
+         --  object size, so we should inherit the alignment as well and not
+         --  modify it. This takes care of cases like:
+
+         --    type R is new Integer;
+         --    for R'Alignment use 1;
+         --    subtype S is R;
+
+         --  Here we have R has a default Object_Size of 32, and a specified
+         --  alignment of 1, and it seeems right for S to inherit both values.
+
+         else
+            null;
          end if;
       end;
    end Set_Elem_Alignment;
@@ -3119,11 +3321,7 @@ package body Layout is
       Make_Func : Boolean   := False) return Dynamic_SO_Ref
    is
       Loc  : constant Source_Ptr := Sloc (Ins_Type);
-
-      K : constant Entity_Id :=
-            Make_Defining_Identifier (Loc,
-              Chars => New_Internal_Name ('K'));
-
+      K    : constant Entity_Id := Make_Temporary (Loc, 'K');
       Decl : Node_Id;
 
       Vtype_Primary_View : Entity_Id;

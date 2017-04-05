@@ -1,5 +1,5 @@
 // -*- C++ -*- ARM specific Exception handling support routines.
-// Copyright (C) 2004, 2005, 2008, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2004-2013 Free Software Foundation, Inc.
 //
 // This file is part of GCC.
 //
@@ -22,13 +22,13 @@
 // see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 // <http://www.gnu.org/licenses/>.
 
-#include <typeinfo>
 #include <cxxabi.h>
 #include "unwind-cxx.h"
 
 #ifdef __ARM_EABI_UNWINDER__
 
 using namespace __cxxabiv1;
+
 
 // Given the thrown type THROW_TYPE, exception object UE_HEADER and a
 // type CATCH_TYPE to compare against, return whether or not there is
@@ -37,10 +37,10 @@ using namespace __cxxabiv1;
 // pointed to by the pointer.
 
 extern "C" __cxa_type_match_result
-__cxxabiv1::__cxa_type_match(_Unwind_Exception* ue_header,
-			     const std::type_info* catch_type,
-			     bool is_reference __attribute__((__unused__)),
-			     void** thrown_ptr_p)
+__cxa_type_match(_Unwind_Exception* ue_header,
+		 const std::type_info* catch_type,
+		 bool is_reference __attribute__((__unused__)),
+		 void** thrown_ptr_p)
 {
   bool forced_unwind
     = __is_gxx_forced_unwind_class(ue_header->exception_class);
@@ -94,7 +94,7 @@ __cxxabiv1::__cxa_type_match(_Unwind_Exception* ue_header,
 
 // ABI defined routine called at the start of a cleanup handler.
 extern "C" bool
-__cxxabiv1::__cxa_begin_cleanup(_Unwind_Exception* ue_header)
+__cxa_begin_cleanup(_Unwind_Exception* ue_header)
 {
   __cxa_eh_globals *globals = __cxa_get_globals();
   __cxa_exception *header = __get_exception_header_from_ue(ue_header);
@@ -155,25 +155,73 @@ __gnu_end_cleanup(void)
   return &header->unwindHeader;
 }
 
+#ifdef __TMS320C6X__
+// Assembly wrapper to call __gnu_end_cleanup without clobbering
+// function arguments to _Unwind_Resume.
+asm (".global __cxa_end_cleanup\n"
+"	.type __cxa_end_cleanup, \"function\"\n"
+"__cxa_end_cleanup:\n"
+"	stw	.d2t2	B9, *B15--[10]\n"
+"	stw	.d2t2	B8, *+B15[9]\n"
+"	stw	.d2t2	B7, *+B15[8]\n"
+"	stw	.d2t2	B6, *+B15[7]\n"
+"	stw	.d2t2	B5, *+B15[6]\n"
+"	stw	.d2t2	B4, *+B15[5]\n"
+"	stw	.d2t1	A9, *+B15[4]\n"
+"	stw	.d2t1	A8, *+B15[3]\n"
+"	stw	.d2t1	A7, *+B15[2]\n"
+"	stw	.d2t1	A6, *+B15[1]\n"
+#ifdef _TMS320C6400_PLUS
+"	callp	.s2	(__gnu_end_cleanup), B3\n"
+#elif defined(_TMS320C6400)
+"	call	.s2	(__gnu_end_cleanup)\n"
+"	addkpc	.s2	1f, B3, 0\n"
+"	nop		4\n"
+"1:\n"
+#else
+"	call	.s2	(__gnu_end_cleanup)\n"
+"	mvkl	.s2	1f, B3\n"
+"	mvkh	.s2	1f, B3\n"
+"	nop		3\n"
+"1:\n"
+#endif
+"	ldw	.d2t1	*+B15[1], A6\n"
+"	ldw	.d2t1	*+B15[2], A7\n"
+"	ldw	.d2t1	*+B15[3], A8\n"
+"	ldw	.d2t1	*+B15[4], A9\n"
+"	ldw	.d2t2	*+B15[5], B4\n"
+"	ldw	.d2t2	*+B15[6], B5\n"
+"	ldw	.d2t2	*+B15[7], B6\n"
+"	ldw	.d2t2	*+B15[8], B7\n"
+"	ldw	.d2t2	*+B15[9], B8\n"
+"	ldw	.d2t2	*++B15[10], B9\n"
+"	b	.s2	_Unwind_Resume\n"
+"	nop		5\n");
+#else
 // Assembly wrapper to call __gnu_end_cleanup without clobbering r1-r3.
 // Also push r4 to preserve stack alignment.
 #ifdef __thumb__
-asm (".global __cxa_end_cleanup\n"
+asm ("  .pushsection .text.__cxa_end_cleanup\n"
+"	.global __cxa_end_cleanup\n"
 "	.type __cxa_end_cleanup, \"function\"\n"
 "	.thumb_func\n"
 "__cxa_end_cleanup:\n"
 "	push\t{r1, r2, r3, r4}\n"
 "	bl\t__gnu_end_cleanup\n"
 "	pop\t{r1, r2, r3, r4}\n"
-"	bl\t_Unwind_Resume @ Never returns\n");
+"	bl\t_Unwind_Resume @ Never returns\n"
+"	.popsection\n");
 #else
-asm (".global __cxa_end_cleanup\n"
+asm ("  .pushsection .text.__cxa_end_cleanup\n"
+"	.global __cxa_end_cleanup\n"
 "	.type __cxa_end_cleanup, \"function\"\n"
 "__cxa_end_cleanup:\n"
 "	stmfd\tsp!, {r1, r2, r3, r4}\n"
 "	bl\t__gnu_end_cleanup\n"
 "	ldmfd\tsp!, {r1, r2, r3, r4}\n"
-"	bl\t_Unwind_Resume @ Never returns\n");
+"	bl\t_Unwind_Resume @ Never returns\n"
+"	.popsection\n");
+#endif
 #endif
 
 #endif

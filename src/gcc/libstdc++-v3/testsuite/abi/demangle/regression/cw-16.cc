@@ -1,6 +1,6 @@
 // 2003-11-07  Carlo Wood  <carlo@alinoe.com>
 
-// Copyright (C) 2003, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2003-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -39,7 +39,7 @@ verify_demangle("_Z1fPFYPFiiEiE",
 verify_demangle("_Z1fI1XENT_1tES2_",
                 "X::t f<X>(X::t)");
 verify_demangle("_Z1fILi5E1AEvN1CIXstN1T1tEEXszsrS2_1tEE1qE",
-                "void f<5, A>(C<sizeof (T::t), sizeof (T::t)>::q)");
+                "void f<5, A>(C<sizeof (T::t), sizeof T::t>::q)");
 // 2003/12/03, libstdc++/13045
 verify_demangle("_Z1fILi1ELc120EEv1AIXplT_cviLd4028ae147ae147aeEEE",
                 "void f<1, (char)120>(A<(1)+((int)((double)[4028ae147ae147ae]))>)");

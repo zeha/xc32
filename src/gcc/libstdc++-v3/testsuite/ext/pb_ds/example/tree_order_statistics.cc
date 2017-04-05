@@ -1,6 +1,6 @@
 // -*- C++ -*-
 
-// Copyright (C) 2005, 2006, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2005-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the terms
@@ -57,7 +57,7 @@ using namespace __gnu_pbds;
 typedef
 tree<
   int,
-  null_mapped_type,
+  null_type,
   less<int>,
   rb_tree_tag,
   // This policy updates nodes' metadata for order statistics.

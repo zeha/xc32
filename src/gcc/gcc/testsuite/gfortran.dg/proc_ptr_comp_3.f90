@@ -22,12 +22,14 @@ type :: t
   procedure(), pointer, nopass ptr4              ! { dg-error "Expected '::'" }
   procedure(), pointer, nopass, pointer :: ptr5  ! { dg-error "Duplicate" }
   procedure, pointer, nopass :: ptr6             ! { dg-error "Syntax error" }
-  procedure(), pointer, nopass :: ptr7 => ptr2   ! { dg-error "requires a NULL" }
   procedure(), nopass :: ptr8                    ! { dg-error "POINTER attribute is required" }
   procedure(pp), pointer, nopass :: ptr9         ! { dg-error "declared in a later PROCEDURE statement" }
-  procedure(aaargh), pointer, nopass :: ptr10    ! { dg-error "must be explicit" }
   real :: y
 end type t
+
+type :: t2
+  procedure(aaargh), pointer, nopass :: ptr10    ! { dg-error "must be explicit" }
+end type
 
 type,bind(c) :: bct                   ! { dg-error "BIND.C. derived type" }
   procedure(), pointer,nopass :: ptr  ! { dg-error "cannot be a member of|may not be C interoperable" }
@@ -39,7 +41,7 @@ type(t) :: x
 
 x%ptr2 => x       ! { dg-error "Invalid procedure pointer assignment" }
 
-x => x%ptr2       ! { dg-error "Pointer assignment to non-POINTER" }
+x => x%ptr2       ! { dg-error "Non-POINTER in pointer association context" }
 
 print *, x%ptr1() ! { dg-error "attribute conflicts with" }
 call x%ptr2()     ! { dg-error "attribute conflicts with" }
@@ -48,4 +50,3 @@ print *,x%ptr3()  ! { dg-error "attribute conflicts with" }
 call x%y          ! { dg-error "Expected type-bound procedure or procedure pointer component" }
 
 end
-

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2001-2009, Free Software Foundation, Inc.         --
+--          Copyright (C) 2001-2012, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -29,10 +29,12 @@ with Output;
 with Osint;    use Osint;
 with Prj;      use Prj;
 with Prj.Com;
+with Prj.Env;
 with Prj.Part;
 with Prj.PP;
 with Prj.Tree; use Prj.Tree;
 with Prj.Util; use Prj.Util;
+with Sdefault;
 with Snames;   use Snames;
 with Table;    use Table;
 
@@ -59,6 +61,8 @@ package body Prj.Makr is
 
    Tree : constant Project_Node_Tree_Ref := new Project_Node_Tree_Data;
    --  The project tree where the project file is parsed
+
+   Root_Environment : Prj.Tree.Environment;
 
    Args : Argument_List_Access;
    --  The list of arguments for calls to the compiler to get the unit names
@@ -116,7 +120,12 @@ package body Prj.Makr is
    Non_Empty_Node : constant Project_Node_Id := 1;
    --  Used for the With_Clause of the naming project
 
+   --  Turn off warnings for now around this redefinition of True and False,
+   --  but it really seems a bit horrible to do this redefinition ???
+
+   pragma Warnings (Off);
    type Matched_Type is (True, False, Excluded);
+   pragma Warnings (On);
 
    Naming_File_Suffix      : constant String := "_naming";
    Source_List_File_Suffix : constant String := "_source_list.txt";
@@ -693,7 +702,8 @@ package body Prj.Makr is
             W_Char                 => Write_A_Char'Access,
             W_Eol                  => Write_Eol'Access,
             W_Str                  => Write_A_String'Access,
-            Backward_Compatibility => False);
+            Backward_Compatibility => False,
+            Max_Line_Length        => 79);
          Close (Output_FD);
 
          --  Delete the naming project file if it already exists
@@ -792,9 +802,15 @@ package body Prj.Makr is
       --  Do some needed initializations
 
       Csets.Initialize;
-      Namet.Initialize;
       Snames.Initialize;
+
       Prj.Initialize (No_Project_Tree);
+
+      Prj.Tree.Initialize (Root_Environment, Flags);
+      Prj.Env.Initialize_Default_Project_Path
+        (Root_Environment.Project_Path,
+         Target_Name => Sdefault.Target_Name.all);
+
       Prj.Tree.Initialize (Tree);
 
       Sources.Set_Last (0);
@@ -860,10 +876,10 @@ package body Prj.Makr is
               (In_Tree                => Tree,
                Project                => Project_Node,
                Project_File_Name      => Output_Name.all,
-               Always_Errout_Finalize => False,
+               Errout_Handling        => Part.Finalize_If_Error,
                Store_Comments         => True,
                Is_Config_File         => False,
-               Flags                  => Flags,
+               Env                    => Root_Environment,
                Current_Directory      => Get_Current_Dir,
                Packages_To_Check      => Packages_To_Check_By_Gnatname);
 

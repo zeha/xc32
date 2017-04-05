@@ -3,7 +3,7 @@ void bar (void);
 int toto()
 {
   int i, j, k;
-  int a[100][100];
+  int a[101][100];
   int b[100];
 
   for (i = 1; i < 100; i++)
@@ -23,5 +23,5 @@ int toto()
   return a[3][5] + b[1];
 }
 
-/* { dg-final { scan-tree-dump-times "number of SCoPs: 2" 1 "graphite"} } */
+/* { dg-final { scan-tree-dump-times "number of SCoPs: 2" 1 "graphite" { xfail *-*-* } } } */
 /* { dg-final { cleanup-tree-dump "graphite" } } */

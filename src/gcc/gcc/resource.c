@@ -1,6 +1,5 @@
 /* Definitions for computing resource usage of specific insns.
-   Copyright (C) 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008,
-   2009 Free Software Foundation, Inc.
+   Copyright (C) 1999-2013 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -22,7 +21,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "system.h"
 #include "coretypes.h"
 #include "tm.h"
-#include "toplev.h"
+#include "diagnostic-core.h"
 #include "rtl.h"
 #include "tm_p.h"
 #include "hard-reg-set.h"
@@ -47,7 +46,6 @@ struct target_info
   struct target_info *next;	/* Next info for same hash bucket.  */
   HARD_REG_SET live_regs;	/* Registers live at target.  */
   int block;			/* Basic block number containing target.  */
-  rtx label;			/* Label corresponding to block.  */
   int bb_tick;			/* Generation count of basic block info.  */
 };
 
@@ -80,7 +78,7 @@ static HARD_REG_SET current_live_regs;
 static HARD_REG_SET pending_dead_regs;
 
 static void update_live_status (rtx, const_rtx, void *);
-static int find_basic_block (rtx, int, rtx *);
+static int find_basic_block (rtx, int);
 static rtx next_insn_no_annul (rtx);
 static rtx find_dead_or_set_registers (rtx, struct resources*,
 				       rtx*, int, struct resources,
@@ -134,11 +132,8 @@ update_live_status (rtx dest, const_rtx x, void *data ATTRIBUTE_UNUSED)
    correct.  */
 
 static int
-find_basic_block (rtx insn, int search_limit, rtx *label)
+find_basic_block (rtx insn, int search_limit)
 {
-  if (label)
-    *label = NULL_RTX;
-
   /* Scan backwards to the previous BARRIER.  Then see if we can find a
      label that starts a basic block.  Return the basic block number.  */
   for (insn = prev_nonnote_insn (insn);
@@ -160,11 +155,7 @@ find_basic_block (rtx insn, int search_limit, rtx *label)
        insn && LABEL_P (insn);
        insn = next_nonnote_insn (insn))
     if (BLOCK_FOR_INSN (insn))
-      {
-        if (label)
-          *label = insn;
-        return BLOCK_FOR_INSN (insn)->index;
-      }
+      return BLOCK_FOR_INSN (insn)->index;
 
   return -1;
 }
@@ -179,7 +170,7 @@ next_insn_no_annul (rtx insn)
     {
       /* If INSN is an annulled branch, skip any insns from the target
 	 of the branch.  */
-      if (INSN_P (insn)
+      if (JUMP_P (insn)
 	  && INSN_ANNULLED_BRANCH_P (insn)
 	  && NEXT_INSN (PREV_INSN (insn)) != insn)
 	{
@@ -223,10 +214,7 @@ mark_referenced_resources (rtx x, struct resources *res,
   switch (code)
     {
     case CONST:
-    case CONST_INT:
-    case CONST_DOUBLE:
-    case CONST_FIXED:
-    case CONST_VECTOR:
+    CASE_CONST_ANY:
     case PC:
     case SYMBOL_REF:
     case LABEL_REF:
@@ -342,7 +330,7 @@ mark_referenced_resources (rtx x, struct resources *res,
 	  if (frame_pointer_needed)
 	    {
 	      SET_HARD_REG_BIT (res->regs, FRAME_POINTER_REGNUM);
-#if FRAME_POINTER_REGNUM != HARD_FRAME_POINTER_REGNUM
+#if !HARD_FRAME_POINTER_IS_FRAME_POINTER
 	      SET_HARD_REG_BIT (res->regs, HARD_FRAME_POINTER_REGNUM);
 #endif
 	    }
@@ -500,10 +488,10 @@ find_dead_or_set_registers (rtx target, struct resources *res,
 	  if (jump_count++ < 10)
 	    {
 	      if (any_uncondjump_p (this_jump_insn)
-		  || GET_CODE (PATTERN (this_jump_insn)) == RETURN)
+		  || ANY_RETURN_P (PATTERN (this_jump_insn)))
 		{
 		  next = JUMP_LABEL (this_jump_insn);
-		  if (next && ANY_RETURN_P (next))
+		  if (ANY_RETURN_P (next))
 		    next = NULL_RTX;
 		  if (jump_insn == 0)
 		    {
@@ -640,10 +628,7 @@ mark_set_resources (rtx x, struct resources *res, int in_dest,
     case BARRIER:
     case CODE_LABEL:
     case USE:
-    case CONST_INT:
-    case CONST_DOUBLE:
-    case CONST_FIXED:
-    case CONST_VECTOR:
+    CASE_CONST_ANY:
     case LABEL_REF:
     case SYMBOL_REF:
     case CONST:
@@ -720,10 +705,18 @@ mark_set_resources (rtx x, struct resources *res, int in_dest,
       return;
 
     case SEQUENCE:
-      for (i = 0; i < XVECLEN (x, 0); i++)
-	if (! (INSN_ANNULLED_BRANCH_P (XVECEXP (x, 0, 0))
-	       && INSN_FROM_TARGET_P (XVECEXP (x, 0, i))))
-	  mark_set_resources (XVECEXP (x, 0, i), res, 0, mark_type);
+      {
+        rtx control = XVECEXP (x, 0, 0);
+        bool annul_p = JUMP_P (control) && INSN_ANNULLED_BRANCH_P (control);
+
+        mark_set_resources (control, res, 0, mark_type);
+        for (i = XVECLEN (x, 0) - 1; i >= 0; --i)
+	  {
+	    rtx elt = XVECEXP (x, 0, i);
+	    if (!annul_p && INSN_FROM_TARGET_P (elt))
+	      mark_set_resources (elt, res, 0, mark_type);
+	  }
+      }
       return;
 
     case POST_INC:
@@ -831,7 +824,7 @@ mark_set_resources (rtx x, struct resources *res, int in_dest,
 static bool
 return_insn_p (const_rtx insn)
 {
-  if (JUMP_P (insn) && GET_CODE (PATTERN (insn)) == RETURN)
+  if (JUMP_P (insn) && ANY_RETURN_P (PATTERN (insn)))
     return true;
 
   if (NONJUMP_INSN_P (insn) && GET_CODE (PATTERN (insn)) == SEQUENCE)
@@ -839,39 +832,7 @@ return_insn_p (const_rtx insn)
 
   return false;
 }
-
-/* Get the block field from TINFO, if valid.  */
 
-static int
-get_block (struct target_info *tinfo)
-{
-  int b, check_b;
-  rtx label, check_label;
-
-  b = tinfo->block;
-
-  /* Invalid block.  */
-  if (b == -1 || INSN_DELETED_P (BB_HEAD (BASIC_BLOCK (b))))
-    return -1;
-  
-  label = tinfo->label;
-
-  /* Barrier is start of function.  */
-  if (label == NULL_RTX)
-    return b;
-
-  /* Check if label is still valid.  */
-  if (!LABEL_P (label) || INSN_DELETED_P (label))
-    return -1;
-
-  /* Check if find_basic_block still finds the same label.  */
-  check_b = find_basic_block (label, MAX_DELAY_SLOT_LIVE_SEARCH, &check_label);
-  if (b != check_b || label != check_label)
-    return -1;
-
-  return b;
-}
-
 /* Set the resources that are live at TARGET.
 
    If TARGET is zero, we refer to the end of the current function and can
@@ -918,12 +879,12 @@ mark_target_live_regs (rtx insns, rtx target, struct resources *res)
   struct target_info *tinfo = NULL;
   rtx insn;
   rtx jump_insn = 0;
-  rtx jump_target, label;
+  rtx jump_target;
   HARD_REG_SET scratch;
   struct resources set, needed;
 
   /* Handle end of function.  */
-  if (target == 0)
+  if (target == 0 || ANY_RETURN_P (target))
     {
       *res = end_of_function_needs;
       return;
@@ -951,18 +912,15 @@ mark_target_live_regs (rtx insns, rtx target, struct resources *res)
 	  break;
 
       /* Start by getting the basic block number.  If we have saved
-	 information, we can get it from there if unless the information is not
-         valid anymore.  */
-      if (tinfo)
-        {
-          b = get_block (tinfo);
-          if (b == -1 && tinfo->block != -1)
-            tinfo->block = -1;
-        }
+	 information, we can get it from there unless the insn at the
+	 start of the basic block has been deleted.  */
+      if (tinfo && tinfo->block != -1
+	  && ! INSN_DELETED_P (BB_HEAD (BASIC_BLOCK (tinfo->block))))
+	b = tinfo->block;
     }
 
   if (b == -1)
-    b = find_basic_block (target, MAX_DELAY_SLOT_LIVE_SEARCH, &label);
+    b = find_basic_block (target, MAX_DELAY_SLOT_LIVE_SEARCH);
 
   if (target_hash_table != NULL)
     {
@@ -983,7 +941,6 @@ mark_target_live_regs (rtx insns, rtx target, struct resources *res)
 	  tinfo = XNEW (struct target_info);
 	  tinfo->uid = INSN_UID (target);
 	  tinfo->block = b;
-	  tinfo->label = label;
 	  tinfo->next
 	    = target_hash_table[INSN_UID (target) % TARGET_HASH_PRIME];
 	  target_hash_table[INSN_UID (target) % TARGET_HASH_PRIME] = tinfo;
@@ -1047,7 +1004,6 @@ mark_target_live_regs (rtx insns, rtx target, struct resources *res)
 	      /* CALL clobbers all call-used regs that aren't fixed except
 		 sp, ap, and fp.  Do this before setting the result of the
 		 call live.  */
-
 	      get_call_reg_set_usage (real_insn,
 				      &regs_invalidated_by_this_call,
 				      regs_invalidated_by_call);
@@ -1126,8 +1082,6 @@ mark_target_live_regs (rtx insns, rtx target, struct resources *res)
       COPY_HARD_REG_SET (res->regs, current_live_regs);
       if (tinfo != NULL)
 	{
-	  if (tinfo->block != b)
-	    tinfo->label = label;
 	  tinfo->block = b;
 	  tinfo->bb_tick = bb_ticks[b];
 	}
@@ -1153,10 +1107,9 @@ mark_target_live_regs (rtx insns, rtx target, struct resources *res)
       struct resources new_resources;
       rtx stop_insn = next_active_insn (jump_insn);
 
-      if (jump_target && ANY_RETURN_P (jump_target))
-	jump_target = NULL_RTX;
-      mark_target_live_regs (insns, next_active_insn (jump_target),
-			     &new_resources);
+      if (!ANY_RETURN_P (jump_target))
+	jump_target = next_active_insn (jump_target);
+      mark_target_live_regs (insns, jump_target, &new_resources);
       CLEAR_RESOURCE (&set);
       CLEAR_RESOURCE (&needed);
 
@@ -1191,11 +1144,11 @@ init_resource_info (rtx epilogue_insn)
   basic_block bb;
 
   /* Indicate what resources are required to be valid at the end of the current
-     function.  The condition code never is and memory always is.  If the
-     frame pointer is needed, it is and so is the stack pointer unless
-     EXIT_IGNORE_STACK is nonzero.  If the frame pointer is not needed, the
-     stack pointer is.  Registers used to return the function value are
-     needed.  Registers holding global variables are needed.  */
+     function.  The condition code never is and memory always is.
+     The stack pointer is needed unless EXIT_IGNORE_STACK is true
+     and there is an epilogue that restores the original stack pointer
+     from the frame pointer.  Registers used to return the function value
+     are needed.  Registers holding global variables are needed.  */
 
   end_of_function_needs.cc = 0;
   end_of_function_needs.memory = 1;
@@ -1205,14 +1158,14 @@ init_resource_info (rtx epilogue_insn)
   if (frame_pointer_needed)
     {
       SET_HARD_REG_BIT (end_of_function_needs.regs, FRAME_POINTER_REGNUM);
-#if HARD_FRAME_POINTER_REGNUM != FRAME_POINTER_REGNUM
+#if !HARD_FRAME_POINTER_IS_FRAME_POINTER
       SET_HARD_REG_BIT (end_of_function_needs.regs, HARD_FRAME_POINTER_REGNUM);
 #endif
-      if (! EXIT_IGNORE_STACK
-	  || current_function_sp_is_unchanging)
-	SET_HARD_REG_BIT (end_of_function_needs.regs, STACK_POINTER_REGNUM);
     }
-  else
+  if (!(frame_pointer_needed
+	&& EXIT_IGNORE_STACK
+	&& epilogue_insn
+	&& !crtl->sp_is_unchanging))
     SET_HARD_REG_BIT (end_of_function_needs.regs, STACK_POINTER_REGNUM);
 
   if (crtl->return_rtx != 0)
@@ -1327,7 +1280,7 @@ clear_hashed_info_for_insn (rtx insn)
 void
 incr_ticks_for_insn (rtx insn)
 {
-  int b = find_basic_block (insn, MAX_DELAY_SLOT_LIVE_SEARCH, NULL);
+  int b = find_basic_block (insn, MAX_DELAY_SLOT_LIVE_SEARCH);
 
   if (b != -1)
     bb_ticks[b]++;

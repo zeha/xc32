@@ -1,6 +1,6 @@
 // 2000-03-29 sss/bkoz
 
-// Copyright (C) 2000, 2003, 2004, 2005, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2000-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -25,13 +25,13 @@ void test01()
 {
   bool test __attribute__((unused)) = true;
 
-  const int& x = std::max(1, 2);
-  const int& y = std::max(4, 3);
+  const int x = std::max(1, 2);
+  const int y = std::max(4, 3);
   VERIFY( x == 2 );
   VERIFY( y == 4 );
 
-  const int& xc = std::max(1, 2, std::greater<int>());
-  const int& yc = std::max(4, 3, std::greater<int>());
+  const int xc = std::max(1, 2, std::greater<int>());
+  const int yc = std::max(4, 3, std::greater<int>());
   VERIFY( xc == 1 );
   VERIFY( yc == 3 );
 }

@@ -1,6 +1,6 @@
 // 2003-05-01  Petur Runolfsson  <peturr02@ru.is>
 
-// Copyright (C) 2003, 2004, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2003-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -34,7 +34,7 @@ void test09()
   fputs("abc\n", fout);
   fclose(fout);
 
-  freopen(name, "r", stdin);
+  VERIFY( freopen(name, "r", stdin) );
  
   // basic_streambuf::showmanyc returns 0.
   VERIFY( 0 == std::cin.rdbuf()->in_avail() );

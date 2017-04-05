@@ -1,4 +1,4 @@
-// Copyright (C) 2003, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2003-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -44,7 +44,7 @@ void test02()
   
   FILE* in = fopen(name, "r");
   char str[256];
-  fgets(str, 256, in);
+  VERIFY( fgets(str, 256, in) );
   VERIFY( !strcmp(str, "Hello, world") );
   fclose(in);
 }

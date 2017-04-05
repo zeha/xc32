@@ -11,7 +11,7 @@ procedure SSE_Nolib is
    package SSE_Types is
       VECTOR_ALIGN : constant := 16;
       VECTOR_BYTES : constant := 16;
-            
+
       type m128 is private;
    private
       type m128 is array (1 .. 4) of Float;

@@ -9,7 +9,7 @@
 !
 module test
   implicit none
-  real(4), parameter :: eps4 = epsilon(0.0_4)*2.0_4
+  real(4), parameter :: eps4 = epsilon(0.0_4)*4.0_4
   real(8), parameter :: eps8 = epsilon(0.0_8)*2.0_8
   interface check
     procedure check4, check8
@@ -217,5 +217,3 @@ PROGRAM ArcTrigHyp
   call check(atanh(z4), cmplx(-0.38187020129010862908881230531688930_4, -1.07198475450905931839240655913126728_4, kind=4))
   call check(atanh(z8), cmplx(-0.38187020129010862908881230531688930_8, -1.07198475450905931839240655913126728_8, kind=8))
 END PROGRAM ArcTrigHyp
-
-! { dg-final { cleanup-modules "test" } }

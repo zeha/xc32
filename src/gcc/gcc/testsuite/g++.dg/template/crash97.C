@@ -1,24 +1,14 @@
-// PR c++/44628
+// PR c++/34272
 
-template <typename T>
-class Temp
+template<typename> struct A {};
+
+template<typename> struct A<int> // { dg-error "not used|template\\-parameter" }
 {
-  int Val;
-  public:
-  operator T&(void)  { return Val; }
-
-  virtual T& operator=(T a ) // { dg-error "overriding" }
-  {
-    Val = a;
-    return Val;
-  }
+  template<int> void foo();
 };
 
-class Int : public Temp<int>
+void bar()
 {
-  public:
-  Int& operator=(int a) // { dg-error "conflicting return type" }
-  {
-    return (*this);
-  }
-};
+  A<int> a; // { dg-error "incomplete type" }
+  a.foo<0>(); // { dg-error "expected" }
+}

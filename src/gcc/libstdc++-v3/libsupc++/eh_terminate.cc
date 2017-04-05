@@ -1,6 +1,5 @@
 // -*- C++ -*- std::terminate, std::unexpected and friends.
-// Copyright (C) 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2009
-// Free Software Foundation
+// Copyright (C) 1994-2013 Free Software Foundation, Inc.
 //
 // This file is part of GCC.
 //
@@ -27,7 +26,7 @@
 #include "exception"
 #include <cstdlib>
 #include "unwind-cxx.h"
-#include "exception_defines.h"
+#include <bits/exception_defines.h>
 
 using namespace __cxxabiv1;
 
@@ -46,7 +45,7 @@ __cxxabiv1::__terminate (std::terminate_handler handler) throw ()
 void
 std::terminate () throw()
 {
-  __terminate (__get_terminate_handler ());
+  __terminate (__terminate_handler);
 }
 
 void
@@ -59,7 +58,7 @@ __cxxabiv1::__unexpected (std::unexpected_handler handler)
 void
 std::unexpected ()
 {
-  __unexpected (__get_unexpected_handler ());
+  __unexpected (__unexpected_handler);
 }
 
 std::terminate_handler

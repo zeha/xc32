@@ -1,9 +1,8 @@
 #! /bin/sh
 # Script to generate SYSROOT_SUFFIX_SPEC equivalent to MULTILIB_OSDIRNAMES
-# Arguments are MULTILIB_OSDIRNAMES, MULTILIB_OPTIONS, MULTILIB_MATCHES
-# and MULTILIB_ALIASES.
+# Arguments are MULTILIB_OSDIRNAMES, MULTILIB_OPTIONS and MULTILIB_MATCHES.
 
-# Copyright (C) 2009 Free Software Foundation, Inc.
+# Copyright (C) 2009-2013 Free Software Foundation, Inc.
 
 # This file is part of GCC.
 
@@ -55,7 +54,6 @@ set -e
 dirnames="$1"
 options="$2"
 matches="$3"
-aliases="$4"
 
 cat > print-sysroot-suffix3.sh <<\EOF
 #! /bin/sh
@@ -82,14 +80,7 @@ shift 2
 n="\" \\
 $padding\""
 if [ $# = 0 ]; then
-  case $optstring in
 EOF
-for x in $aliases; do
-  l=`echo $x | sed -e 's/=.*$//' -e 's/?/=/g'`
-  r=`echo $x | sed -e 's/^.*=//' -e 's/?/=/g'`
-  echo "/$r/) optstring=\"/$l/\" ;;" >> print-sysroot-suffix2.sh
-done
-echo "  esac" >> print-sysroot-suffix2.sh
 
 pat=
 for x in $dirnames; do

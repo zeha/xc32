@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2009, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2012, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -514,6 +514,19 @@ package body Ada.Strings.Wide_Unbounded is
    procedure Find_Token
      (Source : Unbounded_Wide_String;
       Set    : Wide_Maps.Wide_Character_Set;
+      From   : Positive;
+      Test   : Strings.Membership;
+      First  : out Positive;
+      Last   : out Natural)
+   is
+   begin
+      Wide_Search.Find_Token
+        (Source.Reference (From .. Source.Last), Set, Test, First, Last);
+   end Find_Token;
+
+   procedure Find_Token
+     (Source : Unbounded_Wide_String;
+      Set    : Wide_Maps.Wide_Character_Set;
       Test   : Strings.Membership;
       First  : out Positive;
       Last   : out Natural)
@@ -789,14 +802,13 @@ package body Ada.Strings.Wide_Unbounded is
       if Chunk_Size > S_Length - Source.Last then
          declare
             New_Size : constant Positive :=
-                         S_Length + Chunk_Size + (S_Length / Growth_Factor);
+              S_Length + Chunk_Size + (S_Length / Growth_Factor);
 
             New_Rounded_Up_Size : constant Positive :=
-                                    ((New_Size - 1) / Min_Mul_Alloc + 1) *
-                                       Min_Mul_Alloc;
+              ((New_Size - 1) / Min_Mul_Alloc + 1) * Min_Mul_Alloc;
 
             Tmp : constant Wide_String_Access :=
-                    new Wide_String (1 .. New_Rounded_Up_Size);
+              new Wide_String (1 .. New_Rounded_Up_Size);
 
          begin
             Tmp (1 .. Source.Last) := Source.Reference (1 .. Source.Last);

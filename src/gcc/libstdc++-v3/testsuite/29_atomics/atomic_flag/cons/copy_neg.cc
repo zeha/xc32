@@ -1,7 +1,7 @@
 // { dg-options "-std=gnu++0x" }
 // { dg-do compile }
 
-// Copyright (C) 2008, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2008-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -25,7 +25,7 @@ void test01()
   // Copy.
   typedef std::atomic_flag test_type;
   test_type t1;
-  test_type t2(t1);
+  test_type t2(t1);		// { dg-error "deleted" }
 }
-// { dg-error "used here" "" { target *-*-* } 28 }
-// { dg-excess-errors "deleted function" }
+
+// { dg-prune-output "include" }

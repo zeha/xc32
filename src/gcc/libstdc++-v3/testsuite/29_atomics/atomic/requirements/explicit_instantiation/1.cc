@@ -1,7 +1,7 @@
 // { dg-options "-std=gnu++0x" }
 // { dg-do compile }
 
-// Copyright (C) 2008, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2008-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -23,5 +23,5 @@
 #include <atomic>
 #include <testsuite_character.h>
 
-template class std::atomic<__gnu_test::pod_char>;
+template class std::atomic<__gnu_test::pod_state>;
 template class std::atomic<__gnu_test::pod_char*>;

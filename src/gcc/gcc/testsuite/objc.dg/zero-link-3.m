@@ -2,16 +2,23 @@
 /* Contributed by Ziemowit Laski <zlaski@apple.com>.  */
 
 /* { dg-do run { target *-*-darwin* } } */
-/* { dg-options "-fzero-link" } */
+/* { dg-additional-options "-fzero-link" } */
+/* { dg-additional-options "-framework Foundation" { target { *-*-darwin* } } } */
 /* { dg-xfail-run-if "Needs OBJC2 ABI" { *-*-darwin* && { lp64 && { ! objc2 } } } { "-fnext-runtime" } { "" } } */
 
-#include "../objc-obj-c++-shared/Object1.h"
-//#import <objc/objc.h>
+#ifdef __NEXT_RUNTIME__
+#include <Foundation/NSObject.h>
+#define OBJECT NSObject
+#else
+#include <objc/Object.h>
+#include <objc/Protocol.h>
+#define OBJECT Object
+#endif
 
 extern void abort(void);
 #define CHECK_IF(expr) if(!(expr)) abort();
 
-@interface Base: Object
+@interface Base: OBJECT
 + (int) getValue;
 @end
 
@@ -25,4 +32,3 @@ int main(void) {
   return 0;
 }
 
-#include "../objc-obj-c++-shared/Object1-implementation.h"

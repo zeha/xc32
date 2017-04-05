@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1996-2008, Free Software Foundation, Inc.         --
+--          Copyright (C) 1996-2012, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -38,6 +38,7 @@ with Sinfo;    use Sinfo;
 with Stand;    use Stand;
 with Stringt;  use Stringt;
 with Table;
+with Targparm; use Targparm;
 with Tbuild;   use Tbuild;
 with Urealp;   use Urealp;
 
@@ -104,11 +105,11 @@ package body Exp_Dbug is
    -- Homonym_Suffix --
    --------------------
 
-   --  The string defined here (and its associated length) is used to
-   --  gather the homonym string that will be appended to Name_Buffer
-   --  when the name is complete. Strip_Suffixes appends to this string
-   --  as does Append_Homonym_Number, and Output_Homonym_Numbers_Suffix
-   --  appends the string to the end of Name_Buffer.
+   --  The string defined here (and its associated length) is used to gather
+   --  the homonym string that will be appended to Name_Buffer when the name
+   --  is complete. Strip_Suffixes appends to this string as does
+   --  Append_Homonym_Number, and Output_Homonym_Numbers_Suffix appends the
+   --  string to the end of Name_Buffer.
 
    Homonym_Numbers : String (1 .. 256);
    Homonym_Len     : Natural := 0;
@@ -145,6 +146,10 @@ package body Exp_Dbug is
    procedure Qualify_Entity_Name (Ent : Entity_Id);
    --  If not already done, replaces the Chars field of the given entity
    --  with the appropriate fully qualified name.
+
+   procedure Reset_Buffers;
+   --  Reset the contents of Name_Buffer and Homonym_Numbers by setting their
+   --  respective lengths to zero.
 
    procedure Strip_Suffixes (BNPE_Suffix_Found : in out Boolean);
    --  Given an qualified entity name in Name_Buffer, remove any plain X or
@@ -341,6 +346,14 @@ package body Exp_Dbug is
          return Empty;
       end if;
 
+      --  Do not output those local variables in VM case, as this does not
+      --  help debugging (they are just unused), and might lead to duplicated
+      --  local variable names.
+
+      if VM_Target /= No_VM then
+         return Empty;
+      end if;
+
       --  Get renamed entity and compute suffix
 
       Name_Len := 0;
@@ -520,8 +533,7 @@ package body Exp_Dbug is
 
       --  Or if this is an enumeration base type
 
-        or else (Is_Enumeration_Type (E)
-                   and then E = Base_Type (E))
+        or else (Is_Enumeration_Type (E) and then Is_Base_Type (E))
 
       --  Or if this is a dummy type for a renaming
 
@@ -693,8 +705,7 @@ package body Exp_Dbug is
    --  Start of processing for Get_External_Name
 
    begin
-      Name_Len    := 0;
-      Homonym_Len := 0;
+      Reset_Buffers;
 
       --  If this is a child unit, we want the child
 
@@ -891,6 +902,39 @@ package body Exp_Dbug is
       end if;
    end Get_Variant_Encoding;
 
+   -----------------------------------------
+   -- Build_Subprogram_Instance_Renamings --
+   -----------------------------------------
+
+   procedure Build_Subprogram_Instance_Renamings
+     (N       : Node_Id;
+      Wrapper : Entity_Id)
+   is
+      Loc  : Source_Ptr;
+      Decl : Node_Id;
+      E    : Entity_Id;
+
+   begin
+      E := First_Entity (Wrapper);
+      while Present (E) loop
+         if Nkind (Parent (E)) = N_Object_Declaration
+           and then Is_Elementary_Type (Etype (E))
+         then
+            Loc := Sloc (Expression (Parent (E)));
+            Decl := Make_Object_Renaming_Declaration (Loc,
+               Defining_Identifier =>
+                 Make_Defining_Identifier (Loc, Chars (E)),
+               Subtype_Mark        => New_Occurrence_Of (Etype (E), Loc),
+               Name                => New_Occurrence_Of (E, Loc));
+
+            Append (Decl, Declarations (N));
+            Set_Needs_Debug_Info (Defining_Identifier (Decl));
+         end if;
+
+         Next_Entity (E);
+      end loop;
+   end Build_Subprogram_Instance_Renamings;
+
    ------------------------------------
    -- Get_Secondary_DT_External_Name --
    ------------------------------------
@@ -1014,6 +1058,7 @@ package body Exp_Dbug is
    begin
       for J in Name_Qualify_Units.First .. Name_Qualify_Units.Last loop
          E := Defining_Entity (Name_Qualify_Units.Table (J));
+         Reset_Buffers;
          Qualify_Entity_Name (E);
 
          --  Normally entities in the qualification list are scopes, but in the
@@ -1025,6 +1070,7 @@ package body Exp_Dbug is
          if Ekind (E) /= E_Variable then
             Ent := First_Entity (E);
             while Present (Ent) loop
+               Reset_Buffers;
                Qualify_Entity_Name (Ent);
                Next_Entity (Ent);
 
@@ -1093,10 +1139,10 @@ package body Exp_Dbug is
          if No (E) then
             return;
 
-         --  If this we are qualifying entities local to a generic
-         --  instance, use the name of the original instantiation,
-         --  not that of the anonymous subprogram in the wrapper
-         --  package, so that gdb doesn't have to know about these.
+         --  If this we are qualifying entities local to a generic instance,
+         --  use the name of the original instantiation, not that of the
+         --  anonymous subprogram in the wrapper package, so that gdb doesn't
+         --  have to know about these.
 
          elsif Is_Generic_Instance (E)
            and then Is_Subprogram (E)
@@ -1261,6 +1307,25 @@ package body Exp_Dbug is
       if Has_Qualified_Name (Ent) then
          return;
 
+      --  In formal verification mode, simply append a suffix for homonyms.
+      --  We used to qualify entity names as full expansion does, but this was
+      --  removed as this prevents the verification back-end from using a short
+      --  name for debugging and user interaction. The verification back-end
+      --  already takes care of qualifying names when needed. Still mark the
+      --  name as being qualified, as Qualify_Entity_Name may be called more
+      --  than once on the same entity.
+
+      elsif Alfa_Mode then
+         if Has_Homonym (Ent) then
+            Get_Name_String (Chars (Ent));
+            Append_Homonym_Number (Ent);
+            Output_Homonym_Numbers_Suffix;
+            Set_Chars (Ent, Name_Enter);
+         end if;
+
+         Set_Has_Qualified_Name (Ent);
+         return;
+
       --  If the entity is a variable encoding the debug name for an object
       --  renaming, then the qualified name of the entity associated with the
       --  renamed object can now be incorporated in the debug name.
@@ -1385,6 +1450,16 @@ package body Exp_Dbug is
    begin
       Name_Qualify_Units.Append (N);
    end Qualify_Entity_Names;
+
+   -------------------
+   -- Reset_Buffers --
+   -------------------
+
+   procedure Reset_Buffers is
+   begin
+      Name_Len    := 0;
+      Homonym_Len := 0;
+   end Reset_Buffers;
 
    --------------------
    -- Strip_Suffixes --

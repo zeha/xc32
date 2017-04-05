@@ -32,11 +32,13 @@ extern struct mchp_undefsym_table *mchp_undefsym_init
 
 /* Variables set by pic32 linker options */
 bfd_boolean pic32_debug = 0;
-bfd_boolean pic32_generate_dashboard_xml = 0;
+bfd_boolean pic32_memory_summary= 0;
 bfd_boolean pic32_report_mem = 0;
 bfd_boolean pic32_smart_io = TRUE; /* Enabled by default */
 bfd_boolean pic32_has_smart_io_option = 0;
 bfd *mchp_output_bfd;
+
+char * memory_summary_arg;
 
 /* Data Structures for the Undefined Symbol Table */
 struct mchp_undefsym_table *undefsyms;

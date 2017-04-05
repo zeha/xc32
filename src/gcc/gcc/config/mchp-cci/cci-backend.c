@@ -28,6 +28,38 @@ along with GCC; see the file COPYING3.  If not see
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
+#include "tm.h"
+#include "tree.h"
+#include "rtl.h"
+#include "regs.h"
+#include "hard-reg-set.h"
+#include "insn-config.h"
+#include "conditions.h"
+#include "output.h"
+#include "insn-attr.h"
+#include "flags.h"
+#include "function.h"
+#include "expr.h"
+#include "optabs.h"
+#include "libfuncs.h"
+#include "recog.h"
+#include "diagnostic-core.h"
+#include "toplev.h"
+#include "reload.h"
+#include "df.h"
+#include "ggc.h"
+#include "tm_p.h"
+#include "debug.h"
+#include "target.h"
+#include "target-def.h"
+#include "langhooks.h"
+#include "opts.h"
+#include "cgraph.h"
+#include "config.h"
+#include "system.h"
+#include "coretypes.h"
+#include "cpplib.h"
+#include "langhooks.h"
 #include "tree.h"
 
 #define CCI_BACKEND_H "config/mchp-cci/cci-backend.h"
@@ -47,7 +79,7 @@ along with GCC; see the file COPYING3.  If not see
 
 void mchp_print_builtin_function (const_tree t)
 {
-  if (DECL_P(t))
+  if (t && DECL_P(t))
     puts (IDENTIFIER_POINTER(DECL_NAME(t)));
 }
 
@@ -75,12 +107,12 @@ static void cci_define(void *pfile_v, const char *keyword, const char *target) {
 
   if (target)
     {
-      buffer = xmalloc(strlen(keyword) + strlen(target) + 7);
+      buffer = (char *)xmalloc(strlen(keyword) + strlen(target) + 7);
       sprintf(buffer,"%s=%s", keyword, target);
     }
   else
     {
-      buffer = xmalloc(strlen(keyword) + strlen("=") + 7);
+      buffer = (char *)xmalloc(strlen(keyword) + strlen("=") + 7);
       sprintf(buffer,"%s=", keyword);
     }
   if (buffer) {
@@ -99,7 +131,7 @@ static void cci_attribute(void *pfile_v,const char *keyword, const char *target,
   int i;
 
   if (n) {
-    for (c = target; *c; c++) {
+    for (c = (char *)target; *c; c++) {
       if ((*c == 'P') && (c[1] >= '0') && (c[1] <= '9')) {
         params_specified=1;
         break;
@@ -115,7 +147,7 @@ static void cci_attribute(void *pfile_v,const char *keyword, const char *target,
     }
   }
   if (varargs) size += strlen("=()(),...__VA_ARGS__")+1;
-  buffer = xcalloc(size,sizeof(char));
+  buffer = (char *)xcalloc(size,sizeof(char));
   c = buffer;
   c += sprintf(c,"%s",keyword);
   if (n || varargs) {
@@ -166,7 +198,7 @@ void mchp_init_cci(void *pfile_v) {
 
 #define CCI(TARGET, CCI_KIND, CCI_KEYWORD, TGT_KEYWORD, N) \
   if (TARGET && CCI_KIND == CCI_define) \
-    cci_define(pfile_v, CCI_KEYWORD, TGT_KEYWORD);
+    cci_define(pfile_v, CCI_KEYWORD, (const char *)TGT_KEYWORD);
 #include CCI_H
 #ifdef CCI
 #error CCI is still defined...
@@ -174,27 +206,27 @@ void mchp_init_cci(void *pfile_v) {
 
 #define CCI(TARGET, CCI_KIND, CCI_KEYWORD, TGT_KEYWORD, N) \
   if (TARGET && CCI_KIND == CCI_attribute) \
-    cci_attribute(pfile_v, CCI_KEYWORD, TGT_KEYWORD, 0, 0);
+    cci_attribute(pfile_v, CCI_KEYWORD, (const char *)TGT_KEYWORD, 0, 0);
 #include CCI_H
 
 #define CCI(TARGET, CCI_KIND, CCI_KEYWORD, TGT_KEYWORD, N) \
   if (TARGET && CCI_KIND == CCI_attribute_n) \
-    cci_attribute(pfile_v, CCI_KEYWORD, TGT_KEYWORD, 0, N);
+    cci_attribute(pfile_v, CCI_KEYWORD, (const char *)TGT_KEYWORD, 0, N);
 #include CCI_H
 
 #define CCI(TARGET, CCI_KIND, CCI_KEYWORD, TGT_KEYWORD, N) \
   if (TARGET && CCI_KIND == CCI_attribute_v) \
-    cci_attribute(pfile_v, CCI_KEYWORD, TGT_KEYWORD, 1, 0);
+    cci_attribute(pfile_v, CCI_KEYWORD, (const char *)TGT_KEYWORD, 1, 0);
 #include CCI_H
 
 #define CCI(TARGET, CCI_KIND, CCI_KEYWORD, TGT_KEYWORD, N) \
   if (TARGET && CCI_KIND == CCI_attribute_nv) \
-    cci_attribute(pfile_v, CCI_KEYWORD, TGT_KEYWORD, 1, N);
+    cci_attribute(pfile_v, CCI_KEYWORD, (const char *)TGT_KEYWORD, 1, N);
 #include CCI_H
 
 #define CCI(TARGET, CCI_KIND, CCI_KEYWORD, TGT_KEYWORD, N) \
   if (TARGET && CCI_KIND == CCI_set_value) \
-    set_value(TGT_KEYWORD,N);
+    set_value((unsigned int*)TGT_KEYWORD,N);
 #include CCI_H
 
 }

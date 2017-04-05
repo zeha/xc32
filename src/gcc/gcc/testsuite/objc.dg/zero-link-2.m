@@ -5,13 +5,12 @@
 /* { dg-skip-if "" { *-*-* } { "-fgnu-runtime" } { "" } } */
 /* { dg-options "-fno-zero-link" } */
 
-#include "../objc-obj-c++-shared/Object1.h"
-#include <objc/objc.h>
+#include <Foundation/NSObject.h>
 
 extern void abort(void);
 #define CHECK_IF(expr) if(!(expr)) abort();
 
-@interface Base: Object
+@interface Base: NSObject
 + (int) getValue;
 @end
 
@@ -25,5 +24,6 @@ int main(void) {
   return 0;
 }
 
-/* { dg-final { scan-assembler "_OBJC_CLASS_REFERENCES_0" } } */
+/* { dg-final { scan-assembler "_OBJC_ClassRefs_0"  { target { *-*-darwin* && { ! lp64 } } } } } */
+/* { dg-final { scan-assembler "_OBJC_ClassRef_Base"  { target { *-*-darwin* && { lp64 } } } } } */
 /* { dg-final { scan-assembler-not "objc_getClass" } } */

@@ -1,6 +1,6 @@
 // { dg-options "-std=gnu++0x" }
 
-// Copyright (C) 2010 Free Software Foundation, Inc.
+// Copyright (C) 2010-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -29,25 +29,24 @@ void test01()
   bool test __attribute__((unused)) = true;
 
   typedef std::unordered_map<std::string, int> Map;
-  typedef std::pair<const std::string, int> Pair;
 
   Map m;
-  VERIFY(m.empty());
+  VERIFY( m.empty() );
 
   m["red"] = 17;
-  VERIFY(m.size() == 1);
-  VERIFY(m.begin()->first == "red");
-  VERIFY(m.begin()->second == 17);
-  VERIFY(m["red"] == 17);
+  VERIFY( m.size() == 1 );
+  VERIFY( m.begin()->first == "red" );
+  VERIFY( m.begin()->second == 17 );
+  VERIFY( m["red"] == 17 );
 
   m["blue"] = 9;
-  VERIFY(m.size() == 2);
-  VERIFY(m["blue"] == 9);
+  VERIFY( m.size() == 2 );
+  VERIFY( m["blue"] == 9 );
 
   m["red"] = 5;
-  VERIFY(m.size() == 2);
-  VERIFY(m["red"] == 5);
-  VERIFY(m["blue"] == 9);
+  VERIFY( m.size() == 2 );
+  VERIFY( m["red"] == 5 );
+  VERIFY( m["blue"] == 9 );
 }
 
 int main()

@@ -1,6 +1,5 @@
 /* Handle CLASSPATH, -classpath, and path searching.
-   Copyright (C) 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2006,
-   2007, 2008 Free Software Foundation, Inc.
+   Copyright (C) 1998-2013 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -27,7 +26,6 @@ The Free Software Foundation is independent of Sun Microsystems, Inc.  */
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
-#include "tm.h"
 
 #include <dirent.h>
 
@@ -224,7 +222,7 @@ jcf_path_init (void)
   sep[0] = DIR_SEPARATOR;
   sep[1] = '\0';
 
-  GET_ENVIRONMENT (cp, "GCC_EXEC_PREFIX");
+  cp = getenv ("GCC_EXEC_PREFIX");
   if (cp)
     {
       attempt = (char *) alloca (strlen (cp) + 50);
@@ -295,7 +293,7 @@ jcf_path_init (void)
 	jcf_path_extdirs_arg (extdirs);
     }
 
-  GET_ENVIRONMENT (cp, "CLASSPATH");
+  cp = getenv ("CLASSPATH");
   add_path (&classpath_env, cp, 0);
 }
 

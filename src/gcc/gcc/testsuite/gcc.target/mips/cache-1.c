@@ -1,4 +1,5 @@
-/* { dg-options "-O2 isa>=3" } */
+/* { dg-options "isa>=3" } */
+/* { dg-skip-if "naming registers makes this a code quality test" { *-*-* } { "-O0" } { "" } } */
 
 NOMIPS16 void
 f1 (int *area)
@@ -26,5 +27,5 @@ f4 (const volatile unsigned char *area)
 
 /* { dg-final { scan-assembler "\tcache\t0x14,0\\(\\\$4\\)" } } */
 /* { dg-final { scan-assembler "\tcache\t0x18,20\\(\\\$4\\)" } } */
-/* { dg-final { scan-assembler "\tcache\t0x0,0\\(\\\$.\\)" } } */
+/* { dg-final { scan-assembler "\tcache\t(0x|)0,0\\(\\\$.\\)" } } */
 /* { dg-final { scan-assembler "\tcache\t0x4,-80\\(\\\$4\\)" } } */

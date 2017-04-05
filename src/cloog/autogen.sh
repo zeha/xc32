@@ -1,5 +1,5 @@
 #!/bin/sh
-libtoolize -c --force
-aclocal
-automake -a -c --foreign
-autoconf
+autoreconf -i
+if test -f isl/autogen.sh; then
+	(cd isl; ./autogen.sh)
+fi

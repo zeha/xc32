@@ -37,9 +37,11 @@ extern void mchp_handle_config_bf1_pragma(struct cpp_reader *pfile);
 extern void mchp_handle_config_abf1_pragma(struct cpp_reader *pfile);
 extern void mchp_handle_config_bf2_pragma(struct cpp_reader *pfile);
 extern void mchp_handle_config_abf2_pragma(struct cpp_reader *pfile);
-
+extern void mchp_init_cci_pragmas(void);
+extern void mchp_init_cci(void *);
 extern void mchp_handle_vector_pragma(struct cpp_reader *);
 extern void mchp_handle_interrupt_pragma (struct cpp_reader *pfile ATTRIBUTE_UNUSED);
+extern void mchp_handle_region_pragma (struct cpp_reader *pfile ATTRIBUTE_UNUSED);
 extern void mchp_file_end (void);
 extern tree mchp_interrupt_attribute (tree *decl, tree identifier, tree args,
                                         int flags, bool *no_add_attrs);
@@ -56,12 +58,20 @@ extern tree mchp_ramfunc_attribute(tree *decl, tree identifier ATTRIBUTE_UNUSED,
 extern tree mchp_naked_attribute(tree *decl, tree identifier ATTRIBUTE_UNUSED,
                             tree args ATTRIBUTE_UNUSED, int flags ATTRIBUTE_UNUSED,
                             bool *no_add_attrs ATTRIBUTE_UNUSED);
+extern tree mchp_unique_section_attribute (tree *node, tree name ATTRIBUTE_UNUSED,
+                          tree args ATTRIBUTE_UNUSED, int flags ATTRIBUTE_UNUSED,
+                          bool *no_add_attrs);
 extern tree mchp_nomicromips_attribute(tree *decl, tree identifier ATTRIBUTE_UNUSED,
                             tree args ATTRIBUTE_UNUSED, int flags ATTRIBUTE_UNUSED,
                             bool *no_add_attrs ATTRIBUTE_UNUSED);
 extern tree mchp_space_attribute(tree *decl, tree identifier,
                             tree args, int flags ATTRIBUTE_UNUSED,
                             bool *no_add_attrs);
+extern tree mchp_region_attribute(tree *decl, tree identifier,
+                            tree args, int flags ATTRIBUTE_UNUSED,
+                            bool *no_add_attrs);
+extern void pic32_update_external_memory_info(const char* region_name, 
+                            unsigned int region_origin, int region_size);                            
 extern tree mchp_unsupported_attribute(tree *decl, tree identifier,
                             tree args, int flags ATTRIBUTE_UNUSED,
                             bool *no_add_attrs);
@@ -80,8 +90,12 @@ extern tree mchp_persistent_attribute(tree *decl, tree identifier,
 extern tree mchp_crypto_attribute(tree *decl, tree identifier,
                             tree args, int flags ATTRIBUTE_UNUSED,
                             bool *no_add_attrs);
+extern tree mchp_nofpu_attribute (tree *decl, tree identifier, tree args,
+                                        int flags, bool *no_add_attrs);
+extern int mchp_function_nofpu_p (tree type);
 extern void mchp_set_current_function (tree fndecl);
 extern bool mchp_suppress_prologue (void);
+extern bool mchp_suppress_epilogue (void);
 extern bool mchp_function_profiling_epilogue (bool usereturn);
 extern void mchp_expand_prologue_after_save (void);
 extern void mchp_expand_prologue_end (const struct mips_frame_info *frame);
@@ -108,10 +122,9 @@ extern void
 extern void mchp_target_insert_attributes (tree decl, tree *attr_ptr);
 
 extern bool mchp_function_ok_for_sibcall(void);
-
+extern void mchp_subtarget_override_options(void);
 extern void mchp_subtarget_override_options1 (void);
 extern void mchp_subtarget_override_options2 (void);
-extern void pic32_optimization_options (int level, int size ATTRIBUTE_UNUSED);
 extern void mchp_override_options_after_change(void);
 extern void mchp_prepare_function_start (tree fndecl);
 extern bool mchp_subtarget_mips16_enabled (const_tree decl);
@@ -151,7 +164,14 @@ extern const char *mchp_strip_name_encoding (const char *symbol_name);
 extern void mchp_init_cci_builtins(void);
 
 extern bool mips_far_type_p (const_tree type);
-extern bool mips_micromips_decl_p (const_tree decl);
-extern bool mips_nomicromips_decl_p (const_tree decl);
+
+extern const char * mchp_data_section_asm_op(void);
+extern const char * mchp_bss_section_asm_op(void);
+extern const char * mchp_sbss_section_asm_op(void);
+extern const char * mchp_sdata_section_asm_op(void);
+extern const char * mchp_text_section_asm_op(void);
+extern const char * mchp_rdata_section_asm_op(void);
+extern void mchp_cache_conversion_state(rtx, tree);
+//void mchp_add_vector_dispatch_entry (const char *, int , bool,enum, int);
 
 #endif

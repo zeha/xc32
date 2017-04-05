@@ -15,12 +15,12 @@ void foo (struct S *p, struct S *q, char *t, int n)
   while (n--)
     {
       if (*t && p)
-      c = p;
+	c = p;
       q->x = d.x + c->x + c->y;
       if (x)
-      {
-        x = 0;
-	   d.x += c->x;
-	   }
+	{
+	  x = 0;
+	  d.x += c->x;
+	}
     }
 }

@@ -1,6 +1,5 @@
 /* Generate the machine mode enumeration and associated tables.
-   Copyright (C) 2003, 2004, 2005, 2006, 2007
-   Free Software Foundation, Inc.
+   Copyright (C) 2003-2013 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -63,7 +62,6 @@ struct mode_data
 
   struct mode_data *component;	/* mode of components */
   struct mode_data *wider;	/* next wider mode */
-  struct mode_data *wider_2x;	/* 2x wider mode */
 
   struct mode_data *contained;  /* Pointer to list of modes that have
 				   this mode as a component.  */
@@ -74,9 +72,6 @@ struct mode_data
   unsigned int counter;		/* Rank ordering of modes */
   unsigned int ibit;		/* the number of integral bits */
   unsigned int fbit;		/* the number of fractional bits */
-#ifdef _BUILD_C30_
-  unsigned int is_target_pointer;/* a target pointer mode */
-#endif
 };
 
 static struct mode_data *modes[MAX_MODE_CLASS];
@@ -86,11 +81,8 @@ static struct mode_data *void_mode;
 static const struct mode_data blank_mode = {
   0, "<unknown>", MAX_MODE_CLASS,
   -1U, -1U, -1U, -1U,
-  0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0,
   "<unknown>", 0, 0, 0, 0
-#ifdef _BUILD_C30_
-  ,0
-#endif
 };
 
 static htab_t modes_by_name;
@@ -367,7 +359,6 @@ complete_mode (struct mode_data *m)
       m->bytesize = m->component->bytesize;
 
       m->ncomponents = 1;
-      m->component = 0;  /* ??? preserve this */
       break;
 
     case MODE_COMPLEX_INT:
@@ -434,7 +425,6 @@ make_complex_modes (enum mode_class cl,
 {
   struct mode_data *m;
   struct mode_data *c;
-  char buf[8];
   enum mode_class cclass = complex_class (cl);
 
   if (cclass == MODE_RANDOM)
@@ -442,47 +432,42 @@ make_complex_modes (enum mode_class cl,
 
   for (m = modes[cl]; m; m = m->next)
     {
+      char *p, *buf;
+      size_t m_len;
+
       /* Skip BImode.  FIXME: BImode probably shouldn't be MODE_INT.  */
       if (m->precision == 1)
 	continue;
 
-#ifdef _BUILD_C30_
-      if (m->is_target_pointer) continue;
-#endif
-
-      if (strlen (m->name) >= sizeof buf)
-	{
-	  error ("%s:%d:mode name \"%s\" is too long",
-		 m->file, m->line, m->name);
-	  continue;
-	}
+      m_len = strlen (m->name);
+      /* The leading "1 +" is in case we prepend a "C" below.  */
+      buf = (char *) xmalloc (1 + m_len + 1);
 
       /* Float complex modes are named SCmode, etc.
 	 Int complex modes are named CSImode, etc.
          This inconsistency should be eliminated.  */
+      p = 0;
       if (cl == MODE_FLOAT)
 	{
-	  char *p, *q = 0;
-	  strncpy (buf, m->name, sizeof buf);
+	  memcpy (buf, m->name, m_len + 1);
 	  p = strchr (buf, 'F');
-	  if (p == 0)
-	    q = strchr (buf, 'D');
-	  if (p == 0 && q == 0)
+	  if (p == 0 && strchr (buf, 'D') == 0)
 	    {
 	      error ("%s:%d: float mode \"%s\" has no 'F' or 'D'",
 		     m->file, m->line, m->name);
+	      free (buf);
 	      continue;
 	    }
-
-	  if (p != 0)
-	    *p = 'C';
-	  else
-	    snprintf (buf, sizeof buf, "C%s", m->name);
 	}
+      if (p != 0)
+	*p = 'C';
       else
-	snprintf (buf, sizeof buf, "C%s", m->name);
+	{
+	  buf[0] = 'C';
+	  memcpy (buf + 1, m->name, m_len + 1);
+	}
 
-      c = new_mode (cclass, xstrdup (buf), file, line);
+      c = new_mode (cclass, buf, file, line);
       c->component = m;
     }
 }
@@ -521,10 +506,6 @@ make_vector_modes (enum mode_class cl, unsigned int width,
       if (cl == MODE_INT && m->precision == 1)
 	continue;
 
-#ifdef _BUILD_C30_
-      if (m->is_target_pointer) continue;
-#endif
-
       if ((size_t)snprintf (buf, sizeof buf, "V%u%s", ncomponents, m->name)
 	  >= sizeof buf)
 	{
@@ -553,30 +534,17 @@ make_special_mode (enum mode_class cl, const char *name,
 }
 
 #define INT_MODE(N, Y) FRACTIONAL_INT_MODE (N, -1U, Y)
-#ifdef _BUILD_C30_
-#define TARGET_POINTER_MODE(N, B, Y) \
-  make_int_mode (#N, B, Y, 1, __FILE__, __LINE__)
-#define FRACTIONAL_INT_MODE(N, B, Y) \
-  make_int_mode (#N, B, Y, 0, __FILE__, __LINE__)
-#else
 #define FRACTIONAL_INT_MODE(N, B, Y) \
   make_int_mode (#N, B, Y, __FILE__, __LINE__)
-#endif
 
 static void
 make_int_mode (const char *name,
 	       unsigned int precision, unsigned int bytesize,
-#ifdef _BUILD_C30_
-               unsigned int is_target_pointer,
-#endif
 	       const char *file, unsigned int line)
 {
   struct mode_data *m = new_mode (MODE_INT, name, file, line);
   m->bytesize = bytesize;
   m->precision = precision;
-#ifdef _BUILD_C30_
-  m->is_target_pointer = is_target_pointer;
-#endif
 }
 
 #define FRACT_MODE(N, Y, F) \
@@ -769,22 +737,6 @@ cmp_modes (const void *a, const void *b)
   const struct mode_data *const m = *(const struct mode_data *const*)a;
   const struct mode_data *const n = *(const struct mode_data *const*)b;
 
-#ifdef _BUILD_C30_
-#ifdef TARGET_POINTER_MODE_FITS
-  if ((m->is_target_pointer) &&
-      (((n->precision != UINT_MAX) &&
-        (n->precision > TARGET_POINTER_MODE_FITS)) ||
-       (n->bytesize > TARGET_POINTER_MODE_BYTES)))
-    return 0;
-  if ((n->is_target_pointer) &&
-      (((m->precision != UINT_MAX) &&
-        (m->precision > TARGET_POINTER_MODE_FITS)) ||
-       (m->bytesize > TARGET_POINTER_MODE_BYTES)))
-    return 0;
-  if (m->is_target_pointer) return 1;
-  if (n->is_target_pointer) return -1;
-#endif
-#endif
   if (m->bytesize > n->bytesize)
     return 1;
   else if (m->bytesize < n->bytesize)
@@ -833,7 +785,7 @@ calc_wider_mode (void)
 
   /* Allocate max_n_modes + 1 entries to leave room for the extra null
      pointer assigned after the qsort call below.  */
-  sortbuf = (struct mode_data **) alloca ((max_n_modes + 1) * sizeof (struct mode_data *));
+  sortbuf = XALLOCAVEC (struct mode_data *, max_n_modes + 1);
 
   for (c = 0; c < MAX_MODE_CLASS; c++)
     {
@@ -847,7 +799,6 @@ calc_wider_mode (void)
 	  for (prev = 0, m = modes[c]; m; m = next)
 	    {
 	      m->wider = void_mode;
-	      m->wider_2x = void_mode;
 
 	      /* this is nreverse */
 	      next = m->next;
@@ -868,8 +819,13 @@ calc_wider_mode (void)
 
 	  sortbuf[i] = 0;
 	  for (j = 0; j < i; j++)
-	    sortbuf[j]->next = sortbuf[j]->wider = sortbuf[j + 1];
-
+	    {
+	      sortbuf[j]->next = sortbuf[j + 1];
+	      if (c == MODE_PARTIAL_INT)
+		sortbuf[j]->wider = sortbuf[j]->component;
+	      else
+		sortbuf[j]->wider = sortbuf[j]->next;
+	    }
 
 	  modes[c] = sortbuf[0];
 	}
@@ -1076,24 +1032,11 @@ emit_mode_wider (void)
 
   print_decl ("unsigned char", "mode_wider", "NUM_MACHINE_MODES");
 
-  for_all_modes (c, m) {
-#ifdef _BUILD_C30_
-   struct mode_data *wider_mode;
-
-    if (m->is_target_pointer) wider_mode = 0;
-    else {
-      for (wider_mode = m->wider; wider_mode && wider_mode->is_target_pointer;
-           wider_mode = wider_mode->wider);
-    }
-#endif
+  for_all_modes (c, m)
     tagged_printf ("%smode",
-#ifdef _BUILD_C30_
-                   wider_mode ? wider_mode->name : void_mode->name,
-#else
 		   m->wider ? m->wider->name : void_mode->name,
-#endif
 		   m->name);
-  }
+
   print_closer ();
   print_decl ("unsigned char", "mode_2xwider", "NUM_MACHINE_MODES");
 
@@ -1102,11 +1045,7 @@ emit_mode_wider (void)
       struct mode_data * m2;
 
       for (m2 = m;
-#ifdef _BUILD_C30_
-           m2 && m2 != void_mode && (m2->is_target_pointer == 0);
-#else
 	   m2 && m2 != void_mode;
-#endif
 	   m2 = m2->wider)
 	{
 	  if (m2->bytesize < 2 * m->bytesize)
@@ -1122,13 +1061,24 @@ emit_mode_wider (void)
 		continue;
 	    }
 
+	  /* For vectors we want twice the number of components,
+	     with the same element type.  */
+	  if (m->cl == MODE_VECTOR_INT
+	      || m->cl == MODE_VECTOR_FLOAT
+	      || m->cl == MODE_VECTOR_FRACT
+	      || m->cl == MODE_VECTOR_UFRACT
+	      || m->cl == MODE_VECTOR_ACCUM
+	      || m->cl == MODE_VECTOR_UACCUM)
+	    {
+	      if (m2->ncomponents != 2 * m->ncomponents)
+		continue;
+	      if (m->component != m2->component)
+		continue;
+	    }
+
 	  break;
 	}
-#ifdef _BUILD_C30_
-      if ((m2 == void_mode) || (m2 && m2->is_target_pointer == 1))
-#else
       if (m2 == void_mode)
-#endif
 	m2 = 0;
       tagged_printf ("%smode",
 		     m2 ? m2->name : void_mode->name,
@@ -1172,7 +1122,8 @@ emit_mode_inner (void)
 
   for_all_modes (c, m)
     tagged_printf ("%smode",
-		   m->component ? m->component->name : void_mode->name,
+		   c != MODE_PARTIAL_INT && m->component
+		   ? m->component->name : void_mode->name,
 		   m->name);
 
   print_closer ();
@@ -1224,7 +1175,7 @@ emit_real_format_for_mode (void)
      or not the table itself is constant.
 
      For backward compatibility this table is always writable
-     (several targets modify it in OVERRIDE_OPTIONS).   FIXME:
+     (several targets modify it in TARGET_OPTION_OVERRIDE).   FIXME:
      convert all said targets to use ADJUST_FORMAT instead.  */
 #if 0
   print_maybe_const_decl ("const struct real_format *%s",

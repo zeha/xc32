@@ -2,7 +2,7 @@
    in a statement containing a call expression.  */
 
 /* { dg-do compile } */
-/* { dg-options "-O2 -fremove-local-statics" } */
+/* { dg-options "-O2" } */
 /* { dg-final { scan-assembler-not "thestatic" } } */
 
 int
@@ -14,7 +14,7 @@ test2 (int x)
     return test1 (x - 1);
 }
 
-int
+__attribute__((noinline,noclone)) int
 test1 (int x)
 {
   static int thestatic;

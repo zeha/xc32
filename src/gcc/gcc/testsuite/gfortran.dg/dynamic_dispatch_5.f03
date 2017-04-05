@@ -1,4 +1,4 @@
-! { dg-do compile }
+! { dg-do run }
 ! Tests the fix for PR4164656 in which the call to a%a%scal failed to compile.
 !
 ! Contributed by Salvatore Filippone <sfilippone@uniroma2.it>
@@ -56,7 +56,7 @@ module s_base_mat_mod
 contains 
   subroutine s_scals(d,a,info) 
     implicit none 
-    class(s_base_sparse_mat), intent(in) :: a
+    class(s_base_sparse_mat), intent(inout) :: a
     real(spk_), intent(in)      :: d
     integer, intent(out)            :: info
 
@@ -73,7 +73,7 @@ contains
 
   subroutine s_scal(d,a,info) 
     implicit none 
-    class(s_base_sparse_mat), intent(in) :: a
+    class(s_base_sparse_mat), intent(inout) :: a
     real(spk_), intent(in)      :: d(:)
     integer, intent(out)            :: info
 
@@ -166,7 +166,8 @@ contains
     integer :: err_act
     character(len=20)  :: name='csnmi'
     logical, parameter :: debug=.false.
-    print *, "s_scals"
+!    print *, "s_scals"
+    info = 0
     call a%a%scal(d,info)
     return
   end subroutine s_scals
@@ -180,6 +181,5 @@ end module s_mat_mod
     b%a => c
     a => b
     call a%scal (1.0_spk_, info)
+    if (info .ne. 700) call abort
 end
-! { dg-final { cleanup-modules "const_mod base_mat_mod s_base_mat_mod s_mat_mod" } }
-

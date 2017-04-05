@@ -38,6 +38,7 @@ struct pic32_section
 /************************************************************************/
 /*   pic32-specific section flags                                       */
 /************************************************************************/
+#define SHF_MEMORY   (1 << 19)  /* User-defined memory */
 /* OS and processor-specific flags start at postion 20 */
 #define SHF_DMA      (1 << 20)  /* DMA memory */
 #define SHF_NOLOAD   (1 << 21)  /* Do not allocate or load */
@@ -52,7 +53,9 @@ struct pic32_section
 
 #define PIC32_SECTION_IN_DATA_MEMORY(sec) \
   (PIC32_IS_BSS_ATTR(sec) ||              \
+   PIC32_IS_BSS_ATTR_WITH_MEMORY_ATTR(sec) ||              \
    PIC32_IS_DATA_ATTR(sec) ||             \
+   PIC32_IS_DATA_ATTR_WITH_MEMORY_ATTR(sec) ||             \
    PIC32_IS_PERSIST_ATTR(sec) ||          \
    PIC32_IS_STACK_ATTR(sec) ||            \
    PIC32_IS_HEAP_ATTR(sec))

@@ -1,4 +1,4 @@
-/* Copyright (C) 2008, 2009 Free Software Foundation, Inc.
+/* Copyright (C) 2008-2013 Free Software Foundation, Inc.
    Contributed by Janne Blomqvist
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -39,8 +39,8 @@ fbuf_init (gfc_unit * u, int len)
   if (len == 0)
     len = 512;			/* Default size.  */
 
-  u->fbuf = get_mem (sizeof (struct fbuf));
-  u->fbuf->buf = get_mem (len);
+  u->fbuf = xmalloc (sizeof (struct fbuf));
+  u->fbuf->buf = xmalloc (len);
   u->fbuf->len = len;
   u->fbuf->act = u->fbuf->pos = 0;
 }
@@ -51,9 +51,8 @@ fbuf_destroy (gfc_unit * u)
 {
   if (u->fbuf == NULL)
     return;
-  if (u->fbuf->buf)
-    free_mem (u->fbuf->buf);
-  free_mem (u->fbuf);
+  free (u->fbuf->buf);
+  free (u->fbuf);
   u->fbuf = NULL;
 }
 

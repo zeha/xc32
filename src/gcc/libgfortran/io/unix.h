@@ -1,5 +1,4 @@
-/* Copyright (C) 2009, 2010
-   Free Software Foundation, Inc.
+/* Copyright (C) 2009-2013 Free Software Foundation, Inc.
    Contributed by Janne Blomqvist
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -28,60 +27,71 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 
 #include "io.h"
 
+struct stream_vtable
+{
+  ssize_t (* const read) (struct stream *, void *, ssize_t);
+  ssize_t (* const write) (struct stream *, const void *, ssize_t);
+  gfc_offset (* const seek) (struct stream *, gfc_offset, int);
+  gfc_offset (* const tell) (struct stream *);
+  gfc_offset (* const size) (struct stream *);
+  /* Avoid keyword truncate due to AIX namespace collision.  */
+  int (* const trunc) (struct stream *, gfc_offset);
+  int (* const flush) (struct stream *);
+  int (* const close) (struct stream *);
+};
 
 struct stream
 {
-  ssize_t (*read) (struct stream *, void *, ssize_t);
-  ssize_t (*write) (struct stream *, const void *, ssize_t);
-  gfc_offset (*seek) (struct stream *, gfc_offset, int);
-  gfc_offset (*tell) (struct stream *);
-  /* Avoid keyword truncate due to AIX namespace collision.  */
-  int (*trunc) (struct stream *, gfc_offset);
-  int (*flush) (struct stream *);
-  int (*close) (struct stream *);
+  const struct stream_vtable *vptr;
 };
 
 /* Inline functions for doing file I/O given a stream.  */
 static inline ssize_t
 sread (stream * s, void * buf, ssize_t nbyte)
 {
-  return s->read (s, buf, nbyte);
+  return s->vptr->read (s, buf, nbyte);
 }
 
 static inline ssize_t
 swrite (stream * s, const void * buf, ssize_t nbyte)
 {
-  return s->write (s, buf, nbyte);
+  return s->vptr->write (s, buf, nbyte);
 }
 
 static inline gfc_offset
 sseek (stream * s, gfc_offset offset, int whence)
 {
-  return s->seek (s, offset, whence);
+  return s->vptr->seek (s, offset, whence);
 }
 
 static inline gfc_offset
 stell (stream * s)
 {
-  return s->tell (s);
+  return s->vptr->tell (s);
+}
+
+static inline gfc_offset
+ssize (stream * s)
+{
+  return s->vptr->size (s);
 }
 
 static inline int
 struncate (stream * s, gfc_offset length)
 {
-  return s->trunc (s, length);
+  return s->vptr->trunc (s, length);
 }
 
 static inline int
 sflush (stream * s)
 {
-  return s->flush (s);
+  return s->vptr->flush (s);
 }
 
 static inline int
 sclose (stream * s)
 {
-  return s->close (s);
+  return s->vptr->close (s);
 }
 
 
@@ -94,11 +104,20 @@ internal_proto(open_external);
 extern stream *open_internal (char *, int, gfc_offset);
 internal_proto(open_internal);
 
+extern stream *open_internal4 (char *, int, gfc_offset);
+internal_proto(open_internal4);
+
 extern char * mem_alloc_w (stream *, int *);
 internal_proto(mem_alloc_w);
 
 extern char * mem_alloc_r (stream *, int *);
-internal_proto(mem_alloc_w);
+internal_proto(mem_alloc_r);
+
+extern gfc_char4_t * mem_alloc_w4 (stream *, int *);
+internal_proto(mem_alloc_w4);
+
+extern char * mem_alloc_r4 (stream *, int *);
+internal_proto(mem_alloc_r4);
 
 extern stream *input_stream (void);
 internal_proto(input_stream);
@@ -145,25 +164,22 @@ internal_proto(inquire_write);
 extern const char *inquire_readwrite (const char *, int);
 internal_proto(inquire_readwrite);
 
-extern gfc_offset file_length (stream *);
-internal_proto(file_length);
-
-extern int is_seekable (stream *);
-internal_proto(is_seekable);
-
-extern int is_special (stream *);
-internal_proto(is_special);
-
 extern void flush_if_preconnected (stream *);
 internal_proto(flush_if_preconnected);
-
-extern void empty_internal_buffer(stream *);
-internal_proto(empty_internal_buffer);
 
 extern int stream_isatty (stream *);
 internal_proto(stream_isatty);
 
-extern char * stream_ttyname (stream *);
+#ifndef TTY_NAME_MAX
+#ifdef _POSIX_TTY_NAME_MAX
+#define TTY_NAME_MAX _POSIX_TTY_NAME_MAX
+#else
+/* sysconf(_SC_TTY_NAME_MAX) = 32 which should be enough.  */
+#define TTY_NAME_MAX 32
+#endif
+#endif
+
+extern int stream_ttyname (stream *, char *, size_t);
 internal_proto(stream_ttyname);
 
 extern int unpack_filename (char *, const char *, int);

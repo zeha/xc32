@@ -1,5 +1,5 @@
 /* VMMemoryMXBeanImpl.java - VM impl. of a memory bean
-   Copyright (C) 2006 Free Software Foundation
+   Copyright (C) 2006, 2010  Free Software Foundation, Inc.
 
 This file is part of GNU Classpath.
 
@@ -56,6 +56,8 @@ import java.util.List;
  */
 final class VMMemoryMXBeanImpl
 {
+
+  private VMMemoryMXBeanImpl() {} // Prohibits instantiation.
 
   /**
    * Returns an instance of {@link java.lang.management.MemoryUsage}
@@ -126,29 +128,29 @@ final class VMMemoryMXBeanImpl
       ManagementFactory.getMemoryPoolMXBeans().iterator();
     while (pools.hasNext())
       {
-	MemoryPoolMXBean pool = (MemoryPoolMXBean) pools.next();
-	if (pool.getType() == type)
-	  {
-	    MemoryUsage usage = pool.getUsage();
-	    if (init != -1)
-	      {
-		long poolInit = usage.getInit();
-		if (poolInit == -1)
-		  init = -1;
-		else
-		  init += poolInit;
-	      }
-	    committed += usage.getCommitted();
-	    used += usage.getUsed();
-	    if (max != -1)
-	      {
-		long poolMax = usage.getMax();
-		if (poolMax == -1)
-		  max = -1;
-		else
-		  max += poolMax;
-	      }
-	  }
+        MemoryPoolMXBean pool = (MemoryPoolMXBean) pools.next();
+        if (pool.getType() == type)
+          {
+            MemoryUsage usage = pool.getUsage();
+            if (init != -1)
+              {
+                long poolInit = usage.getInit();
+                if (poolInit == -1)
+                  init = -1;
+                else
+                  init += poolInit;
+              }
+            committed += usage.getCommitted();
+            used += usage.getUsed();
+            if (max != -1)
+              {
+                long poolMax = usage.getMax();
+                if (poolMax == -1)
+                  max = -1;
+                else
+                  max += poolMax;
+              }
+          }
       }
     return new MemoryUsage(init, used, committed, max);
   }

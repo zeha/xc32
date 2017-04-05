@@ -1,6 +1,6 @@
 // 2001-04-06 gdr
 
-// Copyright (C) 2001, 2005, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2001-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -70,6 +70,7 @@ template <typename _Tp>
     res = std::islessequal(f1,f2);
     res = std::islessgreater(f1, f2);
     res = std::isunordered(f1, f2);
+    res = res; // Suppress unused warning.
   }
 #endif
 

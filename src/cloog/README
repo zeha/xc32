@@ -64,10 +64,18 @@ library.
 #   **                      II. Building CLooG                           **
 #   **-------------------------------------------------------------------**/
 
+If you obtained CLooG from the git repository, then you first
+need to obtain the submodules and create a configure script.
+
+  ./get_submodules.sh
+  ./autogen.sh
+
+The first step is only needed if you plan on using the isl backend.
+
 The configure shell script attempts to guess correct values for various
 system-dependent variables used during compilation. It uses those values to
-create a Makefile. The file configure.in is used to create configure by a
-program called autoconf.  You only need configure.in if you want to change
+create a Makefile. The file configure.ac is used to create configure by a
+program called autoconf.  You only need configure.ac if you want to change
 it or regenerate configure using a newer version of autoconf.
 
 The simplest way to compile this package is:
@@ -76,9 +84,7 @@ cd to the directory containing the package's source code and type
   ./configure
 
 to configure the package for your system (while running, configure prints
-some messages telling which features it is checking for) (in the strange case
-where ./configure do not exists, you can build it by typing
-"autoconf -l autoconf autoconf/configure.in > configure"). To compile the
+some messages telling which features it is checking for). To compile the
 package, type
 
   make
@@ -106,20 +112,24 @@ By default,  make will install the package's files in /usr/local/bin,
 /usr/local/lib, etc. You can specify an installation prefix other than 
 /usr/local by giving onfigure the option --prefix=PATH.
 
+By default, configure will use the isl that comes bundled with CLooG.
+Using the --with-isl option of configure the user can specify that "no" isl,
+a previously installed ("system") isl or a "build" isl should be used.
+In the latter case, the user should also specify the build location
+using --with-isl-builddir=PATH.  In case of an installed isl,
+the installation location can be specified using the
+--with-isl-prefix=PATH and --with-isl-exec-prefix=PATH options of configure.
+
 By default, configure will seek the PolyLib in standard locations.
 If necessary, you can specify the PolyLib's path by giving configure the
-option --with-polylib=PATH.
+option --with-polylib-prefix=PATH and/or --with-polylib-exec-prefix=PATH.
 
 By default, configure will seek the GMP library in standard locations.
 If necessary, you can specify the GMP's path by giving configure the
-option --with-gmp=PATH.
+option --with-gmp-prefix=PATH and/or --with-gmp-exec-prefix=PATH.
 
-By default, both CLooG and the CloogLib are compiled and installed.
-By giving configure the option --without-cloog you disable the
-compilation and installation of CLooG. By giving configure the option
---without-lib you disable the compilation and installation of the CloogLib.
-
-By default, CLooG and it's library are builded using 64 bits integer
+By default, when using the PolyLib backend,
+CLooG and its library are built using 64 bits integer
 representation. You can choose to specify explicitly others integer
 representations by using:
 --with-bits=32  for 32 bits integers,
@@ -152,7 +162,7 @@ necessary to ask the author(s) !
 
 3. I need a feature that CLooG do not implement, what should I do ?
 
-There are two ways. First, CLooG is a GPL software and library. So you
+There are two ways. First, CLooG is a LGPL software and library. So you
 are welcome to improve it yourself ;-) ! Many project have been successful, it
 is -maybe- a sign that this is not too hard to put your hands inside the
 source. Second, just ask the author(s) :-) ! Maybe a lot of people would be
@@ -160,7 +170,7 @@ interessed by such feature, maybe many people asked for it before, maybe it's
 trivial to implement (and even)... Please just never hesitate to ask the
 author(s) !
 
-4. I implemented a cool feature, can I commit it ?
+4. I implemented a cool feature, can I submit it ?
 
 Obviously you are welcome to send the author(s) any improvement. But obviously
 we are quite careful with readability, correctness and stability, and the
@@ -170,8 +180,9 @@ Thus, it can take time... There are few basic rules to write contributions:
 - (2) Do never send codes that use more than 80 columns.
 - (3) Do never send codes without a lot of comments in (bad or good) english.
 - (4) Do never send codes with obscure and/or non-english variable names.
-- (5) Use C, just C, only C (note: "//" comments are not C, variable declaration
-  elsewhere than at the beginning of a block -better: a function-, is not C).
+- (5) Use C89, just C, only C (note: "//" comments are not C89,
+  variable declaration elsewhere than at the beginning of a block, is not C89).
+- (6) Read doc/SubmittingPatches
 Please understand that in order to live for a long time, and to be used in many
 projects the very first priority for CLooG is to be readable and documented.
 
@@ -187,8 +198,6 @@ If you find a result that looks strange, inadequate or incorrect, please send:
 - (4) All your command line options to achieve the result.
 We will try to explain the result or to fix the problem as soon as possible.
 
-6. How can I ask the author(s) ?
+6. How can I contact the author(s) ?
 
-Just send a mail to cedric.bastoul@inria.fr ! Or better, leave a message in the
-forum of http://www.CLooG.org
-
+Just send a mail to cloog-development@googlegroups.com

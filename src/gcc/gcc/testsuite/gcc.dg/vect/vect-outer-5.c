@@ -1,7 +1,5 @@
 /* { dg-require-effective-target vect_float } */
-/* { dg-add-options quad_vectors } */
 
-#include <stdio.h>
 #include <stdarg.h>
 #include <signal.h>
 #include "tree-vect.h"
@@ -18,7 +16,7 @@ int main1 ()
   float B[N] __attribute__ ((__aligned__(__BIGGEST_ALIGNMENT__)));
   float C[N] __attribute__ ((__aligned__(__BIGGEST_ALIGNMENT__)));
   float D[N] __attribute__ ((__aligned__(__BIGGEST_ALIGNMENT__)));
-  float E[4] = {0,1,2,480};
+  float E[4] = {0,480,960,1440};
   float s;
 
   int i, j;
@@ -56,7 +54,7 @@ int main1 ()
       s = 0;
       for (j=0; j<N; j+=4)
 	s += C[j];
-      B[i+3] = B[i] + s;
+      B[i+1] = B[i] + s;
     }
 
   /* check results:  */
@@ -80,5 +78,5 @@ int main ()
    is known.  */
 /* { dg-final { scan-tree-dump-times "not vectorized: possible dependence between data-refs" 1 "vect" { xfail *-*-* } } } */
 /* { dg-final { scan-tree-dump-times "OUTER LOOP VECTORIZED" 1 "vect" } } */
-/* { dg-final { scan-tree-dump-times "zero step in outer loop." 1 "vect" { xfail vect_no_align } } } */
+/* { dg-final { scan-tree-dump "zero step in outer loop." "vect" { xfail vect_no_align } } } */
 /* { dg-final { cleanup-tree-dump "vect" } } */

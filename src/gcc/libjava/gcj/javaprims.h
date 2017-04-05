@@ -26,6 +26,15 @@ details.  */
 #undef FALSE
 #define FALSE FALSE
 
+// JNI calling convention also defined in jni.h  */
+#ifndef JNICALL
+ #if (defined (_WIN32) || defined (__WIN32__) || defined (WIN32)) && !defined (_WIN64)
+  #define JNICALL __stdcall
+ #else
+  #define JNICALL
+ #endif
+#endif
+
 // To force selection of correct types that will mangle consistently
 // across platforms.
 extern "Java"
@@ -56,6 +65,7 @@ extern "Java"
       class CharArrayWriter;
       class CharConversionException;
       class Closeable;
+      class Console;
       class DataInput;
       class DataInputStream;
       class DataOutput;
@@ -79,6 +89,7 @@ extern "Java"
       class FilterReader;
       class FilterWriter;
       class Flushable;
+      class IOError;
       class IOException;
       class InputStream;
       class InputStreamReader;
@@ -99,6 +110,7 @@ extern "Java"
       class ObjectOutput;
       class ObjectOutputStream;
       class ObjectOutputStream$1;
+      class ObjectOutputStream$2;
       class ObjectOutputStream$PutField;
       class ObjectStreamClass;
       class ObjectStreamClass$1;
@@ -133,6 +145,7 @@ extern "Java"
       class SyncFailedException;
       class UTFDataFormatException;
       class UnsupportedEncodingException;
+      class VMConsole;
       class VMObjectInputStream;
       class VMObjectStreamClass;
       class WriteAbortedException;
@@ -148,6 +161,7 @@ extern "Java"
       class ArrayIndexOutOfBoundsException;
       class ArrayStoreException;
       class AssertionError;
+      class AutoCloseable;
       class Boolean;
       class Byte;
       class CharSequence;
@@ -213,6 +227,7 @@ extern "Java"
       class Process;
       class ProcessBuilder;
       class Readable;
+      class ReflectiveOperationException;
       class Runnable;
       class Runtime;
       class RuntimeException;

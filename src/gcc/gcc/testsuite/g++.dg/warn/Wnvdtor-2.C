@@ -7,36 +7,36 @@
 // an instance of a derived class through a pointer to the base class.
 
 struct A
-{ // { dg-bogus "non-virtual destructor" }
+{
 protected:
-  ~A();
+  ~A(); // inaccessible - no warning
 public:
   virtual void f() = 0;
 };
 
 struct B
-{ // { dg-bogus "non-virtual destructor" }
+{
 private:
-  ~B();
+  ~B(); // inaccessible - no warning
 public:
   virtual void f() = 0;
 };
 
-struct C
-{ // { dg-warning "non-virtual destructor" }
+struct C // { dg-warning "non-virtual destructor" }
+{
   virtual void f() = 0;
 };
 
-struct D
-{ // { dg-warning "non-virtual destructor" }
+struct D // { dg-warning "non-virtual destructor" }
+{
   ~D();
   virtual void f() = 0;
 };
 
 struct E;
 
-struct F
-{ // { dg-warning "non-virtual destructor" }
+struct F // { dg-warning "non-virtual destructor" }
+{
 protected:
   friend class E;
   ~F();
@@ -44,11 +44,33 @@ public:
   virtual void f() = 0;
 };
 
-struct G
-{ // { dg-warning "non-virtual destructor" }
+struct G // { dg-warning "non-virtual destructor" }
+{
 private:
   friend class E;
   ~G();
 public:
   virtual void f() = 0;
 };
+
+struct H {};
+
+struct I1 : H
+{};
+struct I2 : private H
+{};
+
+struct J1 : H
+{ virtual ~J1 ();};
+struct J2 : private H
+{ virtual ~J2 ();};
+
+struct K // { dg-warning "accessible non-virtual destructor" }
+{
+  virtual void k ();
+};
+
+struct L1 : K // { dg-warning "accessible non-virtual destructor" }
+{virtual ~L1 ();};
+struct L2 : private K
+{virtual ~L2 ();};

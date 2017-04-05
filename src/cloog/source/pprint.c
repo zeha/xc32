@@ -14,19 +14,20 @@
  *                                                                            *
  * Copyright (C) 2001-2005 Cedric Bastoul                                     *
  *                                                                            *
- * This is free software; you can redistribute it and/or modify it under the  *
- * terms of the GNU General Public License as published by the Free Software  *
- * Foundation; either version 2 of the License, or (at your option) any later *
- * version.                                                                   *
+ * This library is free software; you can redistribute it and/or              *
+ * modify it under the terms of the GNU Lesser General Public                 *
+ * License as published by the Free Software Foundation; either               *
+ * version 2.1 of the License, or (at your option) any later version.         *
  *                                                                            *
- * This software is distributed in the hope that it will be useful, but       *
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY *
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License   *
- * for more details.                                                          *
+ * This library is distributed in the hope that it will be useful,            *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *
+ * Lesser General Public License for more details.                            *
  *                                                                            *
- * You should have received a copy of the GNU General Public License along    *
- * with software; if not, write to the Free Software Foundation, Inc.,        *
- * 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA                     *
+ * You should have received a copy of the GNU Lesser General Public           *
+ * License along with this library; if not, write to the Free Software        *
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor,                         *
+ * Boston, MA  02110-1301  USA                                                *
  *                                                                            *
  * CLooG, the Chunky Loop Generator                                           *
  * Written by Cedric Bastoul, Cedric.Bastoul@inria.fr                         *
@@ -37,9 +38,9 @@
  */
 
 /* June    22nd 2005: General adaptation for GMP.
- * October 26th 2005: General adaptation from CloogDomain to CloogMatrix data 
+ * October 26th 2005: General adaptation from CloogDomain to Matrix data
  *                    structure for all constraint systems.
- * October 27th 2005: General adaptation from CloogEqual to CloogMatrix data 
+ * October 27th 2005: General adaptation from CloogEqual to Matrix data
  *                    structure for equality spreading.
  */
 
@@ -49,12 +50,46 @@
 #include <assert.h>
 # include "../include/cloog/cloog.h"
 
+#ifdef OSL_SUPPORT
+#include <osl/util.h>
+#include <osl/body.h>
+#include <osl/extensions/extbody.h>
+#include <osl/statement.h>
+#include <osl/scop.h>
+#endif
 
-/******************************************************************************
- *                             Types                                          *
- ******************************************************************************/
+
+static void pprint_name(FILE *dst, struct clast_name *n);
+static void pprint_term(struct cloogoptions *i, FILE *dst, struct clast_term *t);
+static void pprint_sum(struct cloogoptions *opt,
+			FILE *dst, struct clast_reduction *r);
+static void pprint_binary(struct cloogoptions *i,
+			FILE *dst, struct clast_binary *b);
+static void pprint_minmax_f(struct cloogoptions *info,
+			FILE *dst, struct clast_reduction *r);
+static void pprint_minmax_c(struct cloogoptions *info,
+			FILE *dst, struct clast_reduction *r);
+static void pprint_reduction(struct cloogoptions *i,
+			FILE *dst, struct clast_reduction *r);
+static void pprint_expr(struct cloogoptions *i, FILE *dst, struct clast_expr *e);
+static void pprint_equation(struct cloogoptions *i,
+			FILE *dst, struct clast_equation *eq);
+static void pprint_assignment(struct cloogoptions *i, FILE *dst, 
+			struct clast_assignment *a);
+static void pprint_user_stmt(struct cloogoptions *options, FILE *dst,
+		       struct clast_user_stmt *u);
+static void pprint_guard(struct cloogoptions *options, FILE *dst, int indent,
+		   struct clast_guard *g);
+static void pprint_for(struct cloogoptions *options, FILE *dst, int indent,
+		 struct clast_for *f);
+static void pprint_stmt_list(struct cloogoptions *options, FILE *dst, int indent,
+		       struct clast_stmt *s);
 
 
+void pprint_name(FILE *dst, struct clast_name *n)
+{
+    fprintf(dst, "%s", n->name);
+}
 
 /**
  * This function returns a string containing the printing of a value (possibly
@@ -62,48 +97,53 @@
  * - val is the coefficient or constant value,
  * - name is a string containing the name of the iterator or of the parameter,
  */
-static void pprint_term(FILE *dst, struct clast_term *t)
+void pprint_term(struct cloogoptions *i, FILE *dst, struct clast_term *t)
 {
     if (t->var) {
-	if (value_one_p(t->val))
-	    fprintf(dst, "%s", t->var);
-	else if (value_mone_p(t->val))
-	    fprintf(dst, "-%s", t->var);
+	int group = t->var->type == clast_expr_red &&
+		    ((struct clast_reduction*) t->var)->n > 1;
+	if (cloog_int_is_one(t->val))
+	    ;
+	else if (cloog_int_is_neg_one(t->val))
+	    fprintf(dst, "-");
         else {
-	    value_print(dst, VALUE_FMT, t->val);
-	    fprintf(dst, "*%s", t->var);
+	    cloog_int_print(dst, t->val);
+	    fprintf(dst, "*");
 	}
+	if (group)
+	    fprintf(dst, "(");
+	pprint_expr(i, dst, t->var);
+	if (group)
+	    fprintf(dst, ")");
     } else
-	value_print(dst, VALUE_FMT, t->val);
+	cloog_int_print(dst, t->val);
 }
 
-static void pprint_sum(FILE *dst, struct clast_reduction *r)
+void pprint_sum(struct cloogoptions *opt, FILE *dst, struct clast_reduction *r)
 {
     int i;
     struct clast_term *t;
 
     assert(r->n >= 1);
-    assert(r->elts[0]->type == expr_term);
+    assert(r->elts[0]->type == clast_expr_term);
     t = (struct clast_term *) r->elts[0];
-    pprint_term(dst, t);
+    pprint_term(opt, dst, t);
 
     for (i = 1; i < r->n; ++i) {
-	assert(r->elts[i]->type == expr_term);
+	assert(r->elts[i]->type == clast_expr_term);
 	t = (struct clast_term *) r->elts[i];
-	if (value_pos_p(t->val))
+	if (cloog_int_is_pos(t->val))
 	    fprintf(dst, "+");
-	pprint_term(dst, t);
+	pprint_term(opt, dst, t);
     }
 }
 
-static void pprint_expr(struct cloogoptions *i, FILE *dst, struct clast_expr *e);
-
-static void pprint_binary(struct cloogoptions *i, FILE *dst, struct clast_binary *b)
+void pprint_binary(struct cloogoptions *i, FILE *dst, struct clast_binary *b)
 {
     const char *s1 = NULL, *s2 = NULL, *s3 = NULL;
-    int group = b->LHS->type == expr_red && 
+    int group = b->LHS->type == clast_expr_red &&
 		((struct clast_reduction*) b->LHS)->n > 1;
-    if (i->language == LANGUAGE_FORTRAN) {
+    if (i->language == CLOOG_LANGUAGE_FORTRAN) {
 	switch (b->type) {
 	case clast_bin_fdiv:
 	    s1 = "FLOOR(REAL(", s2 = ")/REAL(", s3 = "))";
@@ -146,11 +186,11 @@ static void pprint_binary(struct cloogoptions *i, FILE *dst, struct clast_binary
     fprintf(dst, "%s", s1);
     pprint_expr(i, dst, b->LHS);
     fprintf(dst, "%s", s2);
-    value_print(dst, VALUE_FMT, b->RHS);
+    cloog_int_print(dst, b->RHS);
     fprintf(dst, "%s", s3);
 }
 
-static void pprint_minmax_f(struct cloogoptions *info, FILE *dst, struct clast_reduction *r)
+void pprint_minmax_f(struct cloogoptions *info, FILE *dst, struct clast_reduction *r)
 {
     int i;
     if (r->n == 0)
@@ -164,7 +204,7 @@ static void pprint_minmax_f(struct cloogoptions *info, FILE *dst, struct clast_r
     fprintf(dst, ")");
 }
 
-static void pprint_minmax_c(struct cloogoptions *info, FILE *dst, struct clast_reduction *r)
+void pprint_minmax_c(struct cloogoptions *info, FILE *dst, struct clast_reduction *r)
 {
     int i;
     for (i = 1; i < r->n; ++i)
@@ -178,11 +218,11 @@ static void pprint_minmax_c(struct cloogoptions *info, FILE *dst, struct clast_r
     }
 }
 
-static void pprint_reduction(struct cloogoptions *i, FILE *dst, struct clast_reduction *r)
+void pprint_reduction(struct cloogoptions *i, FILE *dst, struct clast_reduction *r)
 {
     switch (r->type) {
     case clast_red_sum:
-	pprint_sum(dst, r);
+	pprint_sum(i, dst, r);
 	break;
     case clast_red_min:
     case clast_red_max:
@@ -190,7 +230,7 @@ static void pprint_reduction(struct cloogoptions *i, FILE *dst, struct clast_red
 	    pprint_expr(i, dst, r->elts[0]);
 	    break;
 	}
-	if (i->language == LANGUAGE_FORTRAN)
+	if (i->language == CLOOG_LANGUAGE_FORTRAN)
 	    pprint_minmax_f(i, dst, r);
 	else
 	    pprint_minmax_c(i, dst, r);
@@ -205,13 +245,16 @@ void pprint_expr(struct cloogoptions *i, FILE *dst, struct clast_expr *e)
     if (!e)
 	return;
     switch (e->type) {
-    case expr_term:
-	pprint_term(dst, (struct clast_term*) e);
+    case clast_expr_name:
+	pprint_name(dst, (struct clast_name*) e);
 	break;
-    case expr_red:
+    case clast_expr_term:
+	pprint_term(i, dst, (struct clast_term*) e);
+	break;
+    case clast_expr_red:
 	pprint_reduction(i, dst, (struct clast_reduction*) e);
 	break;
-    case expr_bin:
+    case clast_expr_bin:
 	pprint_binary(i, dst, (struct clast_binary*) e);
 	break;
     default:
@@ -219,7 +262,7 @@ void pprint_expr(struct cloogoptions *i, FILE *dst, struct clast_expr *e)
     }
 }
 
-static void pprint_equation(struct cloogoptions *i, FILE *dst, struct clast_equation *eq)
+void pprint_equation(struct cloogoptions *i, FILE *dst, struct clast_equation *eq)
 {
     pprint_expr(i, dst, eq->LHS);
     if (eq->sign == 0)
@@ -231,42 +274,110 @@ static void pprint_equation(struct cloogoptions *i, FILE *dst, struct clast_equa
     pprint_expr(i, dst, eq->RHS);
 }
 
-static void pprint_assignment(struct cloogoptions *i, FILE *dst, 
-			      struct clast_assignment *a)
+void pprint_assignment(struct cloogoptions *i, FILE *dst, 
+			struct clast_assignment *a)
 {
     if (a->LHS)
 	fprintf(dst, "%s = ", a->LHS);
     pprint_expr(i, dst, a->RHS);
 }
 
-static void pprint_user_stmt(struct cloogoptions *options, FILE *dst,
-			     struct clast_user_stmt *u)
+
+/**
+ * pprint_osl_body function:
+ * this function pretty-prints the OpenScop body of a given statement.
+ * It returns 1 if it succeeds to find an OpenScop body to print for
+ * that statement, 0 otherwise.
+ * \param[in] options CLooG Options.
+ * \param[in] dst     Output stream.
+ * \param[in] u       Statement to print the OpenScop body.
+ * \return 1 on success to pretty-print an OpenScop body for u, 0 otherwise.
+ */
+int pprint_osl_body(struct cloogoptions *options, FILE *dst,
+                    struct clast_user_stmt *u) {
+#ifdef OSL_SUPPORT
+  int i;
+  char *expr, *tmp;
+  struct clast_stmt *t;
+  osl_scop_p scop = options->scop;
+  osl_statement_p stmt;
+  osl_body_p body;
+
+  if ((scop != NULL) &&
+      (osl_statement_number(scop->statement) >= u->statement->number)) {
+    stmt = scop->statement;
+
+    /* Go to the convenient statement in the SCoP. */
+    for (i = 1; i < u->statement->number; i++)
+      stmt = stmt->next;
+
+    /* Ensure it has a printable body. */
+    body = NULL;
+    if (osl_generic_has_URI(stmt->body, OSL_URI_BODY)) {
+      body = stmt->body->data;
+    } else if (osl_generic_has_URI(stmt->body, OSL_URI_EXTBODY)) {
+      if (stmt->body->data != NULL) {
+        body = ((osl_extbody_p)(stmt->body->data))->body;
+      }
+    }
+    if ((body != NULL) &&
+        (body->expression != NULL) &&
+        (body->iterators != NULL)) {
+      expr = osl_util_identifier_substitution(body->expression->string[0],
+                                              body->iterators->string);
+      tmp = expr;
+      /* Print the body expression, substituting the @...@ markers. */
+      while (*expr) {
+        if (*expr == '@') {
+          int iterator;
+          expr += sscanf(expr, "@%d", &iterator) + 2; /* 2 for the @s */
+          t = u->substitutions;
+          for (i = 0; i < iterator; i++)
+            t = t->next;
+          pprint_assignment(options, dst, (struct clast_assignment *)t);
+        } else {
+          fprintf(dst, "%c", *expr++);
+        }
+      }
+      fprintf(dst, "\n");
+      free(tmp);
+      return 1;
+    }
+  }
+#endif
+  return 0;
+}
+
+void pprint_user_stmt(struct cloogoptions *options, FILE *dst,
+		       struct clast_user_stmt *u)
 {
     struct clast_stmt *t;
-    fprintf(dst, "S%d", cloog_statement_number (u->statement));
-    if (options->cpp || u->substitutions)
-	fprintf(dst, "(");
+
+    if (pprint_osl_body(options, dst, u))
+      return;
+    
+    if (u->statement->name)
+	fprintf(dst, "%s", u->statement->name);
+    else
+	fprintf(dst, "S%d", u->statement->number);
+    fprintf(dst, "(");
     for (t = u->substitutions; t; t = t->next) {
 	assert(CLAST_STMT_IS_A(t, stmt_ass));
 	pprint_assignment(options, dst, (struct clast_assignment *)t);
 	if (t->next)
 	    fprintf(dst, ",");
     }
-    if (options->cpp || u->substitutions)
-	fprintf(dst, ")");
-    if (options->language != LANGUAGE_FORTRAN)
-	fprintf(dst, " ;");
+    fprintf(dst, ")");
+    if (options->language != CLOOG_LANGUAGE_FORTRAN)
+	fprintf(dst, ";");
     fprintf(dst, "\n");
 }
 
-void pprint_stmt_list(struct cloogoptions *options, FILE *dst, int indent,
-		       struct clast_stmt *s);
-
-static void pprint_guard(struct cloogoptions *options, FILE *dst, int indent,
-			 struct clast_guard *g)
+void pprint_guard(struct cloogoptions *options, FILE *dst, int indent,
+		   struct clast_guard *g)
 {
     int k;
-    if (options->language == LANGUAGE_FORTRAN)
+    if (options->language == CLOOG_LANGUAGE_FORTRAN)
 	fprintf(dst,"IF ");
     else
 	fprintf(dst,"if ");
@@ -274,7 +385,7 @@ static void pprint_guard(struct cloogoptions *options, FILE *dst, int indent,
 	fprintf(dst,"(");
     for (k = 0; k < g->n; ++k) {
 	if (k > 0) {
-	    if (options->language == LANGUAGE_FORTRAN)
+	    if (options->language == CLOOG_LANGUAGE_FORTRAN)
 		fprintf(dst," .AND. ");
 	    else
 		fprintf(dst," && ");
@@ -285,7 +396,7 @@ static void pprint_guard(struct cloogoptions *options, FILE *dst, int indent,
     }
     if (g->n > 1)
 	fprintf(dst,")");
-    if (options->language == LANGUAGE_FORTRAN)
+    if (options->language == CLOOG_LANGUAGE_FORTRAN)
 	fprintf(dst," THEN\n");
     else
 	fprintf(dst," {\n");
@@ -293,51 +404,128 @@ static void pprint_guard(struct cloogoptions *options, FILE *dst, int indent,
     pprint_stmt_list(options, dst, indent + INDENT_STEP, g->then);
 
     fprintf(dst, "%*s", indent, "");
-    if (options->language == LANGUAGE_FORTRAN)
+    if (options->language == CLOOG_LANGUAGE_FORTRAN)
 	fprintf(dst,"END IF\n"); 
     else
 	fprintf(dst,"}\n"); 
 }
 
-static void pprint_for(struct cloogoptions *options, FILE *dst, int indent,
-		       struct clast_for *f)
+void pprint_for(struct cloogoptions *options, FILE *dst, int indent,
+		 struct clast_for *f)
 {
-    if (options->language == LANGUAGE_FORTRAN)
+    if (options->language == CLOOG_LANGUAGE_C) {
+        if ((f->parallel & CLAST_PARALLEL_OMP) && !(f->parallel & CLAST_PARALLEL_MPI)) {
+            if (f->LB) {
+                fprintf(dst, "lbp=");
+                pprint_expr(options, dst, f->LB);
+                fprintf(dst, ";\n");
+            }
+            if (f->UB) {
+                fprintf(dst, "%*s", indent, "");
+                fprintf(dst, "ubp=");
+                pprint_expr(options, dst, f->UB);
+                fprintf(dst, ";\n");
+            }
+            fprintf(dst, "#pragma omp parallel for%s%s%s%s%s%s\n",
+                    (f->private_vars)? " private(":"",
+                    (f->private_vars)? f->private_vars: "",
+                    (f->private_vars)? ")":"",
+                    (f->reduction_vars)? " reduction(": "",
+                    (f->reduction_vars)? f->reduction_vars: "",
+                    (f->reduction_vars)? ")": "");
+            fprintf(dst, "%*s", indent, "");
+        }
+        if ((f->parallel & CLAST_PARALLEL_VEC) && !(f->parallel & CLAST_PARALLEL_OMP)
+               && !(f->parallel & CLAST_PARALLEL_MPI)) {
+            if (f->LB) {
+                fprintf(dst, "lbv=");
+                pprint_expr(options, dst, f->LB);
+                fprintf(dst, ";\n");
+            }
+            if (f->UB) {
+                fprintf(dst, "%*s", indent, "");
+                fprintf(dst, "ubv=");
+                pprint_expr(options, dst, f->UB);
+                fprintf(dst, ";\n");
+            }
+            fprintf(dst, "%*s#pragma ivdep\n", indent, "");
+            fprintf(dst, "%*s#pragma vector always\n", indent, "");
+            fprintf(dst, "%*s", indent, "");
+        }
+        if (f->parallel & CLAST_PARALLEL_MPI) {
+            if (f->LB) {
+                fprintf(dst, "_lb_dist=");
+                pprint_expr(options, dst, f->LB);
+                fprintf(dst, ";\n");
+            }
+            if (f->UB) {
+                fprintf(dst, "%*s", indent, "");
+                fprintf(dst, "_ub_dist=");
+                pprint_expr(options, dst, f->UB);
+                fprintf(dst, ";\n");
+            }
+            fprintf(dst, "%*s", indent, "");
+            fprintf(dst, "polyrt_loop_dist(_lb_dist, _ub_dist, nprocs, my_rank, &lbp, &ubp);\n");
+            if (f->parallel & CLAST_PARALLEL_OMP) {
+                fprintf(dst, "#pragma omp parallel for%s%s%s%s%s%s\n",
+                        (f->private_vars)? " private(":"",
+                        (f->private_vars)? f->private_vars: "",
+                        (f->private_vars)? ")":"",
+                        (f->reduction_vars)? " reduction(": "",
+                        (f->reduction_vars)? f->reduction_vars: "",
+                        (f->reduction_vars)? ")": "");
+            }
+            fprintf(dst, "%*s", indent, "");
+        }
+
+    }
+
+    if (options->language == CLOOG_LANGUAGE_FORTRAN)
 	fprintf(dst, "DO ");
     else
 	fprintf(dst, "for (");
 
     if (f->LB) {
 	fprintf(dst, "%s=", f->iterator);
+        if (f->parallel & (CLAST_PARALLEL_OMP | CLAST_PARALLEL_MPI)) {
+            fprintf(dst, "lbp");
+        }else if (f->parallel & CLAST_PARALLEL_VEC){
+            fprintf(dst, "lbv");
+        }else{
 	pprint_expr(options, dst, f->LB);
-    } else if (options->language == LANGUAGE_FORTRAN) {
-	fprintf(stderr,"[CLooG]ERROR: unbounded loops not allowed in FORTRAN.\n");
-	exit(1);
-    }
+        }
+    } else if (options->language == CLOOG_LANGUAGE_FORTRAN)
+	cloog_die("unbounded loops not allowed in FORTRAN.\n");
 
-    if (options->language == LANGUAGE_FORTRAN)
+    if (options->language == CLOOG_LANGUAGE_FORTRAN)
 	fprintf(dst,", ");
     else
 	fprintf(dst,";");
 
     if (f->UB) { 
-	if (options->language != LANGUAGE_FORTRAN)
+	if (options->language != CLOOG_LANGUAGE_FORTRAN)
 	    fprintf(dst,"%s<=", f->iterator);
-	pprint_expr(options, dst, f->UB);
-    } else if (options->language == LANGUAGE_FORTRAN) {
-	fprintf(stderr,"[CLooG]ERROR: unbounded loops not allowed in FORTRAN.\n");
-	exit(1);
-    }
 
-    if (options->language == LANGUAGE_FORTRAN) {
-	if (value_gt_si(f->stride, 1))
-	    value_print(dst, VALUE_FMT, f->stride);
+        if (f->parallel & (CLAST_PARALLEL_OMP | CLAST_PARALLEL_MPI)) {
+            fprintf(dst, "ubp");
+        }else if (f->parallel & CLAST_PARALLEL_VEC){
+            fprintf(dst, "ubv");
+        }else{
+            pprint_expr(options, dst, f->UB);
+        }
+    }else if (options->language == CLOOG_LANGUAGE_FORTRAN)
+	cloog_die("unbounded loops not allowed in FORTRAN.\n");
+
+    if (options->language == CLOOG_LANGUAGE_FORTRAN) {
+	if (cloog_int_gt_si(f->stride, 1))
+	    cloog_int_print(dst, f->stride);
 	fprintf(dst,"\n");
     }
     else {
-	if (value_gt_si(f->stride, 1)) {
+	if (cloog_int_gt_si(f->stride, 1)) {
 	    fprintf(dst,";%s+=", f->iterator);
-	    value_print(dst, VALUE_FMT") {\n", f->stride);
+	    cloog_int_print(dst, f->stride);
+	    fprintf(dst, ") {\n");
       } else
 	fprintf(dst, ";%s++) {\n", f->iterator);
     }
@@ -345,7 +533,7 @@ static void pprint_for(struct cloogoptions *options, FILE *dst, int indent,
     pprint_stmt_list(options, dst, indent + INDENT_STEP, f->body);
 
     fprintf(dst, "%*s", indent, "");
-    if (options->language == LANGUAGE_FORTRAN)
+    if (options->language == CLOOG_LANGUAGE_FORTRAN)
 	fprintf(dst,"END DO\n") ; 
     else
 	fprintf(dst,"}\n") ; 
@@ -360,8 +548,8 @@ void pprint_stmt_list(struct cloogoptions *options, FILE *dst, int indent,
 	fprintf(dst, "%*s", indent, "");
 	if (CLAST_STMT_IS_A(s, stmt_ass)) {
 	    pprint_assignment(options, dst, (struct clast_assignment *) s);
-	    if (options->language != LANGUAGE_FORTRAN)
-		fprintf(dst, " ;");
+	    if (options->language != CLOOG_LANGUAGE_FORTRAN)
+		fprintf(dst, ";");
 	    fprintf(dst, "\n");
 	} else if (CLAST_STMT_IS_A(s, stmt_user)) {
 	    pprint_user_stmt(options, dst, (struct clast_user_stmt *) s);
@@ -381,27 +569,13 @@ void pprint_stmt_list(struct cloogoptions *options, FILE *dst, int indent,
     }
 }
 
-/******************************************************************************
- *                             Memory leaks hunting                           *
- ******************************************************************************/
-
-/**
- * These global variables are devoted to memory leaks hunting: we
- * want to know at each moment how many Value variables have been allocated
- * since in GMP mode they have to be freed (see domain.c for the declaration).
- * - July 3rd->11th 2003: first version (memory leaks hunt and correction).
- */
-
-extern int cloog_value_allocated ;
-extern int cloog_value_freed ;
-extern int cloog_value_max ;
-
 
 /******************************************************************************
  *                       Pretty Printing (dirty) functions                    *
  ******************************************************************************/
 
-void pprint(FILE *foo, struct clast_stmt *root, int indent, CloogOptions *options)
+void clast_pprint(FILE *foo, struct clast_stmt *root,
+		  int indent, CloogOptions *options)
 {
     pprint_stmt_list(options, foo, indent, root);
 }

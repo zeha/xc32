@@ -1,4 +1,4 @@
-/* { dg-options "-mabicalls -mshared -mabi=64" } */
+/* { dg-options "-mshared -mabi=64" } */
 /* { dg-final { scan-assembler "\tsd\t\\\$28," } } */
 /* { dg-final { scan-assembler "\tld\t\\\$28," } } */
 /* { dg-final { scan-assembler "\tdaddiu\t\\\$28,\\\$28,%lo\\(%neg\\(%gp_rel\\(foo\\)\\)\\)\n" } } */
@@ -9,9 +9,9 @@
 #include "branch-helper.h"
 
 NOMIPS16 void
-foo (void (*bar) (void), volatile int *x)
+foo (int (*bar) (void), int *x)
 {
-  bar ();
+  *x = bar ();
   if (__builtin_expect (*x == 0, 1))
     OCCUPY_0x1fffc;
 }

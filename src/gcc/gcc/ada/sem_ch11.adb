@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2009, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2012, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -39,6 +39,7 @@ with Rtsfind;  use Rtsfind;
 with Sem;      use Sem;
 with Sem_Ch5;  use Sem_Ch5;
 with Sem_Ch8;  use Sem_Ch8;
+with Sem_Ch13; use Sem_Ch13;
 with Sem_Res;  use Sem_Res;
 with Sem_Util; use Sem_Util;
 with Sem_Warn; use Sem_Warn;
@@ -63,6 +64,10 @@ package body Sem_Ch11 is
       Set_Etype                   (Id, Standard_Exception_Type);
       Set_Is_Statically_Allocated (Id);
       Set_Is_Pure                 (Id, PF);
+
+      if Has_Aspects (N) then
+         Analyze_Aspect_Specifications (N, Id);
+      end if;
    end Analyze_Exception_Declaration;
 
    --------------------------------
@@ -205,15 +210,6 @@ package body Sem_Ch11 is
                Push_Scope (H_Scope);
                Set_Etype (H_Scope, Standard_Void_Type);
 
-               --  Set the Finalization Chain entity to Error means that it
-               --  should not be used at that level but the parent one should
-               --  be used instead.
-
-               --  ??? this usage needs documenting in Einfo/Exp_Ch7 ???
-               --  ??? using Error for this non-error condition is nasty ???
-
-               Set_Finalization_Chain_Entity (H_Scope, Error);
-
                Enter_Name (Choice);
                Set_Ekind (Choice, E_Variable);
 
@@ -270,7 +266,7 @@ package body Sem_Ch11 is
                        and then Scope (Entity (Id)) = Current_Scope
                      then
                         Error_Msg_NE
-                          ("?exception & is never raised", Entity (Id), Id);
+                          ("exception & is never raised?r?", Entity (Id), Id);
                      end if;
 
                      if Present (Renamed_Entity (Entity (Id))) then
@@ -280,9 +276,9 @@ package body Sem_Ch11 is
                            if Warn_On_Obsolescent_Feature then
                               Error_Msg_N
                                 ("Numeric_Error is an " &
-                                 "obsolescent feature (RM J.6(1))?", Id);
+                                 "obsolescent feature (RM J.6(1))?j?", Id);
                               Error_Msg_N
-                                ("\use Constraint_Error instead?", Id);
+                                ("\use Constraint_Error instead?j?", Id);
                            end if;
                         end if;
                      end if;
@@ -349,7 +345,7 @@ package body Sem_Ch11 is
                                               N_Others_Choice)
             then
                Error_Msg_N
-                 ("useless handler contains only a reraise statement?",
+                 ("useless handler contains only a reraise statement?r?",
                   Handler);
             end if;
 
@@ -436,8 +432,10 @@ package body Sem_Ch11 is
       Exception_Id   : constant Node_Id := Name (N);
       Exception_Name : Entity_Id        := Empty;
       P              : Node_Id;
+      Par            : Node_Id;
 
    begin
+      Check_SPARK_Restriction ("raise statement is not allowed", N);
       Check_Unreachable_Code (N);
 
       --  Check exception restrictions on the original source
@@ -446,9 +444,8 @@ package body Sem_Ch11 is
          Check_Restriction (No_Exceptions, N);
       end if;
 
-      --  Check for useless assignment to OUT or IN OUT scalar immediately
-      --  preceding the raise. Right now we only look at assignment statements,
-      --  we could do more.
+      --  Check for useless assignment to OUT or IN OUT scalar preceding the
+      --  raise. Right now only look at assignment statements, could do more???
 
       if Is_List_Member (N) then
          declare
@@ -458,21 +455,52 @@ package body Sem_Ch11 is
          begin
             P := Prev (N);
 
+            --  Skip past null statements and pragmas
+
+            while Present (P)
+              and then Nkind_In (P, N_Null_Statement, N_Pragma)
+            loop
+               P := Prev (P);
+            end loop;
+
+            --  See if preceding statement is an assignment
+
             if Present (P)
               and then Nkind (P) = N_Assignment_Statement
             then
                L := Name (P);
 
+               --  Give warning for assignment to scalar formal
+
                if Is_Scalar_Type (Etype (L))
                  and then Is_Entity_Name (L)
                  and then Is_Formal (Entity (L))
                then
-                  Error_Msg_N
-                    ("?assignment to pass-by-copy formal may have no effect",
-                      P);
-                  Error_Msg_N
-                    ("\?RAISE statement may result in abnormal return" &
-                     " (RM 6.4.1(17))", P);
+                  --  Don't give warning if we are covered by an exception
+                  --  handler, since this may result in false positives, since
+                  --  the handler may handle the exception and return normally.
+
+                  --  First find the enclosing handled sequence of statements
+                  --  (note, we could also look for a handler in an outer block
+                  --  but currently we don't, and in that case we'll emit the
+                  --  warning).
+
+                  Par := N;
+                  loop
+                     Par := Parent (Par);
+                     exit when Nkind (Par) = N_Handled_Sequence_Of_Statements;
+                  end loop;
+
+                  --  See if there is a handler, give message if not
+
+                  if No (Exception_Handlers (Par)) then
+                     Error_Msg_N
+                       ("assignment to pass-by-copy formal " &
+                        "may have no effect??", P);
+                     Error_Msg_N
+                       ("\RAISE statement may result in abnormal return" &
+                        " (RM 6.4.1(17))??", P);
+                  end if;
                end if;
             end if;
          end;
@@ -538,6 +566,14 @@ package body Sem_Ch11 is
          end if;
       end if;
 
+      --  Check obsolescent use of Numeric_Error
+
+      if Exception_Name = Standard_Numeric_Error then
+         Check_Restriction (No_Obsolescent_Features, Exception_Id);
+      end if;
+
+      --  Kill last assignment indication
+
       Kill_Current_Values (Last_Assignment_Only => True);
    end Analyze_Raise_Statement;
 
@@ -582,8 +618,9 @@ package body Sem_Ch11 is
             return Same_Expression (Right_Opnd (C1), Right_Opnd (C2));
 
          elsif Nkind (C1) in N_Binary_Op then
-            return Same_Expression (Left_Opnd (C1), Left_Opnd (C2))
-              and then Same_Expression (Right_Opnd (C1), Right_Opnd (C2));
+            return Same_Expression (Left_Opnd (C1),  Left_Opnd (C2))
+                     and then
+                   Same_Expression (Right_Opnd (C1), Right_Opnd (C2));
 
          elsif Nkind (C1) = N_Null then
             return True;
@@ -596,6 +633,8 @@ package body Sem_Ch11 is
    --  Start of processing for Analyze_Raise_xxx_Error
 
    begin
+      Check_SPARK_Restriction ("raise statement is not allowed", N);
+
       if No (Etype (N)) then
          Set_Etype (N, Standard_Void_Type);
       end if;

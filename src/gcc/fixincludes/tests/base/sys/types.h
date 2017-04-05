@@ -28,4 +28,3 @@ typedef __WCHAR_TYPE__ wchar_t;
 
 #endif /* ushort_t */
 #endif  /* GNU_TYPES_CHECK */
-#if  !defined(__STRICT_ANSI__) && !defined(_NO_LONGLONG)

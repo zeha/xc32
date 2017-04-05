@@ -1,7 +1,7 @@
 // { dg-do compile }
 // { dg-options "-std=gnu++98" }
 
-// Copyright (C) 2007, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2007-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -18,9 +18,9 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
-#include <unordered_set>  // { dg-excess-errors "In file included from" }
+#include <unordered_set>
 
-// { dg-error "upcoming ISO" "" { target *-*-* } 31 } 
+// { dg-error "ISO C.. 2011" "" { target *-*-* } 32 }
 
 
 

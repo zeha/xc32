@@ -837,7 +837,15 @@
 #     define NO_PTHREAD_TRYLOCK
 #   endif
 #   ifdef FREEBSD
+#   if defined(__powerpc64__)
+#       define ALIGNMENT 8
+#       define CPP_WORDSZ 64
+#       ifndef HBLKSIZE
+#           define HBLKSIZE 4096
+#       endif
+#   else
 #       define ALIGNMENT 4
+#   endif
 #       define OS_TYPE "FREEBSD"
 #       ifndef GC_FREEBSD_THREADS
 #           define MPROTECT_VDB
@@ -927,18 +935,7 @@
 #	  define HEAP_START DATAEND
 #       endif
 #	define PROC_VDB
-/*	HEURISTIC1 reportedly no longer works under 2.7.  		*/
-/*  	HEURISTIC2 probably works, but this appears to be preferable.	*/
-/*	Apparently USRSTACK is defined to be USERLIMIT, but in some	*/
-/* 	installations that's undefined.  We work around this with a	*/
-/*	gross hack:							*/
-#       include <sys/vmparam.h>
-#	ifdef USERLIMIT
-	  /* This should work everywhere, but doesn't.	*/
-#	  define STACKBOTTOM USRSTACK
-#       else
-#	  define HEURISTIC2
-#       endif
+#	define SOLARIS_STACKBOTTOM
 #	include <unistd.h>
 #       define GETPAGESIZE()  sysconf(_SC_PAGESIZE)
 		/* getpagesize() appeared to be missing from at least one */
@@ -1067,13 +1064,7 @@
   	extern ptr_t GC_SysVGetDataStart();
 #       define DATASTART GC_SysVGetDataStart(0x1000, _etext)
 #	define DATAEND (_end)
-/*	# define STACKBOTTOM ((ptr_t)(_start)) worked through 2.7,  	*/
-/*      but reportedly breaks under 2.8.  It appears that the stack	*/
-/* 	base is a property of the executable, so this should not break	*/
-/* 	old executables.						*/
-/*  	HEURISTIC2 probably works, but this appears to be preferable.	*/
-#       include <sys/vm.h>
-#	define STACKBOTTOM USRSTACK
+#	define SOLARIS_STACKBOTTOM
 /* At least in Solaris 2.5, PROC_VDB gives wrong values for dirty bits. */
 /* It appears to be fixed in 2.8 and 2.9.				*/
 #	ifdef SOLARIS25_PROC_VDB_BUG_FIXED
@@ -1316,8 +1307,9 @@
 #     define OS_TYPE "HURD"
 #     define STACK_GROWS_DOWN
 #     define HEURISTIC2
-      extern int  __data_start[];
-#     define DATASTART ( (ptr_t) (__data_start))
+#     define SIG_SUSPEND SIGUSR1
+#     define SIG_THR_RESTART SIGUSR2
+#     define SEARCH_FOR_DATA_START
       extern int   _end[];
 #     define DATAEND ( (ptr_t) (_end))
 /* #     define MPROTECT_VDB  Not quite working yet? */
@@ -1331,7 +1323,11 @@
 	 These aren't used when dyld support is enabled (it is by default) */
 #     define DATASTART ((ptr_t) get_etext())
 #     define DATAEND	((ptr_t) get_end())
-#     define STACKBOTTOM ((ptr_t) 0xc0000000)
+#     ifdef HAVE_PTHREAD_GET_STACKADDR_NP
+#       define STACKBOTTOM (ptr_t)pthread_get_stackaddr_np(pthread_self())
+#     else
+#       define STACKBOTTOM ((ptr_t) 0xc0000000)
+#     endif
 #     define USE_MMAP
 #     define USE_MMAP_ANON
 #     define USE_ASM_PUSH_REGS
@@ -1444,6 +1440,9 @@
 #	  define ALIGNMENT (_MIPS_SZPTR/8)
 #	  if CPP_WORDSZ != 64
 #	    define ALIGN_DOUBLE
+#	  endif
+#	  if _MIPS_SZPTR == 64
+#	    define ELF_CLASS ELFCLASS64
 #	  endif
 #	else
 #         define ALIGNMENT 4
@@ -1967,8 +1966,13 @@
 
 # ifdef X86_64
 #   define MACH_TYPE "X86_64"
-#   define ALIGNMENT 8
-#   define CPP_WORDSZ 64
+#   ifdef __ILP32__
+#     define ALIGNMENT 4
+#     define CPP_WORDSZ 32
+#   else
+#     define ALIGNMENT 8
+#     define CPP_WORDSZ 64
+#   endif
 #   ifndef HBLKSIZE
 #     define HBLKSIZE 4096
 #   endif
@@ -2011,7 +2015,11 @@
 	 These aren't used when dyld support is enabled (it is by default) */
 #     define DATASTART ((ptr_t) get_etext())
 #     define DATAEND	((ptr_t) get_end())
-#     define STACKBOTTOM ((ptr_t) 0x7fff5fc00000)
+#     ifdef HAVE_PTHREAD_GET_STACKADDR_NP
+#       define STACKBOTTOM (ptr_t)pthread_get_stackaddr_np(pthread_self())
+#     else
+#       define STACKBOTTOM ((ptr_t) 0x7fff5fc00000)
+#     endif
 #     define USE_MMAP
 #     define USE_MMAP_ANON
 #     ifdef GC_DARWIN_THREADS
@@ -2153,7 +2161,8 @@
 # if defined(SVR4) || defined(LINUX) || defined(IRIX5) || defined(HPUX) \
 	    || defined(OPENBSD) || defined(NETBSD) || defined(FREEBSD) \
 	    || defined(DGUX) || defined(BSD) || defined(SUNOS4) \
-	    || defined(_AIX) || defined(DARWIN) || defined(OSF1)
+	    || defined(_AIX) || defined(DARWIN) || defined(OSF1) \
+	    || defined(HURD)
 #   define UNIX_LIKE   /* Basic Unix-like system calls work.	*/
 # endif
 
@@ -2209,7 +2218,7 @@
 #   define CACHE_LINE_SIZE 32	/* Wild guess	*/
 # endif
 
-# if defined(LINUX) || defined(__GLIBC__)
+# if defined(LINUX) || defined(HURD) || defined(__GLIBC__)
 #   define REGISTER_LIBRARIES_EARLY
     /* We sometimes use dl_iterate_phdr, which may acquire an internal	*/
     /* lock.  This isn't safe after the world has stopped.  So we must	*/
@@ -2242,6 +2251,9 @@
 	--> inconsistent configuration
 # endif
 # if defined(GC_AIX_THREADS) && !defined(_AIX)
+	--> inconsistent configuration
+# endif
+# if defined(GC_GNU_THREADS) && !defined(HURD)
 	--> inconsistent configuration
 # endif
 # if defined(GC_WIN32_THREADS) && !defined(MSWIN32) && !defined(CYGWIN32)

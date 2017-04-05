@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2009, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -42,6 +42,7 @@ with Output;   use Output;
 with Opt;      use Opt;
 with Restrict; use Restrict;
 with Sem;      use Sem;
+with Sem_Aux;  use Sem_Aux;
 with Sem_Ch7;  use Sem_Ch7;
 with Sem_Dist; use Sem_Dist;
 with Sem_Util; use Sem_Util;
@@ -135,7 +136,7 @@ package body Rtsfind is
    --  Check entity Eid to ensure that configurable run-time restrictions are
    --  met. May generate an error message (if RTE_Available_Call is false) and
    --  raise RE_Not_Available if entity E does not exist (e.g. Eid is Empty).
-   --  Above documentation not clear ???
+   --  Also check that entity is not overloaded.
 
    procedure Entity_Not_Defined (Id : RE_Id);
    --  Outputs error messages for an entity that is not defined in the run-time
@@ -147,6 +148,7 @@ package body Rtsfind is
    --  value in RTU_Id.
 
    procedure Load_Fail (S : String; U_Id : RTU_Id; Id : RE_Id);
+   pragma No_Return (Load_Fail);
    --  Internal procedure called if we can't successfully locate or process a
    --  run-time unit. The parameters give information about the error message
    --  to be given. S is a reason for failing to compile the file and U_Id is
@@ -233,6 +235,22 @@ package body Rtsfind is
             raise RE_Not_Available;
          end if;
 
+         --  Check entity is not overloaded, checking for special exceptions
+
+         if Has_Homonym (Eid)
+           and then E /= RE_Save_Occurrence
+         then
+            Set_Standard_Error;
+            Write_Str ("Run-time configuration error (");
+            Write_Str ("rtsfind entity """);
+            Get_Decoded_Name_String (Chars (Eid));
+            Set_Casing (Mixed_Case);
+            Write_Str (Name_Buffer (1 .. Name_Len));
+            Write_Str (""" is overloaded)");
+            Write_Eol;
+            raise Unrecoverable_Error;
+         end if;
+
          --  Otherwise entity is accessible
 
          return Eid;
@@ -293,11 +311,11 @@ package body Rtsfind is
          elsif U_Id in Ada_Dispatching_Child then
             Name_Buffer (16) := '.';
 
-         elsif U_Id in Ada_Finalization_Child then
-            Name_Buffer (17) := '.';
-
          elsif U_Id in Ada_Interrupts_Child then
             Name_Buffer (15) := '.';
+
+         elsif U_Id in Ada_Numerics_Child then
+            Name_Buffer (13) := '.';
 
          elsif U_Id in Ada_Real_Time_Child then
             Name_Buffer (14) := '.';
@@ -323,6 +341,18 @@ package body Rtsfind is
 
       elsif U_Id in System_Child then
          Name_Buffer (7) := '.';
+
+         if U_Id in System_Dim_Child then
+            Name_Buffer (11) := '.';
+         end if;
+
+         if U_Id in System_Multiprocessors_Child then
+            Name_Buffer (23) := '.';
+         end if;
+
+         if U_Id in System_Storage_Pools_Child then
+            Name_Buffer (21) := '.';
+         end if;
 
          if U_Id in System_Strings_Child then
             Name_Buffer (15) := '.';
@@ -409,8 +439,8 @@ package body Rtsfind is
          return E1 = E2;
       end if;
 
-      --  If the unit containing E is not loaded, we already know that
-      --  the entity we have cannot have come from this unit.
+      --  If the unit containing E is not loaded, we already know that the
+      --  entity we have cannot have come from this unit.
 
       E_Unit_Name := Get_Unit_Name (RE_Unit_Table (E));
 
@@ -1333,8 +1363,8 @@ package body Rtsfind is
                --  The RT_Unit_Table entry that may need updating
 
             begin
-               --  If entry is not set, set it now, and indicate that it
-               --  was loaded through an explicit context clause..
+               --  If entry is not set, set it now, and indicate that it was
+               --  loaded through an explicit context clause.
 
                if No (U.Entity) then
                   U := (Entity               => E,
@@ -1437,7 +1467,7 @@ package body Rtsfind is
                end if;
 
                Load_RTU (To_Load, Use_Setting => In_Use (Cunit_Entity (U)));
-               Set_Is_Visible_Child_Unit (RT_Unit_Table (To_Load).Entity);
+               Set_Is_Visible_Lib_Unit (RT_Unit_Table (To_Load).Entity);
 
                --  Prevent creation of an implicit 'with' from (for example)
                --  Ada.Wide_Text_IO.Integer_IO to Ada.Text_IO.Integer_IO,

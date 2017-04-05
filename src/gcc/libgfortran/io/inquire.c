@@ -1,8 +1,7 @@
-/* Copyright (C) 2002, 2003, 2005, 2007, 2009, 2010
-   Free Software Foundation, Inc.
+/* Copyright (C) 2002-2013 Free Software Foundation, Inc.
    Contributed by Andy Vaught
 
-This file is part of the GNU Fortran 95 runtime library (libgfortran).
+This file is part of the GNU Fortran runtime library (libgfortran).
 
 Libgfortran is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -28,6 +27,7 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 
 #include "io.h"
 #include "unix.h"
+#include <string.h>
 
 
 static const char undefined[] = "UNDEFINED";
@@ -66,7 +66,37 @@ inquire_via_unit (st_parameter_inquire *iqp, gfc_unit * u)
 
   if ((cf & IOPARM_INQUIRE_HAS_NAME) != 0
       && u != NULL && u->flags.status != STATUS_SCRATCH)
+    {
+#if defined(HAVE_TTYNAME_R) || defined(HAVE_TTYNAME)
+      if (u->unit_number == options.stdin_unit
+	  || u->unit_number == options.stdout_unit
+	  || u->unit_number == options.stderr_unit)
+	{
+	  int err = stream_ttyname (u->s, iqp->name, iqp->name_len);
+	  if (err == 0)
+	    {
+	      gfc_charlen_type tmplen = strlen (iqp->name);
+	      if (iqp->name_len > tmplen)
+		memset (&iqp->name[tmplen], ' ', iqp->name_len - tmplen);
+	    }
+	  else /* If ttyname does not work, go with the default.  */
+	    fstrcpy (iqp->name, iqp->name_len, u->file, u->file_len);
+	}
+      else
+	fstrcpy (iqp->name, iqp->name_len, u->file, u->file_len);
+#elif defined __MINGW32__
+      if (u->unit_number == options.stdin_unit)
+	fstrcpy (iqp->name, iqp->name_len, "CONIN$", sizeof("CONIN$"));
+      else if (u->unit_number == options.stdout_unit)
+	fstrcpy (iqp->name, iqp->name_len, "CONOUT$", sizeof("CONOUT$"));
+      else if (u->unit_number == options.stderr_unit)
+	fstrcpy (iqp->name, iqp->name_len, "CONERR$", sizeof("CONERR$"));
+      else
+	fstrcpy (iqp->name, iqp->name_len, u->file, u->file_len);
+#else
     fstrcpy (iqp->name, iqp->name_len, u->file, u->file_len);
+#endif
+    }
 
   if ((cf & IOPARM_INQUIRE_HAS_ACCESS) != 0)
     {
@@ -378,7 +408,31 @@ inquire_via_unit (st_parameter_inquire *iqp, gfc_unit * u)
 	  if (u == NULL)
 	    *iqp->size = -1;
 	  else
-	    *iqp->size = file_size (u->file, (gfc_charlen_type) u->file_len);
+	    {
+	      sflush (u->s);
+	      *iqp->size = ssize (u->s);
+	    }
+	}
+
+      if ((cf2 & IOPARM_INQUIRE_HAS_IQSTREAM) != 0)
+	{
+	  if (u == NULL)
+	    p = "UNKNOWN";
+	  else
+	    switch (u->flags.access)
+	      {
+	      case ACCESS_SEQUENTIAL:
+	      case ACCESS_DIRECT:
+		p = "NO";
+		break;
+	      case ACCESS_STREAM:
+		p = "YES";
+		break;
+	      default:
+		internal_error (&iqp->common, "inquire_via_unit(): Bad pad");
+	      }
+    
+	  cf_strcpy (iqp->iqstream, iqp->iqstream_len, p);
 	}
     }
 
@@ -387,24 +441,36 @@ inquire_via_unit (st_parameter_inquire *iqp, gfc_unit * u)
       if (u == NULL || u->flags.access == ACCESS_DIRECT)
         p = undefined;
       else
-        switch (u->flags.position)
-          {
-             case POSITION_REWIND:
-               p = "REWIND";
-               break;
-             case POSITION_APPEND:
-               p = "APPEND";
-               break;
-             case POSITION_ASIS:
-               p = "ASIS";
-               break;
-             default:
-               /* if not direct access, it must be
-                  either REWIND, APPEND, or ASIS.
-                  ASIS seems to be the best default */
-               p = "ASIS";
-               break;
-          }
+	{
+	  /* If the position is unspecified, check if we can figure
+	     out whether it's at the beginning or end.  */
+	  if (u->flags.position == POSITION_UNSPECIFIED)
+	    {
+	      gfc_offset cur = stell (u->s);
+	      if (cur == 0)
+		u->flags.position = POSITION_REWIND;
+	      else if (cur != -1 && (ssize (u->s) == cur))
+		u->flags.position = POSITION_APPEND;
+	    }
+	  switch (u->flags.position)
+	    {
+	    case POSITION_REWIND:
+	      p = "REWIND";
+	      break;
+	    case POSITION_APPEND:
+	      p = "APPEND";
+	      break;
+	    case POSITION_ASIS:
+	      p = "ASIS";
+	      break;
+	    default:
+	      /* If the position has changed and is not rewind or
+		 append, it must be set to a processor-dependent
+		 value.  */
+	      p = "UNSPECIFIED";
+	      break;
+	    }
+	}
       cf_strcpy (iqp->position, iqp->position_len, p);
     }
 
@@ -613,6 +679,9 @@ inquire_via_filename (st_parameter_inquire *iqp)
 
       if ((cf2 & IOPARM_INQUIRE_HAS_SIZE) != 0)
 	*iqp->size = file_size (iqp->file, iqp->file_len);
+
+      if ((cf2 & IOPARM_INQUIRE_HAS_IQSTREAM) != 0)
+	cf_strcpy (iqp->iqstream, iqp->iqstream_len, "UNKNOWN");
     }
 
   if ((cf & IOPARM_INQUIRE_HAS_POSITION) != 0)

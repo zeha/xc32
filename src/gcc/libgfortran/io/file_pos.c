@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2003, 2005, 2006, 2007, 2009 Free Software Foundation, Inc.
+/* Copyright (C) 2002-2013 Free Software Foundation, Inc.
    Contributed by Andy Vaught and Janne Blomqvist
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -139,15 +139,21 @@ unformatted_backspace (st_parameter_filepos *fpp, gfc_unit *u)
 	}
       else
 	{
+	  uint32_t u32;
+	  uint64_t u64;
 	  switch (length)
 	    {
 	    case sizeof(GFC_INTEGER_4):
-	      reverse_memcpy (&m4, p, sizeof (m4));
+	      memcpy (&u32, p, sizeof (u32));
+	      u32 = __builtin_bswap32 (u32);
+	      memcpy (&m4, &u32, sizeof (m4));
 	      m = m4;
 	      break;
 
 	    case sizeof(GFC_INTEGER_8):
-	      reverse_memcpy (&m8, p, sizeof (m8));
+	      memcpy (&u64, p, sizeof (u64));
+	      u64 = __builtin_bswap64 (u64);
+	      memcpy (&m8, &u64, sizeof (m8));
 	      m = m8;
 	      break;
 
@@ -283,8 +289,17 @@ st_endfile (st_parameter_filepos *fpp)
       if (u->flags.access == ACCESS_DIRECT)
 	{
 	  generate_error (&fpp->common, LIBERROR_OPTION_CONFLICT,
-			  "Cannot perform ENDFILE on a file opened"
-			  " for DIRECT access");
+			  "Cannot perform ENDFILE on a file opened "
+			  "for DIRECT access");
+	  goto done;
+	}
+
+      if (u->flags.access == ACCESS_SEQUENTIAL
+      	  && u->endfile == AFTER_ENDFILE)
+	{
+	  generate_error (&fpp->common, LIBERROR_OPTION_CONFLICT,
+			  "Cannot perform ENDFILE on a file already "
+			  "positioned after the EOF marker");
 	  goto done;
 	}
 
@@ -309,9 +324,56 @@ st_endfile (st_parameter_filepos *fpp)
       u->endfile = AFTER_ENDFILE;
       if (0 == stell (u->s))
         u->flags.position = POSITION_REWIND;
-    done:
-      unlock_unit (u);
     }
+  else
+    {
+      if (fpp->common.unit < 0)
+	{
+	  generate_error (&fpp->common, LIBERROR_BAD_OPTION,
+			  "Bad unit number in statement");
+	  return;
+	}
+
+      u = find_or_create_unit (fpp->common.unit);
+      if (u->s == NULL)
+	{
+	  /* Open the unit with some default flags.  */
+	  st_parameter_open opp;
+	  unit_flags u_flags;
+
+	  memset (&u_flags, '\0', sizeof (u_flags));
+	  u_flags.access = ACCESS_SEQUENTIAL;
+	  u_flags.action = ACTION_READWRITE;
+
+	  /* Is it unformatted?  */
+	  if (!(fpp->common.flags & (IOPARM_DT_HAS_FORMAT | IOPARM_DT_LIST_FORMAT
+				     | IOPARM_DT_IONML_SET)))
+	    u_flags.form = FORM_UNFORMATTED;
+	  else
+	    u_flags.form = FORM_UNSPECIFIED;
+
+	  u_flags.delim = DELIM_UNSPECIFIED;
+	  u_flags.blank = BLANK_UNSPECIFIED;
+	  u_flags.pad = PAD_UNSPECIFIED;
+	  u_flags.decimal = DECIMAL_UNSPECIFIED;
+	  u_flags.encoding = ENCODING_UNSPECIFIED;
+	  u_flags.async = ASYNC_UNSPECIFIED;
+	  u_flags.round = ROUND_UNSPECIFIED;
+	  u_flags.sign = SIGN_UNSPECIFIED;
+	  u_flags.status = STATUS_UNKNOWN;
+	  u_flags.convert = GFC_CONVERT_NATIVE;
+
+	  opp.common = fpp->common;
+	  opp.common.flags &= IOPARM_COMMON_MASK;
+	  u = new_unit (&opp, u, &u_flags);
+	  if (u == NULL)
+	    return;
+	  u->endfile = AFTER_ENDFILE;
+	}
+    }
+
+  done:
+    unlock_unit (u);
 
   library_end ();
 }
@@ -350,20 +412,15 @@ st_rewind (st_parameter_filepos *fpp)
 	  if (sseek (u->s, 0, SEEK_SET) < 0)
 	    generate_error (&fpp->common, LIBERROR_OS, NULL);
 
-	  /* Handle special files like /dev/null differently.  */
-	  if (!is_special (u->s))
+	  /* Set this for compatibilty with g77 for /dev/null.  */
+	  if (ssize (u->s) == 0)
+	    u->endfile = AT_ENDFILE;
+	  else
 	    {
 	      /* We are rewinding so we are not at the end.  */
 	      u->endfile = NO_ENDFILE;
 	    }
-	  else
-	    {
-	      /* Set this for compatibilty with g77 for /dev/null.  */
-	      if (file_length (u->s) == 0  && stell (u->s) == 0)
-		u->endfile = AT_ENDFILE;
-	      /* Future refinements on special files can go here.  */
-	    }
-
+	  
 	  u->current_record = 0;
 	  u->strm_pos = 1;
 	  u->read_bad = 0;

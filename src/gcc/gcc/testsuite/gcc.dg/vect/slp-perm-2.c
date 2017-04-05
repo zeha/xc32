@@ -1,7 +1,6 @@
 /* { dg-require-effective-target vect_int } */
 
 #include <stdarg.h>
-#include <stdio.h>
 #include "tree-vect.h"
 
 #define M00 100
@@ -13,7 +12,8 @@
 
 #define N 16
 
-void foo (unsigned int *__restrict__ pInput, unsigned int *__restrict__ pOutput)
+void __attribute__((noinline))
+foo (unsigned int *__restrict__ pInput, unsigned int *__restrict__ pOutput)
 {
   unsigned int i, a, b;
 
@@ -37,16 +37,18 @@ int main (int argc, const char* argv[])
   for (i = 0; i < N; i++)
     {
       input[i] = i%256;
-      if (input[i] > 200)
-        abort();
       output[i] = 0;
+      __asm__ volatile ("");
     }
 
   foo (input, output);
 
   for (i = 0; i < N; i++)
-    if (output[i] != check_results[i])
-      abort ();
+    {
+      if (output[i] != check_results[i])
+	abort ();
+      __asm__ volatile ("");
+    }
 
   return 0;
 }

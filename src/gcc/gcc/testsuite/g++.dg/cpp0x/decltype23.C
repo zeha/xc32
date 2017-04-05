@@ -1,12 +1,5 @@
-// PR c++/44366
-// While printing the operand of decltype We were trying to print f as the
-// scope of t, causing infinite recursion.
-// { dg-options "-std=c++0x" }
+// { dg-options -std=c++0x }
 
-template <typename T>
-void f(T t, decltype(*t))
-{
-  struct A { void g() {
-    foo;			// { dg-error "foo" }
-  } };
-}
+int x, &&y = static_cast<int &&>(x);
+typedef decltype((y)) myInt;  // `y' is a parenthesized id-expression of type int that is an lvalue
+typedef int &myInt;

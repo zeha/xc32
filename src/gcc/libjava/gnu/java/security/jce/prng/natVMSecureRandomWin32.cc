@@ -1,6 +1,6 @@
 // natVMSecureRandomWin32.cc - Native part of VMSecureRandom class for Win32.
 
-/* Copyright (C) 2009 Free Software Foundation
+/* Copyright (C) 2009, 2010 Free Software Foundation
 
    This file is part of libgcj.
 

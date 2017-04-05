@@ -1,5 +1,4 @@
-/* Copyright (C) 2009
-   Free Software Foundation, Inc.
+/* Copyright (C) 2009-2013 Free Software Foundation, Inc.
    Contributed by Janne Blomqvist
 
 This file is part of the GNU Fortran runtime library (libgfortran).
@@ -76,6 +75,12 @@ fbuf_getc (gfc_unit * u)
   if (u->fbuf->pos < u->fbuf->act)
     return (unsigned char) u->fbuf->buf[u->fbuf->pos++];
   return fbuf_getc_refill (u);
+}
+
+static inline char *
+fbuf_getptr (gfc_unit * u)
+{
+  return (char*) (u->fbuf->buf + u->fbuf->pos);
 }
 
 #endif

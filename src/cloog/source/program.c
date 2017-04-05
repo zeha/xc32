@@ -14,19 +14,20 @@
  *                                                                            *
  * Copyright (C) 2001-2005 Cedric Bastoul                                     *
  *                                                                            *
- * This is free software; you can redistribute it and/or modify it under the  *
- * terms of the GNU General Public License as published by the Free Software  *
- * Foundation; either version 2 of the License, or (at your option) any later *
- * version.                                                                   *
+ * This library is free software; you can redistribute it and/or              *
+ * modify it under the terms of the GNU Lesser General Public                 *
+ * License as published by the Free Software Foundation; either               *
+ * version 2.1 of the License, or (at your option) any later version.         *
  *                                                                            *
- * This software is distributed in the hope that it will be useful, but       *
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY *
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License   *
- * for more details.                                                          *
+ * This library is distributed in the hope that it will be useful,            *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *
+ * Lesser General Public License for more details.                            *
  *                                                                            *
- * You should have received a copy of the GNU General Public License along    *
- * with software; if not, write to the Free Software Foundation, Inc.,        *
- * 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA                     *
+ * You should have received a copy of the GNU Lesser General Public           *
+ * License along with this library; if not, write to the Free Software        *
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor,                         *
+ * Boston, MA  02110-1301  USA                                                *
  *                                                                            *
  * CLooG, the Chunky Loop Generator                                           *
  * Written by Cedric Bastoul, Cedric.Bastoul@inria.fr                         *
@@ -46,27 +47,16 @@
 # include <ctype.h>
 # include <unistd.h>
 # include "../include/cloog/cloog.h"
-#ifdef HAS_SYS_RESOURCE_H
+#ifdef CLOOG_RUSAGE
 # include <sys/resource.h>
 #endif
 
+#define ALLOC(type) (type*)malloc(sizeof(type))
 
-/******************************************************************************
- *                             Memory leaks hunting                           *
- ******************************************************************************/
-
-
-/**
- * These global variables are devoted to memory leaks hunting: we
- * want to know at each moment how many Value variables have been allocated
- * since in GMP mode they have to be freed (see domain.c for the declaration).
- * - July 3rd->11th 2003: first version (memory leaks hunt and correction).
- */
- 
-extern int cloog_value_allocated ;
-extern int cloog_value_freed ;
-extern int cloog_value_max ;
-
+#ifdef OSL_SUPPORT
+#include <osl/scop.h>
+#include <osl/extensions/coordinates.h>
+#endif
 
 /******************************************************************************
  *                          Structure display function                        *
@@ -80,7 +70,10 @@ extern int cloog_value_max ;
  * level (level) in order to work with others print_structure functions.
  * - July 1st 2005: first version based on the old cloog_program_print function.
  */
-void cloog_program_print_structure(FILE *file, CloogProgram *program, int level)
+void cloog_program_print_structure(file, program, level)
+FILE * file ; 
+CloogProgram * program ;
+int level ;
 { int i, j ;
 
   /* Go to the right level. */
@@ -97,7 +90,7 @@ void cloog_program_print_structure(FILE *file, CloogProgram *program, int level)
   /* Print the language. */
   for (i=0; i<=level; i++)
   fprintf(file,"|\t") ;
-  fprintf(file, "Language: %c\n",cloog_program_language (program)) ;
+  fprintf(file, "Language: %c\n",program->language) ;
   
   /* A blank line. */
   for (i=0; i<=level+1; i++)
@@ -107,8 +100,7 @@ void cloog_program_print_structure(FILE *file, CloogProgram *program, int level)
   /* Print the scattering dimension number. */
   for (i=0; i<=level; i++)
   fprintf(file,"|\t") ;
-  fprintf(file,"Scattering dimension number: %d\n",
-	  cloog_program_nb_scattdims (program)) ;
+  fprintf(file,"Scattering dimension number: %d\n",program->nb_scattdims) ;
   
   /* A blank line. */
   for (i=0; i<=level+1; i++)
@@ -118,15 +110,14 @@ void cloog_program_print_structure(FILE *file, CloogProgram *program, int level)
   /* Print the scalar scattering dimension informations. */
   for (i=0; i<=level; i++)
   fprintf(file,"|\t") ;
-  if (cloog_program_scaldims (program))
-    {
-      fprintf (file,"Scalar dimensions:");
-      for (i = 0; i < cloog_program_nb_scattdims (program); i++)
-	fprintf (file," %d:%d ", i, cloog_program_scaldim (program, i));
-      fprintf (file,"\n");
-    }
+  if (program->scaldims != NULL)
+  { fprintf(file,"Scalar dimensions:") ;
+    for (i=0;i<program->nb_scattdims;i++)
+    fprintf(file," %d:%d ",i,program->scaldims[i]) ;
+    fprintf(file,"\n") ;
+  }
   else
-    fprintf (file, "No scalar scattering dimensions\n");
+  fprintf(file,"No scalar scattering dimensions\n") ;
   
   /* A blank line. */
   for (i=0; i<=level+1; i++)
@@ -134,7 +125,7 @@ void cloog_program_print_structure(FILE *file, CloogProgram *program, int level)
   fprintf(file,"\n") ;
 
   /* Print the parameter and the iterator names. */
-  cloog_names_print_structure (file, cloog_program_names (program), level + 1);
+  cloog_names_print_structure(file,program->names,level+1) ;
  
   /* A blank line. */
   for (i=0; i<=level+1; i++)
@@ -142,10 +133,10 @@ void cloog_program_print_structure(FILE *file, CloogProgram *program, int level)
   fprintf(file,"\n") ;
   
   /* Print the context. */
-  cloog_domain_print_structure(file, cloog_program_context (program), level+1);
+  cloog_domain_print_structure(file, program->context, level+1, "Context");
     
   /* Print the loop. */
-  cloog_loop_print_structure (file,cloog_program_loop (program), level + 1);
+  cloog_loop_print_structure(file,program->loop,level+1) ;
 
   /* One more time something that is here only for a better look. */
   for (j=0; j<2; j++)
@@ -161,17 +152,22 @@ void cloog_program_print_structure(FILE *file, CloogProgram *program, int level)
  * cloog_program_dump_cloog function:
  * This function dumps a CloogProgram structure supposed to be completely
  * filled in a CLooG input file (foo possibly stdout) such as CLooG can
- * rebuild almost exactly the data structure from the input file (the number
- * of scattering functions is lost since they are included inside the
- * iteration domains, this can only lead to a less beautiful pretty printing).
- * WARNING: this function do not respect CloogDomain as an object.
- * - June     27th 2003: first version.
- * - May      15th 2005: (debug) several patches by Kristof Beyls.
- * - November 16th 2005: adaptation for CLooG 0.14.0 structures.
+ * rebuild almost exactly the data structure from the input file.
+ *
+ * If the scattering is already applied, the scattering parameter is supposed to
+ * be NULL. In this case the number of scattering functions is lost, since they
+ * are included inside the iteration domains. This can only lead to a less
+ * beautiful pretty printing.
+ *
+ * In case the scattering is not yet applied it can be passed to this function
+ * and will be included in the CLooG input file dump.
  */
-void cloog_program_dump_cloog(FILE * foo, CloogProgram * program)
-{ int i;
+void cloog_program_dump_cloog(FILE * foo, CloogProgram * program,
+                              CloogScatteringList *scattering)
+{
+  int i;
   CloogLoop * loop ;
+  CloogScatteringList *tmp_scatt;
 
   fprintf(foo,
   "# CLooG -> CLooG\n"
@@ -183,55 +179,74 @@ void cloog_program_dump_cloog(FILE * foo, CloogProgram * program)
   "# ASK THE AUTHOR IF YOU *NEED* SOMETHING MORE ROBUST\n") ;
 
   /* Language. */
-  if (cloog_program_language (program) == 'c')
+  if (program->language == 'c')
   fprintf(foo,"# Language: C\n") ;
   else
   fprintf(foo,"# Language: FORTRAN\n") ;
-  fprintf(foo,"%c\n\n", cloog_program_language (program)) ;
+  fprintf(foo,"%c\n\n",program->language) ;
 
   /* Context. */
-  fprintf (foo,"# Context (%d parameter(s)):\n",
-	   cloog_domain_dim (cloog_program_context (program)));
-  cloog_domain_print_structure (foo, cloog_program_context (program), 0);
+  fprintf(foo, "# Context (%d parameter(s)):\n", program->names->nb_parameters);
+  cloog_domain_print_constraints(foo, program->context, 0);
   fprintf(foo,"1 # Parameter name(s)\n") ;
-  for (i = 0; i < cloog_names_nb_parameters (cloog_program_names (program)); i++)
-    fprintf (foo, "%s ", cloog_names_parameter_elt (cloog_program_names (program), i));
+  for (i=0;i<program->names->nb_parameters;i++)
+  fprintf(foo,"%s ",program->names->parameters[i]) ;
 
   /* Statement number. */
   i = 0 ;
-  loop = cloog_program_loop (program);
+  loop = program->loop ;
   while (loop != NULL)
   { i++ ;
-    loop = cloog_loop_next (loop) ;
+    loop = loop->next ;
   }
   fprintf(foo,"\n\n# Statement number:\n%d\n\n",i) ;
 
   /* Iteration domains. */
   i = 1 ;
-  loop = cloog_program_loop (program) ;
+  loop = program->loop ;
   while (loop != NULL)
   { /* Name of the domain. */
     fprintf(foo,"# Iteration domain of statement %d.\n",i) ;
 
-    /* Number of polyhedra inside the union of disjoint polyhedra.  */
-    fprintf (foo, "%d\n", cloog_domain_nb_polyhedra (cloog_loop_domain (loop))) ;
-
-    /* The polyhedra themselves. */
-    cloog_domain_print_polyhedra (foo, cloog_loop_domain (loop));
+    cloog_domain_print_constraints(foo, loop->domain, 1);
     fprintf(foo,"0 0 0 # For future options.\n\n") ;
     
     i++ ;
-    loop = cloog_loop_next (loop) ;
+    loop = loop->next ;
   }
   fprintf(foo,"\n1 # Iterator name(s)\n") ;
-  for (i = 0; i < cloog_names_nb_scattering (cloog_program_names (program)); i++)
-    fprintf (foo, "%s ", cloog_names_scattering_elt (cloog_program_names (program), i));
-  for (i = 0; i < cloog_names_nb_iterators (cloog_program_names (program)); i++)
-    fprintf (foo, "%s ", cloog_names_iterator_elt (cloog_program_names (program), i));
+
+  /* Scattering already applied? In this case print the scattering names as
+   * additional iterator names. */
+  if (!scattering)
+    for (i = 0; i < program->names->nb_scattering; i++)
+      fprintf(foo, "%s ", program->names->scattering[i]);
+  for (i=0;i<program->names->nb_iterators;i++)
+    fprintf(foo,"%s ",program->names->iterators[i]);
   fprintf(foo,"\n\n") ;
 
-  /* Scattering functions (none since included inside domains). */
-  fprintf(foo,"# No scattering functions.\n0\n\n") ;
+  /* Exit, if scattering is already applied. */
+  if (!scattering) {
+    fprintf(foo, "# No scattering functions.\n0\n\n");
+    return;
+  }
+
+  /* Scattering relations. */
+  fprintf(foo, "# --------------------- SCATTERING --------------------\n");
+
+  i = 0;
+  for (tmp_scatt = scattering; tmp_scatt; tmp_scatt = tmp_scatt->next)
+    i++;
+
+  fprintf(foo, "%d # Scattering functions", i);
+
+  for (tmp_scatt = scattering; tmp_scatt; tmp_scatt = tmp_scatt->next)
+    cloog_scattering_print_constraints(foo, tmp_scatt->scatt);
+
+  fprintf(foo, "\n1 # Scattering dimension name(s)\n");
+
+  for (i = 0; i < program->names->nb_scattering; i++)
+    fprintf(foo, "%s ", program->names->scattering[i]);
 }
 
 
@@ -254,7 +269,7 @@ static void print_comment(FILE *file, CloogOptions *options,
   va_list args;
 
   va_start(args, fmt);
-  if (options->language == LANGUAGE_FORTRAN) {
+  if (options->language == CLOOG_LANGUAGE_FORTRAN) {
     fprintf(file, "! ");
     vfprintf(file, fmt, args);
     fprintf(file, "\n");
@@ -263,7 +278,171 @@ static void print_comment(FILE *file, CloogOptions *options,
     vfprintf(file, fmt, args);
     fprintf(file, " */\n");
   }
-  va_end (args);
+}
+
+static void print_macros(FILE *file)
+{
+    fprintf(file, "/* Useful macros. */\n") ;
+    fprintf(file,
+	"#define floord(n,d) (((n)<0) ? -((-(n)+(d)-1)/(d)) : (n)/(d))\n");
+    fprintf(file,
+	"#define ceild(n,d)  (((n)<0) ? -((-(n))/(d)) : ((n)+(d)-1)/(d))\n");
+    fprintf(file, "#define max(x,y)    ((x) > (y) ? (x) : (y))\n") ; 
+    fprintf(file, "#define min(x,y)    ((x) < (y) ? (x) : (y))\n\n") ; 
+}
+
+static void print_declarations(FILE *file, int n, char **names)
+{
+    int i;
+
+    fprintf(file, "  int %s", names[0]); 
+    for (i = 1; i < n; i++)
+	fprintf(file, ", %s", names[i]); 
+
+    fprintf(file, ";\n");
+}
+
+static void print_iterator_declarations(FILE *file, CloogProgram *program,
+	CloogOptions *options)
+{
+    CloogNames *names = program->names;
+
+    if (names->nb_scattering) {
+	fprintf(file, "  /* Scattering iterators. */\n");
+	print_declarations(file, names->nb_scattering, names->scattering);
+    }
+    if (names->nb_iterators) {
+	fprintf(file, "  /* Original iterators. */\n");
+	print_declarations(file, names->nb_iterators, names->iterators);
+    }
+}
+
+static void print_callable_preamble(FILE *file, CloogProgram *program,
+	CloogOptions *options)
+{
+    int j;
+    CloogBlockList *blocklist;
+    CloogBlock *block;
+    CloogStatement *statement;
+
+    fprintf(file, "extern void hash(int);\n\n");
+
+    print_macros(file);
+
+    for (blocklist = program->blocklist; blocklist; blocklist = blocklist->next) {
+	block = blocklist->block;
+	for (statement = block->statement; statement; statement = statement->next) {
+	    fprintf(file, "#define S%d(", statement->number);
+	    if (block->depth > 0) {
+		fprintf(file, "%s", program->names->iterators[0]);
+		for(j = 1; j < block->depth; j++)
+		    fprintf(file, ",%s", program->names->iterators[j]);
+	    }
+	    fprintf(file,") { hash(%d);", statement->number);
+	    for(j = 0; j < block->depth; j++)
+		fprintf(file, " hash(%s);", program->names->iterators[j]);
+	    fprintf(file, " }\n");
+	}
+    }
+    fprintf(file, "\nvoid test("); 
+    if (program->names->nb_parameters > 0) {
+	fprintf(file, "int %s", program->names->parameters[0]);
+	for(j = 1; j < program->names->nb_parameters; j++)
+	    fprintf(file, ", int %s", program->names->parameters[j]);
+    }
+    fprintf(file, ")\n{\n"); 
+    print_iterator_declarations(file, program, options);
+}
+
+static void print_callable_postamble(FILE *file, CloogProgram *program)
+{
+    fprintf(file, "}\n"); 
+}
+
+/**
+ * cloog_program_osl_pprint function:
+ * this function pretty-prints the C or FORTRAN code generated from an
+ * OpenScop specification by overwriting SCoP in a given code, if the
+ * options -compilable or -callable are not set. The SCoP coordinates are
+ * provided through the OpenScop "Coordinates" extension. It returns 1 if
+ * it succeeds to find an OpenScop coordinates information
+ * to pretty-print the generated code, 0 otherwise.
+ * \param[in] file    The output stream (possibly stdout).
+ * \param[in] program The generated pseudo-AST to pretty-print.
+ * \param[in] options CLooG options (contains the OpenSCop specification).
+ * \return 1 on success to pretty-print at the place of a SCoP, 0 otherwise.
+ */
+int cloog_program_osl_pprint(FILE * file, CloogProgram * program,
+                             CloogOptions * options) {
+#ifdef OSL_SUPPORT
+  int lines = 0;
+  int columns = 0;
+  int read = 1;
+  char c;
+  osl_scop_p scop = options->scop;
+  osl_coordinates_p coordinates;
+  struct clast_stmt *root;
+  FILE * original;
+
+  if (scop && !options->compilable && !options->callable) {
+    coordinates = osl_generic_lookup(scop->extension, OSL_URI_COORDINATES);
+    if (coordinates) {
+      original = fopen(coordinates->name, "r");
+      if (!original) {
+        cloog_msg(options, CLOOG_WARNING,
+                  "unable to open the file specified in the SCoP "
+                  "coordinates\n");
+        return 0;
+      }
+
+      /* Print the macros the generated code may need. */
+      print_macros(file);
+
+      /* Print what was before the SCoP in the original file. */
+      while (((lines < coordinates->line_start - 1) ||
+              (columns < coordinates->column_start - 1)) && (read != EOF)) {
+        read = fscanf(original, "%c", &c);
+        columns++;
+        if (read != EOF) {
+          if (c == '\n') {
+            lines++;
+            columns = 0;
+          }
+          fprintf(file, "%c", c);
+        }
+      }
+
+      /* Carriage return to preserve indentation if necessary. */
+      if (coordinates->column_start > 0)
+        fprintf(file, "\n");
+
+      /* Generate the clast from the pseudo-AST then pretty-print it. */
+      root = cloog_clast_create(program, options);
+      clast_pprint(file, root, coordinates->indent, options);
+      cloog_clast_free(root);
+
+      /* Print what was after the SCoP in the original file. */
+      while (read != EOF) {
+        read = fscanf(original, "%c", &c);
+        columns++;
+        if (read != EOF) {
+          if (((lines == coordinates->line_end - 1) &&
+               (columns > coordinates->column_end)) ||
+              (lines > coordinates->line_end - 1))
+            fprintf(file, "%c", c);
+          if (c == '\n') {
+            lines++;
+            columns = 0;
+          }
+        }
+      }
+
+      fclose(original);
+      return 1;
+    }
+  }
+#endif
+  return 0;
 }
 
 /**
@@ -272,23 +451,35 @@ static void print_comment(FILE *file, CloogOptions *options,
  * file (file, possibly stdout), in a C-like language.
  * - June 22nd 2005: Adaptation for GMP.
  */
-void cloog_program_pprint(FILE *file, CloogProgram *program, CloogOptions *options)
-{ int i, j, nb_scattering, indentation=0 ;
+void cloog_program_pprint(file, program, options)
+FILE * file ;
+CloogProgram * program ;
+CloogOptions * options ;
+{
+  int i, j, indentation = 0;
   CloogStatement * statement ;
   CloogBlockList * blocklist ;
   CloogBlock * block ;
   struct clast_stmt *root;
-   
-  if (cloog_program_language (program) == 'f')
-    options->language = LANGUAGE_FORTRAN ;
+
+  if (cloog_program_osl_pprint(file, program, options))
+    return;
+
+  if (program->language == 'f')
+    options->language = CLOOG_LANGUAGE_FORTRAN ;
   else
-    options->language = LANGUAGE_C ;
+    options->language = CLOOG_LANGUAGE_C ;
  
+#ifdef CLOOG_RUSAGE
   print_comment(file, options, "Generated from %s by %s in %.2fs.",
 		options->name, cloog_version(), options->time);
+#else
+  print_comment(file, options, "Generated from %s by %s.",
+		options->name, cloog_version());
+#endif
 #ifdef CLOOG_MEMORY
   print_comment(file, options, "CLooG asked for %d KBytes.", options->memory);
-  fprintf(stderr, "[CLooG]INFO: %.2fs and %dKB used for code generation.\n",
+  cloog_msg(CLOOG_INFO, "%.2fs and %dKB used for code generation.\n",
 	  options->time,options->memory);
 #endif
   
@@ -296,8 +487,7 @@ void cloog_program_pprint(FILE *file, CloogProgram *program, CloogOptions *optio
    * a compilable code. This code just do nothing, but now the user can edit
    * the source and set the statement macros and parameters values.
    */
-  nb_scattering = cloog_program_nb_scattdims (program) ;
-  if (options->compilable && (cloog_program_language (program) == 'c'))
+  if (options->compilable && (program->language == 'c'))
   { /* The headers. */
     fprintf(file,"/* DON'T FORGET TO USE -lm OPTION TO COMPILE. */\n\n") ;
     fprintf(file,"/* Useful headers. */\n") ;
@@ -307,82 +497,51 @@ void cloog_program_pprint(FILE *file, CloogProgram *program, CloogOptions *optio
 
     /* The value of parameters. */
     fprintf(file,"/* Parameter value. */\n") ;
-    for (i = 1; i <= cloog_names_nb_parameters (cloog_program_names (program)); i++)
+    for (i = 1; i <= program->names->nb_parameters; i++)
       fprintf(file, "#define PARVAL%d %d\n", i, options->compilable);
     
     /* The macros. */
-    fprintf(file,"/* Useful macros. */\n") ;
-    fprintf(file,"#define ceild(n,d)  ceil(((double)(n))/((double)(d)))\n") ;
-    fprintf(file,"#define floord(n,d) floor(((double)(n))/((double)(d)))\n") ;
-    fprintf(file,"#define max(x,y)    ((x) > (y)? (x) : (y))  \n") ; 
-    fprintf(file,"#define min(x,y)    ((x) < (y)? (x) : (y))  \n\n") ; 
+    print_macros(file);
 
     /* The statement macros. */
     fprintf(file,"/* Statement macros (please set). */\n") ;
-    blocklist = cloog_program_blocklist (program) ;
+    blocklist = program->blocklist ;
     while (blocklist != NULL)
-      {
-	block = cloog_block_list_block (blocklist) ;
-	statement = cloog_block_stmt (block) ;
-	while (statement != NULL)
-	  {
-	    fprintf (file, "#define S%d(", cloog_statement_number (statement));
-	    if (cloog_block_depth (block) > 0)
-	      { 
-		fprintf (file, "%s", cloog_names_iterator_elt (cloog_program_names (program), 0));
-		for (j = 1; j < cloog_block_depth (block); j++)
-		  fprintf (file, ",%s", cloog_names_iterator_elt (cloog_program_names (program), j)) ;
-	      }
-	    fprintf(file,") {total++;") ;
-	    if (cloog_block_depth (block) > 0)
-	      {
-		fprintf (file, " printf(\"S%d %%d", cloog_statement_number (statement));
-		for (j = 1; j < cloog_block_depth (block); j++)
-		  fprintf (file, " %%d");
+    { block = blocklist->block ;
+      statement = block->statement ;
+      while (statement != NULL)
+      { fprintf(file,"#define S%d(",statement->number) ;
+        if (block->depth > 0)
+        { fprintf(file,"%s",program->names->iterators[0]) ;
+          for(j=1;j<block->depth;j++)
+          fprintf(file,",%s",program->names->iterators[j]) ;
+        }
+        fprintf(file,") {total++;") ;
+	if (block->depth > 0) {
+          fprintf(file, " printf(\"S%d %%d", statement->number);
+          for(j=1;j<block->depth;j++)
+            fprintf(file, " %%d");
           
-		fprintf(file,"\\n\",%s", cloog_names_iterator_elt (cloog_program_names (program), 0));
-		for (j = 1;j < cloog_block_depth (block); j++)
-		  fprintf (file, ",%s", cloog_names_iterator_elt (cloog_program_names (program), j)) ;
-		fprintf (file, ");");
-	      }
-	    fprintf(file,"}\n") ;
+          fprintf(file,"\\n\",%s",program->names->iterators[0]) ;
+	  for(j=1;j<block->depth;j++)
+          fprintf(file,",%s",program->names->iterators[j]) ;
+          fprintf(file,");") ;
+        }
+        fprintf(file,"}\n") ;
         
-	    statement = cloog_statement_next (statement);
-	  }
-	blocklist = cloog_block_list_next (blocklist) ;
+	statement = statement->next ;
       }
+      blocklist = blocklist->next ;
+    }
     
     /* The iterator and parameter declaration. */
     fprintf(file,"\nint main() {\n") ; 
-    if ((cloog_names_nb_scalars (cloog_program_names (program)) > 0) && (!options->csp))
-    { fprintf(file,"  /* Scalar dimension iterators. */\n") ;
-      fprintf (file,"  int %s", cloog_names_scalar_elt (cloog_program_names (program), 0));
-      for (i = 2; i <= cloog_names_nb_scalars (cloog_program_names (program)); i++)
-	fprintf (file, ", %s", cloog_names_scalar_elt (cloog_program_names (program), i - 1));
-      
-      fprintf(file," ;\n") ;
-    }
-    if (cloog_names_nb_scattering (cloog_program_names (program)) > 0)
-    { fprintf(file,"  /* Scattering iterators. */\n") ;
-      fprintf (file, "  int %s", cloog_names_scattering_elt (cloog_program_names (program), 0));
-      for(i=2;i<=cloog_names_nb_scattering (cloog_program_names (program));i++)
-	fprintf (file, ", %s", cloog_names_scattering_elt (cloog_program_names (program), i - 1)); 
-      
-      fprintf(file," ;\n") ;
-    }
-    if (cloog_names_nb_iterators (cloog_program_names (program)) > 0)
-    { fprintf(file,"  /* Original iterators. */\n") ;
-      fprintf (file,"  int %s", cloog_names_iterator_elt (cloog_program_names (program), 0)) ; 
-      for(i=2;i<=cloog_names_nb_iterators (cloog_program_names (program));i++)
-	fprintf(file,", %s", cloog_names_iterator_elt (cloog_program_names (program), i-1)) ; 
-      
-      fprintf(file," ;\n") ;
-    }
-    if (cloog_names_nb_parameters (cloog_program_names (program)) > 0)
+    print_iterator_declarations(file, program, options);
+    if (program->names->nb_parameters > 0)
     { fprintf(file,"  /* Parameters. */\n") ;
-      fprintf(file, "  int %s=PARVAL1", cloog_names_parameter_elt (cloog_program_names (program), 0));
-      for(i=2;i<=cloog_names_nb_parameters (cloog_program_names (program));i++)
-        fprintf(file, ", %s=PARVAL%d", cloog_names_parameter_elt (cloog_program_names (program), i - 1), i);
+      fprintf(file, "  int %s=PARVAL1",program->names->parameters[0]);
+      for(i=2;i<=program->names->nb_parameters;i++)
+        fprintf(file, ", %s=PARVAL%d", program->names->parameters[i-1], i);
       
       fprintf(file,";\n");
     }
@@ -391,17 +550,22 @@ void cloog_program_pprint(FILE *file, CloogProgram *program, CloogOptions *optio
     
     /* And we adapt the identation. */
     indentation += 2 ;
+  } else if (options->callable && program->language == 'c') {
+    print_callable_preamble(file, program, options);
+    indentation += 2;
   }
   
   root = cloog_clast_create(program, options);
-  pprint(file, root, indentation, options);
+  clast_pprint(file, root, indentation, options);
   cloog_clast_free(root);
   
   /* The end of the compilable code in case of 'compilable' option. */
-  if (options->compilable && (cloog_program_language (program) == 'c'))
-  { fprintf(file,"\n  printf(\"Number of integral points: %%d.\\n\",total) ;") ;
-    fprintf(file,"\n  return 0 ;\n}\n") ;
-  }
+  if (options->compilable && (program->language == 'c'))
+  {
+    fprintf(file, "\n  printf(\"Number of integral points: %%d.\\n\",total);");
+    fprintf(file, "\n  return 0;\n}\n");
+  } else if (options->callable && program->language == 'c')
+    print_callable_postamble(file, program);
 }
 
 
@@ -415,12 +579,12 @@ void cloog_program_pprint(FILE *file, CloogProgram *program, CloogOptions *optio
  * This function frees the allocated memory for a CloogProgram structure.
  */
 void cloog_program_free(CloogProgram * program)
-{ cloog_names_free(cloog_program_names (program)) ;
-  cloog_loop_free(cloog_program_loop (program)) ;
-  cloog_domain_free (cloog_program_context (program)) ;
-  cloog_block_list_free (cloog_program_blocklist (program)) ;
-  if (cloog_program_scaldims (program))
-    free (cloog_program_scaldims (program));
+{ cloog_names_free(program->names) ;
+  cloog_loop_free(program->loop) ;
+  cloog_domain_free(program->context) ;
+  cloog_block_list_free(program->blocklist) ;
+  if (program->scaldims != NULL)
+  free(program->scaldims) ;
   
   free(program) ;
 }
@@ -429,6 +593,136 @@ void cloog_program_free(CloogProgram * program)
 /******************************************************************************
  *                               Reading function                             *
  ******************************************************************************/
+
+
+static void cloog_program_construct_block_list(CloogProgram *p)
+{
+    CloogLoop *loop;
+    CloogBlockList **next = &p->blocklist;
+
+    for (loop = p->loop; loop; loop = loop->next) {
+	*next = cloog_block_list_alloc(loop->block);
+	next = &(*next)->next;
+    }
+}
+
+
+/**
+ * Construct a CloogProgram structure from a given context and
+ * union domain representing the iteration domains and scattering functions.
+ */
+CloogProgram *cloog_program_alloc(CloogDomain *context, CloogUnionDomain *ud,
+	CloogOptions *options)
+{
+  int i;
+  char prefix[] = "c";
+  CloogScatteringList * scatteringl;
+  CloogNames *n;
+  CloogProgram * p ;
+      
+  /* Memory allocation for the CloogProgram structure. */
+  p = cloog_program_malloc() ;
+  
+  if (options->language == CLOOG_LANGUAGE_FORTRAN)
+    p->language = 'f';
+  else
+    p->language = 'c';
+    
+  p->names = n = cloog_names_alloc();
+
+  /* We then read the context data. */
+  p->context = context;
+  n->nb_parameters = ud->n_name[CLOOG_PARAM];
+  
+  /* First part of the CloogNames structure: the parameter names. */
+  if (ud->name[CLOOG_PARAM]) {
+    n->parameters = ud->name[CLOOG_PARAM];
+    ud->name[CLOOG_PARAM] = NULL;
+  } else
+    n->parameters = cloog_names_generate_items(n->nb_parameters, NULL,
+					       FIRST_PARAMETER);
+
+  n->nb_iterators = ud->n_name[CLOOG_ITER];
+  if (ud->name[CLOOG_ITER]) {
+    n->iterators = ud->name[CLOOG_ITER];
+    ud->name[CLOOG_ITER] = NULL;
+  } else
+    n->iterators = cloog_names_generate_items(n->nb_iterators, NULL,
+					      FIRST_ITERATOR);
+
+  if (ud->domain) {
+    CloogNamedDomainList *l;
+    CloogLoop **next = &p->loop;
+    CloogScatteringList **next_scat = &scatteringl;
+
+    scatteringl = NULL;
+    for (i = 0, l = ud->domain; l; ++i, l = l->next) {
+      *next = cloog_loop_from_domain(options->state, l->domain, i);
+      l->domain = NULL;
+      (*next)->block->statement->name = l->name;
+      (*next)->block->statement->usr = l->usr;
+      l->name = NULL;
+
+      if (l->scattering) {
+	*next_scat = ALLOC(CloogScatteringList);
+	(*next_scat)->scatt = l->scattering;
+	l->scattering = NULL;
+	(*next_scat)->next = NULL;
+
+	next_scat = &(*next_scat)->next;
+      }
+
+      next = &(*next)->next;
+    }
+
+    if (scatteringl != NULL) {
+      p->nb_scattdims = cloog_scattering_dimension(scatteringl->scatt,
+							    p->loop->domain);
+      n->nb_scattering = p->nb_scattdims;
+      if (ud->name[CLOOG_SCAT]) {
+	n->scattering = ud->name[CLOOG_SCAT];
+	ud->name[CLOOG_SCAT] = NULL;
+      } else
+	n->scattering = cloog_names_generate_items(n->nb_scattering, prefix, -1);
+    
+      /* The boolean array for scalar dimensions is created and set to 0. */
+      p->scaldims = (int *)malloc(p->nb_scattdims*(sizeof(int))) ;
+      if (p->scaldims == NULL) 
+	cloog_die("memory overflow.\n");
+      for (i=0;i<p->nb_scattdims;i++)
+      p->scaldims[i] = 0 ;
+      
+      /* We try to find blocks in the input problem to reduce complexity. */
+      if (!options->noblocks)
+	cloog_program_block(p, scatteringl, options);
+      if (!options->noscalars)
+	cloog_program_extract_scalars(p, scatteringl, options);
+      
+      cloog_program_scatter(p, scatteringl, options);
+      cloog_scattering_list_free(scatteringl);
+
+      if (!options->noblocks)
+	p->loop = cloog_loop_block(p->loop, p->scaldims, p->nb_scattdims);
+    }
+    else
+    { p->nb_scattdims = 0 ;
+      p->scaldims  = NULL ;
+    }
+  
+    cloog_names_scalarize(p->names,p->nb_scattdims,p->scaldims) ;
+
+    cloog_program_construct_block_list(p);
+  }
+  else
+  { p->loop      = NULL ;
+    p->blocklist = NULL ;
+    p->scaldims  = NULL ;
+  }
+
+  cloog_union_domain_free(ud);
+   
+  return(p) ;
+}
 
 
 /**
@@ -441,128 +735,16 @@ void cloog_program_free(CloogProgram * program)
  *                         functions (one per read data structure).
  *                       - adaptation to the new file format with naming.
  */
-CloogProgram * cloog_program_read(FILE * file, CloogOptions * options)
-{ int i, nb_statements, nb_parameters, nb_iterators, nb_scattering ;
-  char s[MAX_STRING], language, prefix[2]={'c','\0'},
-       ** scattering, ** iterators, ** parameters;
-  CloogLoop * current, * next ;
-  CloogBlockList * previous ;
-  CloogDomainList * scatteringl ;
-  CloogProgram * p ;
-  
-  nb_scattering = 0 ;
-  scattering = NULL ;
-      
-  /* Memory allocation for the CloogProgram structure. */
-  p = cloog_program_malloc() ;
-  
-  /* First of all, we read the language to use. */
-  while (fgets(s,MAX_STRING,file) == 0) ;
-  while ((*s=='#'||*s=='\n') || (sscanf(s," %c",&language)<1))
-  fgets(s,MAX_STRING,file) ;
-  cloog_program_set_language (p, language);
+CloogProgram *cloog_program_read(FILE *file, CloogOptions *options)
+{
+  CloogInput *input;
+  CloogProgram *p;
 
-  /* We then read the context data. */
-  cloog_program_set_context (p, cloog_domain_read (file));
-  nb_parameters = cloog_domain_dim (cloog_program_context (p)) ;
-  
-  /* First part of the CloogNames structure: reading of the parameter names. */
-  parameters=cloog_names_read_strings(file,nb_parameters,NULL,FIRST_PARAMETER) ;
-      
-  /* We read the statement number. */
-  while (fgets(s,MAX_STRING,file) == 0) ;
-  while ((*s=='#'||*s=='\n') || (sscanf(s," %d",&nb_statements)<1))
-  fgets(s,MAX_STRING,file) ;
+  input = cloog_input_read(file, options);
+  p = cloog_program_alloc(input->context, input->ud, options);
+  free(input);
 
-  /* Statements and domains reading for each statement. */
-  if (nb_statements > 0)
-  { /* Reading of the first domain. */
-    cloog_program_set_loop (p, cloog_loop_read (file,0,nb_parameters));
-    cloog_program_set_blocklist 
-      (p, cloog_block_list_alloc (cloog_loop_block (cloog_program_loop (p))));
-    previous = cloog_program_blocklist (p);
-    
-    if (cloog_loop_domain (cloog_program_loop (p)) != NULL)
-      nb_iterators = cloog_domain_dim(cloog_loop_domain (cloog_program_loop (p))) - nb_parameters ;
-    else
-    nb_iterators = 0 ;
-    
-    /* And the same for each next domain. */
-    current = cloog_program_loop (p) ;
-    for (i=2;i<=nb_statements;i++)
-    { next = cloog_loop_read(file,i-1,nb_parameters) ;
-      if (cloog_loop_domain (next) != NULL)
-	if ((int) cloog_domain_dim(cloog_loop_domain (next)) - nb_parameters > nb_iterators)
-	  nb_iterators = cloog_domain_dim (cloog_loop_domain (next)) - nb_parameters ;
-      
-      cloog_block_list_set_next (previous, cloog_block_list_alloc (cloog_loop_block (next)));
-      previous = cloog_block_list_next (previous) ;    
-    
-      cloog_loop_set_next (current, next);
-      current = cloog_loop_next (current) ;
-    }     
-        
-    /* Reading of the iterator names. */
-    iterators = cloog_names_read_strings(file,nb_iterators,NULL,FIRST_ITERATOR);
-
-    /* Reading and putting the scattering data in program structure. */
-    scatteringl = cloog_domain_list_read(file) ;
-    
-    if (scatteringl != NULL)
-      {
-	if (cloog_domain_list_lazy_same(scatteringl)
-	    /* Cloog should never print to stderr.  */
-	    && 0)
-	  fprintf(stderr, "[CLooG]WARNING: some scattering functions are "
-		  "similar.\n") ;
-      
-	cloog_program_set_nb_scattdims (p, 
-					cloog_domain_dim (cloog_domain (scatteringl)) - 
-					cloog_domain_dim (cloog_loop_domain (cloog_program_loop (p)))) ;
-	nb_scattering = cloog_program_nb_scattdims (p);
-	scattering = cloog_names_read_strings (file, cloog_program_nb_scattdims (p), prefix, -1);
-    
-	/* The boolean array for scalar dimensions is created and set to 0. */
-	cloog_program_set_scaldims (p, (int *) malloc (cloog_program_nb_scattdims (p) * sizeof (int)));
-	if (cloog_program_scaldims (p) == NULL)
-	  {
-	    fprintf(stderr, "[CLooG]ERROR: memory overflow.\n") ;
-	    exit(1) ;
-	  }
-	for (i=0;i<cloog_program_nb_scattdims (p);i++)
-	  cloog_program_set_scaldim (p, i, 0);
-      
-	/* We try to find blocks in the input problem to reduce complexity. */
-	if (!options->noblocks)
-	  cloog_program_block(p,scatteringl) ;
-	if (!options->noscalars)
-	  cloog_program_extract_scalars(p,scatteringl) ;
-      
-	cloog_program_scatter(p,scatteringl) ;
-	cloog_domain_list_free(scatteringl) ;
-      }
-    else
-      {
-	cloog_program_set_nb_scattdims (p, 0);
-	cloog_program_set_scaldims (p, NULL);
-      }
-    
-    cloog_program_set_names 
-      (p, cloog_names_alloc (0, nb_scattering, nb_iterators, nb_parameters,
-			     NULL, scattering, iterators, parameters));
-  
-    cloog_names_scalarize (cloog_program_names (p), cloog_program_nb_scattdims (p), 
-			   cloog_program_scaldims (p));
-  }
-  else
-    {
-      cloog_program_set_loop (p, NULL);
-      cloog_program_set_names (p, NULL);
-      cloog_program_set_blocklist (p, NULL);
-      cloog_program_set_scaldims (p, NULL);
-    }
-   
-  return(p) ;
+  return p;
 }
 
 
@@ -578,25 +760,23 @@ CloogProgram * cloog_program_read(FILE * file, CloogOptions * options)
  * allocated space.
  * - November 21th 2005: first version.
  */
-CloogProgram * cloog_program_malloc (void)
+CloogProgram * cloog_program_malloc()
 { CloogProgram * program ;
   
   /* Memory allocation for the CloogProgram structure. */
   program = (CloogProgram *)malloc(sizeof(CloogProgram)) ;
   if (program == NULL) 
-  { fprintf(stderr, "[CLooG]ERROR: memory overflow.\n") ;
-    exit(1) ;
-  }
+    cloog_die("memory overflow.\n");
   
   /* We set the various fields with default values. */
-  cloog_program_set_language (program, 'c');
-  cloog_program_set_nb_scattdims (program, 0);
-  cloog_program_set_context (program, NULL);
-  cloog_program_set_loop (program, NULL);
-  cloog_program_set_names (program, NULL);
-  cloog_program_set_blocklist (program, NULL);
-  cloog_program_set_scaldims (program, NULL);
-  cloog_program_set_usr (program, NULL);
+  program->language     = 'c' ;
+  program->nb_scattdims = 0 ;
+  program->context      = NULL ;
+  program->loop         = NULL ;
+  program->names        = NULL ;
+  program->blocklist    = NULL ;
+  program->scaldims     = NULL ;
+  program->usr          = NULL;
   
   return program ;
 }  
@@ -614,9 +794,12 @@ CloogProgram * cloog_program_malloc (void)
  * - April   19th 2005: some basic fixes and memory usage feature.
  * - April   29th 2005: (bug fix, bug found by DaeGon Kim) see case 2 below.
  */ 
-CloogProgram * cloog_program_generate(CloogProgram *program, CloogOptions *options)
-{ float time ;
-#ifdef HAS_SYS_RESOURCE_H
+CloogProgram * cloog_program_generate(program, options)
+CloogProgram * program ;
+CloogOptions * options ;
+{
+#ifdef CLOOG_RUSAGE
+  float time;
   struct rusage start, end ;
 #endif
   CloogLoop * loop ;
@@ -630,11 +813,9 @@ CloogProgram * cloog_program_generate(CloogProgram *program, CloogOptions *optio
 
   if (options->override)
   {
-    /* Cloog should never print to stderr.  */
-    /* fprintf(stderr,
-       "[CLooG]WARNING: you are using -override option, be aware that the "
-       "generated\n                code may be incorrect.\n") ;
-    */
+    cloog_msg(options, CLOOG_WARNING,
+    "you are using -override option, be aware that the "
+    "generated\n                code may be incorrect.\n") ;
   }
   else
   { /* Playing with options may be dangerous, here are two possible issues :
@@ -642,16 +823,14 @@ CloogProgram * cloog_program_generate(CloogProgram *program, CloogOptions *optio
      *    an illegal target code (since the scattering is not respected), if
      *    it is the case, we set -l depth to the first acceptable value.
      */
-    if ((cloog_program_nb_scattdims (program) > options->l) && (options->l >= 0))
+    if ((program->nb_scattdims > options->l) && (options->l >= 0))
     {
-      /* Cloog should never print to stderr.  */
-      /* fprintf(stderr,
-	 "[CLooG]WARNING: -l depth is less than the scattering dimension number "
-	 "(the \n                generated code may be incorrect), it has been "
-	 "automaticaly set\n                to this value (use option -override "
-	 "to override).\n") ;
-      */
-      options->l = cloog_program_nb_scattdims (program);
+      cloog_msg(options, CLOOG_WARNING,
+      "-l depth is less than the scattering dimension number "
+      "(the \n                generated code may be incorrect), it has been "
+      "automaticaly set\n                to this value (use option -override "
+      "to override).\n") ;
+      options->l = program->nb_scattdims ;
     }
       
     /* 2. Using -f option greater than one while -l depth is greater than the
@@ -661,33 +840,28 @@ CloogProgram * cloog_program_generate(CloogProgram *program, CloogOptions *optio
      *    the first acceptable value.
      */
     if (((options->f > 1) || (options->f < 0)) &&
-        ((options->l > cloog_program_nb_scattdims (program)) || (options->l < 0)))
-    { 
-      /* Cloog should never print to stderr.  */
-      /* fprintf(stderr,
-	 "[CLooG]WARNING: -f depth is more than one, -l depth has been "
-	 "automaticaly set\n                to the scattering dimension number "
-	 "(target code may have\n                duplicated iterations), -l depth "
-	 "has been automaticaly set to\n                this value (use option "
-	 "-override to override).\n") ;
-      */
-      options->l = cloog_program_nb_scattdims (program);
+        ((options->l > program->nb_scattdims) || (options->l < 0)))
+    {
+      cloog_msg(options, CLOOG_WARNING,
+      "-f depth is more than one, -l depth has been "
+      "automaticaly set\n                to the scattering dimension number "
+      "(target code may have\n                duplicated iterations), -l depth "
+      "has been automaticaly set to\n                this value (use option "
+      "-override to override).\n") ;
+      options->l = program->nb_scattdims ;
     }
   }
   
-#ifdef HAS_SYS_RESOURCE_H
+#ifdef CLOOG_RUSAGE
   getrusage(RUSAGE_SELF, &start) ;
 #endif
-
-  if (cloog_program_loop (program))
-  {
-    loop = cloog_program_loop (program) ;
+  if (program->loop != NULL)
+  { loop = program->loop ;
     
     /* Here we go ! */
-    loop = cloog_loop_generate(loop, cloog_program_context (program), 1, 0,
-                               cloog_program_scaldims (program),
-			       cloog_program_nb_scattdims (program),
-                               cloog_domain_dim (cloog_program_context (program)),
+    loop = cloog_loop_generate(loop, program->context, 0, 0,
+                               program->scaldims,
+			       program->nb_scattdims,
 			       options);
 			          
 #ifdef CLOOG_MEMORY
@@ -699,21 +873,21 @@ CloogProgram * cloog_program_generate(CloogProgram *program, CloogOptions *optio
     fclose(status) ;
 #endif
     
-    if ((!options->nosimplify) && cloog_program_loop (program))
-      loop = cloog_loop_simplify(loop, cloog_program_context (program), 1,
-				 cloog_domain_dim (cloog_program_context (program))) ;
+    if ((!options->nosimplify) && (program->loop != NULL))
+      loop = cloog_loop_simplify(loop, program->context, 0,
+                                 program->nb_scattdims, options);
    
-    cloog_program_set_loop (program, loop);
+    program->loop = loop ;
   }
     
-#ifdef HAS_SYS_RESOURCE_H
+#ifdef CLOOG_RUSAGE
   getrusage(RUSAGE_SELF, &end) ;
   /* We calculate the time spent in code generation. */
   time =  (end.ru_utime.tv_usec -  start.ru_utime.tv_usec)/(float)(MEGA) ;
   time += (float)(end.ru_utime.tv_sec - start.ru_utime.tv_sec) ;
   options->time = time ;
 #endif
-
+  
   return program ;
 }
 
@@ -735,21 +909,14 @@ CloogProgram * cloog_program_generate(CloogProgram *program, CloogOptions *optio
  * - April   30th 2005: first attempt.
  * - June 10-11th 2005: first working version.
  */
-void cloog_program_block(CloogProgram * program, CloogDomainList * scattering)
+void cloog_program_block(CloogProgram *program,
+	CloogScatteringList *scattering, CloogOptions *options)
 { int blocked_reference=0, blocked=0, nb_blocked=0 ;
   CloogLoop * reference, * start, * loop ;
-  CloogDomainList * scatt_reference, * scatt_loop, * scatt_start ;
-  CloogBlockList * previous ;
+  CloogScatteringList * scatt_reference, * scatt_loop, * scatt_start;
   
-  if ((cloog_program_loop (program) == NULL) 
-      || (cloog_loop_next (cloog_program_loop (program)) == NULL))
+  if ((program->loop == NULL) || (program->loop->next == NULL))
   return ;
-
-  /* We will have to rebuild the block list. */
-  cloog_block_list_free (cloog_program_blocklist (program)) ;
-  cloog_program_set_blocklist 
-    (program, cloog_block_list_alloc (cloog_loop_block (cloog_program_loop (program))));
-  previous = cloog_program_blocklist (program);
   
   /* The process will use three variables for the linked list :
    * - 'start' is the starting point of a new block,
@@ -762,20 +929,17 @@ void cloog_program_block(CloogProgram * program, CloogDomainList * scattering)
    *     reference
    */
 
-  reference       = cloog_program_loop (program) ;
-  start           = cloog_program_loop (program) ;
-  loop            = cloog_loop_next (reference) ;
+  reference       = program->loop ;
+  start           = program->loop ;
+  loop            = reference->next ;
   scatt_reference = scattering ;
   scatt_start     = scattering ;
-  scatt_loop      = cloog_next_domain (scattering) ;
+  scatt_loop      = scattering->next ;
    
   while (loop != NULL)
-    { 
-      if (cloog_domain_lazy_equal (cloog_loop_domain (reference),
-				   cloog_loop_domain (loop)) &&
-	  cloog_domain_lazy_block(cloog_domain (scatt_reference),
-				  cloog_domain (scatt_loop),
-				  scattering, cloog_program_nb_scattdims (program)))
+  { if (cloog_domain_lazy_equal(reference->domain,loop->domain) &&
+        cloog_scattering_lazy_block(scatt_reference->scatt, scatt_loop->scatt,
+	                        scattering,program->nb_scattdims))
     { /* If we find a block we update the links:
        *     +---------------+
        *     |               v
@@ -786,10 +950,10 @@ void cloog_program_block(CloogProgram * program, CloogDomainList * scattering)
        */
       blocked = 1 ;
       nb_blocked ++ ;
-      cloog_block_merge(cloog_loop_block (start), cloog_loop_block (loop)); /* merge frees cloog_block (loop) */
-      cloog_loop_set_block (loop, NULL);
-      cloog_loop_set_next (start, cloog_loop_next (loop));
-      cloog_set_next_domain (scatt_start, cloog_next_domain (scatt_loop));
+      cloog_block_merge(start->block,loop->block); /* merge frees loop->block */
+      loop->block = NULL ;
+      start->next = loop->next ;
+      scatt_start->next = scatt_loop->next ;
     }
     else
     { /* If we didn't find a block, the next start of a block is updated:
@@ -801,18 +965,14 @@ void cloog_program_block(CloogProgram * program, CloogDomainList * scattering)
       blocked= 0 ;
       start = loop ;
       scatt_start = scatt_loop ;
-      
-      /* We update the block list. */
-      cloog_block_list_set_next (previous, cloog_block_list_alloc (cloog_loop_block (start)));
-      previous = cloog_block_list_next (previous) ;    
     }
 
     /* If the reference node has been included into a block, we can free it. */
     if (blocked_reference)
-      { cloog_loop_set_next (reference, NULL);
-      cloog_loop_free (reference) ;
-      cloog_domain_free (cloog_domain (scatt_reference)) ;
-      free (scatt_reference) ;
+    { reference->next = NULL ;
+      cloog_loop_free(reference) ;
+      cloog_scattering_free(scatt_reference->scatt);
+      free(scatt_reference) ;
     }
     
     /* The reference and the loop are now updated for the next try, the
@@ -822,9 +982,9 @@ void cloog_program_block(CloogProgram * program, CloogDomainList * scattering)
      *           reference loop
      */
     reference       = loop ;
-    loop            = cloog_loop_next (loop) ;
+    loop            = loop->next ;
     scatt_reference = scatt_loop ;
-    scatt_loop      = cloog_next_domain (scatt_loop) ;
+    scatt_loop      = scatt_loop->next ;
     
     /* We mark the new reference as being blocked or not, if will be freed
      * during the next while loop execution.
@@ -840,15 +1000,14 @@ void cloog_program_block(CloogProgram * program, CloogDomainList * scattering)
    * last one inside).
    */
   if (blocked_reference)
-    { cloog_loop_set_next (reference, NULL);
-    cloog_loop_free (reference) ;
-    cloog_domain_free (cloog_domain (scatt_reference)) ;
-    free (scatt_reference) ;
+  { reference->next = NULL ;
+    cloog_loop_free(reference) ;
+    cloog_scattering_free(scatt_reference->scatt);
+    free(scatt_reference) ;
   }
   
-  /* Cloog should never print to stderr.  */
-  /* if (nb_blocked != 0)
-     fprintf(stderr, "[CLooG]INFO: %d domains have been blocked.\n",nb_blocked) ; */
+  if (nb_blocked != 0)
+    cloog_msg(options, CLOOG_INFO, "%d domains have been blocked.\n", nb_blocked);
 }
 
 
@@ -866,33 +1025,31 @@ void cloog_program_block(CloogProgram * program, CloogDomainList * scattering)
  * - June 14th 2005: first developments.
  * - June 30th 2005: first version.
  */ 
-void cloog_program_extract_scalars(CloogProgram *program, CloogDomainList *scattering)
+void cloog_program_extract_scalars(CloogProgram *program,
+	CloogScatteringList *scattering, CloogOptions *options)
 { int i, j, scalar, current, nb_scaldims=0 ;
-  CloogDomainList * start ;
-  CloogDomain * old ;
-  CloogBlockList * blocklist ;
+  CloogScatteringList *start;
+  CloogScattering *old;
+  CloogLoop *loop;
   CloogBlock * block ;
 
   start = scattering ;
     
-  for (i = 0; i < cloog_program_nb_scattdims (program); i++)
+  for (i=0;i<program->nb_scattdims;i++)
   { scalar = 1 ;
     scattering = start ;
     while (scattering != NULL)
-      {
-	if (!cloog_domain_lazy_isscalar (cloog_domain (scattering),i))
-	  {
-	    scalar = 0 ;
-	    break ;
-	  }
-	scattering = cloog_next_domain (scattering);
+    { if (!cloog_scattering_lazy_isscalar(scattering->scatt, i, NULL))
+      { scalar = 0 ;
+        break ;
       }
+      scattering = scattering->next ;
+    }
     
     if (scalar)
-      {
-	nb_scaldims ++ ;
-	cloog_program_set_scaldim (program, i, 1);
-      }
+    { nb_scaldims ++ ;
+      program->scaldims[i] = 1 ;
+    }
   }
   
   /* If there are no scalar dimensions, we can continue directly. */
@@ -902,18 +1059,13 @@ void cloog_program_extract_scalars(CloogProgram *program, CloogDomainList *scatt
   /* Otherwise, in each block, we have to put the number of scalar dimensions,
    * and to allocate the memory for the scalar values.
    */
-  blocklist = cloog_program_blocklist (program);
-  while (blocklist != NULL)
-    {
-      block = cloog_block_list_block (blocklist) ;
-      cloog_block_set_nb_scaldims (block, nb_scaldims);
-      cloog_block_set_scaldims (block, (Value *) malloc (nb_scaldims * sizeof (Value)));
-
-      for (i = 0; i < nb_scaldims; i++)
-	value_init_c (block->scaldims[i]);
-    
-      blocklist = cloog_block_list_next (blocklist);
-    }
+  for (loop = program->loop; loop; loop = loop->next) {
+    block = loop->block;
+    block->nb_scaldims = nb_scaldims ;
+    block->scaldims = (cloog_int_t *)malloc(nb_scaldims*sizeof(cloog_int_t));
+    for (i=0;i<nb_scaldims;i++)
+    cloog_int_init(block->scaldims[i]);
+  }
   
   /* Then we have to fill these scalar values, so we can erase those dimensions
    * from the scattering functions. It's easier to begin with the last one,
@@ -921,29 +1073,27 @@ void cloog_program_extract_scalars(CloogProgram *program, CloogDomainList *scatt
    * then the next one is not the (i+1)^th but still the i^th...).
    */
   current = nb_scaldims - 1 ;
-  for (i = cloog_program_nb_scattdims (program) - 1; i >= 0; i--)
-    if (cloog_program_scaldim (program, i))
-      {
-	blocklist = cloog_program_blocklist (program);
-	scattering = start;
-
-      while (blocklist != NULL)
-	{ 
-	  block = cloog_block_list_block (blocklist) ;
-	  cloog_domain_scalar (cloog_domain (scattering), i,
-			       &block->scaldims[current]);
-	  blocklist = cloog_block_list_next (blocklist);
-	  scattering = cloog_next_domain (scattering);
-	}
+  for (i=program->nb_scattdims-1;i>=0;i--)
+  if (program->scaldims[i])
+  {
+    scattering = start ;
+    for (loop = program->loop; loop; loop = loop->next) {
+      block = loop->block;
+      if (!cloog_scattering_lazy_isscalar(scattering->scatt, i,
+						&block->scaldims[current])) {
+	/* We should have found a scalar value: if not, there is an error. */
+	cloog_die("dimension %d is not scalar as expected.\n", i);
+      }
+      scattering = scattering->next ;
+    } 
   
     scattering = start ;
-    while (scattering != NULL)
-      {
-	old = cloog_domain (scattering) ;
-	cloog_set_domain (scattering, cloog_domain_erase_dimension (old, i)) ;
-	cloog_domain_free (old) ;
-	scattering = cloog_next_domain (scattering);
-      }
+    while (scattering != NULL) {
+      old = scattering->scatt;
+      scattering->scatt = cloog_scattering_erase_dimension(old, i);
+      cloog_scattering_free(old);
+      scattering = scattering->next ;
+    }
     current-- ;
   }
   
@@ -951,25 +1101,19 @@ void cloog_program_extract_scalars(CloogProgram *program, CloogDomainList *scatt
    * many scalar dimensions follows + 1 (the current one). This will make 
    * some other processing easier (e.g. knowledge of some offsets).
    */
-  for (i = 0; i < cloog_program_nb_scattdims (program) - 1; i++)
-    { 
-      if (cloog_program_scaldim (program, i))
-	{
-	  j = i + 1 ;
-	  while ((j < cloog_program_nb_scattdims (program))
-		 && cloog_program_scaldim (program, j))
-	    {
-	      cloog_program_set_scaldim (program, i, 
-					 cloog_program_scaldim (program, i) + 1);
-	      j ++ ;
-	    }
-	}
+  for (i=0;i<program->nb_scattdims-1;i++)
+  { if (program->scaldims[i])
+    { j = i + 1 ;
+      while ((j < program->nb_scattdims) && program->scaldims[j])
+      { program->scaldims[i] ++ ;
+        j ++ ;
+      }
     }
+  }
   
-  /* Cloog should never print to stderr.  */
-  /* if (nb_scaldims != 0)
-     fprintf(stderr, "[CLooG]INFO: %d dimensions (over %d) are scalar.\n",
-     nb_scaldims, cloog_program_nb_scattdims (program)) ; */
+  if (nb_scaldims != 0)
+    cloog_msg(options, CLOOG_INFO, "%d dimensions (over %d) are scalar.\n",
+          nb_scaldims,program->nb_scattdims) ;
 }
 
 
@@ -980,24 +1124,47 @@ void cloog_program_extract_scalars(CloogProgram *program, CloogDomainList *scatt
  * name is ci.
  * - November 6th 2001: first version. 
  */
-void cloog_program_scatter(CloogProgram *program, CloogDomainList *scattering)
-{ 
+void cloog_program_scatter(CloogProgram *program,
+			CloogScatteringList *scattering, CloogOptions *options)
+{ int scattering_dim, scattering_dim2, not_enough_constraints=0 ;
   CloogLoop * loop ;
   
   if ((program != NULL) && (scattering != NULL))
-    {
-      loop = cloog_program_loop (program) ;
-
-      /* Finally we scatter all loops. */
-      cloog_loop_scatter(loop, cloog_domain (scattering)) ;
-      loop = cloog_loop_next (loop) ;
-      scattering = cloog_next_domain (scattering);    
+  { loop = program->loop ;
     
-      while ((loop != NULL) && (scattering != NULL))
-	{      
-	  cloog_loop_scatter(loop,cloog_domain (scattering)) ;
-	  loop = cloog_loop_next (loop) ;
-	  scattering = cloog_next_domain (scattering);
-	}
+    /* We compute the scattering dimension and check it is >=0. */
+    scattering_dim = cloog_scattering_dimension(scattering->scatt, loop->domain);
+    if (scattering_dim < 0)
+      cloog_die("scattering has not enough dimensions.\n");
+    if (!cloog_scattering_fully_specified(scattering->scatt, loop->domain))
+    not_enough_constraints ++ ;
+         
+    /* The scattering dimension may have been modified by scalar extraction. */
+    scattering_dim = cloog_scattering_dimension(scattering->scatt, loop->domain);
+
+    /* Finally we scatter all loops. */
+    cloog_loop_scatter(loop, scattering->scatt);
+    loop = loop->next ;
+    scattering = scattering->next ;    
+    
+    while ((loop != NULL) && (scattering != NULL))
+    { scattering_dim2 = cloog_scattering_dimension(scattering->scatt,
+								loop->domain);
+      if (scattering_dim2 != scattering_dim)
+        cloog_die("scattering dimensions are not the same.\n") ;
+      if (!cloog_scattering_fully_specified(scattering->scatt, loop->domain))
+      not_enough_constraints ++ ;
+      
+      cloog_loop_scatter(loop, scattering->scatt);
+      loop = loop->next ;
+      scattering = scattering->next ;
     }
+    if ((loop != NULL) || (scattering != NULL))
+      cloog_msg(options, CLOOG_WARNING,
+                    "there is not a scattering for each statement.\n");
+    
+    if (not_enough_constraints)
+      cloog_msg(options, CLOOG_WARNING, "not enough constraints for "
+                    "%d scattering function(s).\n",not_enough_constraints) ;
+  }
 }

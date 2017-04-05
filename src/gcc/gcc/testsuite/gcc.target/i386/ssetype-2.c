@@ -1,6 +1,6 @@
 /* { dg-do compile } */
+/* { dg-skip-if "" { i?86-*-* x86_64-*-* } { "-march=*" } { "-march=k8" } } */
 /* { dg-options "-O2 -msse2 -march=k8" } */
-/* { dg-require-effective-target sse2 } */
 /* { dg-final { scan-assembler "andpd" } } */
 /* { dg-final { scan-assembler "andnpd" } } */
 /* { dg-final { scan-assembler "xorpd" } } */

@@ -1,6 +1,6 @@
 // -*- C++ -*-
 
-// Copyright (C) 2005, 2006, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2005-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the terms
@@ -52,8 +52,8 @@ using namespace __gnu_pbds;
 // A PATRICIA trie with a prefix-search node-updator type. Note that
 // since the node updator is trie_prefix_search_node_update, then the
 // container includes its method prefix_range.
-typedef null_mapped_type		mapped_type;
-typedef string_trie_e_access_traits<> 	cmp_fn;
+typedef null_type		mapped_type;
+typedef trie_string_access_traits<> 	cmp_fn;
 typedef pat_trie_tag 			tag_type;
 
 typedef trie<string, mapped_type, cmp_fn, tag_type, 

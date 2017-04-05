@@ -3,7 +3,7 @@
 
 // 2008-05-25  Sebastian Redl  <sebastian.redl@getdesigned.at>
 
-// Copyright (C) 2008, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2008-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -150,11 +150,14 @@ void test06()
 
   may_destruct = false;
 
-  try {
-    test06_helper();
-  } catch(...) {
-    may_destruct = true;
-  }
+  try 
+    {
+      test06_helper();
+    } 
+  catch(...) 
+    {
+      may_destruct = true;
+    }
   may_destruct = false;
 }
 
@@ -167,11 +170,14 @@ void test99()
 
   may_destruct = false;
 
-  try {
-    throw destructing();
-  } catch(...) {
-    gep = current_exception();
-  }
+  try 
+    {
+      throw destructing();
+    } 
+  catch(...) 
+    {
+      gep = current_exception();
+    }
 }
 
 int main()

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                  B o d y                                 --
 --                                                                          --
---         Copyright (C) 1992-2009, Free Software Foundation, Inc.          --
+--         Copyright (C) 1992-2012, Free Software Foundation, Inc.          --
 --                                                                          --
 -- GNARL is free software; you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -38,9 +38,6 @@ pragma Polling (Off);
 --  Turn off polling, we do not want ATC polling to take place during tasking
 --  operations. It causes infinite loops and other problems.
 
-with Ada.Unchecked_Conversion;
-with Ada.Unchecked_Deallocation;
-
 with Interfaces.C;
 
 with System.Task_Info;
@@ -48,6 +45,7 @@ with System.Tasking.Debug;
 with System.Interrupt_Management;
 with System.OS_Primitives;
 with System.Stack_Checking.Operations;
+with System.Multiprocessors;
 
 with System.Soft_Links;
 --  We use System.Soft_Links instead of System.Tasking.Initialization
@@ -80,9 +78,6 @@ package body System.Task_Primitives.Operations is
    --  a time; it is used to execute in mutual exclusion from all other tasks.
    --  Used mainly in Single_Lock mode, but also to protect All_Tasks_List
 
-   ATCB_Key : aliased pthread_key_t;
-   --  Key used to find the Ada Task_Id associated with a thread
-
    Environment_Task_Id : Task_Id;
    --  A variable to hold Task_Id for the environment task
 
@@ -100,11 +95,8 @@ package body System.Task_Primitives.Operations is
    Dispatching_Policy : Character;
    pragma Import (C, Dispatching_Policy, "__gl_task_dispatching_policy");
 
-   --  The following are effectively constants, but they need to be initialized
-   --  by calling a pthread_ function.
-
-   Mutex_Attr   : aliased pthread_mutexattr_t;
-   Cond_Attr    : aliased pthread_condattr_t;
+   Locking_Policy : Character;
+   pragma Import (C, Locking_Policy, "__gl_locking_policy");
 
    Foreign_Task_Elaborated : aliased Boolean := True;
    --  Used to identified fake tasks (i.e., non-Ada Threads)
@@ -114,6 +106,10 @@ package body System.Task_Primitives.Operations is
 
    Abort_Handler_Installed : Boolean := False;
    --  True if a handler for the abort signal is installed
+
+   Null_Thread_Id : constant pthread_t := pthread_t'Last;
+   --  Constant to indicate that the thread identifier has not yet been
+   --  initialized.
 
    --------------------
    -- Local Packages --
@@ -142,6 +138,13 @@ package body System.Task_Primitives.Operations is
    package body Specific is separate;
    --  The body of this package is target specific
 
+   ----------------------------------
+   -- ATCB allocation/deallocation --
+   ----------------------------------
+
+   package body ATCB_Allocation is separate;
+   --  The body of this package is shared across several targets
+
    ---------------------------------
    -- Support for foreign threads --
    ---------------------------------
@@ -156,12 +159,7 @@ package body System.Task_Primitives.Operations is
    -- Local Subprograms --
    -----------------------
 
-   subtype unsigned_long is Interfaces.C.unsigned_long;
-
    procedure Abort_Handler (signo : Signal);
-
-   function To_pthread_t is new Ada.Unchecked_Conversion
-     (unsigned_long, System.OS_Interface.pthread_t);
 
    -------------------
    -- Abort_Handler --
@@ -180,7 +178,7 @@ package body System.Task_Primitives.Operations is
       --  cases (e.g. shutdown of the Server_Task in System.Interrupts) we
       --  need to send the Abort signal to a task.
 
-      if ZCX_By_Default and then GCC_ZCX_Support then
+      if ZCX_By_Default then
          return;
       end if;
 
@@ -265,15 +263,45 @@ package body System.Task_Primitives.Operations is
    is
       pragma Unreferenced (Prio);
 
-      Result : Interfaces.C.int;
-
    begin
-      Result := pthread_mutex_init (L, Mutex_Attr'Access);
+      if Locking_Policy = 'R' then
+         declare
+            RWlock_Attr : aliased pthread_rwlockattr_t;
+            Result      : Interfaces.C.int;
 
-      pragma Assert (Result = 0 or else Result = ENOMEM);
+         begin
+            --  Set the rwlock to prefer writer to avoid writers starvation
 
-      if Result = ENOMEM then
-         raise Storage_Error with "Failed to allocate a lock";
+            Result := pthread_rwlockattr_init (RWlock_Attr'Access);
+            pragma Assert (Result = 0);
+
+            Result := pthread_rwlockattr_setkind_np
+              (RWlock_Attr'Access,
+               PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP);
+            pragma Assert (Result = 0);
+
+            Result := pthread_rwlock_init (L.RW'Access, RWlock_Attr'Access);
+
+            pragma Assert (Result = 0 or else Result = ENOMEM);
+
+            if Result = ENOMEM then
+               raise Storage_Error with "Failed to allocate a lock";
+            end if;
+         end;
+
+      else
+         declare
+            Result : Interfaces.C.int;
+
+         begin
+            Result := pthread_mutex_init (L.WO'Access, null);
+
+            pragma Assert (Result = 0 or else Result = ENOMEM);
+
+            if Result = ENOMEM then
+               raise Storage_Error with "Failed to allocate a lock";
+            end if;
+         end;
       end if;
    end Initialize_Lock;
 
@@ -286,7 +314,7 @@ package body System.Task_Primitives.Operations is
       Result : Interfaces.C.int;
 
    begin
-      Result := pthread_mutex_init (L, Mutex_Attr'Access);
+      Result := pthread_mutex_init (L, null);
 
       pragma Assert (Result = 0 or else Result = ENOMEM);
 
@@ -302,7 +330,11 @@ package body System.Task_Primitives.Operations is
    procedure Finalize_Lock (L : not null access Lock) is
       Result : Interfaces.C.int;
    begin
-      Result := pthread_mutex_destroy (L);
+      if Locking_Policy = 'R' then
+         Result := pthread_rwlock_destroy (L.RW'Access);
+      else
+         Result := pthread_mutex_destroy (L.WO'Access);
+      end if;
       pragma Assert (Result = 0);
    end Finalize_Lock;
 
@@ -323,7 +355,12 @@ package body System.Task_Primitives.Operations is
    is
       Result : Interfaces.C.int;
    begin
-      Result := pthread_mutex_lock (L);
+      if Locking_Policy = 'R' then
+         Result := pthread_rwlock_wrlock (L.RW'Access);
+      else
+         Result := pthread_mutex_lock (L.WO'Access);
+      end if;
+
       Ceiling_Violation := Result = EINVAL;
 
       --  Assume the cause of EINVAL is a priority ceiling violation
@@ -360,8 +397,19 @@ package body System.Task_Primitives.Operations is
      (L                 : not null access Lock;
       Ceiling_Violation : out Boolean)
    is
+      Result : Interfaces.C.int;
    begin
-      Write_Lock (L, Ceiling_Violation);
+      if Locking_Policy = 'R' then
+         Result := pthread_rwlock_rdlock (L.RW'Access);
+      else
+         Result := pthread_mutex_lock (L.WO'Access);
+      end if;
+
+      Ceiling_Violation := Result = EINVAL;
+
+      --  Assume the cause of EINVAL is a priority ceiling violation
+
+      pragma Assert (Result = 0 or else Result = EINVAL);
    end Read_Lock;
 
    ------------
@@ -371,7 +419,11 @@ package body System.Task_Primitives.Operations is
    procedure Unlock (L : not null access Lock) is
       Result : Interfaces.C.int;
    begin
-      Result := pthread_mutex_unlock (L);
+      if Locking_Policy = 'R' then
+         Result := pthread_rwlock_unlock (L.RW'Access);
+      else
+         Result := pthread_mutex_unlock (L.WO'Access);
+      end if;
       pragma Assert (Result = 0);
    end Unlock;
 
@@ -715,9 +767,28 @@ package body System.Task_Primitives.Operations is
       Self_ID.Common.LL.Thread := pthread_self;
       Self_ID.Common.LL.LWP := lwp_self;
 
+      if Self_ID.Common.Task_Image_Len > 0 then
+         declare
+            Task_Name : String (1 .. Parameters.Max_Task_Image_Length + 1);
+            Result    : int;
+
+         begin
+            --  Set thread name to ease debugging
+
+            Task_Name (1 .. Self_ID.Common.Task_Image_Len) :=
+              Self_ID.Common.Task_Image (1 .. Self_ID.Common.Task_Image_Len);
+            Task_Name (Self_ID.Common.Task_Image_Len + 1) := ASCII.NUL;
+
+            Result := prctl (PR_SET_NAME, unsigned_long (Task_Name'Address));
+            pragma Assert (Result = 0);
+         end;
+      end if;
+
       Specific.Set (Self_ID);
 
-      if Use_Alternate_Stack then
+      if Use_Alternate_Stack
+        and then Self_ID.Common.Task_Alternate_Stack /= Null_Address
+      then
          declare
             Stack  : aliased stack_t;
             Result : Interfaces.C.int;
@@ -730,15 +801,6 @@ package body System.Task_Primitives.Operations is
          end;
       end if;
    end Enter_Task;
-
-   --------------
-   -- New_ATCB --
-   --------------
-
-   function New_ATCB (Entry_Num : Task_Entry_Index) return Task_Id is
-   begin
-      return new Ada_Task_Control_Block (Entry_Num);
-   end New_ATCB;
 
    -------------------
    -- Is_Valid_Task --
@@ -764,7 +826,8 @@ package body System.Task_Primitives.Operations is
    --------------------
 
    procedure Initialize_TCB (Self_ID : Task_Id; Succeeded : out Boolean) is
-      Result : Interfaces.C.int;
+      Cond_Attr : aliased pthread_condattr_t;
+      Result    : Interfaces.C.int;
 
    begin
       --  Give the task a unique serial number
@@ -773,11 +836,11 @@ package body System.Task_Primitives.Operations is
       Next_Serial_Number := Next_Serial_Number + 1;
       pragma Assert (Next_Serial_Number /= 0);
 
-      Self_ID.Common.LL.Thread := To_pthread_t (-1);
+      Self_ID.Common.LL.Thread := Null_Thread_Id;
 
       if not Single_Lock then
-         Result := pthread_mutex_init (Self_ID.Common.LL.L'Access,
-           Mutex_Attr'Access);
+         Result :=
+           pthread_mutex_init (Self_ID.Common.LL.L'Access, null);
          pragma Assert (Result = 0 or else Result = ENOMEM);
 
          if Result /= 0 then
@@ -786,8 +849,11 @@ package body System.Task_Primitives.Operations is
          end if;
       end if;
 
-      Result := pthread_cond_init (Self_ID.Common.LL.CV'Access,
-        Cond_Attr'Access);
+      Result := pthread_condattr_init (Cond_Attr'Access);
+      pragma Assert (Result = 0);
+
+      Result :=
+        pthread_cond_init (Self_ID.Common.LL.CV'Access, Cond_Attr'Access);
       pragma Assert (Result = 0 or else Result = ENOMEM);
 
       if Result = 0 then
@@ -817,7 +883,23 @@ package body System.Task_Primitives.Operations is
       Adjusted_Stack_Size : Interfaces.C.size_t;
       Result              : Interfaces.C.int;
 
+      use type System.Multiprocessors.CPU_Range;
+
    begin
+      --  Check whether both Dispatching_Domain and CPU are specified for
+      --  the task, and the CPU value is not contained within the range of
+      --  processors for the domain.
+
+      if T.Common.Domain /= null
+        and then T.Common.Base_CPU /= System.Multiprocessors.Not_A_Specific_CPU
+        and then
+          (T.Common.Base_CPU not in T.Common.Domain'Range
+            or else not T.Common.Domain (T.Common.Base_CPU))
+      then
+         Succeeded := False;
+         return;
+      end if;
+
       Adjusted_Stack_Size :=
          Interfaces.C.size_t (Stack_Size + Alternate_Stack_Size);
 
@@ -830,8 +912,7 @@ package body System.Task_Primitives.Operations is
       end if;
 
       Result :=
-        pthread_attr_setstacksize
-          (Attributes'Access, Adjusted_Stack_Size);
+        pthread_attr_setstacksize (Attributes'Access, Adjusted_Stack_Size);
       pragma Assert (Result = 0);
 
       Result :=
@@ -839,16 +920,106 @@ package body System.Task_Primitives.Operations is
           (Attributes'Access, PTHREAD_CREATE_DETACHED);
       pragma Assert (Result = 0);
 
+      --  Set the required attributes for the creation of the thread
+
+      --  Note: Previously, we called pthread_setaffinity_np (after thread
+      --  creation but before thread activation) to set the affinity but it was
+      --  not behaving as expected. Setting the required attributes for the
+      --  creation of the thread works correctly and it is more appropriate.
+
+      --  Do nothing if required support not provided by the operating system
+
+      if pthread_attr_setaffinity_np'Address = System.Null_Address then
+         null;
+
+      --  Support is available
+
+      elsif T.Common.Base_CPU /= System.Multiprocessors.Not_A_Specific_CPU then
+         declare
+            CPUs    : constant size_t :=
+                        Interfaces.C.size_t
+                          (System.Multiprocessors.Number_Of_CPUs);
+            CPU_Set : constant cpu_set_t_ptr := CPU_ALLOC (CPUs);
+            Size    : constant size_t := CPU_ALLOC_SIZE (CPUs);
+
+         begin
+            CPU_ZERO (Size, CPU_Set);
+            System.OS_Interface.CPU_SET
+              (int (T.Common.Base_CPU), Size, CPU_Set);
+            Result :=
+              pthread_attr_setaffinity_np (Attributes'Access, Size, CPU_Set);
+            pragma Assert (Result = 0);
+
+            CPU_FREE (CPU_Set);
+         end;
+
+      --  Handle Task_Info
+
+      elsif T.Common.Task_Info /= null then
+         Result :=
+           pthread_attr_setaffinity_np
+             (Attributes'Access,
+              CPU_SETSIZE / 8,
+              T.Common.Task_Info.CPU_Affinity'Access);
+         pragma Assert (Result = 0);
+
+      --  Handle dispatching domains
+
+      --  To avoid changing CPU affinities when not needed, we set the
+      --  affinity only when assigning to a domain other than the default
+      --  one, or when the default one has been modified.
+
+      elsif T.Common.Domain /= null and then
+        (T.Common.Domain /= ST.System_Domain
+          or else T.Common.Domain.all /=
+                    (Multiprocessors.CPU'First ..
+                     Multiprocessors.Number_Of_CPUs => True))
+      then
+         declare
+            CPUs    : constant size_t :=
+                        Interfaces.C.size_t
+                          (System.Multiprocessors.Number_Of_CPUs);
+            CPU_Set : constant cpu_set_t_ptr := CPU_ALLOC (CPUs);
+            Size    : constant size_t := CPU_ALLOC_SIZE (CPUs);
+
+         begin
+            CPU_ZERO (Size, CPU_Set);
+
+            --  Set the affinity to all the processors belonging to the
+            --  dispatching domain.
+
+            for Proc in T.Common.Domain'Range loop
+               if T.Common.Domain (Proc) then
+                  System.OS_Interface.CPU_SET (int (Proc), Size, CPU_Set);
+               end if;
+            end loop;
+
+            Result :=
+              pthread_attr_setaffinity_np (Attributes'Access, Size, CPU_Set);
+            pragma Assert (Result = 0);
+
+            CPU_FREE (CPU_Set);
+         end;
+      end if;
+
       --  Since the initial signal mask of a thread is inherited from the
       --  creator, and the Environment task has all its signals masked, we
       --  do not need to manipulate caller's signal mask at this point.
       --  All tasks in RTS will have All_Tasks_Mask initially.
 
-      Result := pthread_create
-        (T.Common.LL.Thread'Access,
-         Attributes'Access,
-         Thread_Body_Access (Wrapper),
-         To_Address (T));
+      --  Note: the use of Unrestricted_Access in the following call is needed
+      --  because otherwise we have an error of getting a access-to-volatile
+      --  value which points to a non-volatile object. But in this case it is
+      --  safe to do this, since we know we have no problems with aliasing and
+      --  Unrestricted_Access bypasses this check.
+
+      Result :=
+        pthread_create
+          (T.Common.LL.Thread'Unrestricted_Access,
+           Attributes'Access,
+           Thread_Body_Access (Wrapper),
+           To_Address (T));
+
       pragma Assert
         (Result = 0 or else Result = EAGAIN or else Result = ENOMEM);
 
@@ -861,19 +1032,6 @@ package body System.Task_Primitives.Operations is
 
       Succeeded := True;
 
-      --  Handle Task_Info
-
-      if T.Common.Task_Info /= null then
-         if T.Common.Task_Info.CPU_Affinity /= Task_Info.Any_CPU then
-            Result :=
-              pthread_setaffinity_np
-                (T.Common.LL.Thread,
-                 CPU_SETSIZE / 8,
-                 T.Common.Task_Info.CPU_Affinity'Access);
-            pragma Assert (Result = 0);
-         end if;
-      end if;
-
       Result := pthread_attr_destroy (Attributes'Access);
       pragma Assert (Result = 0);
 
@@ -885,12 +1043,7 @@ package body System.Task_Primitives.Operations is
    ------------------
 
    procedure Finalize_TCB (T : Task_Id) is
-      Result  : Interfaces.C.int;
-      Tmp     : Task_Id := T;
-      Is_Self : constant Boolean := T = Self;
-
-      procedure Free is new
-        Ada.Unchecked_Deallocation (Ada_Task_Control_Block, Task_Id);
+      Result : Interfaces.C.int;
 
    begin
       if not Single_Lock then
@@ -904,12 +1057,10 @@ package body System.Task_Primitives.Operations is
       if T.Known_Tasks_Index /= -1 then
          Known_Tasks (T.Known_Tasks_Index) := null;
       end if;
-      SC.Invalidate_Stack_Cache (T.Common.Compiler_Data.Pri_Stack_Info'Access);
-      Free (Tmp);
 
-      if Is_Self then
-         Specific.Set (null);
-      end if;
+      SC.Invalidate_Stack_Cache (T.Common.Compiler_Data.Pri_Stack_Info'Access);
+
+      ATCB_Allocation.Free_ATCB (T);
    end Finalize_TCB;
 
    ---------------
@@ -952,7 +1103,7 @@ package body System.Task_Primitives.Operations is
 
       --  Initialize internal mutex
 
-      Result := pthread_mutex_init (S.L'Access, Mutex_Attr'Access);
+      Result := pthread_mutex_init (S.L'Access, null);
 
       pragma Assert (Result = 0 or else Result = ENOMEM);
 
@@ -962,7 +1113,7 @@ package body System.Task_Primitives.Operations is
 
       --  Initialize internal condition variable
 
-      Result := pthread_cond_init (S.CV'Access, Cond_Attr'Access);
+      Result := pthread_cond_init (S.CV'Access, null);
 
       pragma Assert (Result = 0 or else Result = ENOMEM);
 
@@ -1236,6 +1387,8 @@ package body System.Task_Primitives.Operations is
       --    's'   Interrupt_State pragma set state to System (use "default"
       --           system handler)
 
+      use type System.Multiprocessors.CPU_Range;
+
    begin
       Environment_Task_Id := Environment_Task;
 
@@ -1252,12 +1405,6 @@ package body System.Task_Primitives.Operations is
             pragma Assert (Result = 0);
          end if;
       end loop;
-
-      Result := pthread_mutexattr_init (Mutex_Attr'Access);
-      pragma Assert (Result = 0);
-
-      Result := pthread_condattr_init (Cond_Attr'Access);
-      pragma Assert (Result = 0);
 
       Initialize_Lock (Single_RTS_Lock'Access, RTS_Lock_Level);
 
@@ -1296,6 +1443,92 @@ package body System.Task_Primitives.Operations is
          pragma Assert (Result = 0);
          Abort_Handler_Installed := True;
       end if;
+
+      --  pragma CPU and dispatching domains for the environment task
+
+      Set_Task_Affinity (Environment_Task);
    end Initialize;
+
+   -----------------------
+   -- Set_Task_Affinity --
+   -----------------------
+
+   procedure Set_Task_Affinity (T : ST.Task_Id) is
+      use type System.Multiprocessors.CPU_Range;
+
+   begin
+      --  Do nothing if there is no support for setting affinities or the
+      --  underlying thread has not yet been created. If the thread has not
+      --  yet been created then the proper affinity will be set during its
+      --  creation.
+
+      if pthread_setaffinity_np'Address /= System.Null_Address
+        and then T.Common.LL.Thread /= Null_Thread_Id
+      then
+         declare
+            CPUs    : constant size_t :=
+                        Interfaces.C.size_t
+                          (System.Multiprocessors.Number_Of_CPUs);
+            CPU_Set : cpu_set_t_ptr := null;
+            Size    : constant size_t := CPU_ALLOC_SIZE (CPUs);
+
+            Result  : Interfaces.C.int;
+
+         begin
+            --  We look at the specific CPU (Base_CPU) first, then at the
+            --  Task_Info field, and finally at the assigned dispatching
+            --  domain, if any.
+
+            if T.Common.Base_CPU /= Multiprocessors.Not_A_Specific_CPU then
+
+               --  Set the affinity to an unique CPU
+
+               CPU_Set := CPU_ALLOC (CPUs);
+               System.OS_Interface.CPU_ZERO (Size, CPU_Set);
+               System.OS_Interface.CPU_SET
+                 (int (T.Common.Base_CPU), Size, CPU_Set);
+
+            --  Handle Task_Info
+
+            elsif T.Common.Task_Info /= null then
+               CPU_Set := T.Common.Task_Info.CPU_Affinity'Access;
+
+            --  Handle dispatching domains
+
+            elsif T.Common.Domain /= null and then
+              (T.Common.Domain /= ST.System_Domain
+                or else T.Common.Domain.all /=
+                          (Multiprocessors.CPU'First ..
+                           Multiprocessors.Number_Of_CPUs => True))
+            then
+               --  Set the affinity to all the processors belonging to the
+               --  dispatching domain. To avoid changing CPU affinities when
+               --  not needed, we set the affinity only when assigning to a
+               --  domain other than the default one, or when the default one
+               --  has been modified.
+
+               CPU_Set := CPU_ALLOC (CPUs);
+               System.OS_Interface.CPU_ZERO (Size, CPU_Set);
+
+               for Proc in T.Common.Domain'Range loop
+                  System.OS_Interface.CPU_SET (int (Proc), Size, CPU_Set);
+               end loop;
+            end if;
+
+            --  We set the new affinity if needed. Otherwise, the new task
+            --  will inherit its creator's CPU affinity mask (according to
+            --  the documentation of pthread_setaffinity_np), which is
+            --  consistent with Ada's required semantics.
+
+            if CPU_Set /= null then
+               Result :=
+                 pthread_setaffinity_np (T.Common.LL.Thread, Size, CPU_Set);
+               pragma Assert (Result = 0);
+
+               CPU_FREE (CPU_Set);
+            end if;
+         end;
+      end if;
+   end Set_Task_Affinity;
 
 end System.Task_Primitives.Operations;

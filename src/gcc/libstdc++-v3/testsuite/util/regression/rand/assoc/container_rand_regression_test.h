@@ -1,6 +1,6 @@
 // -*- C++ -*-
 
-// Copyright (C) 2005, 2006, 2008, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2005-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the terms
@@ -75,7 +75,7 @@ namespace detail
     typedef typename cntnr::size_type 			size_type;
     typedef regression_test_traits<Cntnr> 		test_traits;
     typedef typename test_traits::key_type 		key_type;
-    typedef typename test_traits::const_key_reference	const_key_reference;
+    typedef typename test_traits::key_const_reference	key_const_reference;
     typedef typename test_traits::value_type 		value_type;
     typedef typename test_traits::native_type 		native_type;
     typedef twister_rand_gen 				gen;

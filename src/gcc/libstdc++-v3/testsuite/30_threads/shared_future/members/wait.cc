@@ -1,12 +1,12 @@
-// { dg-do run { target *-*-freebsd* *-*-netbsd* *-*-linux* *-*-solaris* *-*-cygwin *-*-darwin* alpha*-*-osf* mips-sgi-irix6* } }
-// { dg-options " -std=gnu++0x -pthread" { target *-*-freebsd* *-*-netbsd* *-*-linux* alpha*-*-osf* mips-sgi-irix6* } }
+// { dg-do run { target *-*-freebsd* *-*-netbsd* *-*-linux* *-*-solaris* *-*-cygwin *-*-darwin* powerpc-ibm-aix* } }
+// { dg-options " -std=gnu++0x -pthread" { target *-*-freebsd* *-*-netbsd* *-*-linux* powerpc-ibm-aix* } }
 // { dg-options " -std=gnu++0x -pthreads" { target *-*-solaris* } }
 // { dg-options " -std=gnu++0x " { target *-*-cygwin *-*-darwin* } }
 // { dg-require-cstdint "" }
 // { dg-require-gthreads "" }
 // { dg-require-atomic-builtins "" }
 
-// Copyright (C) 2009 Free Software Foundation, Inc.
+// Copyright (C) 2009-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -29,7 +29,7 @@
 #include <mutex>
 #include <testsuite_hooks.h>
 
-void wait(std::shared_future<void> f)
+void fut_wait(std::shared_future<void> f)
 {
   f.wait();
 }
@@ -39,9 +39,9 @@ void test01()
   std::promise<void> p1;
   std::shared_future<void> f1(p1.get_future());
 
-  std::thread t1(wait, f1);
-  std::thread t2(wait, f1);
-  std::thread t3(wait, f1);
+  std::thread t1(fut_wait, f1);
+  std::thread t2(fut_wait, f1);
+  std::thread t3(fut_wait, f1);
 
   p1.set_value();
   t1.join();

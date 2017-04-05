@@ -1,5 +1,6 @@
 /* { dg-do compile } */
 /* { dg-options "-O2 -fdump-tree-optimized" } */
+/* { dg-require-effective-target int32plus } */
 
 void baz (unsigned);
 
@@ -42,5 +43,5 @@ bar (unsigned orig, unsigned *new)
   *new = foo (&a);
 }
 
-/* { dg-final { scan-tree-dump "x = a;" "optimized"} } */
+/* { dg-final { scan-tree-dump-not "unnamed-unsigned:19" "optimized"} } */
 /* { dg-final { cleanup-tree-dump "optimized" } } */

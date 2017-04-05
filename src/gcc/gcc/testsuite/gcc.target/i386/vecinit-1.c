@@ -1,6 +1,6 @@
 /* { dg-do compile } */
-/* { dg-options "-O2 -msse2" } */
-/* { dg-require-effective-target sse2 } */
+/* { dg-options "-O2 -march=k8 -msse2 -mno-sse4" } */
+
 #define vector __attribute__((vector_size(16)))
 
 float a;

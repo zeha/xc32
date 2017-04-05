@@ -14,19 +14,20 @@
  *                                                                            *
  * Copyright (C) 2001-2005 Cedric Bastoul                                     *
  *                                                                            *
- * This is free software; you can redistribute it and/or modify it under the  *
- * terms of the GNU General Public License as published by the Free Software  *
- * Foundation; either version 2 of the License, or (at your option) any later *
- * version.                                                                   *
+ * This library is free software; you can redistribute it and/or              *
+ * modify it under the terms of the GNU Lesser General Public                 *
+ * License as published by the Free Software Foundation; either               *
+ * version 2.1 of the License, or (at your option) any later version.         *
  *                                                                            *
- * This software is distributed in the hope that it will be useful, but       *
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY *
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License   *
- * for more details.                                                          *
+ * This library is distributed in the hope that it will be useful,            *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *
+ * Lesser General Public License for more details.                            *
  *                                                                            *
- * You should have received a copy of the GNU General Public License along    *
- * with software; if not, write to the Free Software Foundation, Inc.,        *
- * 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA                     *
+ * You should have received a copy of the GNU Lesser General Public           *
+ * License along with this library; if not, write to the Free Software        *
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor,                         *
+ * Boston, MA  02110-1301  USA                                                *
  *                                                                            *
  * CLooG, the Chunky Loop Generator                                           *
  * Written by Cedric Bastoul, Cedric.Bastoul@inria.fr                         *
@@ -61,20 +62,17 @@
  */
 
 
-int cloog_statement_allocated = 0 ;
-int cloog_statement_freed = 0 ;
-int cloog_statement_max = 0 ;
-
-
-static void cloog_statement_leak_up (void)
-{ cloog_statement_allocated ++ ;
-  if ((cloog_statement_allocated-cloog_statement_freed) > cloog_statement_max)
-  cloog_statement_max = cloog_statement_allocated - cloog_statement_freed ;
+static void cloog_statement_leak_up(CloogState *state)
+{
+  state->statement_allocated++;
+  if ((state->statement_allocated - state->statement_freed) > state->statement_max)
+  state->statement_max = state->statement_allocated - state->statement_freed ;
 }
 
 
-static void cloog_statement_leak_down (void)
-{ cloog_statement_freed ++ ;
+static void cloog_statement_leak_down(CloogState *state)
+{ 
+  state->statement_freed++;
 }
 
 
@@ -90,16 +88,19 @@ static void cloog_statement_leak_down (void)
  * others print_structure functions.
  * - June  16th 2005: first version.
  */
-void cloog_statement_print_structure(FILE *file, CloogStatement *statement, int level)
+void cloog_statement_print_structure(file, statement, level)
+FILE * file ;
+CloogStatement * statement ;
+int level ;
 { int i ;
       
   if (statement != NULL)
   { /* Go to the right level. */
     for (i=0; i<level; i++)
     fprintf(file,"|\t") ;
-    fprintf (file, "+-- CloogStatement %d \n", cloog_statement_number (statement));
+    fprintf(file,"+-- CloogStatement %d \n",statement->number) ;
     
-    statement = cloog_statement_next (statement);
+    statement = statement->next ;
  
     while (statement != NULL)
     { for (i=0; i<level; i++)
@@ -111,8 +112,8 @@ void cloog_statement_print_structure(FILE *file, CloogStatement *statement, int 
       
       for (i=0; i<level; i++)
       fprintf(file,"|\t") ;
-      fprintf (file, "|   CloogStatement %d \n", cloog_statement_number (statement));
-      statement = cloog_statement_next (statement) ;
+      fprintf(file,"|   CloogStatement %d \n",statement->number) ;
+      statement = statement->next ;
     }
   }
   else
@@ -146,10 +147,12 @@ void cloog_statement_print(FILE * file, CloogStatement * statement)
 void cloog_statement_free(CloogStatement * statement)
 { CloogStatement * next ;
 
-  while (statement != NULL)
-  { cloog_statement_leak_down() ;
+  while (statement != NULL) {
+    cloog_statement_leak_down(statement->state);
     
-    next = cloog_statement_next (statement) ;
+    next = statement->next ;
+    /* free(statement->usr) ; Actually, this is user's job ! */
+    free(statement->name);
     free(statement) ;
     statement = next ;
   }
@@ -168,21 +171,21 @@ void cloog_statement_free(CloogStatement * statement)
  * allocated space.
  * - November 21th 2005: first version.
  */
-CloogStatement * cloog_statement_malloc (void)
+CloogStatement *cloog_statement_malloc(CloogState *state)
 { CloogStatement * statement ;
   
   /* Memory allocation for the CloogStatement structure. */
   statement = (CloogStatement *)malloc(sizeof(CloogStatement)) ;
   if (statement == NULL) 
-  { fprintf(stderr, "[CLooG]ERROR: memory overflow.\n") ;
-    exit(1) ;
-  }
-  cloog_statement_leak_up() ;
+    cloog_die("memory overflow.\n");
+  cloog_statement_leak_up(state);
   
   /* We set the various fields with default values. */
-  cloog_statement_set_number (statement, 0);
-  cloog_statement_set_usr (statement, NULL);
-  cloog_statement_set_next (statement, NULL);
+  statement->state = state;
+  statement->number = 0;
+  statement->name = NULL;
+  statement->usr  = NULL ; /* To fill it is actually user's job ! */
+  statement->next = NULL ;
   
   return statement ;
 }  
@@ -203,13 +206,13 @@ CloogStatement * cloog_statement_malloc (void)
  *                       read on a file.
  * - November 21th 2005: use of cloog_statement_malloc.
  */
-CloogStatement * cloog_statement_alloc(int number)
+CloogStatement *cloog_statement_alloc(CloogState *state, int number)
 { CloogStatement * statement ;
     
   /* Memory allocation and initialization of the structure. */
-  statement = cloog_statement_malloc() ;
+  statement = cloog_statement_malloc(state);
 
-  cloog_statement_set_number (statement, number);
+  statement->number = number ;
   
   return statement ;
 }
@@ -227,28 +230,28 @@ CloogStatement * cloog_statement_copy(CloogStatement * source)
   
   statement = NULL ;
 
-  while (source != NULL)
-  { cloog_statement_leak_up() ;
+  while (source != NULL) {
+    cloog_statement_leak_up(source->state);
 
     temp = (CloogStatement *)malloc(sizeof(CloogStatement)) ;
     if (temp == NULL)
-    { fprintf(stderr, "Memory Overflow.\n") ;
-      exit(1) ;
-    }
+      cloog_die("memory overflow.\n");
     
-    cloog_statement_set_number (temp, cloog_statement_number (source));
-    cloog_statement_set_usr (temp, cloog_statement_usr (source));
-    cloog_statement_set_next (temp, NULL);
+    temp->state  = source->state;
+    temp->number = source->number ;
+    temp->name = source->name ? strdup(source->name) : NULL;
+    temp->usr    = source->usr ;
+    temp->next   = NULL ;
     
     if (statement == NULL)
     { statement = temp ;
       now = statement ;
     }
     else
-      { cloog_statement_set_next (now, temp);
-	now = cloog_statement_next (now) ;
+    { now->next = temp ;
+      now = now->next ;
     }
-    source = cloog_statement_next (source) ;
+    source = source->next ;
   }
   return(statement) ;
 }
@@ -263,14 +266,15 @@ CloogStatement * cloog_statement_copy(CloogStatement * source)
  * is NULL-.
  * - March 27th 2004: first version. 
  */ 
-void cloog_statement_add(CloogStatement **start, CloogStatement **now, CloogStatement *statement)
+void cloog_statement_add(start, now, statement)
+CloogStatement ** start, ** now, * statement ;
 { if (*start == NULL)
   { *start = statement ;
     *now = *start ;
   }
   else
-    { cloog_statement_set_next (*now, statement);
-      *now = cloog_statement_next (*now);
+  { (*now)->next = statement ;
+    *now = (*now)->next ;
   }
 }
 

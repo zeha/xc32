@@ -1,5 +1,5 @@
 /* Subroutines for the gcc driver.
-   Copyright (C) 2007, 2008, 2009 Free Software Foundation, Inc.
+   Copyright (C) 2007-2013 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -29,7 +29,6 @@ along with GCC; see the file COPYING3.  If not see
 
 #ifdef __linux__
 # include <link.h>
-# include <asm/cputable.h>
 #endif
 
 #if defined (__APPLE__) || (__FreeBSD__)
@@ -157,21 +156,13 @@ detect_processor_freebsd (void)
 
 #ifdef __linux__
 
-
-static const char *platform = 0;
-static bool hard_float = false;
-static bool auxv_read = false;
-
 /* Returns AT_PLATFORM if present, otherwise generic PowerPC.  */
 
-static void
-elf_auxv (void)
+static const char *
+elf_platform (void)
 {
   int fd;
 
-  if (auxv_read)
-    return;
-  
   fd = open ("/proc/self/auxv", O_RDONLY);
 
   if (fd != -1)
@@ -188,48 +179,15 @@ elf_auxv (void)
 	  for (av = (ElfW(auxv_t) *) buf; av->a_type != AT_NULL; ++av)
 	    switch (av->a_type)
 	      {
-	      case AT_HWCAP:
-		if (av->a_un.a_val & PPC_FEATURE_HAS_FPU)
-		  hard_float = true;
-		break;
-		
 	      case AT_PLATFORM:
-		{
-		  const char *name = (const char *)av->a_un.a_val;
-		  if (name)
-		    {
-		      /* Strip leading 'ppc' */
-		      if (!memcmp (name, "ppc", 3))
-			{
-			  name += 3;
-			  if (!name[0])
-			    name = NULL;
-			}
-		    }
-		  platform = name;
-		  break;
-		}
+		return (const char *) av->a_un.a_val;
 
 	      default:
 		break;
 	      }
 	}
     }
-  auxv_read = true;
-}
-
-static const char *
-elf_platform (void)
-{
-  elf_auxv ();
-  return platform;
-}
-
-static bool
-elf_float (void)
-{
-  elf_auxv ();
-  return hard_float;
+  return NULL;
 }
 
 /* Returns AT_PLATFORM if present, otherwise generic 32.  */
@@ -337,15 +295,6 @@ detect_processor_aix (void)
 {
   switch (_system_configuration.implementation)
     {
-    case 0x0001:
-      return "rios1";
-
-    case 0x0002:
-      return "rsc";
-
-    case 0x0004:
-      return "rios2";
-
     case 0x0008:
       return "601";
 
@@ -405,6 +354,7 @@ static const struct asm_name asm_names[] = {
   { "power6",	"-mpwr6" },
   { "power6x",	"-mpwr6" },
   { "power7",	"-mpwr7" },
+  { "power8",	"-mpwr8" },
   { "powerpc",	"-mppc" },
   { "rs64a",	"-mppc" },
   { "603",	"-m603" },
@@ -419,13 +369,10 @@ static const struct asm_name asm_names[] = {
 %{!maix64: \
 %{mpowerpc64: -mppc64} \
 %{maltivec: -m970} \
-%{!maltivec: %{!mpower64: %(asm_default)}}}" },
+%{!maltivec: %{!mpowerpc64: %(asm_default)}}}" },
 
 #else
-  { "common",	"-mcom" },
   { "cell",	"-mcell" },
-  { "power",	"-mpwr" },
-  { "power2",	"-mpwrx" },
   { "power3",	"-mppc64" },
   { "power4",	"-mpower4" },
   { "power5",	"%(asm_cpu_power5)" },
@@ -433,12 +380,8 @@ static const struct asm_name asm_names[] = {
   { "power6",	"%(asm_cpu_power6) -maltivec" },
   { "power6x",	"%(asm_cpu_power6) -maltivec" },
   { "power7",	"%(asm_cpu_power7)" },
+  { "power8",	"%(asm_cpu_power8)" },
   { "powerpc",	"-mppc" },
-  { "rios",	"-mpwr" },
-  { "rios1",	"-mpwr" },
-  { "rios2",	"-mpwrx" },
-  { "rsc",	"-mpwr" },
-  { "rsc1",	"-mpwr" },
   { "rs64a",	"-mppc64" },
   { "401",	"-mppc" },
   { "403",	"-m403" },
@@ -476,12 +419,8 @@ static const struct asm_name asm_names[] = {
   { "e300c3",	"-me300" },
   { "e500mc",	"-me500mc" },
   { NULL,	"\
-%{mpower: %{!mpower2: -mpwr}} \
-%{mpower2: -mpwrx} \
 %{mpowerpc64*: -mppc64} \
-%{!mpowerpc64*: %{mpowerpc*: -mppc}} \
-%{mno-power: %{!mpowerpc*: -mcom}} \
-%{!mno-power: %{!mpower*: %(asm_default)}}" },
+%{!mpowerpc64*: %(asm_default)}" },
 #endif
 };
 
@@ -562,14 +501,6 @@ host_detect_local_cpu (int argc, const char **argv)
   return concat (cache, "-m", argv[0], "=", cpu, " ", options, NULL);
 }
 
-const char *
-host_detect_local_float (int argc ATTRIBUTE_UNUSED,
-			 const char **argv ATTRIBUTE_UNUSED)
-{
-  return elf_float () ? "-mhard-float" : "-msoft-float";
-}
-
-
 #else /* GCC_VERSION */
 
 /* If we aren't compiling with GCC we just provide a minimal
@@ -591,13 +522,6 @@ host_detect_local_cpu (int argc, const char **argv)
     cpu = "powerpc";
 
   return concat ("-m", argv[0], "=", cpu, NULL);
-}
-
-const char *
-host_detect_local_float (int argc ATTRIBUTE_UNUSED,
-			 const char **argv ATTRIBUTE_UNUSED)
-{
-  return NULL;
 }
 
 #endif /* GCC_VERSION */

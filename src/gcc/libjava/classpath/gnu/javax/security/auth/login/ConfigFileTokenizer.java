@@ -1,5 +1,5 @@
 /* ConfigFileTokenizer.java -- JAAS Login Configuration default syntax tokenizer
-   Copyright (C) 2006 Free Software Foundation, Inc.
+   Copyright (C) 2006, 2010  Free Software Foundation, Inc.
 
 This file is part of GNU Classpath.
 
@@ -52,7 +52,7 @@ import java.util.logging.Logger;
  * the deault syntax. This class emulates, to a certain extent, the behavior of
  * a {@link java.io.StreamTokenizer} instance <code>st</code>, when set as
  * follows:
- * 
+ *
  *  <pre>
  *  st.resetSyntax();
  *  st.lowerCaseMode(false);
@@ -77,11 +77,13 @@ import java.util.logging.Logger;
  * <p>The most important (negative) difference with a
  * {@link java.io.StreamTokenizer} is that this tokenizer does not properly
  * handle C++ and Java // style comments in the middle of the line. It only
- * ignores them if/when found at the start of the line.</p>  
+ * ignores them if/when found at the start of the line.</p>
  */
 public class ConfigFileTokenizer
 {
-  private static final Logger log = Logger.getLogger(ConfigFileParser.class.getName());
+  private static final Logger log = Configuration.DEBUG ?
+                Logger.getLogger(ConfigFileParser.class.getName()) : null;
+
   /** A constant indicating that the end of the stream has been read. */
   public static final int TT_EOF = -1;
   /** A constant indicating that a word token has been read. */
@@ -92,7 +94,7 @@ public class ConfigFileTokenizer
   public String sval;
   public int ttype;
 
-  private BufferedReader br;
+  private final BufferedReader br;
   boolean initialised;
   private CPStringBuilder sb;
   private int sbNdx;
@@ -103,10 +105,7 @@ public class ConfigFileTokenizer
   /** Trivial constructor. */
   ConfigFileTokenizer(Reader r)
   {
-    super();
-
     br = r instanceof BufferedReader ? (BufferedReader) r : new BufferedReader(r);
-    initialised = false;
   }
 
   // Class methods

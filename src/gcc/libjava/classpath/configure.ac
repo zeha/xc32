@@ -6,8 +6,9 @@ dnl -----------------------------------------------------------
 dnl define([AC_CACHE_LOAD], )dnl
 dnl define([AC_CACHE_SAVE], )dnl
 
-AC_INIT([GNU Classpath],[0.98],[classpath@gnu.org],[classpath])
+AC_INIT([GNU Classpath],[0.99.1-pre],[classpath@gnu.org],[classpath])
 AC_CONFIG_SRCDIR(java/lang/System.java)
+AC_CONFIG_MACRO_DIR([m4])
 
 dnl GCJ LOCAL
 AC_CONFIG_AUX_DIR(../..)
@@ -74,7 +75,7 @@ CLASSPATH_CONVENIENCE="-no-undefined"
 AC_SUBST(CLASSPATH_CONVENIENCE)
 
 AC_PREREQ(2.64)
-AM_INIT_AUTOMAKE([1.9.0 gnu std-options tar-ustar -Wno-portability])
+AM_INIT_AUTOMAKE([1.9.0 no-dist gnu std-options tar-ustar -Wno-portability])
 AC_CONFIG_HEADERS([include/config.h])
 AC_PREFIX_DEFAULT(/usr/local/classpath)
 
@@ -182,9 +183,9 @@ AC_ARG_ENABLE([Werror],
               [case "${enableval}" in
                 yes) ENABLE_WERROR=yes ;;
                 no) ENABLE_WERROR=no ;;
-                *) ENABLE_WERROR=default ;;
+                *) ENABLE_WERROR=no ;;
               esac],
-              [ENABLE_WERROR=default])
+              [ENABLE_WERROR=no])
 
 dnl -----------------------------------------------------------
 dnl Default AWT toolkit
@@ -316,6 +317,16 @@ dnl defined to the same value for all multilibs.  We define toolexeclibdir
 dnl so that we can refer to the multilib installation directories from
 dnl classpath's build files.
 dnl -----------------------------------------------------------
+case ${host_alias} in
+  "") host_noncanonical=${build_noncanonical} ;;
+  *) host_noncanonical=${host_alias} ;;
+esac
+case ${target_alias} in
+  "") target_noncanonical=${host_noncanonical} ;;
+  *) target_noncanonical=${target_alias} ;;
+esac
+AC_SUBST(target_noncanonical)
+
 AC_ARG_ENABLE(version-specific-runtime-libs,
   AS_HELP_STRING([--enable-version-specific-runtime-libs],    
                  [specify that runtime libraries should be installed in a compiler-specific directory]),
@@ -434,7 +445,7 @@ dnl -----------------------------------------------------------
 
 dnl Initialize libtool
 AC_DISABLE_STATIC
-AC_PROG_LIBTOOL
+LT_INIT
 AC_PROG_AWK
 AC_PROG_CC
 AM_PROG_CC_C_O
@@ -498,13 +509,15 @@ if test "x${COMPILE_JNI}" = xyes; then
   AC_EGREP_HEADER(u_int32_t, sys/types.h, AC_DEFINE(HAVE_BSD_INT32_DEFINED, 1, [Define to 1 if you have BSD u_int32_t]))
   AC_EGREP_HEADER(u_int32_t, sys/config.h, AC_DEFINE(HAVE_BSD_INT32_DEFINED, 1, [Define to 1 if you have BSD u_int32_t]))
 
+  AC_SEARCH_LIBS([clock_gettime], [rt])
   AC_SEARCH_LIBS([inet_pton],[nsl])
   AC_CHECK_LIB([socket], [gethostname]) 
+
   AC_CHECK_FUNCS([ftruncate fsync select \
 		  gethostname socket strerror fork pipe execve open close \
 		  lseek fstat read readv write writev htonl memset htons connect \
 		  getsockname getpeername bind listen accept \
-		  recvfrom send sendto setsockopt getsockopt time mktime \
+		  recvfrom send sendto setsockopt getsockopt time mktime clock_gettime \
 		  gethostbyname_r localtime_r \
 		  strerror_r \
                   fcntl \
@@ -710,7 +723,11 @@ if test "x${COMPILE_JNI}" = xyes; then
 	QT_CFLAGS="$QT_CFLAGS -I$EXTRA_QT_INCLUDE_DIR",
 	AC_MSG_WARN([QWidget not found])))
 	AC_CHECK_PROG(MOC, [moc], [moc])
-	AC_CHECK_PROG(MOC, [moc-qt4], [moc-qt4])
+	AC_CHECK_PROG(MOC4, [moc-qt4], [moc-qt4])
+	if test x"$MOC4" != x ; then
+	  AC_MSG_NOTICE([Using $MOC4 as moc])
+	  MOC=$MOC4;
+	fi
     fi
     if test "x$HAVE_QT4" = "xno"; then
       AC_MSG_NOTICE([Looking for QT_CFLAGS and QT_LIBS without pkg-config])
@@ -749,35 +766,26 @@ if test "x${COMPILE_JNI}" = xyes; then
   dnl Check for MSG_NOSIGNAL
   dnl **********************************************************************
   AC_MSG_CHECKING(for MSG_NOSIGNAL)
-  AC_TRY_COMPILE([#include <sys/socket.h>],
-   [ int f = MSG_NOSIGNAL; ],
-   [ AC_MSG_RESULT(yes)
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <sys/socket.h>]], [[ int f = MSG_NOSIGNAL; ]])],[ AC_MSG_RESULT(yes)
      AC_DEFINE(HAVE_MSG_NOSIGNAL, 1,
-     	       [Define this symbol if you have MSG_NOSIGNAL]) ],
-   [ AC_MSG_RESULT(no)]
-  )
+     	       [Define this symbol if you have MSG_NOSIGNAL]) ],[ AC_MSG_RESULT(no)
+  ])
  dnl **********************************************************************
  dnl Check for SO_NOSIGPIPE (Darwin equivalent for MSG_NOSIGNAL)
  dnl **********************************************************************
  AC_MSG_CHECKING(for SO_NOSIGPIPE )
- AC_TRY_COMPILE([#include <sys/socket.h>],
-  [ int f = SO_NOSIGPIPE; ],
-  [ AC_MSG_RESULT(yes)
+ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <sys/socket.h>]], [[ int f = SO_NOSIGPIPE; ]])],[ AC_MSG_RESULT(yes)
     AC_DEFINE(HAVE_SO_NOSIGPIPE, 1,
-    	      [Define this symbol if you have SO_NOSIGPIPE]) ],
-  [ AC_MSG_RESULT(no)]
- )
+    	      [Define this symbol if you have SO_NOSIGPIPE]) ],[ AC_MSG_RESULT(no)
+ ])
   dnl **********************************************************************
   dnl Check for MSG_WAITALL
   dnl **********************************************************************
   AC_MSG_CHECKING(for MSG_WAITALL)
-  AC_TRY_COMPILE([#include <sys/socket.h>],
-   [ int f = MSG_WAITALL; ],
-   [ AC_MSG_RESULT(yes)
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <sys/socket.h>]], [[ int f = MSG_WAITALL; ]])],[ AC_MSG_RESULT(yes)
      AC_DEFINE(HAVE_MSG_WAITALL, 1,
-     	       [Define this symbol if you have MSG_WAITALL]) ],
-   [ AC_MSG_RESULT(no)]
-  )
+     	       [Define this symbol if you have MSG_WAITALL]) ],[ AC_MSG_RESULT(no)
+  ])
 
   dnl Check for plugin support headers and libraries.
   if test "x${COMPILE_PLUGIN}" = xyes; then
@@ -822,10 +830,48 @@ if test "x${COMPILE_JNI}" = xyes; then
   dnl __gmpz_mul_si for earlier versions (>= 3.1).
   dnl IMPORTANT: if you decide to look for __gmpz_combit, don't forget to
   dnl change the name of the corresponding ac_ variable on lines 860...
+  AC_ARG_WITH(gmp, [  --with-gmp=PATH         specify prefix directory for the installed GMP package.
+                          Equivalent to --with-gmp-include=PATH/include
+                          plus --with-gmp-lib=PATH/lib])
+  AC_ARG_WITH(gmp_include, [  --with-gmp-include=PATH specify directory for installed GMP include files])
+  AC_ARG_WITH(gmp_lib, [  --with-gmp-lib=PATH     specify directory for the installed GMP library])
+
+  if test "x$with_gmp" != x; then
+    gmplibs=-lgmp
+    gmpinc=
+    gmplibs="-L$with_gmp/lib $gmplibs"
+    gmpinc="-I$with_gmp/include $gmpinc"
+    if test "x$with_gmp_include" != x; then
+      gmpinc="-I$with_gmp_include $gmpinc"
+    fi
+    if test "x$with_gmp_lib" != x; then
+      gmplibs="-L$with_gmp_lib $gmplibs"
+    fi
+  else
+    gmplibs="-lgmp"
+    gmpinc="-I/usr/include"
+  fi
+
   if test "x${COMPILE_GMP}" = xyes; then
+    AC_MSG_CHECKING([for GMP directories])
+    if test "x$with_gmp" != x; then
+       gmplibs="-L$with_gmp/lib -lgmp"
+       gmpinc="-I$with_gmp/include"
+       if test "x$with_gmp_include" != x; then
+       	  gmpinc="-I$with_gmp_include $gmpinc"
+       fi
+       if test "x$with_gmp_lib" != x; then
+       	  gmplibs="-L$with_gmp_lib $gmplibs"
+       fi
+    else
+        with_gmp="/usr"
+	gmplibs="-lgmp"
+    	gmpinc="-I/usr/include"
+    fi
+    AC_MSG_RESULT([prefix=$with_gmp, libs=$gmplibs, inc=$gmpinc])
     AC_CHECK_LIB(gmp, __gmpz_mul_si,
-      [GMP_CFLAGS=-I/usr/include
-       GMP_LIBS=-lgmp ],
+      [GMP_CFLAGS="$gmpinc"
+       GMP_LIBS="$gmplibs" ],
       [GMP_CFLAGS=
        GMP_LIBS= ])
     AC_SUBST(GMP_CFLAGS)
@@ -1032,7 +1078,7 @@ AC_SUBST(PATH_TO_GLIBJ_ZIP)
 if test "x${TOOLSDIR}" != x; then
   dnl GCJ LOCAL
   if test "x${COMPILE_WRAPPERS}" = xno && test "x${enable_java_maintainer_mode}" = xyes; then
-    AC_PROG_JAVA
+    AC_PROG_JAVA_WORKS
   fi
   dnl END GCJ LOCAL
   if test "x${COMPILE_GJDOC}" = xyes; then
@@ -1051,9 +1097,12 @@ fi
 if test "x${use_glibj_zip}" = xfalse || \
    test "x${EXAMPLESDIR}" != x || \
    test "x${TOOLSDIR}" != x && \
-   test "x${build_class_files}" != xno; then 	
-	AC_PROG_JAVAC
+   test "x${build_class_files}" != xno && \
+   test "${enable_java_maintainer_mode}" = yes; then dnl GCJ_LOCAL
+	AC_PROG_JAVAC_WORKS
   	CLASSPATH_JAVAC_MEM_CHECK
+else
+   AM_CONDITIONAL(GCJ_JAVAC, false)
 fi
 
 dnl -----------------------------------------------------------

@@ -10,8 +10,8 @@ void *chk_fail_buf[256] __attribute__((aligned (16)));
 volatile int chk_fail_allowed, chk_calls;
 volatile int memcpy_disallowed, mempcpy_disallowed, memmove_disallowed;
 volatile int memset_disallowed, strcpy_disallowed, stpcpy_disallowed;
-volatile int strncpy_disallowed, strcat_disallowed, strncat_disallowed;
-volatile int sprintf_disallowed, vsprintf_disallowed;
+volatile int strncpy_disallowed, stpncpy_disallowed, strcat_disallowed;
+volatile int strncat_disallowed, sprintf_disallowed, vsprintf_disallowed;
 volatile int snprintf_disallowed, vsnprintf_disallowed;
 extern __SIZE_TYPE__ strlen (const char *);
 extern int vsprintf (char *, const char *, va_list);
@@ -124,15 +124,16 @@ __memmove_chk (void *dst, const void *src, __SIZE_TYPE__ n, __SIZE_TYPE__ size)
 void *
 memset (void *dst, int c, __SIZE_TYPE__ n)
 {
+  while (n-- != 0)
+    n[(char *) dst] = c;
+
   /* Single-byte memsets should be done inline when optimisation
-     is enabled.  */
+     is enabled.  Do this after the copy in case we're being called to
+     initialize bss.  */
 #ifdef __OPTIMIZE__
   if (memset_disallowed && inside_main && n < 2)
     abort ();
 #endif
-
-  while (n-- != 0)
-    n[(char *) dst] = c;
 
   return dst;
 }
@@ -198,6 +199,38 @@ __stpcpy_chk (char *d, const char *s, __SIZE_TYPE__ size)
   if (strlen (s) >= size)
     __chk_fail ();
   return stpcpy (d, s);
+}
+
+char *
+stpncpy (char *dst, const char *src, __SIZE_TYPE__ n)
+{
+#ifdef __OPTIMIZE__
+  if (stpncpy_disallowed && inside_main)
+    abort ();
+#endif
+
+  for (; *src && n; n--)
+    *dst++ = *src++;
+
+  char *ret = dst;
+
+  while (n--)
+    *dst++ = 0;
+
+  return ret;
+}
+
+
+char *
+__stpncpy_chk (char *s1, const char *s2, __SIZE_TYPE__ n, __SIZE_TYPE__ size)
+{
+  /* If size is -1, GCC should always optimize the call into stpncpy.  */
+  if (size == (__SIZE_TYPE__) -1)
+    abort ();
+  ++chk_calls;
+  if (n > size)
+    __chk_fail ();
+  return stpncpy (s1, s2, n);
 }
 
 char *

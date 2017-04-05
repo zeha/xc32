@@ -1,4 +1,4 @@
-;; Copyright (C) 2007 Free Software Foundation, Inc.
+;; Copyright (C) 2007-2013 Free Software Foundation, Inc.
 ;;
 ;; This file is part of GCC.
 ;;
@@ -17,6 +17,58 @@
 ;; <http://www.gnu.org/licenses/>.
 ;;
 ; MIPS DSP ASE REV 2 Revision 0.02 11/24/2006
+
+(define_c_enum "unspec" [
+  UNSPEC_ABSQ_S_QB
+  UNSPEC_ADDU_PH
+  UNSPEC_ADDU_S_PH
+  UNSPEC_ADDUH_QB
+  UNSPEC_ADDUH_R_QB
+  UNSPEC_APPEND
+  UNSPEC_BALIGN
+  UNSPEC_CMPGDU_EQ_QB
+  UNSPEC_CMPGDU_LT_QB
+  UNSPEC_CMPGDU_LE_QB
+  UNSPEC_DPA_W_PH
+  UNSPEC_DPS_W_PH
+  UNSPEC_MADD
+  UNSPEC_MADDU
+  UNSPEC_MSUB
+  UNSPEC_MSUBU
+  UNSPEC_MUL_PH
+  UNSPEC_MUL_S_PH
+  UNSPEC_MULQ_RS_W
+  UNSPEC_MULQ_S_PH
+  UNSPEC_MULQ_S_W
+  UNSPEC_MULSA_W_PH
+  UNSPEC_MULT
+  UNSPEC_MULTU
+  UNSPEC_PRECR_QB_PH
+  UNSPEC_PRECR_SRA_PH_W
+  UNSPEC_PRECR_SRA_R_PH_W
+  UNSPEC_PREPEND
+  UNSPEC_SHRA_QB
+  UNSPEC_SHRA_R_QB
+  UNSPEC_SHRL_PH
+  UNSPEC_SUBU_PH
+  UNSPEC_SUBU_S_PH
+  UNSPEC_SUBUH_QB
+  UNSPEC_SUBUH_R_QB
+  UNSPEC_ADDQH_PH
+  UNSPEC_ADDQH_R_PH
+  UNSPEC_ADDQH_W
+  UNSPEC_ADDQH_R_W
+  UNSPEC_SUBQH_PH
+  UNSPEC_SUBQH_R_PH
+  UNSPEC_SUBQH_W
+  UNSPEC_SUBQH_R_W
+  UNSPEC_DPAX_W_PH
+  UNSPEC_DPSX_W_PH
+  UNSPEC_DPAQX_S_W_PH
+  UNSPEC_DPAQX_SA_W_PH
+  UNSPEC_DPSQX_S_W_PH
+  UNSPEC_DPSQX_SA_W_PH
+])
 
 (define_insn "mips_absq_s_qb"
   [(parallel
@@ -159,6 +211,7 @@
   "ISA_HAS_DSPR2 && !TARGET_64BIT"
   "dpa.w.ph\t%q0,%z2,%z3"
   [(set_attr "type"	"dspmac")
+   (set_attr "accum_in" "1")
    (set_attr "mode"	"SI")])
 
 (define_insn "mips_dps_w_ph"
@@ -170,6 +223,7 @@
   "ISA_HAS_DSPR2 && !TARGET_64BIT"
   "dps.w.ph\t%q0,%z2,%z3"
   [(set_attr "type"	"dspmac")
+   (set_attr "accum_in" "1")
    (set_attr "mode"	"SI")])
 
 (define_insn "mulv2hi3"
@@ -250,6 +304,7 @@
   "ISA_HAS_DSPR2 && !TARGET_64BIT"
   "mulsa.w.ph\t%q0,%z2,%z3"
   [(set_attr "type"	"dspmac")
+   (set_attr "accum_in" "1")
    (set_attr "mode"	"SI")])
 
 (define_insn "mips_precr_qb_ph"
@@ -497,6 +552,7 @@
   "ISA_HAS_DSPR2 && !TARGET_64BIT"
   "dpax.w.ph\t%q0,%z2,%z3"
   [(set_attr "type"	"dspmac")
+   (set_attr "accum_in" "1")
    (set_attr "mode"	"SI")])
 
 (define_insn "mips_dpsx_w_ph"
@@ -508,6 +564,7 @@
   "ISA_HAS_DSPR2 && !TARGET_64BIT"
   "dpsx.w.ph\t%q0,%z2,%z3"
   [(set_attr "type"	"dspmac")
+   (set_attr "accum_in" "1")
    (set_attr "mode"	"SI")])
 
 (define_insn "mips_dpaqx_s_w_ph"
@@ -523,6 +580,7 @@
   "ISA_HAS_DSPR2 && !TARGET_64BIT"
   "dpaqx_s.w.ph\t%q0,%z2,%z3"
   [(set_attr "type"	"dspmac")
+   (set_attr "accum_in" "1")
    (set_attr "mode"	"SI")])
 
 (define_insn "mips_dpaqx_sa_w_ph"
@@ -538,6 +596,7 @@
   "ISA_HAS_DSPR2 && !TARGET_64BIT"
   "dpaqx_sa.w.ph\t%q0,%z2,%z3"
   [(set_attr "type"	"dspmacsat")
+   (set_attr "accum_in" "1")
    (set_attr "mode"	"SI")])
 
 (define_insn "mips_dpsqx_s_w_ph"
@@ -553,6 +612,7 @@
   "ISA_HAS_DSPR2 && !TARGET_64BIT"
   "dpsqx_s.w.ph\t%q0,%z2,%z3"
   [(set_attr "type"	"dspmac")
+   (set_attr "accum_in" "1")
    (set_attr "mode"	"SI")])
 
 (define_insn "mips_dpsqx_sa_w_ph"
@@ -568,42 +628,5 @@
   "ISA_HAS_DSPR2 && !TARGET_64BIT"
   "dpsqx_sa.w.ph\t%q0,%z2,%z3"
   [(set_attr "type"	"dspmacsat")
+   (set_attr "accum_in" "1")
    (set_attr "mode"	"SI")])
-
-;; Convert  mtlo $ac[1-3],$0  =>  mult $ac[1-3],$0,$0
-;;          mthi $ac[1-3],$0
-;;(define_peephole2
-;;  [(set (match_operand:SI 0 "register_operand" "")
-;;	(const_int 0))
-;;   (set (match_operand:SI 1 "register_operand" "")
-;;	(const_int 0))]
-;;  "ISA_HAS_DSPR2
-;;   && !TARGET_MIPS16
-;;   && !TARGET_64BIT
-;;   && (((true_regnum (operands[0]) == AC1LO_REGNUM
-;;		     && true_regnum (operands[1]) == AC1HI_REGNUM)
-;;	|| (true_regnum (operands[0]) == AC1HI_REGNUM
-;;			&& true_regnum (operands[1]) == AC1LO_REGNUM))
-;;       || ((true_regnum (operands[0]) == AC2LO_REGNUM
-;;			&& true_regnum (operands[1]) == AC2HI_REGNUM)
-;;	   || (true_regnum (operands[0]) == AC2HI_REGNUM
-;;			&& true_regnum (operands[1]) == AC2LO_REGNUM))
-;;       || ((true_regnum (operands[0]) == AC3LO_REGNUM
-;;		     && true_regnum (operands[1]) == AC3HI_REGNUM)
-;;	   || (true_regnum (operands[0]) == AC3HI_REGNUM
-;;			   && true_regnum (operands[1]) == AC3LO_REGNUM)))"
-;;  [(parallel [(set (match_dup 0) (const_int 0))
-;;	      (set (match_dup 1) (const_int 0))])]
-;;)
-
-;;(define_insn "*mips_acc_init"
-;;  [(parallel [(set (match_operand:SI 0 "register_operand" "=a")
-;;	      (const_int 0))
-;;	      (set (match_operand:SI 1 "register_operand" "=a")
-;;	      (const_int 0))])]
-;;  "ISA_HAS_DSPR2
-;;   && !TARGET_MIPS16
-;;   && !TARGET_64BIT"
-;;  "mult\t%q0,$0,$0\t\t# Clear ACC HI/LO"
-;;  [(set_attr "type"	"imul")
-;;   (set_attr "mode"	"SI")])

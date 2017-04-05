@@ -1,8 +1,8 @@
 /* Implementation of the EXTENDS_TYPE_OF intrinsic.
-   Copyright (C) 2004, 2007, 2009 Free Software Foundation, Inc.
+   Copyright (C) 2004-2013 Free Software Foundation, Inc.
    Contributed by Janus Weil <janus@gcc.gnu.org>.
 
-This file is part of the GNU Fortran 95 runtime library (libgfortran).
+This file is part of the GNU Fortran runtime library (libgfortran).
 
 Libgfortran is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public
@@ -25,10 +25,7 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 
 
 #include "libgfortran.h"
-
-#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
-#endif
 
 
 typedef struct vtype
@@ -52,6 +49,14 @@ export_proto(is_extension_of);
 GFC_LOGICAL_4
 is_extension_of (struct vtype *v1, struct vtype *v2)
 {
+  /* Assume that only unlimited polymorphic entities will pass NULL v1 or v2
+     if they are unallocated or disassociated.  */
+
+  if (!v2)
+    return 1;
+  if (!v1)
+    return 0;
+
   while (v1)
     {
       if (v1->hash == v2->hash) return 1;

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2009, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2012, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -100,6 +100,9 @@ package Alloc is
    Nodes_Initial                    : constant := 50_000;  -- Atree
    Nodes_Increment                  : constant := 100;
 
+   Notes_Initial                    : constant := 100;     -- Lib
+   Notes_Increment                  : constant := 200;
+
    Obsolescent_Warnings_Initial     : constant := 50;      -- Sem_Prag
    Obsolescent_Warnings_Increment   : constant := 200;
 
@@ -153,5 +156,8 @@ package Alloc is
 
    Xrefs_Initial                    : constant := 5_000;   -- Cross-refs
    Xrefs_Increment                  : constant := 300;
+
+   Drefs_Initial                    : constant := 5;       -- Dereferences
+   Drefs_Increment                  : constant := 1_000;
 
 end Alloc;

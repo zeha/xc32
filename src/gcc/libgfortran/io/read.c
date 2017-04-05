@@ -1,9 +1,8 @@
-/* Copyright (C) 2002, 2003, 2005, 2007, 2008, 2009, 2010
-   Free Software Foundation, Inc.
+/* Copyright (C) 2002-2013 Free Software Foundation, Inc.
    Contributed by Andy Vaught
    F2003 I/O support contributed by Jerry DeLisle
 
-This file is part of the GNU Fortran 95 runtime library (libgfortran).
+This file is part of the GNU Fortran runtime library (libgfortran).
 
 Libgfortran is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -40,7 +39,7 @@ typedef unsigned char uchar;
 
 
 /* set_integer()-- All of the integer assignments come here to
- * actually place the value into memory.  */
+   actually place the value into memory.  */
 
 void
 set_integer (void *dest, GFC_INTEGER_LARGEST value, int length)
@@ -87,98 +86,160 @@ set_integer (void *dest, GFC_INTEGER_LARGEST value, int length)
 }
 
 
-/* max_value()-- Given a length (kind), return the maximum signed or
- * unsigned value */
+/* Max signed value of size give by length argument.  */
 
 GFC_UINTEGER_LARGEST
-max_value (int length, int signed_flag)
+si_max (int length)
 {
   GFC_UINTEGER_LARGEST value;
-#if defined HAVE_GFC_REAL_16 || defined HAVE_GFC_REAL_10
-  int n;
-#endif
 
   switch (length)
-    {
+      {
 #if defined HAVE_GFC_REAL_16 || defined HAVE_GFC_REAL_10
     case 16:
     case 10:
       value = 1;
-      for (n = 1; n < 4 * length; n++)
+      for (int n = 1; n < 4 * length; n++)
         value = (value << 2) + 3;
-      if (! signed_flag)
-        value = 2*value+1;
-      break;
+      return value;
 #endif
     case 8:
-      value = signed_flag ? 0x7fffffffffffffff : 0xffffffffffffffff;
-      break;
+      return GFC_INTEGER_8_HUGE;
     case 4:
-      value = signed_flag ? 0x7fffffff : 0xffffffff;
-      break;
+      return GFC_INTEGER_4_HUGE;
     case 2:
-      value = signed_flag ? 0x7fff : 0xffff;
-      break;
+      return GFC_INTEGER_2_HUGE;
     case 1:
-      value = signed_flag ? 0x7f : 0xff;
-      break;
+      return GFC_INTEGER_1_HUGE;
     default:
       internal_error (NULL, "Bad integer kind");
     }
-
-  return value;
 }
 
 
 /* convert_real()-- Convert a character representation of a floating
- * point number to the machine number.  Returns nonzero if there is a
- * range problem during conversion.  Note: many architectures
- * (e.g. IA-64, HP-PA) require that the storage pointed to by the dest
- * argument is properly aligned for the type in question.  TODO:
- * handle not-a-numbers and infinities.  */
+   point number to the machine number.  Returns nonzero if there is an
+   invalid input.  Note: many architectures (e.g. IA-64, HP-PA)
+   require that the storage pointed to by the dest argument is
+   properly aligned for the type in question.  */
 
 int
 convert_real (st_parameter_dt *dtp, void *dest, const char *buffer, int length)
 {
-  errno = 0;
+  char *endptr = NULL;
 
   switch (length)
     {
     case 4:
       *((GFC_REAL_4*) dest) =
 #if defined(HAVE_STRTOF)
-	gfc_strtof (buffer, NULL);
+	gfc_strtof (buffer, &endptr);
 #else
-	(GFC_REAL_4) gfc_strtod (buffer, NULL);
+	(GFC_REAL_4) gfc_strtod (buffer, &endptr);
 #endif
       break;
 
     case 8:
-      *((GFC_REAL_8*) dest) = gfc_strtod (buffer, NULL);
+      *((GFC_REAL_8*) dest) = gfc_strtod (buffer, &endptr);
       break;
 
 #if defined(HAVE_GFC_REAL_10) && defined (HAVE_STRTOLD)
     case 10:
-      *((GFC_REAL_10*) dest) = gfc_strtold (buffer, NULL);
+      *((GFC_REAL_10*) dest) = gfc_strtold (buffer, &endptr);
       break;
 #endif
 
-#if defined(HAVE_GFC_REAL_16) && defined (HAVE_STRTOLD)
+#if defined(HAVE_GFC_REAL_16)
+# if defined(GFC_REAL_16_IS_FLOAT128)
     case 16:
-      *((GFC_REAL_16*) dest) = gfc_strtold (buffer, NULL);
+      *((GFC_REAL_16*) dest) = __qmath_(strtoflt128) (buffer, &endptr);
       break;
+# elif defined(HAVE_STRTOLD)
+    case 16:
+      *((GFC_REAL_16*) dest) = gfc_strtold (buffer, &endptr);
+      break;
+# endif
 #endif
 
     default:
       internal_error (&dtp->common, "Unsupported real kind during IO");
     }
 
-  if (errno == EINVAL)
+  if (buffer == endptr)
     {
       generate_error (&dtp->common, LIBERROR_READ_VALUE,
-		      "Error during floating point read");
+  		      "Error during floating point read");
       next_record (dtp, 1);
       return 1;
+    }
+
+  return 0;
+}
+
+/* convert_infnan()-- Convert character INF/NAN representation to the
+   machine number.  Note: many architectures (e.g. IA-64, HP-PA) require
+   that the storage pointed to by the dest argument is properly aligned
+   for the type in question.  */
+
+int
+convert_infnan (st_parameter_dt *dtp, void *dest, const char *buffer,
+	        int length)
+{
+  const char *s = buffer;
+  int is_inf, plus = 1;
+
+  if (*s == '+')
+    s++;
+  else if (*s == '-')
+    {
+      s++;
+      plus = 0;
+    }
+
+  is_inf = *s == 'i';
+
+  switch (length)
+    {
+    case 4:
+      if (is_inf)
+	*((GFC_REAL_4*) dest) = plus ? __builtin_inff () : -__builtin_inff ();
+      else
+	*((GFC_REAL_4*) dest) = plus ? __builtin_nanf ("") : -__builtin_nanf ("");
+      break;
+
+    case 8:
+      if (is_inf)
+	*((GFC_REAL_8*) dest) = plus ? __builtin_inf () : -__builtin_inf ();
+      else
+	*((GFC_REAL_8*) dest) = plus ? __builtin_nan ("") : -__builtin_nan ("");
+      break;
+
+#if defined(HAVE_GFC_REAL_10)
+    case 10:
+      if (is_inf)
+	*((GFC_REAL_10*) dest) = plus ? __builtin_infl () : -__builtin_infl ();
+      else
+	*((GFC_REAL_10*) dest) = plus ? __builtin_nanl ("") : -__builtin_nanl ("");
+      break;
+#endif
+
+#if defined(HAVE_GFC_REAL_16)
+# if defined(GFC_REAL_16_IS_FLOAT128)
+    case 16:
+      *((GFC_REAL_16*) dest) = __qmath_(strtoflt128) (buffer, NULL);
+      break;
+# else
+    case 16:
+      if (is_inf)
+	*((GFC_REAL_16*) dest) = plus ? __builtin_infl () : -__builtin_infl ();
+      else
+	*((GFC_REAL_16*) dest) = plus ? __builtin_nanl ("") : -__builtin_nanl ("");
+      break;
+# endif
+#endif
+
+    default:
+      internal_error (&dtp->common, "Unsupported real kind during IO");
     }
 
   return 0;
@@ -384,26 +445,51 @@ read_utf8_char4 (st_parameter_dt *dtp, void *p, int len, int width)
 static void
 read_default_char4 (st_parameter_dt *dtp, char *p, int len, int width)
 {
-  char *s;
-  gfc_char4_t *dest;
   int m, n;
+  gfc_char4_t *dest;
 
-  s = read_block_form (dtp, &width);
-  
-  if (s == NULL)
-    return;
-  if (width > len)
-     s += (width - len);
+  if (is_char4_unit(dtp))
+    {
+      gfc_char4_t *s4;
 
-  m = ((int) width > len) ? len : (int) width;
-  
-  dest = (gfc_char4_t *) p;
-  
-  for (n = 0; n < m; n++, dest++, s++)
-    *dest = (unsigned char ) *s;
+      s4 = (gfc_char4_t *) read_block_form4 (dtp, &width);
 
-  for (n = 0; n < len - (int) width; n++, dest++)
-    *dest = (unsigned char) ' ';
+      if (s4 == NULL)
+	return;
+      if (width > len)
+	 s4 += (width - len);
+
+      m = ((int) width > len) ? len : (int) width;
+
+      dest = (gfc_char4_t *) p;
+
+      for (n = 0; n < m; n++)
+	*dest++ = *s4++;
+
+      for (n = 0; n < len - (int) width; n++)
+	*dest++ = (gfc_char4_t) ' ';
+    }
+  else
+    {
+      char *s;
+
+      s = read_block_form (dtp, &width);
+
+      if (s == NULL)
+	return;
+      if (width > len)
+	 s += (width - len);
+
+      m = ((int) width > len) ? len : (int) width;
+
+      dest = (gfc_char4_t *) p;
+
+      for (n = 0; n < m; n++, dest++, s++)
+	*dest = (unsigned char ) *s;
+
+      for (n = 0; n < len - (int) width; n++, dest++)
+	*dest = (unsigned char) ' ';
+    }
 }
 
 
@@ -535,11 +621,7 @@ read_decimal (st_parameter_dt *dtp, const fnode *f, char *dest, int length)
       return;
     }
 
-  maxv = max_value (length, 1);
-  maxv_10 = maxv / 10;
-
   negative = 0;
-  value = 0;
 
   switch (*p)
     {
@@ -557,6 +639,11 @@ read_decimal (st_parameter_dt *dtp, const fnode *f, char *dest, int length)
       break;
     }
 
+  maxv = si_max (length);
+  if (negative)
+    maxv++;
+  maxv_10 = maxv / 10;
+
   /* At this point we have a digit-string */
   value = 0;
 
@@ -568,27 +655,34 @@ read_decimal (st_parameter_dt *dtp, const fnode *f, char *dest, int length)
 	
       if (c == ' ')
         {
-	  if (dtp->u.p.blank_status == BLANK_NULL) continue;
+	  if (dtp->u.p.blank_status == BLANK_NULL)
+	    {
+	      /* Skip spaces.  */
+	      for ( ; w > 0; p++, w--)
+		if (*p != ' ') break; 
+	      continue;
+	    }
 	  if (dtp->u.p.blank_status == BLANK_ZERO) c = '0';
         }
         
       if (c < '0' || c > '9')
 	goto bad;
 
-      if (value > maxv_10 && compile_options.range_check == 1)
+      if (value > maxv_10)
 	goto overflow;
 
       c -= '0';
       value = 10 * value;
 
-      if (value > maxv - c && compile_options.range_check == 1)
+      if (value > maxv - c)
 	goto overflow;
       value += c;
     }
 
-  v = value;
   if (negative)
-    v = -v;
+    v = -value;
+  else
+    v = value;
 
   set_integer (dest, v, length);
   return;
@@ -635,7 +729,8 @@ read_radix (st_parameter_dt *dtp, const fnode *f, char *dest, int length,
       return;
     }
 
-  maxv = max_value (length, 0);
+  /* Maximum unsigned value, assuming two's complement.  */
+  maxv = 2 * si_max (length) + 1;
   maxv_r = maxv / radix;
 
   negative = 0;
@@ -810,6 +905,66 @@ read_f (st_parameter_dt *dtp, const fnode *f, char *dest, int length)
   if (w == 0)
     goto zero;
 
+  /* Check for Infinity or NaN.  */    
+  if (unlikely ((w >= 3 && (*p == 'i' || *p == 'I' || *p == 'n' || *p == 'N'))))
+    {
+      int seen_paren = 0;
+      char *save = out;
+
+      /* Scan through the buffer keeping track of spaces and parenthesis. We
+	 null terminate the string as soon as we see a left paren or if we are
+	 BLANK_NULL mode.  Leading spaces have already been skipped above,
+	 trailing spaces are ignored by converting to '\0'. A space
+	 between "NaN" and the optional perenthesis is not permitted.  */
+      while (w > 0)
+	{
+	  *out = tolower (*p);
+	  switch (*p)
+	    {
+	    case ' ':
+	      if (dtp->u.p.blank_status == BLANK_ZERO)
+		{
+		  *out = '0';
+		  break;
+		}
+	      *out = '\0';
+	      if (seen_paren == 1)
+	        goto bad_float;
+	      break;
+	    case '(':
+	      seen_paren++;
+	      *out = '\0';
+	      break;
+	    case ')':
+	      if (seen_paren++ != 1)
+		goto bad_float;
+	      break;
+	    default:
+	      if (!isalnum (*out))
+		goto bad_float;
+	    }
+	  --w;
+	  ++p;
+	  ++out;
+	}
+	 
+      *out = '\0';
+      
+      if (seen_paren != 0 && seen_paren != 2)
+	goto bad_float;
+
+      if ((strcmp (save, "inf") == 0) || (strcmp (save, "infinity") == 0))
+	{
+	   if (seen_paren)
+	     goto bad_float;
+	}
+      else if (strcmp (save, "nan") != 0)
+	goto bad_float;
+
+      convert_infnan (dtp, dest, buffer, length);
+      return;
+    }
+
   /* Process the mantissa string.  */
   while (w > 0)
     {
@@ -867,6 +1022,8 @@ found_digit:
 	case 'E':
 	case 'd':
 	case 'D':
+	case 'q':
+	case 'Q':
 	  ++p;
 	  --w;
 	  goto exponent;
@@ -955,6 +1112,14 @@ done:
   /* Output a trailing '0' after decimal point if not yet found.  */
   if (seen_dp && !seen_dec_digit)
     *(out++) = '0';
+  /* Handle input of style "E+NN" by inserting a 0 for the
+     significand.  */
+  else if (!seen_int_digit && !seen_dec_digit)
+    {
+      notify_std (&dtp->common, GFC_STD_LEGACY, 
+		  "REAL input of style 'E+NN'");
+      *(out++) = '0';
+    }
 
   /* Print out the exponent to finish the reformatted number.  Maximum 4
      digits for the exponent.  */
@@ -1027,8 +1192,7 @@ bad_float:
 void
 read_x (st_parameter_dt *dtp, int n)
 {
-  int length;
-  char *p, q;
+  int length, q, q2;
 
   if ((dtp->u.p.current_unit->pad_status == PAD_NO || is_internal_unit (dtp))
        && dtp->u.p.current_unit->bytes_left < n)
@@ -1041,7 +1205,7 @@ read_x (st_parameter_dt *dtp, int n)
 
   if (is_internal_unit (dtp))
     {
-      p = mem_alloc_r (dtp->u.p.current_unit->s, &length);
+      mem_alloc_r (dtp->u.p.current_unit->s, &length);
       if (unlikely (length < n))
 	n = length;
       goto done;
@@ -1050,55 +1214,37 @@ read_x (st_parameter_dt *dtp, int n)
   if (dtp->u.p.sf_seen_eor)
     return;
 
-  p = fbuf_read (dtp->u.p.current_unit, &length);
-  if (p == NULL)
-    {
-      hit_eof (dtp);
-      return;
-    }
-  
-  if (length == 0 && dtp->u.p.item_count == 1)
-    {
-      if (dtp->u.p.current_unit->pad_status == PAD_NO)
-	{
-	  hit_eof (dtp);
-	  return;
-	}
-      else
-	return;
-    }
-
   n = 0;
   while (n < length)
     {
-      q = *p;
-      if (q == '\n' || q == '\r')
+      q = fbuf_getc (dtp->u.p.current_unit);
+      if (q == EOF)
+	break;
+      else if (q == '\n' || q == '\r')
 	{
 	  /* Unexpected end of line. Set the position.  */
-	  fbuf_seek (dtp->u.p.current_unit, n + 1 ,SEEK_CUR);
 	  dtp->u.p.sf_seen_eor = 1;
 
+	  /* If we see an EOR during non-advancing I/O, we need to skip
+	     the rest of the I/O statement.  Set the corresponding flag.  */
+	  if (dtp->u.p.advance_status == ADVANCE_NO || dtp->u.p.seen_dollar)
+	    dtp->u.p.eor_condition = 1;
+	    
 	  /* If we encounter a CR, it might be a CRLF.  */
 	  if (q == '\r') /* Probably a CRLF */
 	    {
-	      /* See if there is an LF. Use fbuf_read rather then fbuf_getc so
-		 the position is not advanced unless it really is an LF.  */
-	      int readlen = 1;
-	      p = fbuf_read (dtp->u.p.current_unit, &readlen);
-	      if (*p == '\n' && readlen == 1)
-	        {
-		  dtp->u.p.sf_seen_eor = 2;
-		  fbuf_seek (dtp->u.p.current_unit, 1 ,SEEK_CUR);
-		}
+	      /* See if there is an LF.  */
+	      q2 = fbuf_getc (dtp->u.p.current_unit);
+	      if (q2 == '\n')
+		dtp->u.p.sf_seen_eor = 2;
+	      else if (q2 != EOF) /* Oops, seek back.  */
+		fbuf_seek (dtp->u.p.current_unit, -1, SEEK_CUR);
 	    }
 	  goto done;
 	}
       n++;
-      p++;
     } 
 
-  fbuf_seek (dtp->u.p.current_unit, n, SEEK_CUR);
-  
  done:
   if ((dtp->common.flags & IOPARM_DT_HAS_SIZE) != 0)
     dtp->u.p.size_used += (GFC_IO_INT) n;

@@ -2,7 +2,7 @@
 
 // 2007-11-01  Paolo Carlini  <pcarlini@suse.de
 
-// Copyright (C) 2007, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2007-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -27,15 +27,15 @@ void test01()
 {
   bool test __attribute__((unused)) = true;
 
-  std::pair<const int&, const int&> z = std::minmax(1, 2);
-  std::pair<const int&, const int&> w = std::minmax(4, 3);
+  std::pair<const int, const int> z = std::minmax(1, 2);
+  std::pair<const int, const int> w = std::minmax(4, 3);
   VERIFY( z.first == 1 );
   VERIFY( z.second == 2 );
   VERIFY( w.first == 3 );
   VERIFY( w.second == 4 );
 
-  std::pair<const int&, const int&> zc = std::minmax(1, 2, std::greater<int>());
-  std::pair<const int&, const int&> wc = std::minmax(4, 3, std::greater<int>());
+  std::pair<const int, const int> zc = std::minmax(1, 2, std::greater<int>());
+  std::pair<const int, const int> wc = std::minmax(4, 3, std::greater<int>());
   VERIFY( zc.first == 2 );
   VERIFY( zc.second == 1 );
   VERIFY( wc.first == 4 );

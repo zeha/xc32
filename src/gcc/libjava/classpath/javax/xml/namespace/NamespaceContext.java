@@ -1,4 +1,4 @@
-/* NamespaceContext.java -- 
+/* NamespaceContext.java --
    Copyright (C) 2004, 2005  Free Software Foundation, Inc.
 
 This file is part of GNU Classpath.
@@ -61,7 +61,7 @@ public interface NamespaceContext
   /**
    * Returns all the prefixes currently bound to the given namespace URI.
    */
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings("rawtypes")
   public Iterator getPrefixes(String namespaceURI);
-  
+
 }

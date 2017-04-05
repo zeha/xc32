@@ -1,11 +1,11 @@
-// { dg-do run { target *-*-freebsd* *-*-netbsd* *-*-linux* *-*-solaris* *-*-cygwin *-*-darwin* alpha*-*-osf* mips-sgi-irix6* } }
-// { dg-options " -std=gnu++0x -pthread" { target *-*-freebsd* *-*-netbsd* *-*-linux* alpha*-*-osf* mips-sgi-irix6* } }
+// { dg-do run { target *-*-freebsd* *-*-netbsd* *-*-linux* *-*-solaris* *-*-cygwin *-*-darwin* powerpc-ibm-aix* } }
+// { dg-options " -std=gnu++0x -pthread" { target *-*-freebsd* *-*-netbsd* *-*-linux* powerpc-ibm-aix* } }
 // { dg-options " -std=gnu++0x -pthreads" { target *-*-solaris* } }
 // { dg-options " -std=gnu++0x " { target *-*-cygwin *-*-darwin* } }
 // { dg-require-cstdint "" }
 // { dg-require-gthreads "" }
 
-// Copyright (C) 2008, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2008-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -27,6 +27,8 @@
 #include <system_error>
 #include <testsuite_hooks.h>
 
+typedef std::unique_lock<std::mutex> lock_type;
+
 void test01()
 {
   bool test __attribute__((unused)) = true;
@@ -34,12 +36,12 @@ void test01()
   try
     {
       std::mutex m1, m2, m3;
-      m1.lock();
+      lock_type l1(m1);
       int result = std::try_lock(m1, m2, m3);
       VERIFY( result == 0 );
-      m1.lock();
-      m2.lock();
-      m3.lock();
+      VERIFY( l1.owns_lock() );
+      lock_type l2(m2);
+      lock_type l3(m3);
     }
   catch (const std::system_error& e)
     {
@@ -58,12 +60,12 @@ void test02()
   try
     {
       std::mutex m1, m2, m3;
-      m2.lock();
+      lock_type l2(m2);
       int result = std::try_lock(m1, m2, m3);
       VERIFY( result == 1 );
-      m1.lock();
-      m2.lock();
-      m3.lock();
+      VERIFY( l2.owns_lock() );
+      lock_type l1(m1);
+      lock_type l3(m3);
     }
   catch (const std::system_error& e)
     {
@@ -82,12 +84,12 @@ void test03()
   try
     {
       std::mutex m1, m2, m3;
-      m3.lock();
+      lock_type l3(m3);
       int result = std::try_lock(m1, m2, m3);
       VERIFY( result == 2 );
-      m1.lock();
-      m2.lock();
-      m3.lock();
+      VERIFY( l3.owns_lock() );
+      lock_type l1(m1);
+      lock_type l2(m2);
     }
   catch (const std::system_error& e)
     {

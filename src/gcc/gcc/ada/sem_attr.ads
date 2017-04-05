@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2009, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2012, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -172,6 +172,17 @@ package Sem_Attr is
       --  Ada code, e.g. if it is necessary to do selective reelaboration to
       --  fix some error.
 
+      --------------------
+      -- Elab_Subp_Body --
+      --------------------
+
+      Attribute_Elab_Subp_Body => True,
+      --  This attribute can only be applied to a library level subprogram
+      --  name and is only relevant in CodePeer mode. It returns the entity
+      --  for the corresponding elaboration procedure for elaborating the body
+      --  of the referenced subprogram unit. This is used in the main generated
+      --  elaboration procedure by the binder in CodePeer mode only.
+
       ---------------
       -- Elab_Spec --
       ---------------
@@ -301,6 +312,11 @@ package Sem_Attr is
       --  the coding standards in use), but logically no initialization is
       --  needed, and the value should never be accessed.
 
+      Attribute_Loop_Entry => True,
+      --  For every object of a non-limited type, S'Loop_Entry [(Loop_Name)]
+      --  denotes the constant value of prefix S at the point of entry into the
+      --  related loop. The type of the attribute is the type of the prefix.
+
       ------------------
       -- Machine_Size --
       ------------------
@@ -395,6 +411,15 @@ package Sem_Attr is
       --  as Range applied to the array itself. The result is of type universal
       --  integer.
 
+      ---------
+      -- Ref --
+      ---------
+
+      Attribute_Ref => True,
+      --  System.Address'Ref (Address is the only permissible prefix) is
+      --  equivalent to System'To_Address, provided for compatibility with
+      --  other compilers.
+
       ------------------
       -- Storage_Unit --
       ------------------
@@ -439,7 +464,7 @@ package Sem_Attr is
       ----------------
 
       Attribute_To_Address => True,
-      --  System'To_Address (Address is the only permissible prefix) is a
+      --  System'To_Address (System is the only permissible prefix) is a
       --  function that takes any integer value, and converts it into an
       --  address value. The semantics is to first convert the integer value to
       --  type Integer_Address according to normal conversion rules, and then
@@ -493,15 +518,12 @@ package Sem_Attr is
       ------------------------------
 
       Attribute_Universal_Literal_String => True,
-      --  The prefix of 'Universal_Literal_String must be a named number. The
-      --  static result is the string consisting of the characters of the
-      --  number as defined in the original source. This allows the user
-      --  program to access the actual text of named numbers without
-      --  intermediate conversions and without the need to enclose the strings
-      --  in quotes (which would preclude their use as numbers). This is used
-      --  internally for the construction of values of the floating-point
-      --  attributes from the file ttypef.ads, but may also be used by user
-      --  programs.
+      --  The prefix of 'Universal_Literal_String must be a named number.
+      --  The static result is the string consisting of the characters of
+      --  the number as defined in the original source. This allows the
+      --  user program to access the actual text of named numbers without
+      --  intermediate conversions and without the need to enclose the
+      --  strings in quotes (which would preclude their use as numbers).
 
       -------------------------
       -- Unrestricted_Access --
@@ -531,6 +553,39 @@ package Sem_Attr is
       --  the Object_Size rather than the Value_Size. For example, while
       --  Natural'Size is typically 31, the value of Natural'VADS_Size is 32.
       --  For all other types, Size and VADS_Size yield the same value.
+
+      -------------------
+      -- Valid_Scalars --
+      -------------------
+
+      Attribute_Valid_Scalars => True,
+      --  Obj'Valid_Scalars can be applied to any object. The result depends
+      --  on the type of the object:
+      --
+      --    For a scalar type, the result is the same as obj'Valid
+      --
+      --    For an array object, the result is True if the result of applying
+      --    Valid_Scalars to every component is True. For an empty array the
+      --    result is True.
+      --
+      --    For a record object, the result is True if the result of applying
+      --    Valid_Scalars to every component is True. For class-wide types,
+      --    only the components of the base type are checked. For variant
+      --    records, only the components actually present are checked. The
+      --    discriminants, if any, are also checked. If there are no components
+      --    or discriminants, the result is True.
+      --
+      --    For any other type that has discriminants, the result is True if
+      --    the result of applying Valid_Scalars to each discriminant is True.
+      --
+      --    For all other types, the result is always True
+      --
+      --  A warning is given for a trivially True result, when the attribute
+      --  is applied to an object that is not of scalar, array, or record
+      --  type, or in the composite case if no scalar subcomponents exist. For
+      --  a variant record, the warning is given only if none of the variants
+      --  have scalar subcomponents. In addition, the warning is suppressed
+      --  for private types, or generic formal types in an instance.
 
       ----------------
       -- Value_Size --
@@ -590,12 +645,12 @@ package Sem_Attr is
      (Typ          : Entity_Id;
       Nam          : TSS_Name_Type;
       Partial_View : Entity_Id := Empty) return Boolean;
-   --  For a limited type Typ, return True iff the given attribute is
-   --  available. For Ada 05, availability is defined by 13.13.2(36/1). For Ada
-   --  95, an attribute is considered to be available if it has been specified
-   --  using an attribute definition clause for the type, or for its full view,
-   --  or for an ancestor of either. Parameter Partial_View is used only
-   --  internally, when checking for an attribute definition clause that is not
-   --  visible (Ada 95 only).
+   --  For a limited type Typ, return True if and only if the given attribute
+   --  is available. For Ada 2005, availability is defined by 13.13.2(36/1).
+   --  For Ada 95, an attribute is considered to be available if it has been
+   --  specified using an attribute definition clause for the type, or for its
+   --  full view, or for an ancestor of either. Parameter Partial_View is used
+   --  only internally, when checking for an attribute definition clause that
+   --  is not visible (Ada 95 only).
 
 end Sem_Attr;

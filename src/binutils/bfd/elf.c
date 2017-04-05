@@ -991,6 +991,11 @@ _bfd_elf_make_section_from_shdr (bfd *abfd,
     PIC32_SET_COHERENT_ATTR(newsect);
   if (hdr->sh_flags & SHF_KEEP)
     PIC32_SET_KEEP_ATTR(newsect);
+  if (hdr->sh_flags & SHF_MEMORY) {
+    PIC32_SET_MEMORY_ATTR(newsect);
+//    newsect->flags &= ~SEC_DATA;
+//    PIC32_SET_NOLOAD_ATTR(newsect);
+  }
  if (hdr->sh_flags & SHF_NOLOAD)  /* do this last */
     PIC32_SET_NOLOAD_ATTR(newsect);
 #endif
@@ -1060,6 +1065,19 @@ _bfd_elf_make_section_from_shdr (bfd *abfd,
 	    }
 	}
     }
+
+#if defined(TARGET_IS_PIC32MX)
+//#define OCTETS_PER_BYTE 2
+      if ((hdr->sh_type == SHT_NOTE) &&
+          strncmp (name, "__memory__", 10) == 0) {
+        /* If this section represents a user-defined memory region,
+           decode the region length into the sec->lma field */
+        newsect->lma = hdr->sh_info;
+      }
+#endif
+
+  //hdr->bfd_section = newsect;
+  //elf_section_data (newsect)->this_hdr = *hdr;
 
   /* Compress/decompress DWARF debug sections with names: .debug_* and
      .zdebug_*, after the section flags is set.  */
@@ -2680,6 +2698,17 @@ elf_fake_sections (bfd *abfd, asection *asect, void *fsarg)
   else
     this_hdr->sh_addr = 0;
 
+#if defined(TARGET_IS_PIC32MX)
+  /* If this section represents a user-defined memory region,
+     encode the region length into the sh_info field */
+  if (PIC32_IS_INFO_ATTR(asect) &&
+      (strncmp(asect->name, "__memory__", 10) == 0)) {
+    this_hdr->sh_info = asect->lma;
+    this_hdr->sh_addr = asect->vma;
+  }
+#endif
+
+
   this_hdr->sh_offset = 0;
   this_hdr->sh_size = asect->size;
   this_hdr->sh_link = 0;
@@ -2880,7 +2909,9 @@ elf_fake_sections (bfd *abfd, asection *asect, void *fsarg)
    * Convert any pic32-specific attributes.
    *
    */
-
+  if ((PIC32_IS_INFO_ATTR(asect)) &&
+      (strncmp (asect->name, "__memory__", 10) == 0))
+    this_hdr->sh_type = SHT_NOTE;
   if (PIC32_IS_NEAR_ATTR(asect))
     this_hdr->sh_flags |= SHF_NEAR;
   if (PIC32_IS_PERSIST_ATTR(asect))
@@ -2893,12 +2924,14 @@ elf_fake_sections (bfd *abfd, asection *asect, void *fsarg)
     this_hdr->sh_flags |= SHF_DMA;
   if (PIC32_IS_RAMFUNC_ATTR(asect))
     this_hdr->sh_flags |= SHF_RAMFUNC;
-  if (PIC32_IS_NOLOAD_ATTR(asect))
-    this_hdr->sh_flags |= SHF_NOLOAD;
   if (PIC32_IS_COHERENT_ATTR(asect))
     this_hdr->sh_flags |= SHF_COHERENT;
   if (PIC32_IS_KEEP_ATTR(asect))
     this_hdr->sh_flags |= SHF_KEEP;
+  if (PIC32_IS_MEMORY_ATTR(asect))
+    this_hdr->sh_flags |= SHF_MEMORY;
+  if (PIC32_IS_NOLOAD_ATTR(asect))
+    this_hdr->sh_flags |= SHF_NOLOAD;
 
 #endif
 

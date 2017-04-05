@@ -29,7 +29,6 @@ static void
 gofast_maybe_init_libfuncs (void)
 {
 #ifdef US_SOFTWARE_GOFAST
-
   set_optab_libfunc (add_optab, SFmode, "fpadd");
   set_optab_libfunc (add_optab, DFmode, "dpadd");
   set_optab_libfunc (sub_optab, SFmode, "fpsub");

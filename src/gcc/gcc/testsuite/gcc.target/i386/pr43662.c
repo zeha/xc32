@@ -1,6 +1,5 @@
-/* { dg-do compile } */
-/* { dg-require-effective-target lp64 } */
-/* { dg-options "-O2" } */
+/* { dg-do compile { target lp64 } } */
+/* { dg-options "-O2 -maccumulate-outgoing-args" } */
 
 void __attribute__ ((ms_abi)) foo (void)
 {

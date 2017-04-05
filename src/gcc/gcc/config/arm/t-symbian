@@ -1,4 +1,4 @@
-# Copyright (C) 2004, 2005, 2006, 2008 Free Software Foundation, Inc.
+# Copyright (C) 2004-2013 Free Software Foundation, Inc.
 #
 # This file is part of GCC.
 #
@@ -16,19 +16,11 @@
 # along with GCC; see the file COPYING3.  If not see
 # <http://www.gnu.org/licenses/>.
 
+EXTRA_HEADERS += $(srcdir)/ginclude/unwind-arm-common.h
+
 # Create a multilib for processors with VFP floating-point, and a
 # multilib for those without -- using the soft-float ABI in both
 # cases.  Symbian OS object should be compiled with interworking
 # enabled, so there are no separate thumb-mode libraries.
 MULTILIB_OPTIONS     = mfloat-abi=softfp
 MULTILIB_DIRNAMES    = softfp
-
-LIB2FUNCS_EXTRA += $(srcdir)/config/arm/eabi-memcpy.c \
-  $(srcdir)/config/arm/eabi-memset.c
-
-# There is no C library to link against on Symbian OS -- at least when 
-# building GCC.
-SHLIB_LC = 
-
-# Symbian OS provides its own startup code.
-EXTRA_MULTILIB_PARTS=

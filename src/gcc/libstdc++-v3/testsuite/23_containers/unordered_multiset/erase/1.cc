@@ -2,7 +2,7 @@
 
 // 2010-02-10  Paolo Carlini  <paolo.carlini@oracle.com> 
 //
-// Copyright (C) 2010 Free Software Foundation, Inc.
+// Copyright (C) 2010-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -22,6 +22,18 @@
 #include <unordered_set>
 #include <string>
 #include <testsuite_hooks.h>
+
+namespace
+{
+  std::size_t
+  get_nb_bucket_elems(const std::unordered_multiset<std::string>& us)
+  {
+    std::size_t nb = 0;
+    for (std::size_t b = 0; b != us.bucket_count(); ++b)
+      nb += us.bucket_size(b);
+    return nb;
+  }
+}
 
 void test01()
 {
@@ -43,15 +55,22 @@ void test01()
   ms1.insert("umbra/penumbra");
   ms1.insert("belonging (no longer mix)");
   ms1.insert("one line behind");
-  VERIFY( ms1.size() == 10 );
+  ms1.insert("because to why");
+  VERIFY( ms1.size() == 11 );
+  VERIFY( get_nb_bucket_elems(ms1) == ms1.size() );
+  VERIFY( distance(ms1.begin(), ms1.end()) - ms1.size() == 0 );
 
   VERIFY( ms1.erase("eeilo") == 1 );
-  VERIFY( ms1.size() == 9 );
+  VERIFY( ms1.size() == 10 );
+  VERIFY( get_nb_bucket_elems(ms1) == ms1.size() );
+  VERIFY( distance(ms1.begin(), ms1.end()) - ms1.size() == 0 );
   iterator it1 = ms1.find("eeilo");
   VERIFY( it1 == ms1.end() );
 
   VERIFY( ms1.erase("tillsammans") == 1 );
-  VERIFY( ms1.size() == 8 );
+  VERIFY( ms1.size() == 9 );
+  VERIFY( get_nb_bucket_elems(ms1) == ms1.size() );
+  VERIFY( distance(ms1.begin(), ms1.end()) - ms1.size() == 0 );
   iterator it2 = ms1.find("tillsammans");
   VERIFY( it2 == ms1.end() );
 
@@ -59,18 +78,24 @@ void test01()
   iterator it3 = ms1.find("belonging (no longer mix)");
   VERIFY( it3 != ms1.end() );
   VERIFY( ms1.erase(*it3) == 1 );
-  VERIFY( ms1.size() == 7 );
+  VERIFY( ms1.size() == 8 );
+  VERIFY( get_nb_bucket_elems(ms1) == ms1.size() );
+  VERIFY( distance(ms1.begin(), ms1.end()) - ms1.size() == 0 );
   it3 = ms1.find("belonging (no longer mix)");
   VERIFY( it3 == ms1.end() );
 
   VERIFY( !ms1.erase("abra") );
-  VERIFY( ms1.size() == 7 );
+  VERIFY( ms1.size() == 8 );
+  VERIFY( get_nb_bucket_elems(ms1) == ms1.size() );
+  VERIFY( distance(ms1.begin(), ms1.end()) - ms1.size() == 0 );
 
   VERIFY( !ms1.erase("eeilo") );
-  VERIFY( ms1.size() == 7 );
+  VERIFY( ms1.size() == 8 );
 
-  VERIFY( ms1.erase("because to why") == 1 );
+  VERIFY( ms1.erase("because to why") == 2 );
   VERIFY( ms1.size() == 6 );
+  VERIFY( get_nb_bucket_elems(ms1) == ms1.size() );
+  VERIFY( distance(ms1.begin(), ms1.end()) - ms1.size() == 0 );
   iterator it4 = ms1.find("because to why");
   VERIFY( it4 == ms1.end() );
 
@@ -86,11 +111,15 @@ void test01()
 
   VERIFY( ms1.erase(*it5) == 1 );
   VERIFY( ms1.size() == 5 );
+  VERIFY( get_nb_bucket_elems(ms1) == ms1.size() );
+  VERIFY( distance(ms1.begin(), ms1.end()) - ms1.size() == 0 );
   it5 = ms1.find("umbra/penumbra");
   VERIFY( it5 == ms1.end() );
 
   VERIFY( ms1.erase(*it6) == 1 );
   VERIFY( ms1.size() == 4 );
+  VERIFY( get_nb_bucket_elems(ms1) == ms1.size() );
+  VERIFY( distance(ms1.begin(), ms1.end()) - ms1.size() == 0 );
   it6 = ms1.find("one line behind");
   VERIFY( it6 == ms1.end() );
 
@@ -102,6 +131,8 @@ void test01()
 
   VERIFY( ms1.erase(*it8) == 1 );
   VERIFY( ms1.size() == 3 );
+  VERIFY( get_nb_bucket_elems(ms1) == ms1.size() );
+  VERIFY( distance(ms1.begin(), ms1.end()) - ms1.size() == 0 );
   VERIFY( ++it7 == it9 );
 
   iterator it10 = it9;
@@ -109,15 +140,21 @@ void test01()
   iterator it11 = it10;
 
   VERIFY( ms1.erase(*it9) == 1 );
+  VERIFY( get_nb_bucket_elems(ms1) == ms1.size() );
+  VERIFY( distance(ms1.begin(), ms1.end()) - ms1.size() == 0 );
   VERIFY( ms1.size() == 2 );
   VERIFY( ++it10 == ms1.end() );
 
   VERIFY( ms1.erase(ms1.begin()) != ms1.end() );  
   VERIFY( ms1.size() == 1 );
+  VERIFY( get_nb_bucket_elems(ms1) == ms1.size() );
+  VERIFY( distance(ms1.begin(), ms1.end()) - ms1.size() == 0 );
   VERIFY( ms1.begin() == it11 );
 
   VERIFY( ms1.erase(*ms1.begin()) == 1 );  
   VERIFY( ms1.size() == 0 );
+  VERIFY( get_nb_bucket_elems(ms1) == ms1.size() );
+  VERIFY( distance(ms1.begin(), ms1.end()) - ms1.size() == 0 );
   VERIFY( ms1.begin() == ms1.end() );
 }
 

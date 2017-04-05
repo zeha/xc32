@@ -14,19 +14,20 @@
  *                                                                            *
  * Copyright (C) 2001-2005 Cedric Bastoul                                     *
  *                                                                            *
- * This is free software; you can redistribute it and/or modify it under the  *
- * terms of the GNU General Public License as published by the Free Software  *
- * Foundation; either version 2 of the License, or (at your option) any later *
- * version.                                                                   *
+ * This library is free software; you can redistribute it and/or              *
+ * modify it under the terms of the GNU Lesser General Public                 *
+ * License as published by the Free Software Foundation; either               *
+ * version 2.1 of the License, or (at your option) any later version.         *
  *                                                                            *
- * This software is distributed in the hope that it will be useful, but       *
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY *
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License   *
- * for more details.                                                          *
+ * This library is distributed in the hope that it will be useful,            *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *
+ * Lesser General Public License for more details.                            *
  *                                                                            *
- * You should have received a copy of the GNU General Public License along    *
- * with software; if not, write to the Free Software Foundation, Inc.,        *
- * 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA                     *
+ * You should have received a copy of the GNU Lesser General Public           *
+ * License along with this library; if not, write to the Free Software        *
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor,                         *
+ * Boston, MA  02110-1301  USA                                                *
  *                                                                            *
  * CLooG, the Chunky Loop Generator                                           *
  * Written by Cedric Bastoul, Cedric.Bastoul@inria.fr                         *
@@ -34,17 +35,73 @@
  ******************************************************************************/
 
 
+#include <stdarg.h>
 # include <stdlib.h>
 # include <stdio.h>
 # include <string.h>
 # include "../include/cloog/cloog.h"
 
-/**
- * Maximum number of rays in the dual representation of PolyLib, see
- * domain.c for the original declaration.
- */
-extern int MAX_RAYS ;
+#ifdef OSL_SUPPORT
+#include <osl/scop.h>
+#endif
 
+
+/******************************************************************************
+ *                          Error reporting functions                         *
+ ******************************************************************************/
+
+void cloog_vmsg(CloogOptions *options, enum cloog_msg_type type,
+		const char *msg, va_list ap)
+{
+  const char *type_msg;
+
+  if (options && options->quiet &&
+      (type == CLOOG_WARNING || type == CLOOG_INFO))
+    return;
+
+  switch(type) {
+  case CLOOG_WARNING:
+	type_msg = "WARNING";
+	break;
+  case CLOOG_INFO:
+	type_msg = "INFO";
+	break;
+  case CLOOG_ERROR:
+  default:
+	type_msg = "ERROR";
+	break;
+  }
+  fprintf(stderr, "[CLooG] %s: ", type_msg);
+  vfprintf(stderr, msg, ap);
+}
+
+/**
+ * Print message to stderr.
+ * @param msg printf format string
+ */
+void cloog_msg(CloogOptions *options, enum cloog_msg_type type,
+		const char *msg, ...)
+{
+  va_list args;
+
+  va_start(args, msg);
+  cloog_vmsg(options, type, msg, args);
+  va_end(args);
+}
+
+/**
+ * Print error message to stderr and exit.
+ * @param msg printf format string
+ */
+void cloog_die(const char *msg, ...)
+{
+  va_list args;
+
+  va_start(args, msg);
+  cloog_vmsg(NULL, CLOOG_ERROR, msg, args);
+  va_end(args);
+  exit(1);
+}
 
 /******************************************************************************
  *                          Structure display function                        *
@@ -58,24 +115,46 @@ extern int MAX_RAYS ;
  * - April 19th 2003: first version.
  */
 void cloog_options_print(FILE * foo, CloogOptions * options)
-{ fprintf(foo,"Options:\n") ;
+{
+  int i;
+
+  fprintf(foo,"Options:\n") ;
   fprintf(foo,"OPTIONS FOR LOOP GENERATION\n") ;
   fprintf(foo,"l           = %3d,\n",options->l) ;
   fprintf(foo,"f           = %3d,\n",options->f) ;
+  fprintf(foo,"fs           = %3d,\n",options->f) ;
+  if (options->fs_ls_size>=1) {
+      fprintf(foo,"fs           = ");
+      for (i=0; i<options->fs_ls_size; i++) {
+          fprintf(foo,"%3d,\n",options->fs[i]) ;
+      }
+      fprintf(foo,"\n");
+      fprintf(foo,"ls           = ");
+      for (i=0; i<options->fs_ls_size; i++) {
+          fprintf(foo,"%3d,\n",options->ls[i]) ;
+      }
+      fprintf(foo,"\n");
+  }
   fprintf(foo,"stop        = %3d,\n",options->stop) ;
   fprintf(foo,"strides     = %3d,\n",options->strides) ;
   fprintf(foo,"sh          = %3d,\n",options->sh);
   fprintf(foo,"OPTIONS FOR PRETTY PRINTING\n") ;
   fprintf(foo,"esp         = %3d,\n",options->esp) ;
-  fprintf(foo,"csp         = %3d,\n",options->csp) ;
   fprintf(foo,"fsp         = %3d,\n",options->fsp) ;
   fprintf(foo,"otl         = %3d.\n",options->otl) ;
   fprintf(foo,"block       = %3d.\n",options->block) ;
-  fprintf(foo,"cpp         = %3d.\n",options->cpp) ;
   fprintf(foo,"compilable  = %3d.\n",options->compilable) ;
+  fprintf(foo,"callable    = %3d.\n",options->callable) ;
+  fprintf(foo,"MISC OPTIONS\n") ;
+  fprintf(foo,"name        = %3s.\n", options->name);
+  fprintf(foo,"openscop    = %3d.\n", options->openscop);
+  if (options->scop != NULL)
+    fprintf(foo,"scop        = (present but not printed).\n");
+  else
+    fprintf(foo,"scop        = NULL.\n");
   fprintf(foo,"UNDOCUMENTED OPTIONS FOR THE AUTHOR ONLY\n") ;
   fprintf(foo,"leaks       = %3d.\n",options->leaks) ;
-  fprintf(foo,"nobacktrack = %3d.\n",options->nobacktrack) ;
+  fprintf(foo,"backtrack   = %3d.\n",options->backtrack);
   fprintf(foo,"override    = %3d.\n",options->override) ;
   fprintf(foo,"structure   = %3d.\n",options->structure) ;
   fprintf(foo,"noscalars   = %3d.\n",options->noscalars) ;
@@ -94,8 +173,16 @@ void cloog_options_print(FILE * foo, CloogOptions * options)
  * This function frees the allocated memory for a CloogOptions structure.
  * - April 19th 2003: first version.
  */
-void cloog_options_free(CloogOptions * options)
-{ free(options) ;
+void cloog_options_free(CloogOptions *options)
+{
+#ifdef OSL_SUPPORT
+  if (options->scop != NULL) {
+    osl_scop_free(options->scop);
+  }
+#endif
+  free(options->fs);
+  free(options->ls);
+  free(options);
 }
 
 
@@ -111,7 +198,7 @@ void cloog_options_free(CloogOptions * options)
  * limitation of the ISO C 89 compilers.
  * - August 5th 2002: first version.
  */
-static void cloog_options_help (void)
+void cloog_options_help()
 { printf(
   "Usage: cloog [ options | file ] ...\n"
   "Options for code generation:\n"
@@ -123,33 +210,36 @@ static void cloog_options_help (void)
   "  -stop <depth>         Loop depth to stop code generation (-1: infinity)"
   "\n                        (default setting: -1).\n"
   "  -strides <boolean>    Handle non-unit strides (1) or not (0)\n"
-  "                        (default setting:  0).\n") ;
+  "                        (default setting:  0).\n"
+  "  -first-unroll <depth> First loop dimension to unroll (-1: no unrolling)\n");
   printf(
   "\nOptions for pretty printing:\n"
   "  -otl <boolean>        Simplify loops running one time (1) or not (0)\n"
   "                        (default setting:  1).\n") ;
   printf(
   "  -esp <boolean>        Allow complex equalities spreading (1) or not (0)\n"
-  "                        (default setting:  0).\n"
-  "  -csp <boolean>        Allow constant spreading (1) or not (0)\n"
-  "                        (default setting:  1).\n") ;
+  "                        (default setting:  0).\n");
   printf(
   "  -fsp <level>          First level to begin the spreading\n"
   "                        (default setting:  1).\n"
   "  -block <boolean>      Make a new statement block per iterator in C\n"
   "                        programs (1) or not (0) (default setting: 0).\n") ;
   printf(
-  "  -cpp <boolean>        Compilable block by using preprocessor (1) or not "
-  "(0)\n                        (default setting:  0).\n"
   "  -compilable <number>  Compilable code by using preprocessor (not 0) or" 
   "\n                        not (0), number being the value of the parameters"
-  "\n                        (default setting:  0).\n");
+  "\n                        (default setting:  0).\n"
+  "  -callable <boolean>   Testable code by using preprocessor (not 0) or" 
+  "\n                        not (0) (default setting:  0).\n");
   printf(
   "\nGeneral options:\n"
   "  -o <output>           Name of the output file; 'stdout' is a special\n"
   "                        value: when used, output is standard output\n"
   "                        (default setting: stdout).\n"
+#ifdef OSL_SUPPORT
+  "  -openscop             Input file has OpenScop format.\n"
+#endif
   "  -v, --version         Display the version information (and more).\n"
+  "  -q, --quiet           Don't print any informational messages.\n"
   "  -h, --help            Display this information.\n\n") ;
   printf(
   "The special value 'stdin' for 'file' makes CLooG to read data on\n"
@@ -166,15 +256,15 @@ static void cloog_options_help (void)
  * characters limitation of the ISO C 89 compilers.
  * - August 5th 2002: first version.
  */
-static void cloog_options_version (void)
+void cloog_options_version()
 { printf("%s       The Chunky Loop Generator\n", cloog_version());
   printf(
   "-----\n"
   "This is a loop generator for scanning Z-polyhedra. It is based on the "
   "work of\nF. Quillere and C. Bastoul on high level code generation and of "
   "the PolyLib Team\non polyhedral computation. This program is distributed "
-  "under the terms of the\nGNU General Public License "
-  "(details at http://www.gnu.org/copyleft/gpl.html).\n"
+  "under the terms of the\nGNU Lesser General Public License "
+  "(details at http://www.gnu.org/licenses/lgpl-2.1.html).\n"
   "-----\n") ;
   printf(
   "It would be fair to refer the following paper in any publication "
@@ -207,21 +297,17 @@ static void cloog_options_version (void)
  * - August 5th 2002: first version.
  * - June 29th 2003: (debug) lack of argument now detected.
  */
-static void cloog_options_set (int * option, int argv, char ** argc, int * number)
+void cloog_options_set(int * option, int argv, char ** argc, int * number)
 { char ** endptr ;
   
   if (*number+1 >= argv)
-  { fprintf(stderr, "[CLooG]ERROR: an option lacks of argument.\n") ;
-    exit(1) ;
-  }
+    cloog_die("an option lacks of argument.\n");
 
   endptr = NULL ;
   *option = strtol(argc[*number+1],endptr,10) ;
   if (endptr != NULL)
-  { fprintf(stderr, "[CLooG]ERROR: %s value for %s option is not valid.\n",
-            argc[*number+1],argc[*number]) ;
-    exit(1) ;
-  }
+    cloog_die("value '%s' for option '%s' is not valid.\n",
+	      argc[*number+1], argc[*number]);
   *number = *number + 1 ;
 }
 
@@ -234,35 +320,44 @@ static void cloog_options_set (int * option, int argv, char ** argc, int * numbe
  * - April    19th 2003: first version.
  * - November 21th 2005: name changed (before it was cloog_options_init).
  */
-CloogOptions * cloog_options_malloc(void)
+CloogOptions *cloog_options_malloc(CloogState *state)
 { CloogOptions * options ;
 
   /* Memory allocation for the CloogOptions structure. */
   options = (CloogOptions *)malloc(sizeof(CloogOptions)) ;
   if (options == NULL) 
-  { fprintf(stderr, "[CLooG]ERROR: memory overflow.\n") ;
-    exit(1) ;
-  } 
+    cloog_die("memory overflow.\n");
   
+  options->state = state;
+
   /* We set the various fields with default values. */
   /* OPTIONS FOR LOOP GENERATION */
   options->l           = -1 ;  /* Last level to optimize: infinity. */
   options->f           =  1 ;  /* First level to optimize: the first. */
+  options->ls          = NULL ; /* Statement-wise l option is not set */
+  options->fs          = NULL ; /* Statement-wise f option is not set */
+  options->fs_ls_size  = 0;    /* No statement-wise f/s control */
   options->stop        = -1 ;  /* Generate all the code. */
   options->strides     =  0 ;  /* Generate a code with unit strides. */
   options->sh	       =  0;   /* Compute actual convex hull. */
-  options->name	       =  0;
+  options->first_unroll = -1;  /* First level to unroll: none. */
+  options->name	       = "";
   /* OPTIONS FOR PRETTY PRINTING */
-  options->esp         =  0 ;  /* We don't want Equality SPreading.*/
-  options->csp         =  1 ;  /* We want only Constant SPreading. */
+  options->esp         =  1 ;  /* We want Equality SPreading.*/
   options->fsp         =  1 ;  /* The First level to SPread is the first. */
   options->otl         =  1 ;  /* We want to fire One Time Loops. */
   options->block       =  0 ;  /* We don't want to force statement blocks. */
-  options->cpp         =  0 ;  /* No preprocessing facilities. */
   options->compilable  =  0 ;  /* No compilable code. */
+  options->callable    =  0 ;  /* No callable code. */
+  options->quiet       =  0;   /* Do print informational messages. */
+  options->save_domains = 0;   /* Don't save domains. */
+  /* MISC OPTIONS */
+  options->language    = CLOOG_LANGUAGE_C; /* The default output language is C. */
+  options->openscop    =  0 ;  /* The input file has not the OpenScop format.*/
+  options->scop        =  NULL;/* No default SCoP.*/
   /* UNDOCUMENTED OPTIONS FOR THE AUTHOR ONLY */
   options->leaks       =  0 ;  /* I don't want to print allocation statistics.*/
-  options->nobacktrack =  0 ;  /* No backtrack in Quillere's algorithm.*/
+  options->backtrack   =  0;   /* Perform backtrack in Quillere's algorithm.*/
   options->override    =  0 ;  /* I don't want to override CLooG decisions.*/
   options->structure   =  0 ;  /* I don't want to print internal structure.*/
   options->noblocks    =  0 ;  /* I do want to make statement blocks.*/
@@ -282,160 +377,166 @@ CloogOptions * cloog_options_malloc(void)
  * - August 5th 2002: first version.
  * - April 19th 2003: now in options.c and support of the CloogOptions structure.
  */
-void cloog_options_read(int argv, char **argc, FILE **input, FILE **output, CloogOptions **options)
+void cloog_options_read(CloogState *state, int argc, char **argv,
+			FILE **input, FILE **output, CloogOptions **options)
 { int i, infos=0, input_is_set=0 ;
   
   /* CloogOptions structure allocation and initialization. */
-  *options = cloog_options_malloc() ;
+  *options = cloog_options_malloc(state);
   
   /* The default output is the standard output. */
   *output = stdout ;
 
-  for (i=1;i<argv;i++)
-  if (argc[i][0] == '-')
-  { if (strcmp(argc[i],"-l")   == 0)
-    cloog_options_set(&(*options)->l,argv,argc,&i) ;
+  for (i=1;i<argc;i++)
+  if (argv[i][0] == '-')
+  { if (strcmp(argv[i],"-l")   == 0)
+    cloog_options_set(&(*options)->l,argc,argv,&i) ;
     else
-    if (strcmp(argc[i],"-f")   == 0)
-    cloog_options_set(&(*options)->f,argv,argc,&i) ;
+    if (strcmp(argv[i],"-f")   == 0)
+    cloog_options_set(&(*options)->f,argc,argv,&i) ;
     else
-    if (strcmp(argc[i],"-stop")   == 0)
-    cloog_options_set(&(*options)->stop,argv,argc,&i) ;
+    if (strcmp(argv[i],"-stop")   == 0)
+    cloog_options_set(&(*options)->stop,argc,argv,&i) ;
     else
-    if (strcmp(argc[i],"-strides")   == 0)
-    cloog_options_set(&(*options)->strides,argv,argc,&i) ;
-    else if (strcmp(argc[i],"-sh")   == 0)
-      cloog_options_set(&(*options)->sh,argv,argc,&i) ;
+    if (strcmp(argv[i],"-strides")   == 0)
+    cloog_options_set(&(*options)->strides,argc,argv,&i) ;
+    else if (strcmp(argv[i],"-sh")   == 0)
+      cloog_options_set(&(*options)->sh,argc,argv,&i) ;
+    else if (!strcmp(argv[i], "-first-unroll"))
+      cloog_options_set(&(*options)->first_unroll, argc, argv, &i);
     else
-    if (strcmp(argc[i],"-otl") == 0)
-    cloog_options_set(&(*options)->otl,argv,argc,&i) ;
+    if (strcmp(argv[i],"-otl") == 0)
+    cloog_options_set(&(*options)->otl,argc,argv,&i) ;
     else
-    if (strcmp(argc[i],"-esp") == 0)
-    cloog_options_set(&(*options)->esp,argv,argc,&i) ;
-    else
-    if (strcmp(argc[i],"-csp") == 0)
-    cloog_options_set(&(*options)->csp,argv,argc,&i) ;
-    else
-    if (strcmp(argc[i],"-fsp") == 0)
-    cloog_options_set(&(*options)->fsp,argv,argc,&i) ;
-    else
-    if (strcmp(argc[i],"-block") == 0)
-    cloog_options_set(&(*options)->block,argv,argc,&i) ;
-    else
-    if (strcmp(argc[i],"-cpp") == 0)
-    cloog_options_set(&(*options)->cpp,argv,argc,&i) ;
-    else
-    if (strcmp(argc[i],"-compilable") == 0)
-    { cloog_options_set(&(*options)->compilable,argv,argc,&i) ;
-      (*options)->cpp = 1 ;
+    if (strcmp(argv[i],"-openscop") == 0) {
+#ifdef OSL_SUPPORT
+      (*options)->openscop = 1 ;
+#else
+      cloog_die("CLooG has not been compiled with OpenScop support.\n");
+#endif
     }
     else
-    if (strcmp(argc[i],"-rays") == 0)
-    { if (i+1 >= argv)
-      { fprintf(stderr, "[CLooG]ERROR: an option lacks of argument.\n") ;
-        exit(1) ;
-      }
-
-      MAX_RAYS = atoi(argc[i+1]) ;
-      if (MAX_RAYS < 1)
-      { fprintf(stderr, "[CLooG]ERROR: %s value for %s option is not valid.\n",
-                argc[i+1],argc[i]) ;
-        exit(1) ;
-      }
-      i++ ;
-    } 
+    if (strcmp(argv[i],"-esp") == 0)
+    cloog_options_set(&(*options)->esp,argc,argv,&i) ;
     else
-    if (strcmp(argc[i],"-loopo") == 0) /* Special option for the LooPo team ! */
+    if (strcmp(argv[i],"-fsp") == 0)
+    cloog_options_set(&(*options)->fsp,argc,argv,&i) ;
+    else
+    if (strcmp(argv[i],"-block") == 0)
+    cloog_options_set(&(*options)->block,argc,argv,&i) ;
+    else
+    if (strcmp(argv[i],"-compilable") == 0)
+      cloog_options_set(&(*options)->compilable, argc, argv, &i);
+    else if (strcmp(argv[i], "-callable") == 0)
+      cloog_options_set(&(*options)->callable, argc, argv, &i);
+    else
+    if (strcmp(argv[i],"-loopo") == 0) /* Special option for the LooPo team ! */
     { (*options)->esp   = 0 ;
-      (*options)->csp   = 0 ;
       (*options)->block = 1 ;
-      (*options)->cpp   = 1 ;
     }
     else
-    if (strcmp(argc[i],"-bipbip") == 0)/* Special option for the author only !*/
-    { (*options)->nobacktrack = 1 ;
-      MAX_RAYS = 50 ;
-    }
+    if (strcmp(argv[i],"-bipbip") == 0)/* Special option for the author only !*/
+      (*options)->backtrack = 0;
     else
-    if (strcmp(argc[i],"-leaks") == 0)
+    if (strcmp(argv[i],"-leaks") == 0)
     (*options)->leaks = 1 ;
     else
-    if (strcmp(argc[i],"-nobacktrack") == 0)
-    (*options)->nobacktrack = 1 ;
+    if (strcmp(argv[i],"-nobacktrack") == 0)
+      (*options)->backtrack = 0;
+    else if (strcmp(argv[i], "-backtrack") == 0)
+      (*options)->backtrack = 1;
     else
-    if (strcmp(argc[i],"-override") == 0)
+    if (strcmp(argv[i],"-override") == 0)
     (*options)->override = 1 ;
     else
-    if (strcmp(argc[i],"-noblocks") == 0)
+    if (strcmp(argv[i],"-noblocks") == 0)
     (*options)->noblocks = 1 ;
     else
-    if (strcmp(argc[i],"-noscalars") == 0)
+    if (strcmp(argv[i],"-noscalars") == 0)
     (*options)->noscalars = 1 ;
     else
-    if (strcmp(argc[i],"-nosimplify") == 0)
+    if (strcmp(argv[i],"-nosimplify") == 0)
     (*options)->nosimplify = 1 ;
     else
-    if ((strcmp(argc[i],"-struct") == 0) || (strcmp(argc[i],"-structure") == 0))
+    if ((strcmp(argv[i],"-struct") == 0) || (strcmp(argv[i],"-structure") == 0))
     (*options)->structure = 1 ;
     else
-    if ((strcmp(argc[i],"--help") == 0) || (strcmp(argc[i],"-h") == 0))
+    if ((strcmp(argv[i],"--help") == 0) || (strcmp(argv[i],"-h") == 0))
     { cloog_options_help() ;
       infos = 1 ;
     }
     else
-    if ((strcmp(argc[i],"--version") == 0) || (strcmp(argc[i],"-v") == 0))
+    if ((strcmp(argv[i],"--version") == 0) || (strcmp(argv[i],"-v") == 0))
     { cloog_options_version() ;
       infos = 1 ;
-    }
+    } else if ((strcmp(argv[i],"--quiet") == 0) || (strcmp(argv[i],"-q") == 0))
+      (*options)->quiet = 1;
     else
-    if (strcmp(argc[i],"-o") == 0)
-    { if (i+1 >= argv)
-      { fprintf(stderr, "[CLooG]ERROR: no output name for -o option.\n") ;
-        exit(1) ;
-      }
+    if (strcmp(argv[i],"-o") == 0)
+    { if (i+1 >= argc)
+        cloog_die("no output name for -o option.\n");
 
       /* stdout is a special value, when used, we set output to standard
        * output.
        */
-      if (strcmp(argc[i+1],"stdout") == 0)
+      if (strcmp(argv[i+1],"stdout") == 0)
       *output = stdout ;
       else
-      { *output = fopen(argc[i+1],"w") ;
+      { *output = fopen(argv[i+1],"w") ;
         if (*output == NULL)
-        { fprintf(stderr, "[CLooG]ERROR: can't create output file %s.\n",
-	          argc[i+1]) ;
-          exit(1) ;
-        }
+          cloog_die("can't create output file %s.\n", argv[i+1]);
       }
       i ++ ;    
     }
     else
-    fprintf(stderr, "[CLooG]WARNING: unknown %s option.\n",argc[i]) ;
+      cloog_msg(*options, CLOOG_WARNING, "unknown %s option.\n", argv[i]);
   }
   else
   { if (!input_is_set)
     { input_is_set = 1 ;
-      (*options)->name = argc[i] ;
+      (*options)->name = argv[i] ;
       /* stdin is a special value, when used, we set input to standard input. */
-      if (strcmp(argc[i],"stdin") == 0)
+      if (strcmp(argv[i],"stdin") == 0)
       *input = stdin ;
       else
-      { *input = fopen(argc[i],"r") ;
+      { *input = fopen(argv[i],"r") ;
         if (*input == NULL)
-        { fprintf(stderr, "[CLooG]ERROR: %s file does not exist.\n",argc[i]) ;
-          exit(1) ;
-        }
+          cloog_die("%s file does not exist.\n", argv[i]);
       }
     } 
     else
-    { fprintf(stderr, "[CLooG]ERROR: multiple input files.\n") ;
-      exit(1) ;
-    }
+      cloog_die("multiple input files.\n");
   }
   if (!input_is_set)
   { if (!infos)
-    fprintf(stderr, "[CLooG]ERROR: no input file (-h for help).\n") ;
+      cloog_die("no input file (-h for help).\n");
     exit(1) ;
   }
 }
+
+#ifdef OSL_SUPPORT
+/**
+ * This function extracts CLooG option values from an OpenScop scop and
+ * updates an existing CloogOption structure with those values. If the
+ * options were already set, they are updated without warning.
+ * \param[in]     scop    Input Scop.
+ * \param[in,out] options CLooG options to be updated.
+ */
+void cloog_options_copy_from_osl_scop(osl_scop_p scop,
+                                      CloogOptions *options) {
+  if (!options)
+    cloog_die("Options must be provided.\n");
+
+  if (scop) {
+    /* Extract the language. */
+    if (!strcmp(scop->language, "FORTRAN"))
+      options->language = CLOOG_LANGUAGE_FORTRAN;
+    else
+      options->language = CLOOG_LANGUAGE_C;
+
+    /* Store the input SCoP in the option structure. */
+    options->scop = scop;
+  }
+}
+#endif
 

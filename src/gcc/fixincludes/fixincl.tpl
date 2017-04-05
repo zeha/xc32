@@ -38,7 +38,7 @@ x=fixincl.x =]
 #ifndef SED_PROGRAM
 #define SED_PROGRAM "/usr/bin/sed"
 #endif
-static char const sed_cmd_z[] = "sed";
+static char const sed_cmd_z[] = SED_PROGRAM;
 [=
 
 FOR fix =]

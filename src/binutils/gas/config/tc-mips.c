@@ -1419,6 +1419,7 @@ extern unsigned int pic32_attribute_map PARAMS ((asection *));
 static  bfd_vma pic32_address PARAMS ((bfd_vma));
 static  bfd_vma pic32_element_size PARAMS ((bfd_vma));
 extern int pic32_set_implied_attributes PARAMS ((asection *, unsigned char ));
+static void pic32_memory (int);
 #endif
 
 /* Table and functions used to map between CPU/ISA names, and
@@ -1523,9 +1524,10 @@ static const pseudo_typeS mips_pseudo_table[] =
   {"stabn", s_mips_stab, 'n'},
   {"text", s_change_sec, 't'},
   {"word", s_cons, 2},
-
   { "extern", ecoff_directive_extern, 0},
-
+#if defined(TARGET_IS_PIC32MX)
+   { "memory", pic32_memory, 0},
+#endif
   { NULL, NULL, 0 },
 };
 
@@ -16488,7 +16490,7 @@ s_change_section (int ignore ATTRIBUTE_UNUSED)
      }
 #endif
   /* Prevent SEC_HAS_CONTENTS from being inadvertently set.  */
-  if (PIC32_IS_BSS_ATTR(sec))
+  if ( PIC32_IS_BSS_ATTR(sec) || PIC32_IS_BSS_ATTR_WITH_MEMORY_ATTR(sec))
     seg_info (sec)->bss = 1;
    } /* new style section directive */
 #endif /* TARGET_IS_PIC32MX */
@@ -19537,7 +19539,8 @@ s_mips_end (int x ATTRIBUTE_UNUSED)
 
 #ifdef PIC32_IS_RAMFUNC_ATTR
   if (((bfd_get_section_flags (stdoutput, now_seg) & SEC_CODE) == 0) &&
-      (PIC32_IS_RAMFUNC_ATTR(now_seg) == 0))
+      (PIC32_IS_RAMFUNC_ATTR(now_seg) == 0) && 
+      (PIC32_IS_DATA_ATTR_WITH_MEMORY_ATTR(now_seg) == 0))
     as_warn (_(".end not in text/code or ramfunc section"));
 #else
   if ((bfd_get_section_flags (stdoutput, now_seg) & SEC_CODE) == 0)
@@ -19635,7 +19638,8 @@ s_mips_ent (int aent)
 
 #ifdef PIC32_IS_RAMFUNC_ATTR
   if (((bfd_get_section_flags (stdoutput, now_seg) & SEC_CODE) == 0) &&
-      (PIC32_IS_RAMFUNC_ATTR(now_seg) == 0))
+      (PIC32_IS_RAMFUNC_ATTR(now_seg) == 0) && 
+      (PIC32_IS_DATA_ATTR_WITH_MEMORY_ATTR(now_seg) == 0))
     as_warn (_(".ent or .aent not in text/code or ramfunc section."));
 #else
   if ((bfd_get_section_flags (stdoutput, now_seg) & SEC_CODE) == 0)
@@ -20651,15 +20655,16 @@ pic32_attribute (int is_section)
         if (has_arg) {                                              \
           asection *memsec;                                         \
           info_sec_name = xmalloc (strlen(alpha_arg) +              \
-                          strlen(info_sec_prefix) + 1);             \
-          (void) sprintf(info_sec_name, "%s%s",                     \
-           info_sec_prefix, alpha_arg);                             \
+                          strlen(info_sec_prefix) + strlen(sec->name) + 1 + 1);             \
+          (void) sprintf(info_sec_name, "%s%s@%s",                     \
+           info_sec_prefix, alpha_arg,sec->name);                             \
           memsec = subseg_new (info_sec_name, 0);                   \
           PIC32_SET_INFO_ATTR(memsec);                              \
-          symbolp = symbol_new (sec->name, absolute_section,        \
-                               (valueT) 1, &zero_address_frag);     \
           (void) subseg_new (sec->name, 0);                         \
         }
+//          symbolp = symbol_new (sec->name, absolute_section,        \
+//                               (valueT) 1, &zero_address_frag);     \
+//          
 
 #define PIC32_SET_ABSOLUTE_ATTR_ARG(a)                              \
         sec->vma = pic32_address(a);                                \
@@ -20776,6 +20781,137 @@ pic32_element_size (bfd_vma size)
 
   return size;
 } /* pic32_element_size */
+
+
+void
+pic32_memory (unused)
+   int unused ATTRIBUTE_UNUSED;
+{
+  char *region_name, *info_sec_name, *name;
+  char *info_sec_prefix = "__memory_";
+  bfd_vma region_size = 0;
+  bfd_vma region_origin = 0;
+  asection *sec, *old_sec;
+  //symbolS *symbolp;
+  char c;
+
+  if (flag_debug)
+    printf ("--> pic32_memory::begin\n");
+  
+  /* get the memory region name */
+  name = input_line_pointer;
+  c = get_symbol_end ();
+
+  /* make a local copy */
+  if (strlen(name) == 0) {
+    as_bad (_("invalid memory region name (none)\n"));
+    region_name = "(none)";
+    *input_line_pointer = c;
+  } else {
+    region_name = xmalloc (input_line_pointer - name + 1);
+    strcpy (region_name, name);
+    *input_line_pointer = c;
+  }
+
+  if (flag_debug)
+    printf ("--> pic32_memory::name = %s\n", region_name);
+
+  /* read attributes */
+  while (!is_it_end_of_statement ()) {
+    offsetT arg = 0;
+    int has_arg = 0;
+    char *name;
+    char c,s[MAX_ATTR_LEN];
+    unsigned int i,len;
+
+    SKIP_COMMA ();
+    SKIP_WHITESPACE ();
+
+    name = input_line_pointer;
+    c = get_symbol_end ();
+
+    /* make a local copy, lower case */
+    name = strncpy(s, name, sizeof(s));
+    len = strlen(name);
+    for(i = 0; i < len; i++) {
+      //s[i] = tolower(s[i]);
+      s[i] = TOLOWER(s[i]);
+    }
+
+    /* get the argument, if any */
+    *input_line_pointer = c;
+    if (c == '(') {
+      has_arg++;
+      input_line_pointer++;
+      SKIP_WHITESPACE ();
+
+      arg = get_absolute_expression ();    /* try to evaluate the argument */
+      input_line_pointer++;                      /* skip the closing paren */
+    }
+
+    if (flag_debug) {
+      printf ("    pic32_memory::attribute = %s\n", name);
+      if (has_arg)
+        printf ("    pic32_memory::argument  = 0x%lx\n", arg);
+    }
+      
+    if (strcmp(name, "size") == 0)
+      region_size = arg;
+    else if (strcmp(name, "origin") == 0)
+      region_origin = arg;
+    else {
+      as_bad (_("Unrecognized memory attribute \'%s\'"), name);
+      demand_empty_rest_of_line ();
+      break;
+    }
+  }
+  
+  if (region_size <= 0){
+    as_bad (_("Size of memory region \'%s\' must be must be greater than 0 (was %ld)"),
+               region_name, region_size);
+  }
+  else if (region_size & 0x1) {
+    as_bad (_("Size of memory region \'%s\' must be even (was %ld)"),
+               region_name, (unsigned long) region_size);
+  }
+  else if (region_origin & 0x3) {
+    as_bad (_("Origin of memory region \'%s\' must be word-aligned (was %ld)"),
+               region_name, (unsigned long) region_origin);
+  }
+  
+  info_sec_name = xmalloc (strlen(region_name) + strlen(info_sec_prefix) + 1);
+  (void) sprintf(info_sec_name, "%s%s", info_sec_prefix, region_name);
+  
+  /*
+   * Check for multiple definitions of this memory region.
+   *
+   * References to it (by sections defined earlier) will
+   * create the section, but will not define its size.
+   */
+  sec = bfd_get_section_by_name(stdoutput, info_sec_name);
+  if (sec && sec->lma)
+    as_bad (_("Multiple definition of memory region \'%s\'\n"),
+               region_name);
+
+  old_sec = now_seg;
+  sec = subseg_new (info_sec_name, 0);
+  PIC32_SET_INFO_ATTR(sec);
+  sec->vma = region_origin;
+  sec->lma = region_size;
+  //sec->_cooked_size = region_size;
+  sec->size = region_size;
+
+
+  (void) subseg_new (old_sec->name, 0);
+  
+  /*
+   * The memory region info (origin, length) is encoded as follows:
+   *
+   *  internal (BFD) section: (vma, lma)
+   *  COFF object file:       (vma, lma)
+   *  ELF object file:        (sh_addr, sh_info)
+   */
+}
 
 #endif /* TARGET_IS_PI32MX */
 

@@ -1,9 +1,8 @@
-/* Copyright (C) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
-   Free Software Foundation, Inc.
+/* Copyright (C) 2002-2013 Free Software Foundation, Inc.
    Contributed by Andy Vaught
    F2003 I/O support contributed by Jerry DeLisle
 
-This file is part of the GNU Fortran 95 runtime library (libgfortran).
+This file is part of the GNU Fortran runtime library (libgfortran).
 
 Libgfortran is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -31,16 +30,7 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 
 #include "libgfortran.h"
 
-#include <setjmp.h>
 #include <gthr.h>
-
-/* Basic types used in data transfers.  */
-
-typedef enum
-{ BT_NULL, BT_INTEGER, BT_LOGICAL, BT_CHARACTER, BT_REAL,
-  BT_COMPLEX
-}
-bt;
 
 /* Forward declarations.  */
 struct st_parameter_dt;
@@ -59,27 +49,28 @@ struct gfc_unit;
 
 #define is_stream_io(dtp) ((dtp)->u.p.current_unit->flags.access == ACCESS_STREAM)
 
+#define is_char4_unit(dtp) ((dtp)->u.p.unit_is_internal && (dtp)->common.unit)
+
 /* The array_loop_spec contains the variables for the loops over index ranges
-   that are encountered.  Since the variables can be negative, ssize_t
-   is used.  */
+   that are encountered.  */
 
 typedef struct array_loop_spec
 {
   /* Index counter for this dimension.  */
-  ssize_t idx;
+  index_type idx;
 
   /* Start for the index counter.  */
-  ssize_t start;
+  index_type start;
 
   /* End for the index counter.  */
-  ssize_t end;
+  index_type end;
 
   /* Step for the index counter.  */
-  ssize_t step;
+  index_type step;
 }
 array_loop_spec;
 
-/* A stucture to build a hash table for format data.  */
+/* A structure to build a hash table for format data.  */
 
 #define FORMAT_HASH_SIZE 16
 
@@ -112,8 +103,8 @@ format_hash_entry;
 
 typedef struct namelist_type
 {
-  /* Object type, stored as GFC_DTYPE_xxxx.  */
-  dtype type;
+  /* Object type.  */
+  bt type;
 
   /* Object name.  */
   char * var_name;
@@ -300,6 +291,7 @@ st_parameter_filepos;
 #define IOPARM_INQUIRE_HAS_PENDING	(1 << 5)
 #define IOPARM_INQUIRE_HAS_SIZE		(1 << 6)
 #define IOPARM_INQUIRE_HAS_ID		(1 << 7)
+#define IOPARM_INQUIRE_HAS_IQSTREAM	(1 << 8)
 
 typedef struct
 {
@@ -333,6 +325,7 @@ typedef struct
   GFC_INTEGER_4 *pending;
   GFC_IO_INT *size;
   GFC_INTEGER_4 *id;
+  CHARACTER1 (iqstream);
 }
 st_parameter_inquire;
 
@@ -407,7 +400,7 @@ typedef struct st_parameter_dt
 	  unsigned at_eol : 1;
 	  unsigned comma_flag : 1;
 	  /* A namelist specific flag used in the list directed library
-	     to flag that calls are being made from namelist read (eg. to
+	     to flag that calls are being made from namelist read (e.g. to
 	     ignore comments or to treat '/' as a terminator)  */
 	  unsigned namelist_mode : 1;
 	  /* A namelist specific flag used in the list directed library
@@ -431,9 +424,15 @@ typedef struct st_parameter_dt
 	  unsigned g0_no_blanks : 1;
 	  /* Used to signal use of free_format_data.  */
 	  unsigned format_not_saved : 1;
-	  /* 14 unused bits.  */
+	  /* A flag used to identify when a non-standard expanded namelist read
+	     has occurred.  */
+	  unsigned expanded_read : 1;
+	  /* 13 unused bits.  */
 
-	  char last_char;
+	  /* Used for ungetc() style functionality. Possible values
+	     are an unsigned char, EOF, or EOF - 1 used to mark the
+	     field as not valid.  */
+	  int last_char;
 	  char nml_delim;
 
 	  int repeat_count;
@@ -444,11 +443,9 @@ typedef struct st_parameter_dt
 	  char *scratch;
 	  char *line_buffer;
 	  struct format_data *fmt;
-	  jmp_buf *eof_jump;
 	  namelist_info *ionml;
-	  /* A flag used to identify when a non-standard expanded namelist read
-	     has occurred.  */
-	  int expanded_read;
+	  /* Current position within the look-ahead line buffer.  */
+	  int line_buffer_pos;
 	  /* Storage area for values except for strings.  Must be
 	     large enough to hold a complex value (two reals) of the
 	     largest kind.  */
@@ -582,10 +579,6 @@ gfc_unit;
 extern gfc_offset max_offset;
 internal_proto(max_offset);
 
-/* Unit number to be assigned when NEWUNIT is used in an OPEN statement.  */
-extern GFC_INTEGER_4 next_available_newunit;
-internal_proto(next_available_newunit);
-
 /* Unit tree root.  */
 extern gfc_unit *unit_root;
 internal_proto(unit_root);
@@ -614,9 +607,6 @@ internal_proto(get_unit);
 extern void unlock_unit (gfc_unit *);
 internal_proto(unlock_unit);
 
-extern void update_position (gfc_unit *);
-internal_proto(update_position);
-
 extern void finish_last_advance_record (gfc_unit *u);
 internal_proto (finish_last_advance_record);
 
@@ -642,6 +632,9 @@ internal_proto(type_name);
 extern void * read_block_form (st_parameter_dt *, int *);
 internal_proto(read_block_form);
 
+extern void * read_block_form4 (st_parameter_dt *, int *);
+internal_proto(read_block_form4);
+
 extern void *write_block (st_parameter_dt *, int);
 internal_proto(write_block);
 
@@ -656,9 +649,6 @@ internal_proto(init_loop_spec);
 extern void next_record (st_parameter_dt *, int);
 internal_proto(next_record);
 
-extern void reverse_memcpy (void *, const void *, size_t);
-internal_proto (reverse_memcpy);
-
 extern void st_wait (st_parameter_wait *);
 export_proto(st_wait);
 
@@ -670,11 +660,14 @@ internal_proto(hit_eof);
 extern void set_integer (void *, GFC_INTEGER_LARGEST, int);
 internal_proto(set_integer);
 
-extern GFC_UINTEGER_LARGEST max_value (int, int);
-internal_proto(max_value);
+extern GFC_UINTEGER_LARGEST si_max (int);
+internal_proto(si_max);
 
 extern int convert_real (st_parameter_dt *, void *, const char *, int);
 internal_proto(convert_real);
+
+extern int convert_infnan (st_parameter_dt *, void *, const char *, int);
+internal_proto(convert_infnan);
 
 extern void read_a (st_parameter_dt *, const fnode *, char *, int);
 internal_proto(read_a);
@@ -805,6 +798,15 @@ dec_waiting_unlocked (gfc_unit *u)
   u->waiting--;
   __gthread_mutex_unlock (&unit_lock);
 #endif
+}
+
+
+static inline void
+memset4 (gfc_char4_t *p, gfc_char4_t c, int k)
+{
+  int j;
+  for (j = 0; j < k; j++)
+    *p++ = c;
 }
 
 #endif

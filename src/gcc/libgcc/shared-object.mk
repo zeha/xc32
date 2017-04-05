@@ -6,15 +6,15 @@ iter-items := $(filter-out $o,$(iter-items))
 
 base := $(basename $(notdir $o))
 
+c_flags-$o := $(c_flags)
+
 ifeq ($(suffix $o),.c)
 
-c_flags-$(base)$(objext) := $(c_flags)
 $(base)$(objext): $o
-	$(gcc_compile) $(c_flags-$@) -c $< $(vis_hide)
+	$(gcc_compile) $(c_flags-$<) -c $< $(vis_hide)
 
-c_flags-$(base)_s$(objext) := $(c_flags)
 $(base)_s$(objext): $o
-	$(gcc_s_compile) $(c_flags-$@) -c $<
+	$(gcc_s_compile) $(c_flags-$<) -c $<
 
 else
 

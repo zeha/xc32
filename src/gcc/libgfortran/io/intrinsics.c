@@ -1,6 +1,6 @@
 /* Implementation of the FGET, FGETC, FPUT, FPUTC, FLUSH 
    FTELL, TTYNAM and ISATTY intrinsics.
-   Copyright (C) 2005, 2007, 2009, 2010 Free Software Foundation, Inc.
+   Copyright (C) 2005-2013 Free Software Foundation, Inc.
 
 This file is part of the GNU Fortran runtime library (libgfortran).
 
@@ -26,12 +26,9 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #include "io.h"
 #include "fbuf.h"
 #include "unix.h"
-
-#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
-#endif
-
 #include <string.h>
+
 
 static const int five = 5;
 static const int six = 6;
@@ -245,7 +242,7 @@ fseek_sub (int * unit, GFC_IO_INT * offset, int * whence, int * status)
   gfc_unit * u = find_unit (*unit);
   ssize_t result = -1;
 
-  if (u != NULL && is_seekable(u->s))
+  if (u != NULL)
     {
       result = sseek(u->s, *offset, *whence);
 
@@ -274,6 +271,10 @@ gf_ftell (int unit)
   return ret;
 }
 
+
+/* Here is the ftell function with an incorrect return type; retained
+   due to ABI compatibility.  */
+
 extern size_t PREFIX(ftell) (int *);
 export_proto_np(PREFIX(ftell));
 
@@ -282,6 +283,22 @@ PREFIX(ftell) (int * unit)
 {
   return gf_ftell (*unit);
 }
+
+
+/* Here is the ftell function with the correct return type, ensuring
+   that large files can be supported as long as the target supports
+   large integers; as of 4.8 the FTELL intrinsic function will call
+   this one instead of the old ftell above.  */
+
+extern GFC_IO_INT PREFIX(ftell2) (int *);
+export_proto_np(PREFIX(ftell2));
+
+GFC_IO_INT
+PREFIX(ftell2) (int * unit)
+{
+  return gf_ftell (*unit);
+}
+
 
 #define FTELL_SUB(kind) \
   extern void ftell_i ## kind ## _sub (int *, GFC_INTEGER_ ## kind *); \
@@ -351,22 +368,23 @@ void
 ttynam_sub (int *unit, char * name, gfc_charlen_type name_len)
 {
   gfc_unit *u;
-  char * n;
-  int i;
+  int nlen;
+  int err = 1;
 
-  memset (name, ' ', name_len);
   u = find_unit (*unit);
   if (u != NULL)
     {
-      n = stream_ttyname (u->s);
-      if (n != NULL)
+      err = stream_ttyname (u->s, name, name_len);
+      if (err == 0)
 	{
-	  i = 0;
-	  while (*n && i < name_len)
-	    name[i++] = *(n++);
+	  nlen = strlen (name);
+	  memset (&name[nlen], ' ', name_len - nlen);
 	}
+
       unlock_unit (u);
     }
+  if (err != 0)
+    memset (name, ' ', name_len);
 }
 
 
@@ -381,14 +399,15 @@ ttynam (char ** name, gfc_charlen_type * name_len, int unit)
   u = find_unit (unit);
   if (u != NULL)
     {
-      *name = stream_ttyname (u->s);
-      if (*name != NULL)
+      *name = xmalloc (TTY_NAME_MAX);
+      int err = stream_ttyname (u->s, *name, TTY_NAME_MAX);
+      if (err == 0)
 	{
 	  *name_len = strlen (*name);
-	  *name = strdup (*name);
 	  unlock_unit (u);
 	  return;
 	}
+      free (*name);
       unlock_unit (u);
     }
 

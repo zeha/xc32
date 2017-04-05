@@ -1,5 +1,5 @@
 /* Set operations on pointers
-   Copyright (C) 2004, 2006, 2007 Free Software Foundation, Inc.
+   Copyright (C) 2004-2013 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -64,7 +64,7 @@ hash1 (const void *p, unsigned long max, unsigned long logmax)
 #endif
   const unsigned long shift = HOST_BITS_PER_LONG - logmax;
 
-  return ((A * (unsigned long) p) >> shift) & (max - 1);
+  return ((A * (uintptr_t) p) >> shift) & (max - 1);
 }
 
 /* Allocate an empty pointer set.  */
@@ -179,23 +179,6 @@ void pointer_set_traverse (const struct pointer_set_t *pset,
   for (i = 0; i < pset->n_slots; ++i)
     if (pset->slots[i] && !fn (pset->slots[i], data))
       break;
-}
-
-/* Return the number of elements in PSET.  */
-
-size_t
-pointer_set_n_elements (struct pointer_set_t *pset)
-{
-  return pset->n_elements;
-}
-
-/* Remove all entries from PSET.  */
-
-void
-pointer_set_clear (struct pointer_set_t *pset)
-{
-  pset->n_elements = 0;
-  memset (pset->slots, 0, sizeof (pset->slots[0]) * pset->n_slots);
 }
 
 
@@ -317,21 +300,4 @@ void pointer_map_traverse (const struct pointer_map_t *pmap,
   for (i = 0; i < pmap->n_slots; ++i)
     if (pmap->keys[i] && !fn (pmap->keys[i], &pmap->values[i], data))
       break;
-}
-
-/* Return the number of elements in PMAP.  */
-
-size_t
-pointer_map_n_elements (struct pointer_map_t *pmap)
-{
-  return pmap->n_elements;
-}
-
-/* Remove all entries from PMAP.  */
-
-void pointer_map_clear (struct pointer_map_t *pmap)
-{
-  pmap->n_elements = 0;
-  memset (pmap->keys, 0, sizeof (pmap->keys[0]) * pmap->n_slots);
-  memset (pmap->values, 0, sizeof (pmap->values[0]) * pmap->n_slots);
 }

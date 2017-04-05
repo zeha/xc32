@@ -1,9 +1,8 @@
-// { dg-require-namedlocale "" }
+// { dg-require-namedlocale "fr_FR" }
 
 // 2000-09-13 Benjamin Kosnik <bkoz@redhat.com>
 
-// Copyright (C) 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2009
-// Free Software Foundation
+// Copyright (C) 2000-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -96,7 +95,7 @@ void test01()
   VERIFY( loc07 != loc02 );  
   VERIFY( loc07.name() != "" );
   try
-    { locale loc08(static_cast<const char*>(NULL)); }
+    { locale loc08(static_cast<const char*>(0)); }
   catch(runtime_error& obj)
     { VERIFY( true ); }
   catch(...)
@@ -130,7 +129,7 @@ void test01()
     VERIFY( loc11 == loc01 );  
 
     try
-      { locale loc12(loc01, static_cast<const char*>(NULL), locale::ctype); }
+      { locale loc12(loc01, static_cast<const char*>(0), locale::ctype); }
     catch(runtime_error& obj)
       { VERIFY( true ); }
     catch(...)
@@ -178,7 +177,7 @@ void test01()
     VERIFY( loc11 == loc01 );
 
     try
-      { locale loc12(loc01, static_cast<const char*>(NULL), locale::ctype); }
+      { locale loc12(loc01, static_cast<const char*>(0), locale::ctype); }
     catch(runtime_error& obj)
       { VERIFY( true ); }
     catch(...)

@@ -1,6 +1,6 @@
 /* { dg-do run } */
 /* { dg-require-effective-target arm_neon_hw } */
-/* { dg-options "-O2 -mcpu=cortex-a8" } */
+/* { dg-options "-O2" } */
 /* { dg-add-options arm_neon } */
 
 #include <stdlib.h>

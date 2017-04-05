@@ -9,6 +9,8 @@
 #include "tree.h"
 #include "tree-pass.h"
 #include "intl.h"
+#include "toplev.h"
+#include "diagnostic.h"
 
 int plugin_is_GPL_compatible;
 
@@ -60,17 +62,18 @@ static struct gimple_opt_pass pass_dumb_plugin_example =
   {
     GIMPLE_PASS,
     "dumb_plugin_example",                /* name */
+    OPTGROUP_NONE,                        /* optinfo_flags */
     gate_dumb_plugin_example,             /* gate */
     execute_dumb_plugin_example,          /* execute */
     NULL,                                 /* sub */
     NULL,                                 /* next */
     0,                                    /* static_pass_number */
-    0,                                    /* tv_id */
+    TV_NONE,                              /* tv_id */
     PROP_cfg,                             /* properties_required */
     0,                                    /* properties_provided */
     0,                                    /* properties_destroyed */
     0,                                    /* todo_flags_start */
-    TODO_dump_func                        /* todo_flags_finish */
+    0					  /* todo_flags_finish */
   }
 };
 

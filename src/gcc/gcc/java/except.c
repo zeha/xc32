@@ -1,6 +1,5 @@
 /* Handle exceptions for GNU compiler for the Java(TM) language.
-   Copyright (C) 1997, 1998, 1999, 2000, 2002, 2003, 2004, 2005,
-   2007, 2008, 2009 Free Software Foundation, Inc.
+   Copyright (C) 1997-2013 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -27,15 +26,12 @@ The Free Software Foundation is independent of Sun Microsystems, Inc.  */
 #include "coretypes.h"
 #include "tm.h"
 #include "tree.h"
-#include "real.h"
-#include "rtl.h"
 #include "java-tree.h"
 #include "javaop.h"
 #include "java-opcodes.h"
 #include "jcf.h"
-#include "function.h"
-#include "except.h"
 #include "java-except.h"
+#include "diagnostic-core.h"
 #include "toplev.h"
 #include "tree-iterator.h"
 
@@ -384,7 +380,7 @@ prepare_eh_table_type (tree type)
     return NULL_TREE;
 
   if (TYPE_TO_RUNTIME_MAP (output_class) == NULL)
-    TYPE_TO_RUNTIME_MAP (output_class) = java_treetreehash_create (10, 1);
+    TYPE_TO_RUNTIME_MAP (output_class) = java_treetreehash_create (10);
   
   slot = java_treetreehash_new (TYPE_TO_RUNTIME_MAP (output_class), type);
   if (*slot != NULL)
@@ -423,9 +419,9 @@ prepare_eh_table_type (tree type)
       layout_decl (decl, 0);
       pushdecl (decl);
       exp = build1 (ADDR_EXPR, build_pointer_type (utf8const_ptr_type), decl);
-      TYPE_CATCH_CLASSES (output_class) = 
-	tree_cons (NULL, make_catch_class_record (exp, utf8_ref), 
-		   TYPE_CATCH_CLASSES (output_class));
+      CONSTRUCTOR_APPEND_ELT (TYPE_CATCH_CLASSES (output_class),
+			      NULL_TREE,
+			      make_catch_class_record (exp, utf8_ref));
     }
 
   exp = convert (ptr_type_node, exp);
@@ -491,7 +487,7 @@ build_exception_object_ref (tree type)
      The java object is immediately before the generic exception header.  */
   obj = build_exception_object_var ();
   obj = fold_convert (build_pointer_type (type), obj);
-  obj = build2 (POINTER_PLUS_EXPR, TREE_TYPE (obj), obj,
+  obj = fold_build_pointer_plus (obj,
 		fold_build1 (NEGATE_EXPR, sizetype,
 			     TYPE_SIZE_UNIT (TREE_TYPE (obj))));
   obj = build1 (INDIRECT_REF, type, obj);
@@ -523,8 +519,8 @@ expand_end_java_handler (struct eh_range *range)
 	    type = throwable_type_node;
 	  eh_type = prepare_eh_table_type (type);
 
-	  x = build_call_expr (built_in_decls[BUILT_IN_EH_POINTER],
-				1, integer_zero_node);
+	  x = build_call_expr (builtin_decl_explicit (BUILT_IN_EH_POINTER),
+			       1, integer_zero_node);
 	  x = build2 (MODIFY_EXPR, void_type_node, exc_obj, x);
 	  tsi_link_after (&stmts_i, x, TSI_CONTINUE_LINKING);
 
@@ -568,6 +564,29 @@ check_start_handlers (struct eh_range *range, int pc)
 }
 
 
+/* Routine to see if exception handling is turned on.
+   DO_WARN is nonzero if we want to inform the user that exception
+   handling is turned off.
+
+   This is used to ensure that -fexceptions has been specified if the
+   compiler tries to use any exception-specific functions.  */
+
+static inline int
+doing_eh (void)
+{
+  if (! flag_exceptions)
+    {
+      static int warned = 0;
+      if (! warned)
+	{
+	  error ("exception handling disabled, use -fexceptions to enable");
+	  warned = 1;
+	}
+      return 0;
+    }
+  return 1;
+}
+
 static struct eh_range *current_range;
 
 /* Emit any start-of-try-range starting at start_pc and ending after
@@ -577,7 +596,7 @@ void
 maybe_start_try (int start_pc, int end_pc)
 {
   struct eh_range *range;
-  if (! doing_eh (1))
+  if (! doing_eh ())
     return;
 
   range = find_handler (start_pc);

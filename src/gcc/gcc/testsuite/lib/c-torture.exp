@@ -1,5 +1,4 @@
-# Copyright (C) 1992-1998, 1999, 2000, 2007, 2008
-# Free Software Foundation, Inc.
+# Copyright (C) 1992-2013 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -42,7 +41,8 @@ if [info exists TORTURE_OPTIONS] {
 	{ -O3 -fomit-frame-pointer -funroll-loops } \
 	{ -O3 -fomit-frame-pointer -funroll-all-loops -finline-functions } \
 	{ -O3 -g } \
-	{ -Os } ]
+	{ -Os } \
+	{ -Og -g } ]
 }
 
 if [info exists ADDITIONAL_TORTURE_OPTIONS] {
@@ -52,10 +52,19 @@ if [info exists ADDITIONAL_TORTURE_OPTIONS] {
 
 set LTO_TORTURE_OPTIONS ""
 if [check_effective_target_lto] {
-    set LTO_TORTURE_OPTIONS [list \
-	{ -O2 -flto } \
-	{ -O2 -fwhopr }
-    ]
+    # When having plugin test both slim and fat LTO and plugin/nonplugin
+    # path.
+    if [check_linker_plugin_available] {
+      set LTO_TORTURE_OPTIONS [list \
+	  { -O2 -flto -fno-use-linker-plugin -flto-partition=none } \
+	  { -O2 -flto -fuse-linker-plugin -fno-fat-lto-objects }
+      ]
+    } else {
+      set LTO_TORTURE_OPTIONS [list \
+	  { -O2 -flto -flto-partition=none } \
+	  { -O2 -flto }
+      ]
+    }
 }
 
 global GCC_UNDER_TEST

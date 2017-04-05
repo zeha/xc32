@@ -6,7 +6,7 @@
  *                                                                          *
  *                              C Header File                               *
  *                                                                          *
- *          Copyright (C) 1992-2009, Free Software Foundation, Inc.         *
+ *          Copyright (C) 1992-2012, Free Software Foundation, Inc.         *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -29,6 +29,10 @@
  *                                                                          *
  ****************************************************************************/
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <sys/stat.h>
 #include <stdio.h>
 
@@ -47,7 +51,7 @@
    determine at compile time what support the system offers for large files.
    For now we just list the platforms we have manually tested. */
 
-#if defined (__GLIBC__) || defined (sun)  || (defined (__sgi) && defined(_LFAPI))
+#if defined (__GLIBC__) || defined (sun)
 #define GNAT_FOPEN fopen64
 #define GNAT_STAT stat64
 #define GNAT_FSTAT fstat64
@@ -101,6 +105,7 @@ extern void   __gnat_to_gm_time			   (OS_Time *, int *, int *,
 extern int    __gnat_get_maximum_file_name_length  (void);
 extern int    __gnat_get_switches_case_sensitive   (void);
 extern int    __gnat_get_file_names_case_sensitive (void);
+extern int    __gnat_get_env_vars_case_sensitive   (void);
 extern char   __gnat_get_default_identifier_character_set (void);
 extern void   __gnat_get_current_dir		   (char *, int *);
 extern void   __gnat_get_object_suffix_ptr         (int *,
@@ -115,7 +120,7 @@ extern int    __gnat_symlink                       (char *, char *);
 extern int    __gnat_try_lock                      (char *, char *);
 extern int    __gnat_open_new                      (char *, int);
 extern int    __gnat_open_new_temp		   (char *, int);
-extern int    __gnat_mkdir			   (char *);
+extern int    __gnat_mkdir			   (char *, int);
 extern int    __gnat_stat			   (char *,
 						    GNAT_STRUCT_STAT *);
 extern int    __gnat_unlink                        (char *);
@@ -130,6 +135,8 @@ extern int    __gnat_open_read                     (char *, int);
 extern int    __gnat_open_rw                       (char *, int);
 extern int    __gnat_open_create                   (char *, int);
 extern int    __gnat_create_output_file            (char *);
+extern int    __gnat_create_output_file_new        (char *);
+
 extern int    __gnat_open_append                   (char *, int);
 extern long   __gnat_file_length                   (int);
 extern long   __gnat_named_file_length             (char *);
@@ -234,10 +241,31 @@ extern int    __gnat_set_close_on_exec		   (int, int);
 extern int    __gnat_dup			   (int);
 extern int    __gnat_dup2			   (int, int);
 
+extern int    __gnat_number_of_cpus                (void);
+
 extern void   __gnat_os_filename                   (char *, char *, char *,
 						    int *, char *, int *);
-#if defined (linux)
+
+extern char * __gnat_locate_executable_file        (char *, char *);
+extern char * __gnat_locate_file_with_predicate    (char *, char *,
+						    int (*)(char*));
+
+#if defined (__ANDROID__)
+#undef linux
+extern void   *__gnat_lwp_self                     (void);
+
+#elif defined (linux)
 extern void   *__gnat_lwp_self			   (void);
+
+/* Routines for interface to required CPU set primitives */
+
+#include <sched.h>
+
+extern cpu_set_t *__gnat_cpu_alloc                 (size_t);
+extern size_t __gnat_cpu_alloc_size                (size_t);
+extern void   __gnat_cpu_free                  (cpu_set_t *);
+extern void   __gnat_cpu_zero                      (size_t, cpu_set_t *);
+extern void   __gnat_cpu_set                       (int, size_t, cpu_set_t *);
 #endif
 
 #if defined (_WIN32)
@@ -257,3 +285,7 @@ extern int    get_gcc_version                      (void);
 
 extern int    __gnat_binder_supports_auto_init     (void);
 extern int    __gnat_sals_init_using_constructors  (void);
+
+#ifdef __cplusplus
+}
+#endif

@@ -1,5 +1,5 @@
 ;; ARM Cortex-A5 pipeline description
-;; Copyright (C) 2010 Free Software Foundation, Inc.
+;; Copyright (C) 2010-2013 Free Software Foundation, Inc.
 ;; Contributed by CodeSourcery.
 ;;
 ;; This file is part of GCC.
@@ -58,12 +58,12 @@
 
 (define_insn_reservation "cortex_a5_alu" 2
   (and (eq_attr "tune" "cortexa5")
-       (eq_attr "type" "alu"))
+       (eq_attr "type" "alu_reg,simple_alu_imm"))
   "cortex_a5_ex1")
 
 (define_insn_reservation "cortex_a5_alu_shift" 2
   (and (eq_attr "tune" "cortexa5")
-       (eq_attr "type" "alu_shift,alu_shift_reg"))
+       (eq_attr "type" "simple_alu_shift,alu_shift,alu_shift_reg"))
   "cortex_a5_ex1")
 
 ;; Forwarding path for unshifted operands.
@@ -185,7 +185,7 @@
 
 (define_insn_reservation "cortex_a5_fpmacs" 8
   (and (eq_attr "tune" "cortexa5")
-       (eq_attr "type" "fmacs"))
+       (eq_attr "type" "fmacs,ffmas"))
   "cortex_a5_ex1+cortex_a5_fpmul_pipe, nothing*3, cortex_a5_fpadd_pipe")
 
 ;; Non-multiply instructions can issue in the middle two instructions of a
@@ -201,7 +201,7 @@
 
 (define_insn_reservation "cortex_a5_fpmacd" 11
   (and (eq_attr "tune" "cortexa5")
-       (eq_attr "type" "fmacd"))
+       (eq_attr "type" "fmacd,ffmad"))
   "cortex_a5_ex1+cortex_a5_fpmul_pipe, cortex_a5_fpmul_pipe*2,\
    cortex_a5_ex1+cortex_a5_fpmul_pipe, nothing*3, cortex_a5_fpadd_pipe")
 
@@ -270,7 +270,7 @@
 
 (define_insn_reservation "cortex_a5_f_loadd" 5
   (and (eq_attr "tune" "cortexa5")
-       (eq_attr "type" "f_load,f_loadd"))
+       (eq_attr "type" "f_loadd"))
   "cortex_a5_ex1+cortex_a5_branch, cortex_a5_ex1")
 
 (define_insn_reservation "cortex_a5_f_stores" 0
@@ -280,7 +280,7 @@
 
 (define_insn_reservation "cortex_a5_f_stored" 0
   (and (eq_attr "tune" "cortexa5")
-       (eq_attr "type" "f_store,f_stored"))
+       (eq_attr "type" "f_stored"))
   "cortex_a5_ex1+cortex_a5_branch, cortex_a5_ex1")
 
 ;; Load-to-use for floating-point values has a penalty of one cycle,

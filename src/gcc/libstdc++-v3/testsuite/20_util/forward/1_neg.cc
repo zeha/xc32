@@ -3,7 +3,7 @@
 
 // 2007-07-10  Paolo Carlini  <pcarlini@suse.de>
 //
-// Copyright (C) 2007, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2007-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -38,7 +38,8 @@ struct A
 
 void g()
 {
-  std::shared_ptr<A> sp1 = factory<A>(2, 1.414); // { dg-error "instantiated from here" }
+  std::shared_ptr<A> sp1 = factory<A>(2, 1.414); // { dg-error "required from here" }
 }
 
-// { dg-excess-errors "" }
+// Discard a bogus warning showing up with -Wall.
+// { dg-prune-output "control reaches end of" }

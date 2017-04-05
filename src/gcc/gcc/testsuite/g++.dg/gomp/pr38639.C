@@ -6,12 +6,12 @@ template<int> void
 foo ()
 {
 #pragma omp parallel for
-  for (auto i = i = 0; i<4; ++i)	// { dg-error "incomplete|unable|invalid" }
+  for (auto i = i = 0; i<4; ++i)	// { dg-error "incomplete|unable|invalid|auto" }
     ;
 }
 
 void
 bar ()
 {
-  foo<0> ();				// { dg-message "instantiated from here" }
+  foo<0> ();				// { dg-message "required from here" }
 }

@@ -1,5 +1,5 @@
 // PR c++/44358
-// { dg-options "-std=c++0x" }
+// { dg-options "-std=c++0x -pedantic-errors" }
 
 #include <initializer_list>
 
@@ -18,4 +18,6 @@ int main()
 {
   B b0 = {{1}};
   B b1 = {{1.0}};		// { dg-error "narrowing" }
+  B b2 {1.0};			// { dg-error "narrowing" }
+  A a {1.0};			// { dg-error "narrowing" }
 }

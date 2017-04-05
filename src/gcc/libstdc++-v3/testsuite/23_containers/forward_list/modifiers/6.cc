@@ -1,8 +1,6 @@
-// { dg-options "-std=gnu++0x" }
+// { dg-options "-std=gnu++11" }
 
-// 2010-02-01  Paolo Carlini  <paolo.carlini@oracle.com>
-
-// Copyright (C) 2010 Free Software Foundation, Inc.
+// Copyright (C) 2012-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -20,30 +18,73 @@
 // <http://www.gnu.org/licenses/>.
 
 #include <forward_list>
+
 #include <testsuite_hooks.h>
-
-struct NoCopyConstructor
-{
-  NoCopyConstructor() : num(-1) { }
-  NoCopyConstructor(const NoCopyConstructor&) = delete;
-
-  operator int() { return num; }
-
-private:
-  int num;
-};
 
 void test01()
 {
   bool test __attribute__((unused)) = true;
 
-  std::forward_list<NoCopyConstructor> fl;
-  VERIFY( std::distance(fl.begin(), fl.end()) == 0 );
+  std::forward_list<int> fl1(1, 5), fl2(1, 4), fl3(1, 3),
+                         fl4(1, 2), fl5(1, 1), fl6(1, 0);
 
-  fl.resize(10);
-  VERIFY( std::distance(fl.begin(), fl.end()) == 10 );
-  for(auto it = fl.begin(); it != fl.end(); ++it)
-    VERIFY( *it == -1 );
+  fl1.splice_after(fl1.before_begin(), fl2);
+
+  auto it = fl1.begin();
+
+  VERIFY( *it == 4 );
+
+  ++it;
+  
+  VERIFY( *it == 5 );
+
+  fl3.splice_after(fl3.before_begin(), fl4, fl4.before_begin());
+
+  it = fl3.begin();
+
+  VERIFY( *it == 2 );
+
+  ++it;
+  
+  VERIFY( *it == 3 );
+
+  fl5.splice_after(fl5.before_begin(), fl6, fl6.before_begin(), fl6.end());
+
+  it = fl5.begin();
+
+  VERIFY( *it == 0 );
+
+  ++it;
+  
+  VERIFY( *it == 1 );
+
+  fl1.merge(fl2);
+
+  it = fl1.begin();
+
+  VERIFY( *it == 4 );
+
+  ++it;
+
+  VERIFY( *it == 5 );
+
+  fl1.merge(fl3, std::less<int>());
+
+  it = fl1.begin();
+
+  VERIFY( *it == 2 );
+
+  ++it;
+  
+  VERIFY( *it == 3 );
+
+  ++it;
+  
+  VERIFY( *it == 4 );
+
+  ++it;
+  
+  VERIFY( *it == 5 );
 }
 
 int main()

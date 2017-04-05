@@ -1,7 +1,7 @@
 // { dg-options "-std=gnu++0x" }
 // { dg-do compile }
 
-// Copyright (C) 2005, 2006, 2007, 2008, 2009 Free Software Foundation
+// Copyright (C) 2005-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -20,7 +20,7 @@
 
 // 20.6.6.2 Template class shared_ptr [util.smartptr.shared]
 
-#include <memory>  // { dg-excess-errors "In file included from" }
+#include <memory>
 #include <testsuite_hooks.h>
 
 struct A { };
@@ -47,6 +47,6 @@ main()
   test01();
   return 0;
 }
-// { dg-error "In member function" "" { target *-*-* } 0 }
+// { dg-error "In instantiation" "" { target *-*-* } 0 }
 // { dg-error "cannot convert" "" { target *-*-* } 0 }
-// { dg-error "instantiated from" "" { target *-*-* } 0 }
+// { dg-error "required from" "" { target *-*-* } 0 }

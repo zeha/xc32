@@ -1,5 +1,4 @@
-/* Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005,
-   2007 Free Software Foundation, Inc.
+/* Copyright (C) 1997-2013 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -17,7 +16,6 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
-#include "config.h"
 #include "version.h"
 
 /* This is the location of the online document giving instructions for
@@ -35,10 +33,10 @@ const char bug_report_url[] = "<URL:http://www.microchip.com/support>";
 /* The complete version string, assembled from several pieces.
    BASEVER, DATESTAMP, DEVPHASE, and REVISION are defined by the
    Makefile.  */
-
-/* const char version_string[] = BASEVER DATESTAMP DEVPHASE REVISION; */
+#define _BUILD_C32_
+#define _BUILD_MCHP_
 #ifdef _BUILD_C32_
-const char version_string[] = BASEVER " " "MPLAB XC32 Compiler v1.34"; /* XC32 */
+const char version_string[] = BASEVER " " "MPLAB XC32 Compiler v1.40"; /* XC32 */
 
 #elif defined(_BUILD_C30_)
 #define version2(X) #X
@@ -50,7 +48,4 @@ char *version_string = BASEVER " " "(XC16, Microchip " version(MCHP_VERSION)
 
 const char version_string[] = BASEVER " " "MPLAB XC Compiler v1.10";
 #endif
-
 const char pkgversion_string[] = PKGVERSION;
-
-

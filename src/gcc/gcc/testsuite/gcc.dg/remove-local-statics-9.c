@@ -2,11 +2,9 @@
    on return from a function call that does not recursively call the
    function in which the variable is defined.  */
 
-/* XFAIL'd because we don't utilize the callgraph properly.  */
-
 /* { dg-do compile } */
-/* { dg-options "-O2 -fremove-local-statics" } */
-/* { dg-final { scan-assembler-not "thestatic" { xfail *-*-* } } } */
+/* { dg-options "-O2" } */
+/* { dg-final { scan-assembler-not "thestatic" } } */
 
 static int
 test2 (int x)

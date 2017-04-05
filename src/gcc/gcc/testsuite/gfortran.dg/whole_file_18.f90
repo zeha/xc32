@@ -1,5 +1,5 @@
-! { dg-do "compile" }
-! { dg-options "-fwhole-file" }
+! { dg-do compile }
+! { dg-options "-fwhole-file -Wno-unused-dummy-argument" }
 !
 ! PR fortran/34260
 !

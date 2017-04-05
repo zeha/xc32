@@ -1,6 +1,5 @@
 /* Header file to the Fortran front-end and runtime library
-   Copyright (C) 2007, 2008, 2009, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 2007-2013 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -23,15 +22,17 @@ along with GCC; see the file COPYING3.  If not see
    Note that no features were obsoleted nor deleted in F2003.
    Please remember to keep those definitions in sync with
    gfortran.texi.  */
-#define GFC_STD_F2008	(1<<7)	/* New in F2008.  */
-#define GFC_STD_LEGACY	(1<<6)	/* Backward compatibility.  */
-#define GFC_STD_GNU	(1<<5)	/* GNU Fortran extension.  */
-#define GFC_STD_F2003	(1<<4)	/* New in F2003.  */
-#define GFC_STD_F95	(1<<3)	/* New in F95.  */
-#define GFC_STD_F95_DEL	(1<<2)	/* Deleted in F95.  */
-#define GFC_STD_F95_OBS	(1<<1)	/* Obsolescent in F95.  */
-#define GFC_STD_F77	(1<<0)	/* Included in F77, but not deleted or
-				   obsolescent in later standards.  */
+#define GFC_STD_F2008_TS	(1<<9)	/* POST-F2008 technical reports.  */
+#define GFC_STD_F2008_OBS	(1<<8)	/* Obsolescent in F2008.  */
+#define GFC_STD_F2008		(1<<7)	/* New in F2008.  */
+#define GFC_STD_LEGACY		(1<<6)	/* Backward compatibility.  */
+#define GFC_STD_GNU		(1<<5)	/* GNU Fortran extension.  */
+#define GFC_STD_F2003		(1<<4)	/* New in F2003.  */
+#define GFC_STD_F95		(1<<3)	/* New in F95.  */
+#define GFC_STD_F95_DEL		(1<<2)	/* Deleted in F95.  */
+#define GFC_STD_F95_OBS		(1<<1)	/* Obsolescent in F95.  */
+#define GFC_STD_F77		(1<<0)	/* Included in F77, but not deleted or
+					   obsolescent in later standards.  */
 
 
 /* Bitmasks for the various FPE that can be enabled.  */
@@ -40,7 +41,7 @@ along with GCC; see the file COPYING3.  If not see
 #define GFC_FPE_ZERO       (1<<2)
 #define GFC_FPE_OVERFLOW   (1<<3)
 #define GFC_FPE_UNDERFLOW  (1<<4)
-#define GFC_FPE_PRECISION  (1<<5)
+#define GFC_FPE_INEXACT    (1<<5)
 
 
 /* Bitmasks for the various runtime checks that can be enabled.  */
@@ -92,10 +93,20 @@ typedef enum
   LIBERROR_DIRECT_EOR,
   LIBERROR_SHORT_RECORD,
   LIBERROR_CORRUPT_FILE,
+  LIBERROR_INQUIRE_INTERNAL_UNIT, /* Must be different from STAT_STOPPED_IMAGE.  */
   LIBERROR_LAST			/* Not a real error, the last error # + 1.  */
 }
 libgfortran_error_codes;
 
+/* Must kept in sync with libgfortrancaf.h.  */
+typedef enum
+{
+  GFC_STAT_UNLOCKED = 0,
+  GFC_STAT_LOCKED,
+  GFC_STAT_LOCKED_OTHER_IMAGE,
+  GFC_STAT_STOPPED_IMAGE = 6000 /* See LIBERROR_INQUIRE_INTERNAL_UNIT above. */
+}
+libgfortran_stat_codes;
 
 /* Default unit number for preconnected standard input and output.  */
 #define GFC_STDIN_UNIT_NUMBER 5
@@ -112,16 +123,12 @@ libgfortran_error_codes;
 #define GFC_DTYPE_TYPE_MASK 0x38
 #define GFC_DTYPE_SIZE_SHIFT 6
 
+/* Basic types.  BT_VOID is used by ISO C Binding so funcs like c_f_pointer
+   can take any arg with the pointer attribute as a param.  These are also
+   used in the run-time library for IO.  */
 typedef enum
-{
-  GFC_DTYPE_UNKNOWN = 0,
-  GFC_DTYPE_INTEGER,
-  /* TODO: recognize logical types.  */
-  GFC_DTYPE_LOGICAL,
-  GFC_DTYPE_REAL,
-  GFC_DTYPE_COMPLEX,
-  GFC_DTYPE_DERIVED,
-  GFC_DTYPE_CHARACTER
+{ BT_UNKNOWN = 0, BT_INTEGER, BT_LOGICAL, BT_REAL, BT_COMPLEX,
+  BT_DERIVED, BT_CHARACTER, BT_CLASS, BT_PROCEDURE, BT_HOLLERITH, BT_VOID,
+  BT_ASSUMED
 }
-dtype;
-
+bt;

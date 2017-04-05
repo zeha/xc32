@@ -1,4 +1,4 @@
-/* JniHelper.java - name mangling and other JNI support 
+/* JniHelper.java - name mangling and other JNI support
  Copyright (C) 2006 Free Software Foundation, Inc.
 
  This file is part of GNU Classpath.
@@ -103,6 +103,8 @@ public class JniHelper
         else if (c == '[')
           result.append("_3");
         else if (c == '/')
+          result.append("_");
+        else if (c == '$')
           result.append("_");
         else if ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'z')
                  || (c >= 'A' && c <= 'Z'))

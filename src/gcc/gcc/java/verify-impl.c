@@ -1,5 +1,4 @@
-/* Copyright (C) 2001, 2002, 2003, 2004, 2005, 2006, 2008, 2009
-   Free Software Foundation
+/* Copyright (C) 2001-2013 Free Software Foundation, Inc.
 
    This file is part of libgcj.
 
@@ -13,15 +12,13 @@ details.  */
 /* #define VERIFY_DEBUG */
 
 #include "config.h"
+#include "system.h"
+#include "coretypes.h"
 
 #include "verify.h"
 
 /* Hack to work around namespace pollution from java-tree.h.  */
 #undef current_class
-
-#ifdef VERIFY_DEBUG
-#include <stdio.h>
-#endif /* VERIFY_DEBUG */
 
 /* This is used to mark states which are not scheduled for
    verification. */

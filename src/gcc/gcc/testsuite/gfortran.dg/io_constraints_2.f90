@@ -30,7 +30,7 @@ end module global
 
 ! Appending to a USE associated namelist is an extension.
 
- NAMELIST /NL/ a,b                              ! { dg-warning "already is USE associated" }
+ NAMELIST /NL/ a,b                              ! { dg-error "already is USE associated" }
 
  a=1 ; b=2
 
@@ -73,5 +73,3 @@ end module global
 100 continue
 200 format (2i6)
  END
-
-! { dg-final { cleanup-modules "global" } }

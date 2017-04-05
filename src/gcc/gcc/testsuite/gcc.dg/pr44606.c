@@ -3,6 +3,7 @@
 /* { dg-options "-O2" } */
 
 #include <stdio.h>
+
 extern void abort (void);
 
  typedef struct _PixelPacket { 	unsigned char r, g, b; }

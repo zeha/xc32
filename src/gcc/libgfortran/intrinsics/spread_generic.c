@@ -1,8 +1,8 @@
 /* Generic implementation of the SPREAD intrinsic
-   Copyright 2002, 2005, 2006, 2007, 2009 Free Software Foundation, Inc.
+   Copyright (C) 2002-2013 Free Software Foundation, Inc.
    Contributed by Paul Brook <paul@nowt.org>
 
-This file is part of the GNU Fortran 95 runtime library (libgfortran).
+This file is part of the GNU Fortran runtime library (libgfortran).
 
 Libgfortran is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public
@@ -66,7 +66,7 @@ spread_internal (gfc_array_char *ret, const gfc_array_char *source,
 
   ncopies = *pncopies;
 
-  if (ret->data == NULL)
+  if (ret->base_addr == NULL)
     {
       /* The front end has signalled that we need to populate the
 	 return array descriptor.  */
@@ -100,13 +100,10 @@ spread_internal (gfc_array_char *ret, const gfc_array_char *source,
 	  GFC_DIMENSION_SET(ret->dim[n], 0, ub, stride);
 	}
       ret->offset = 0;
-      if (rs > 0)
-        ret->data = internal_malloc_size (rs * size);
-      else
-	{
-	  ret->data = internal_malloc_size (1);
-	  return;
-	}
+      ret->base_addr = xmalloc (rs * size);
+
+      if (rs <= 0)
+	return;
     }
   else
     {
@@ -183,8 +180,8 @@ spread_internal (gfc_array_char *ret, const gfc_array_char *source,
     }
   sstride0 = sstride[0];
   rstride0 = rstride[0];
-  rptr = ret->data;
-  sptr = source->data;
+  rptr = ret->base_addr;
+  sptr = source->base_addr;
 
   while (sptr)
     {
@@ -246,9 +243,9 @@ spread_internal_scalar (gfc_array_char *ret, const char *source,
   if (*along > 1)
     runtime_error ("dim outside of rank in spread()");
 
-  if (ret->data == NULL)
+  if (ret->base_addr == NULL)
     {
-      ret->data = internal_malloc_size (ncopies * size);
+      ret->base_addr = xmalloc (ncopies * size);
       ret->offset = 0;
       GFC_DIMENSION_SET(ret->dim[0], 0, ncopies - 1, 1);
     }
@@ -261,7 +258,7 @@ spread_internal_scalar (gfc_array_char *ret, const char *source,
 
   for (n = 0; n < ncopies; n++)
     {
-      dest = (char*)(ret->data + n * GFC_DESCRIPTOR_STRIDE_BYTES(ret,0));
+      dest = (char*)(ret->base_addr + n * GFC_DESCRIPTOR_STRIDE_BYTES(ret,0));
       memcpy (dest , source, size);
     }
 }
@@ -322,18 +319,26 @@ spread (gfc_array_char *ret, const gfc_array_char *source,
 		 *along, *pncopies);
       return;
 
-#ifdef GFC_HAVE_REAL_10
+/* FIXME: This here is a hack, which will have to be removed when
+   the array descriptor is reworked.  Currently, we don't store the
+   kind value for the type, but only the size.  Because on targets with
+   __float128, we have sizeof(logn double) == sizeof(__float128),
+   we cannot discriminate here and have to fall back to the generic
+   handling (which is suboptimal).  */
+#if !defined(GFC_REAL_16_IS_FLOAT128)
+# ifdef GFC_HAVE_REAL_10
     case GFC_DTYPE_REAL_10:
       spread_r10 ((gfc_array_r10 *) ret, (gfc_array_r10 *) source,
 		 *along, *pncopies);
       return;
-#endif
+# endif
 
-#ifdef GFC_HAVE_REAL_16
+# ifdef GFC_HAVE_REAL_16
     case GFC_DTYPE_REAL_16:
       spread_r16 ((gfc_array_r16 *) ret, (gfc_array_r16 *) source,
 		 *along, *pncopies);
       return;
+# endif
 #endif
 
     case GFC_DTYPE_COMPLEX_4:
@@ -346,22 +351,30 @@ spread (gfc_array_char *ret, const gfc_array_char *source,
 		 *along, *pncopies);
       return;
 
-#ifdef GFC_HAVE_COMPLEX_10
+/* FIXME: This here is a hack, which will have to be removed when
+   the array descriptor is reworked.  Currently, we don't store the
+   kind value for the type, but only the size.  Because on targets with
+   __float128, we have sizeof(logn double) == sizeof(__float128),
+   we cannot discriminate here and have to fall back to the generic
+   handling (which is suboptimal).  */
+#if !defined(GFC_REAL_16_IS_FLOAT128)
+# ifdef GFC_HAVE_COMPLEX_10
     case GFC_DTYPE_COMPLEX_10:
       spread_c10 ((gfc_array_c10 *) ret, (gfc_array_c10 *) source,
 		 *along, *pncopies);
       return;
-#endif
+# endif
 
-#ifdef GFC_HAVE_COMPLEX_16
+# ifdef GFC_HAVE_COMPLEX_16
     case GFC_DTYPE_COMPLEX_16:
       spread_c16 ((gfc_array_c16 *) ret, (gfc_array_c16 *) source,
 		 *along, *pncopies);
       return;
+# endif
 #endif
 
     case GFC_DTYPE_DERIVED_2:
-      if (GFC_UNALIGNED_2(ret->data) || GFC_UNALIGNED_2(source->data))
+      if (GFC_UNALIGNED_2(ret->base_addr) || GFC_UNALIGNED_2(source->base_addr))
 	break;
       else
 	{
@@ -371,7 +384,7 @@ spread (gfc_array_char *ret, const gfc_array_char *source,
 	}
 
     case GFC_DTYPE_DERIVED_4:
-      if (GFC_UNALIGNED_4(ret->data) || GFC_UNALIGNED_4(source->data))
+      if (GFC_UNALIGNED_4(ret->base_addr) || GFC_UNALIGNED_4(source->base_addr))
 	break;
       else
 	{
@@ -381,7 +394,7 @@ spread (gfc_array_char *ret, const gfc_array_char *source,
 	}
 
     case GFC_DTYPE_DERIVED_8:
-      if (GFC_UNALIGNED_8(ret->data) || GFC_UNALIGNED_8(source->data))
+      if (GFC_UNALIGNED_8(ret->base_addr) || GFC_UNALIGNED_8(source->base_addr))
 	break;
       else
 	{
@@ -392,7 +405,8 @@ spread (gfc_array_char *ret, const gfc_array_char *source,
 
 #ifdef HAVE_GFC_INTEGER_16
     case GFC_DTYPE_DERIVED_16:
-      if (GFC_UNALIGNED_16(ret->data) || GFC_UNALIGNED_16(source->data))
+      if (GFC_UNALIGNED_16(ret->base_addr)
+	  || GFC_UNALIGNED_16(source->base_addr))
 	break;
       else
 	{
@@ -501,18 +515,26 @@ spread_scalar (gfc_array_char *ret, const char *source,
 			*along, *pncopies);
       return;
 
-#ifdef HAVE_GFC_REAL_10
+/* FIXME: This here is a hack, which will have to be removed when
+   the array descriptor is reworked.  Currently, we don't store the
+   kind value for the type, but only the size.  Because on targets with
+   __float128, we have sizeof(logn double) == sizeof(__float128),
+   we cannot discriminate here and have to fall back to the generic
+   handling (which is suboptimal).  */
+#if !defined(GFC_REAL_16_IS_FLOAT128)
+# ifdef HAVE_GFC_REAL_10
     case GFC_DTYPE_REAL_10:
       spread_scalar_r10 ((gfc_array_r10 *) ret, (GFC_REAL_10 *) source,
 			*along, *pncopies);
       return;
-#endif
+# endif
 
-#ifdef HAVE_GFC_REAL_16
+# ifdef HAVE_GFC_REAL_16
     case GFC_DTYPE_REAL_16:
       spread_scalar_r16 ((gfc_array_r16 *) ret, (GFC_REAL_16 *) source,
 			*along, *pncopies);
       return;
+# endif
 #endif
 
     case GFC_DTYPE_COMPLEX_4:
@@ -525,22 +547,30 @@ spread_scalar (gfc_array_char *ret, const char *source,
 			*along, *pncopies);
       return;
 
-#ifdef HAVE_GFC_COMPLEX_10
+/* FIXME: This here is a hack, which will have to be removed when
+   the array descriptor is reworked.  Currently, we don't store the
+   kind value for the type, but only the size.  Because on targets with
+   __float128, we have sizeof(logn double) == sizeof(__float128),
+   we cannot discriminate here and have to fall back to the generic
+   handling (which is suboptimal).  */
+#if !defined(GFC_REAL_16_IS_FLOAT128)
+# ifdef HAVE_GFC_COMPLEX_10
     case GFC_DTYPE_COMPLEX_10:
       spread_scalar_c10 ((gfc_array_c10 *) ret, (GFC_COMPLEX_10 *) source,
 			*along, *pncopies);
       return;
-#endif
+# endif
 
-#ifdef HAVE_GFC_COMPLEX_16
+# ifdef HAVE_GFC_COMPLEX_16
     case GFC_DTYPE_COMPLEX_16:
       spread_scalar_c16 ((gfc_array_c16 *) ret, (GFC_COMPLEX_16 *) source,
 			*along, *pncopies);
       return;
+# endif
 #endif
 
     case GFC_DTYPE_DERIVED_2:
-      if (GFC_UNALIGNED_2(ret->data) || GFC_UNALIGNED_2(source))
+      if (GFC_UNALIGNED_2(ret->base_addr) || GFC_UNALIGNED_2(source))
 	break;
       else
 	{
@@ -550,7 +580,7 @@ spread_scalar (gfc_array_char *ret, const char *source,
 	}
 
     case GFC_DTYPE_DERIVED_4:
-      if (GFC_UNALIGNED_4(ret->data) || GFC_UNALIGNED_4(source))
+      if (GFC_UNALIGNED_4(ret->base_addr) || GFC_UNALIGNED_4(source))
 	break;
       else
 	{
@@ -560,7 +590,7 @@ spread_scalar (gfc_array_char *ret, const char *source,
 	}
 
     case GFC_DTYPE_DERIVED_8:
-      if (GFC_UNALIGNED_8(ret->data) || GFC_UNALIGNED_8(source))
+      if (GFC_UNALIGNED_8(ret->base_addr) || GFC_UNALIGNED_8(source))
 	break;
       else
 	{
@@ -570,7 +600,7 @@ spread_scalar (gfc_array_char *ret, const char *source,
 	}
 #ifdef HAVE_GFC_INTEGER_16
     case GFC_DTYPE_DERIVED_16:
-      if (GFC_UNALIGNED_16(ret->data) || GFC_UNALIGNED_16(source))
+      if (GFC_UNALIGNED_16(ret->base_addr) || GFC_UNALIGNED_16(source))
 	break;
       else
 	{

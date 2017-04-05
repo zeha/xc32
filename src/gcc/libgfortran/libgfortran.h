@@ -1,10 +1,9 @@
 /* Common declarations for all of libgfortran.
-   Copyright (C) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 2002-2013 Free Software Foundation, Inc.
    Contributed by Paul Brook <paul@nowt.org>, and
    Andy Vaught <andy@xena.eas.asu.edu>
 
-This file is part of the GNU Fortran 95 runtime library (libgfortran).
+This file is part of the GNU Fortran runtime library (libgfortran).
 
 Libgfortran is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -41,10 +40,24 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #include "config.h"
 
 #include <stdio.h>
-#include <math.h>
 #include <stddef.h>
 #include <float.h>
 #include <stdarg.h>
+
+#if HAVE_COMPLEX_H
+/* Must appear before math.h on VMS systems.  */
+# include <complex.h>
+#else
+#define complex __complex__
+#endif
+
+#include <math.h>
+
+/* If we're support quad-precision floating-point type, include the
+   header to our support library.  */
+#ifdef HAVE_FLOAT128
+#  include "quadmath_weak.h"
+#endif
 
 #ifdef __MINGW32__
 extern float __strtof (const char *, char **);
@@ -57,12 +70,6 @@ extern long double __strtold (const char *, char **);
 #define gfc_strtof strtof
 #define gfc_strtod strtod
 #define gfc_strtold strtold
-#endif
-
-#if HAVE_COMPLEX_H
-# include <complex.h>
-#else
-#define complex __complex__
 #endif
 
 #include "../gcc/fortran/libgfortran.h"
@@ -99,37 +106,10 @@ typedef off_t gfc_offset;
 #endif
 
 
-/* We use intptr_t and uintptr_t, which may not be always defined in
-   system headers.  */
-
-#ifndef HAVE_INTPTR_T
-#if __SIZEOF_POINTER__ == __SIZEOF_LONG__
-#define intptr_t long
-#elif __SIZEOF_POINTER__ == __SIZEOF_LONG_LONG__
-#define intptr_t long long
-#elif __SIZEOF_POINTER__ == __SIZEOF_INT__
-#define intptr_t int
-#elif __SIZEOF_POINTER__ == __SIZEOF_SHORT__
-#define intptr_t short
-#else
-#error "Pointer type with unexpected size"
+/* Make sure we have ptrdiff_t. */
+#ifndef HAVE_PTRDIFF_T
+typedef intptr_t ptrdiff_t;
 #endif
-#endif
-
-#ifndef HAVE_UINTPTR_T
-#if __SIZEOF_POINTER__ == __SIZEOF_LONG__
-#define uintptr_t unsigned long
-#elif __SIZEOF_POINTER__ == __SIZEOF_LONG_LONG__
-#define uintptr_t unsigned long long
-#elif __SIZEOF_POINTER__ == __SIZEOF_INT__
-#define uintptr_t unsigned int
-#elif __SIZEOF_POINTER__ == __SIZEOF_SHORT__
-#define uintptr_t unsigned short
-#else
-#error "Pointer type with unexpected size"
-#endif
-#endif
-
 
 /* On mingw, work around the buggy Windows snprintf() by using the one
    mingw provides, __mingw_snprintf().  We also provide a prototype for
@@ -139,6 +119,10 @@ extern int __mingw_snprintf (char *, size_t, const char *, ...)
      __attribute__ ((format (gnu_printf, 3, 4)));
 #undef snprintf
 #define snprintf __mingw_snprintf
+/* Fallback to sprintf if target does not have snprintf.  */
+#elif !defined(HAVE_SNPRINTF)
+#undef snprintf
+#define snprintf(str, size, ...) sprintf (str, __VA_ARGS__)
 #endif
 
 
@@ -221,42 +205,24 @@ extern int __mingw_snprintf (char *, size_t, const char *, ...)
 #define offsetof(TYPE, MEMBER)  ((size_t) &((TYPE *) 0)->MEMBER)
 #endif
 
-/* The isfinite macro is only available with C99, but some non-C99
-   systems still provide fpclassify, and there is a `finite' function
-   in BSD.
+/* The C99 classification macros isfinite, isinf, isnan, isnormal
+   and signbit are broken or inconsistent on quite a few targets.
+   So, we use GCC's builtins instead.
 
-   Also, isfinite is broken on Cygwin.
+   Another advantage for GCC's builtins for these type-generic macros
+   is that it handles floating-point types that the system headers
+   may not support (like __float128).  */
 
-   When isfinite is not available, try to use one of the
-   alternatives, or bail out.  */
-
-#if defined(HAVE_BROKEN_ISFINITE) || defined(__CYGWIN__)
-#undef isfinite
-#endif
-
-#if defined(HAVE_BROKEN_ISNAN)
 #undef isnan
-#endif
-
-#if defined(HAVE_BROKEN_FPCLASSIFY)
-#undef fpclassify
-#endif
-
-#if !defined(isfinite)
-#if !defined(fpclassify)
-#define isfinite(x) ((x) - (x) == 0)
-#else
-#define isfinite(x) (fpclassify(x) != FP_NAN && fpclassify(x) != FP_INFINITE)
-#endif /* !defined(fpclassify) */
-#endif /* !defined(isfinite)  */
-
-#if !defined(isnan)
-#if !defined(fpclassify)
-#define isnan(x) ((x) != (x))
-#else
-#define isnan(x) (fpclassify(x) == FP_NAN)
-#endif /* !defined(fpclassify) */
-#endif /* !defined(isfinite)  */
+#define isnan(x) __builtin_isnan(x)
+#undef isfinite
+#define isfinite(x) __builtin_isfinite(x)
+#undef isinf
+#define isinf(x) __builtin_isinf(x)
+#undef isnormal
+#define isnormal(x) __builtin_isnormal(x)
+#undef signbit
+#define signbit(x) __builtin_signbit(x)
 
 /* TODO: find the C99 version of these an move into above ifdef.  */
 #define REALPART(z) (__real__(z))
@@ -280,7 +246,7 @@ typedef GFC_INTEGER_4 GFC_IO_INT;
 /* The following two definitions must be consistent with the types used
    by the compiler.  */
 /* The type used of array indices, amongst other things.  */
-typedef ssize_t index_type;
+typedef ptrdiff_t index_type;
 
 /* The type used for the lengths of character variables.  */
 typedef GFC_INTEGER_4 gfc_charlen_type;
@@ -327,7 +293,11 @@ internal_proto(big_endian);
 #  define GFC_REAL_10_INFINITY __builtin_infl ()
 # endif
 # ifdef HAVE_GFC_REAL_16
-#  define GFC_REAL_16_INFINITY __builtin_infl ()
+#  ifdef GFC_REAL_16_IS_LONG_DOUBLE
+#   define GFC_REAL_16_INFINITY __builtin_infl ()
+#  else
+#   define GFC_REAL_16_INFINITY __builtin_infq ()
+#  endif
 # endif
 #endif
 #ifdef __FLT_HAS_QUIET_NAN__
@@ -341,14 +311,18 @@ internal_proto(big_endian);
 #  define GFC_REAL_10_QUIET_NAN __builtin_nanl ("")
 # endif
 # ifdef HAVE_GFC_REAL_16
-#  define GFC_REAL_16_QUIET_NAN __builtin_nanl ("")
+#  ifdef GFC_REAL_16_IS_LONG_DOUBLE
+#   define GFC_REAL_16_QUIET_NAN __builtin_nanl ("")
+#  else
+#   define GFC_REAL_16_QUIET_NAN nanq ("")
+#  endif
 # endif
 #endif
 
 typedef struct descriptor_dimension
 {
   index_type _stride;
-  index_type _lbound;
+  index_type lower_bound;
   index_type _ubound;
 }
 
@@ -356,7 +330,7 @@ descriptor_dimension;
 
 #define GFC_ARRAY_DESCRIPTOR(r, type) \
 struct {\
-  type *data;\
+  type *base_addr;\
   size_t offset;\
   index_type dtype;\
   descriptor_dimension dim[r];\
@@ -401,26 +375,26 @@ typedef GFC_ARRAY_DESCRIPTOR (GFC_MAX_DIMENSIONS, GFC_LOGICAL_16) gfc_array_l16;
 #define GFC_DESCRIPTOR_TYPE(desc) (((desc)->dtype & GFC_DTYPE_TYPE_MASK) \
                                    >> GFC_DTYPE_TYPE_SHIFT)
 #define GFC_DESCRIPTOR_SIZE(desc) ((desc)->dtype >> GFC_DTYPE_SIZE_SHIFT)
-#define GFC_DESCRIPTOR_DATA(desc) ((desc)->data)
+#define GFC_DESCRIPTOR_DATA(desc) ((desc)->base_addr)
 #define GFC_DESCRIPTOR_DTYPE(desc) ((desc)->dtype)
 
-#define GFC_DIMENSION_LBOUND(dim) ((dim)._lbound)
+#define GFC_DIMENSION_LBOUND(dim) ((dim).lower_bound)
 #define GFC_DIMENSION_UBOUND(dim) ((dim)._ubound)
 #define GFC_DIMENSION_STRIDE(dim) ((dim)._stride)
-#define GFC_DIMENSION_EXTENT(dim) ((dim)._ubound + 1 - (dim)._lbound)
+#define GFC_DIMENSION_EXTENT(dim) ((dim)._ubound + 1 - (dim).lower_bound)
 #define GFC_DIMENSION_SET(dim,lb,ub,str) \
   do \
     { \
-      (dim)._lbound = lb;			\
+      (dim).lower_bound = lb;			\
       (dim)._ubound = ub;			\
       (dim)._stride = str;			\
     } while (0)
 	    
 
-#define GFC_DESCRIPTOR_LBOUND(desc,i) ((desc)->dim[i]._lbound)
+#define GFC_DESCRIPTOR_LBOUND(desc,i) ((desc)->dim[i].lower_bound)
 #define GFC_DESCRIPTOR_UBOUND(desc,i) ((desc)->dim[i]._ubound)
 #define GFC_DESCRIPTOR_EXTENT(desc,i) ((desc)->dim[i]._ubound + 1 \
-				      - (desc)->dim[i]._lbound)
+				      - (desc)->dim[i].lower_bound)
 #define GFC_DESCRIPTOR_EXTENT_BYTES(desc,i) \
   (GFC_DESCRIPTOR_EXTENT(desc,i) * GFC_DESCRIPTOR_SIZE(desc))
 
@@ -436,68 +410,68 @@ typedef GFC_ARRAY_DESCRIPTOR (GFC_MAX_DIMENSIONS, GFC_LOGICAL_16) gfc_array_l16;
 
 #define GFC_DTYPE_TYPE_SIZE(desc) ((desc)->dtype & GFC_DTYPE_TYPE_SIZE_MASK)
 
-#define GFC_DTYPE_INTEGER_1 ((GFC_DTYPE_INTEGER << GFC_DTYPE_TYPE_SHIFT) \
+#define GFC_DTYPE_INTEGER_1 ((BT_INTEGER << GFC_DTYPE_TYPE_SHIFT) \
    | (sizeof(GFC_INTEGER_1) << GFC_DTYPE_SIZE_SHIFT))
-#define GFC_DTYPE_INTEGER_2 ((GFC_DTYPE_INTEGER << GFC_DTYPE_TYPE_SHIFT) \
+#define GFC_DTYPE_INTEGER_2 ((BT_INTEGER << GFC_DTYPE_TYPE_SHIFT) \
    | (sizeof(GFC_INTEGER_2) << GFC_DTYPE_SIZE_SHIFT))
-#define GFC_DTYPE_INTEGER_4 ((GFC_DTYPE_INTEGER << GFC_DTYPE_TYPE_SHIFT) \
+#define GFC_DTYPE_INTEGER_4 ((BT_INTEGER << GFC_DTYPE_TYPE_SHIFT) \
    | (sizeof(GFC_INTEGER_4) << GFC_DTYPE_SIZE_SHIFT))
-#define GFC_DTYPE_INTEGER_8 ((GFC_DTYPE_INTEGER << GFC_DTYPE_TYPE_SHIFT) \
+#define GFC_DTYPE_INTEGER_8 ((BT_INTEGER << GFC_DTYPE_TYPE_SHIFT) \
    | (sizeof(GFC_INTEGER_8) << GFC_DTYPE_SIZE_SHIFT))
 #ifdef HAVE_GFC_INTEGER_16
-#define GFC_DTYPE_INTEGER_16 ((GFC_DTYPE_INTEGER << GFC_DTYPE_TYPE_SHIFT) \
+#define GFC_DTYPE_INTEGER_16 ((BT_INTEGER << GFC_DTYPE_TYPE_SHIFT) \
    | (sizeof(GFC_INTEGER_16) << GFC_DTYPE_SIZE_SHIFT))
 #endif
 
-#define GFC_DTYPE_LOGICAL_1 ((GFC_DTYPE_LOGICAL << GFC_DTYPE_TYPE_SHIFT) \
+#define GFC_DTYPE_LOGICAL_1 ((BT_LOGICAL << GFC_DTYPE_TYPE_SHIFT) \
    | (sizeof(GFC_LOGICAL_1) << GFC_DTYPE_SIZE_SHIFT))
-#define GFC_DTYPE_LOGICAL_2 ((GFC_DTYPE_LOGICAL << GFC_DTYPE_TYPE_SHIFT) \
+#define GFC_DTYPE_LOGICAL_2 ((BT_LOGICAL << GFC_DTYPE_TYPE_SHIFT) \
    | (sizeof(GFC_LOGICAL_2) << GFC_DTYPE_SIZE_SHIFT))
-#define GFC_DTYPE_LOGICAL_4 ((GFC_DTYPE_LOGICAL << GFC_DTYPE_TYPE_SHIFT) \
+#define GFC_DTYPE_LOGICAL_4 ((BT_LOGICAL << GFC_DTYPE_TYPE_SHIFT) \
    | (sizeof(GFC_LOGICAL_4) << GFC_DTYPE_SIZE_SHIFT))
-#define GFC_DTYPE_LOGICAL_8 ((GFC_DTYPE_LOGICAL << GFC_DTYPE_TYPE_SHIFT) \
+#define GFC_DTYPE_LOGICAL_8 ((BT_LOGICAL << GFC_DTYPE_TYPE_SHIFT) \
    | (sizeof(GFC_LOGICAL_8) << GFC_DTYPE_SIZE_SHIFT))
 #ifdef HAVE_GFC_LOGICAL_16
-#define GFC_DTYPE_LOGICAL_16 ((GFC_DTYPE_LOGICAL << GFC_DTYPE_TYPE_SHIFT) \
+#define GFC_DTYPE_LOGICAL_16 ((BT_LOGICAL << GFC_DTYPE_TYPE_SHIFT) \
    | (sizeof(GFC_LOGICAL_16) << GFC_DTYPE_SIZE_SHIFT))
 #endif
 
-#define GFC_DTYPE_REAL_4 ((GFC_DTYPE_REAL << GFC_DTYPE_TYPE_SHIFT) \
+#define GFC_DTYPE_REAL_4 ((BT_REAL << GFC_DTYPE_TYPE_SHIFT) \
    | (sizeof(GFC_REAL_4) << GFC_DTYPE_SIZE_SHIFT))
-#define GFC_DTYPE_REAL_8 ((GFC_DTYPE_REAL << GFC_DTYPE_TYPE_SHIFT) \
+#define GFC_DTYPE_REAL_8 ((BT_REAL << GFC_DTYPE_TYPE_SHIFT) \
    | (sizeof(GFC_REAL_8) << GFC_DTYPE_SIZE_SHIFT))
 #ifdef HAVE_GFC_REAL_10
-#define GFC_DTYPE_REAL_10  ((GFC_DTYPE_REAL << GFC_DTYPE_TYPE_SHIFT) \
+#define GFC_DTYPE_REAL_10  ((BT_REAL << GFC_DTYPE_TYPE_SHIFT) \
    | (sizeof(GFC_REAL_10) << GFC_DTYPE_SIZE_SHIFT))
 #endif
 #ifdef HAVE_GFC_REAL_16
-#define GFC_DTYPE_REAL_16 ((GFC_DTYPE_REAL << GFC_DTYPE_TYPE_SHIFT) \
+#define GFC_DTYPE_REAL_16 ((BT_REAL << GFC_DTYPE_TYPE_SHIFT) \
    | (sizeof(GFC_REAL_16) << GFC_DTYPE_SIZE_SHIFT))
 #endif
 
-#define GFC_DTYPE_COMPLEX_4 ((GFC_DTYPE_COMPLEX << GFC_DTYPE_TYPE_SHIFT) \
+#define GFC_DTYPE_COMPLEX_4 ((BT_COMPLEX << GFC_DTYPE_TYPE_SHIFT) \
    | (sizeof(GFC_COMPLEX_4) << GFC_DTYPE_SIZE_SHIFT))
-#define GFC_DTYPE_COMPLEX_8 ((GFC_DTYPE_COMPLEX << GFC_DTYPE_TYPE_SHIFT) \
+#define GFC_DTYPE_COMPLEX_8 ((BT_COMPLEX << GFC_DTYPE_TYPE_SHIFT) \
    | (sizeof(GFC_COMPLEX_8) << GFC_DTYPE_SIZE_SHIFT))
 #ifdef HAVE_GFC_COMPLEX_10
-#define GFC_DTYPE_COMPLEX_10 ((GFC_DTYPE_COMPLEX << GFC_DTYPE_TYPE_SHIFT) \
+#define GFC_DTYPE_COMPLEX_10 ((BT_COMPLEX << GFC_DTYPE_TYPE_SHIFT) \
    | (sizeof(GFC_COMPLEX_10) << GFC_DTYPE_SIZE_SHIFT))
 #endif
 #ifdef HAVE_GFC_COMPLEX_16
-#define GFC_DTYPE_COMPLEX_16 ((GFC_DTYPE_COMPLEX << GFC_DTYPE_TYPE_SHIFT) \
+#define GFC_DTYPE_COMPLEX_16 ((BT_COMPLEX << GFC_DTYPE_TYPE_SHIFT) \
    | (sizeof(GFC_COMPLEX_16) << GFC_DTYPE_SIZE_SHIFT))
 #endif
 
-#define GFC_DTYPE_DERIVED_1 ((GFC_DTYPE_DERIVED << GFC_DTYPE_TYPE_SHIFT) \
+#define GFC_DTYPE_DERIVED_1 ((BT_DERIVED << GFC_DTYPE_TYPE_SHIFT) \
    | (sizeof(GFC_INTEGER_1) << GFC_DTYPE_SIZE_SHIFT))
-#define GFC_DTYPE_DERIVED_2 ((GFC_DTYPE_DERIVED << GFC_DTYPE_TYPE_SHIFT) \
+#define GFC_DTYPE_DERIVED_2 ((BT_DERIVED << GFC_DTYPE_TYPE_SHIFT) \
    | (sizeof(GFC_INTEGER_2) << GFC_DTYPE_SIZE_SHIFT))
-#define GFC_DTYPE_DERIVED_4 ((GFC_DTYPE_DERIVED << GFC_DTYPE_TYPE_SHIFT) \
+#define GFC_DTYPE_DERIVED_4 ((BT_DERIVED << GFC_DTYPE_TYPE_SHIFT) \
    | (sizeof(GFC_INTEGER_4) << GFC_DTYPE_SIZE_SHIFT))
-#define GFC_DTYPE_DERIVED_8 ((GFC_DTYPE_DERIVED << GFC_DTYPE_TYPE_SHIFT) \
+#define GFC_DTYPE_DERIVED_8 ((BT_DERIVED << GFC_DTYPE_TYPE_SHIFT) \
    | (sizeof(GFC_INTEGER_8) << GFC_DTYPE_SIZE_SHIFT))
 #ifdef HAVE_GFC_INTEGER_16
-#define GFC_DTYPE_DERIVED_16 ((GFC_DTYPE_DERIVED << GFC_DTYPE_TYPE_SHIFT) \
+#define GFC_DTYPE_DERIVED_16 ((BT_DERIVED << GFC_DTYPE_TYPE_SHIFT) \
    | (sizeof(GFC_INTEGER_16) << GFC_DTYPE_SIZE_SHIFT))
 #endif
 
@@ -534,16 +508,16 @@ typedef struct
   int separator_len;
   const char *separator;
 
-  int use_stderr, all_unbuffered, unbuffered_preconnected, default_recl;
-  int fpe, dump_core, backtrace;
+  int all_unbuffered, unbuffered_preconnected, default_recl;
+  int fpe, backtrace;
 }
 options_t;
 
 extern options_t options;
 internal_proto(options);
 
-extern void handler (int);
-internal_proto(handler);
+extern void backtrace_handler (int);
+internal_proto(backtrace_handler);
 
 
 /* Compile-time options that will influence the library.  */
@@ -554,13 +528,11 @@ typedef struct
   int allow_std;
   int pedantic;
   int convert;
-  int dump_core;
   int backtrace;
   int sign_zero;
   size_t record_marker;
   int max_subrecord_length;
   int bounds_check;
-  int range_check;
 }
 compile_options_t;
 
@@ -608,10 +580,6 @@ iexport_data_proto(filename);
    GCC's builtin alloca().  */
 #define gfc_alloca(x)  __builtin_alloca(x)
 
-
-/* Directory for creating temporary files.  Only used when none of the
-   following environment variables exist: GFORTRAN_TMPDIR, TMP and TEMP.  */
-#define DEFAULT_TEMPDIR "/tmp"
 
 /* The default value of record length for preconnected units is defined
    here. This value can be overriden by an environment variable.
@@ -692,10 +660,13 @@ export_proto(store_exe_path);
 extern char * full_exe_path (void);
 internal_proto(full_exe_path);
 
+extern void find_addr2line (void);
+internal_proto(find_addr2line);
+
 /* backtrace.c */
 
-extern void show_backtrace (void);
-internal_proto(show_backtrace);
+extern void backtrace (void);
+iexport_proto(backtrace);
 
 /* error.c */
 
@@ -714,8 +685,18 @@ internal_proto(show_backtrace);
 #define GFC_OTOA_BUF_SIZE (GFC_LARGEST_BUF * 3 + 1)
 #define GFC_BTOA_BUF_SIZE (GFC_LARGEST_BUF * 8 + 1)
 
-extern void sys_exit (int) __attribute__ ((noreturn));
-internal_proto(sys_exit);
+extern void sys_abort (void) __attribute__ ((noreturn));
+internal_proto(sys_abort);
+
+extern ssize_t estr_write (const char *);
+internal_proto(estr_write);
+
+extern int st_vprintf (const char *, va_list);
+internal_proto(st_vprintf);
+
+extern int st_printf (const char *, ...)
+  __attribute__((format (gfc_printf, 1, 2)));
+internal_proto(st_printf);
 
 extern const char *gfc_xtoa (GFC_UINTEGER_LARGEST, char *, size_t);
 internal_proto(gfc_xtoa);
@@ -742,20 +723,23 @@ extern void internal_error (st_parameter_common *, const char *)
   __attribute__ ((noreturn));
 internal_proto(internal_error);
 
-extern const char *get_oserror (void);
-internal_proto(get_oserror);
-
 extern const char *translate_error (int);
 internal_proto(translate_error);
 
 extern void generate_error (st_parameter_common *, int, const char *);
 iexport_proto(generate_error);
 
+extern void generate_warning (st_parameter_common *, const char *);
+internal_proto(generate_warning);
+
 extern try notify_std (st_parameter_common *, int, const char *);
 internal_proto(notify_std);
 
 extern notification notification_std(int);
 internal_proto(notification_std);
+
+extern char *gf_strerror (int, char *, size_t);
+internal_proto(gf_strerror);
 
 /* fpu.c */
 
@@ -764,14 +748,12 @@ internal_proto(set_fpu);
 
 /* memory.c */
 
-extern void *get_mem (size_t) __attribute__ ((malloc));
-internal_proto(get_mem);
+extern void *xmalloc (size_t) __attribute__ ((malloc));
+internal_proto(xmalloc);
 
-extern void free_mem (void *);
-internal_proto(free_mem);
+extern void *xcalloc (size_t, size_t) __attribute__ ((malloc));
+internal_proto(xcalloc);
 
-extern void *internal_malloc_size (size_t) __attribute__ ((malloc));
-internal_proto(internal_malloc_size);
 
 /* environ.c */
 
@@ -787,6 +769,20 @@ internal_proto(show_variables);
 unit_convert get_unformatted_convert (int);
 internal_proto(get_unformatted_convert);
 
+/* Secure getenv() which returns NULL if running as SUID/SGID.  */
+#ifndef HAVE_SECURE_GETENV
+#ifdef HAVE___SECURE_GETENV
+#define secure_getenv __secure_getenv
+#elif defined(HAVE_GETUID) && defined(HAVE_GETEUID) \
+  && defined(HAVE_GETGID) && defined(HAVE_GETEGID)
+#define FALLBACK_SECURE_GETENV
+extern char *secure_getenv (const char *);
+internal_proto(secure_getenv);
+#else
+#define secure_getenv getenv
+#endif
+#endif
+
 /* string.c */
 
 extern int find_option (st_parameter_common *, const char *, gfc_charlen_type,
@@ -801,6 +797,13 @@ internal_proto(fstrcpy);
 
 extern gfc_charlen_type cf_strcpy (char *, gfc_charlen_type, const char *);
 internal_proto(cf_strcpy);
+
+extern gfc_charlen_type string_len_trim (gfc_charlen_type, const char *);
+export_proto(string_len_trim);
+
+extern gfc_charlen_type string_len_trim_char4 (gfc_charlen_type,
+					       const gfc_char4_t *);
+export_proto(string_len_trim_char4);
 
 /* io/intrinsics.c */
 
@@ -818,20 +821,14 @@ internal_proto(close_units);
 extern int unit_to_fd (int);
 internal_proto(unit_to_fd);
 
-extern int st_printf (const char *, ...)
-  __attribute__ ((format (gfc_printf, 1, 2)));
-internal_proto(st_printf);
-
-extern int st_vprintf (const char *, va_list);
-internal_proto(st_vprintf);
-
 extern char * filename_from_unit (int);
 internal_proto(filename_from_unit);
 
 /* stop.c */
 
-extern void stop_numeric (GFC_INTEGER_4) __attribute__ ((noreturn));
-iexport_proto(stop_numeric);
+extern void stop_string (const char *, GFC_INTEGER_4)
+  __attribute__ ((noreturn));
+export_proto(stop_string);
 
 /* reshape_packed.c */
 
@@ -1286,6 +1283,10 @@ extern int compare_string_char4 (gfc_charlen_type, const gfc_char4_t *,
 				 gfc_charlen_type, const gfc_char4_t *);
 iexport_proto(compare_string_char4);
 
+extern int memcmp_char4 (const void *, const void *, size_t);
+internal_proto(memcmp_char4);
+
+
 /* random.c */
 
 extern void random_seed_i4 (GFC_INTEGER_4 * size, gfc_array_i4 * put,
@@ -1325,52 +1326,52 @@ internal_proto(count_0);
 
 /* Internal auxiliary functions for cshift */
 
-void cshift0_i1 (gfc_array_i1 *, const gfc_array_i1 *, ssize_t, int);
+void cshift0_i1 (gfc_array_i1 *, const gfc_array_i1 *, ptrdiff_t, int);
 internal_proto(cshift0_i1);
 
-void cshift0_i2 (gfc_array_i2 *, const gfc_array_i2 *, ssize_t, int);
+void cshift0_i2 (gfc_array_i2 *, const gfc_array_i2 *, ptrdiff_t, int);
 internal_proto(cshift0_i2);
 
-void cshift0_i4 (gfc_array_i4 *, const gfc_array_i4 *, ssize_t, int);
+void cshift0_i4 (gfc_array_i4 *, const gfc_array_i4 *, ptrdiff_t, int);
 internal_proto(cshift0_i4);
 
-void cshift0_i8 (gfc_array_i8 *, const gfc_array_i8 *, ssize_t, int);
+void cshift0_i8 (gfc_array_i8 *, const gfc_array_i8 *, ptrdiff_t, int);
 internal_proto(cshift0_i8);
 
 #ifdef HAVE_GFC_INTEGER_16
-void cshift0_i16 (gfc_array_i16 *, const gfc_array_i16 *, ssize_t, int);
+void cshift0_i16 (gfc_array_i16 *, const gfc_array_i16 *, ptrdiff_t, int);
 internal_proto(cshift0_i16);
 #endif
 
-void cshift0_r4 (gfc_array_r4 *, const gfc_array_r4 *, ssize_t, int);
+void cshift0_r4 (gfc_array_r4 *, const gfc_array_r4 *, ptrdiff_t, int);
 internal_proto(cshift0_r4);
 
-void cshift0_r8 (gfc_array_r8 *, const gfc_array_r8 *, ssize_t, int);
+void cshift0_r8 (gfc_array_r8 *, const gfc_array_r8 *, ptrdiff_t, int);
 internal_proto(cshift0_r8);
 
 #ifdef HAVE_GFC_REAL_10
-void cshift0_r10 (gfc_array_r10 *, const gfc_array_r10 *, ssize_t, int);
+void cshift0_r10 (gfc_array_r10 *, const gfc_array_r10 *, ptrdiff_t, int);
 internal_proto(cshift0_r10);
 #endif
 
 #ifdef HAVE_GFC_REAL_16
-void cshift0_r16 (gfc_array_r16 *, const gfc_array_r16 *, ssize_t, int);
+void cshift0_r16 (gfc_array_r16 *, const gfc_array_r16 *, ptrdiff_t, int);
 internal_proto(cshift0_r16);
 #endif
 
-void cshift0_c4 (gfc_array_c4 *, const gfc_array_c4 *, ssize_t, int);
+void cshift0_c4 (gfc_array_c4 *, const gfc_array_c4 *, ptrdiff_t, int);
 internal_proto(cshift0_c4);
 
-void cshift0_c8 (gfc_array_c8 *, const gfc_array_c8 *, ssize_t, int);
+void cshift0_c8 (gfc_array_c8 *, const gfc_array_c8 *, ptrdiff_t, int);
 internal_proto(cshift0_c8);
 
 #ifdef HAVE_GFC_COMPLEX_10
-void cshift0_c10 (gfc_array_c10 *, const gfc_array_c10 *, ssize_t, int);
+void cshift0_c10 (gfc_array_c10 *, const gfc_array_c10 *, ptrdiff_t, int);
 internal_proto(cshift0_c10);
 #endif
 
 #ifdef HAVE_GFC_COMPLEX_16
-void cshift0_c16 (gfc_array_c16 *, const gfc_array_c16 *, ssize_t, int);
+void cshift0_c16 (gfc_array_c16 *, const gfc_array_c16 *, ptrdiff_t, int);
 internal_proto(cshift0_c16);
 #endif
 

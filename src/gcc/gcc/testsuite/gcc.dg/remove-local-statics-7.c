@@ -1,10 +1,8 @@
 /* Verify that we eliminate a static local variable where it is defined
-   along all paths leading to a use.
-
-   XFAIL'd because our analysis is currently too weak.  */
+   along all paths leading to a use.  */
 
 /* { dg-do compile } */
-/* { dg-options "-O2 -fremove-local-statics" } */
+/* { dg-options "-O2" } */
 /* { dg-final { scan-assembler-not "thestatic" } } */
 
 int

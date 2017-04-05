@@ -1,6 +1,6 @@
 // -*- C++ -*-
 
-// Copyright (C) 2005, 2006, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2005-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the terms
@@ -56,9 +56,9 @@ namespace __gnu_pbds
 	    value = __gnu_pbds::detail::is_same<
             typename Tree_Cntnr::node_update,
             __gnu_pbds::trie_order_statistics_node_update<
-            typename Tree_Cntnr::const_node_iterator,
+            typename Tree_Cntnr::node_const_iterator,
             typename Tree_Cntnr::node_iterator,
-            typename Tree_Cntnr::e_access_traits,
+            typename Tree_Cntnr::access_traits,
             typename Tree_Cntnr::allocator_type> >::value
 	  };
       };

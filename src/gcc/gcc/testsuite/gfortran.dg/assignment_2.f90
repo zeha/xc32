@@ -46,4 +46,3 @@ contains
                  REAL,INTENT(IN) :: b(:,:)
              END SUBROUTINE
 end module m3
-

@@ -1,5 +1,5 @@
 /* Inline functions to test validity of reg classes for addressing modes.
-   Copyright (C) 2006, 2007 Free Software Foundation, Inc.
+   Copyright (C) 2006-2013 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -23,11 +23,12 @@ along with GCC; see the file COPYING3.  If not see
 
 static inline enum reg_class
 base_reg_class (enum machine_mode mode ATTRIBUTE_UNUSED,
+		addr_space_t as ATTRIBUTE_UNUSED,
 		enum rtx_code outer_code ATTRIBUTE_UNUSED,
 		enum rtx_code index_code ATTRIBUTE_UNUSED)
 {
 #ifdef MODE_CODE_BASE_REG_CLASS
-  return MODE_CODE_BASE_REG_CLASS (mode, outer_code, index_code);
+  return MODE_CODE_BASE_REG_CLASS (mode, as, outer_code, index_code);
 #else
 #ifdef MODE_BASE_REG_REG_CLASS
   if (index_code == REG)
@@ -47,12 +48,15 @@ base_reg_class (enum machine_mode mode ATTRIBUTE_UNUSED,
    Arguments as for the REGNO_MODE_CODE_OK_FOR_BASE_P macro.  */
 
 static inline bool
-ok_for_base_p_1 (unsigned regno, enum machine_mode mode ATTRIBUTE_UNUSED,
+ok_for_base_p_1 (unsigned regno ATTRIBUTE_UNUSED,
+		 enum machine_mode mode ATTRIBUTE_UNUSED,
+		 addr_space_t as ATTRIBUTE_UNUSED,
 		 enum rtx_code outer_code ATTRIBUTE_UNUSED,
 		 enum rtx_code index_code ATTRIBUTE_UNUSED)
 {
 #ifdef REGNO_MODE_CODE_OK_FOR_BASE_P
-  return REGNO_MODE_CODE_OK_FOR_BASE_P (regno, mode, outer_code, index_code);
+  return REGNO_MODE_CODE_OK_FOR_BASE_P (regno, mode, as,
+					outer_code, index_code);
 #else
 #ifdef REGNO_MODE_OK_FOR_REG_BASE_P
   if (index_code == REG)
@@ -70,52 +74,11 @@ ok_for_base_p_1 (unsigned regno, enum machine_mode mode ATTRIBUTE_UNUSED,
    complete.  Arguments as for the called function.  */
 
 static inline bool
-regno_ok_for_base_p (unsigned regno, enum machine_mode mode,
+regno_ok_for_base_p (unsigned regno, enum machine_mode mode, addr_space_t as,
 		     enum rtx_code outer_code, enum rtx_code index_code)
 {
   if (regno >= FIRST_PSEUDO_REGISTER && reg_renumber[regno] >= 0)
     regno = reg_renumber[regno];
 
-  return ok_for_base_p_1 (regno, mode, outer_code, index_code);
+  return ok_for_base_p_1 (regno, mode, as, outer_code, index_code);
 }
-
-
-/* Wrapper function to unify target macros MODE_INDEX_REG_CLASS and
-   INDEX_REG_CLASS.  Arguments as for the MODE_INDEX_REG_CLASS macro.  */
-
-static inline enum reg_class
-index_reg_class (enum machine_mode mode ATTRIBUTE_UNUSED)
-{
-#ifdef MODE_INDEX_REG_CLASS
-  return MODE_INDEX_REG_CLASS (mode);
-#else
-  return INDEX_REG_CLASS;
-#endif
-}
-
-/* Wrapper function to unify target macros REGNO_MODE_OK_FOR_INDEX_P
-   and REGNO_OK_FOR_INDEX_P.  Arguments as for the
-   REGNO_MODE_OK_FOR_INDEX_P macro.  */
-
-static inline bool
-ok_for_index_p_1 (unsigned regno ATTRIBUTE_UNUSED, enum machine_mode mode ATTRIBUTE_UNUSED)
-{
-#ifdef REGNO_MODE_OK_FOR_INDEX_P
-  return REGNO_MODE_OK_FOR_INDEX_P (regno, mode);
-#else
-  return REGNO_OK_FOR_INDEX_P (regno);
-#endif
-}
-
-/* Wrapper around ok_for_index_p_1, for use after register allocation is
-   complete.  Arguments as for the called function.  */
-
-static inline bool
-regno_ok_for_index_p (unsigned regno, enum machine_mode mode)
-{
-  if (regno >= FIRST_PSEUDO_REGISTER && reg_renumber[regno] >= 0)
-    regno = reg_renumber[regno];
-
-  return ok_for_index_p_1 (regno, mode);
-}
-

@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2009, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2012, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -507,6 +507,19 @@ package body Ada.Strings.Unbounded is
    procedure Find_Token
      (Source : Unbounded_String;
       Set    : Maps.Character_Set;
+      From   : Positive;
+      Test   : Strings.Membership;
+      First  : out Positive;
+      Last   : out Natural)
+   is
+   begin
+      Search.Find_Token
+        (Source.Reference (From .. Source.Last), Set, Test, First, Last);
+   end Find_Token;
+
+   procedure Find_Token
+     (Source : Unbounded_String;
+      Set    : Maps.Character_Set;
       Test   : Strings.Membership;
       First  : out Positive;
       Last   : out Natural)
@@ -772,14 +785,13 @@ package body Ada.Strings.Unbounded is
       if Chunk_Size > S_Length - Source.Last then
          declare
             New_Size : constant Positive :=
-                         S_Length + Chunk_Size + (S_Length / Growth_Factor);
+              S_Length + Chunk_Size + (S_Length / Growth_Factor);
 
             New_Rounded_Up_Size : constant Positive :=
-                                    ((New_Size - 1) / Min_Mul_Alloc + 1) *
-                                       Min_Mul_Alloc;
+              ((New_Size - 1) / Min_Mul_Alloc + 1) * Min_Mul_Alloc;
 
             Tmp : constant String_Access :=
-                    new String (1 .. New_Rounded_Up_Size);
+              new String (1 .. New_Rounded_Up_Size);
 
          begin
             Tmp (1 .. Source.Last) := Source.Reference (1 .. Source.Last);
@@ -914,9 +926,14 @@ package body Ada.Strings.Unbounded is
    function To_Unbounded_String (Source : String) return Unbounded_String is
       Result : Unbounded_String;
    begin
-      Result.Last          := Source'Length;
-      Result.Reference     := new String (1 .. Source'Length);
-      Result.Reference.all := Source;
+      --  Do not allocate an empty string: keep the default
+
+      if Source'Length > 0 then
+         Result.Last          := Source'Length;
+         Result.Reference     := new String (1 .. Source'Length);
+         Result.Reference.all := Source;
+      end if;
+
       return Result;
    end To_Unbounded_String;
 
@@ -924,9 +941,15 @@ package body Ada.Strings.Unbounded is
      (Length : Natural) return Unbounded_String
    is
       Result : Unbounded_String;
+
    begin
-      Result.Last      := Length;
-      Result.Reference := new String (1 .. Length);
+      --  Do not allocate an empty string: keep the default
+
+      if Length > 0 then
+         Result.Last      := Length;
+         Result.Reference := new String (1 .. Length);
+      end if;
+
       return Result;
    end To_Unbounded_String;
 

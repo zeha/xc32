@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2009, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2012, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -242,7 +242,7 @@ package body Sem_Dist is
       Par : Node_Id;
 
    begin
-      if Nkind_In (N, N_Function_Call, N_Procedure_Call_Statement)
+      if Nkind (N) in N_Subprogram_Call
         and then Nkind (Name (N)) in N_Has_Entity
         and then Is_Remote_Call_Interface (Entity (Name (N)))
         and then Has_All_Calls_Remote (Scope (Entity (Name (N))))
@@ -286,6 +286,50 @@ package body Sem_Dist is
             return False;
       end case;
    end Is_RACW_Stub_Type_Operation;
+
+   ---------------------------------
+   -- Is_Valid_Remote_Object_Type --
+   ---------------------------------
+
+   function Is_Valid_Remote_Object_Type (E : Entity_Id) return Boolean is
+      P : constant Node_Id := Parent (E);
+
+   begin
+      pragma Assert (Is_Tagged_Type (E));
+
+      --  Simple case: a limited private type
+
+      if Nkind (P) = N_Private_Type_Declaration
+        and then Is_Limited_Record (E)
+      then
+         return True;
+
+      --  AI05-0060 (Binding Interpretation): A limited interface is a legal
+      --  ancestor for the designated type of an RACW type.
+
+      elsif Is_Limited_Record (E) and then Is_Limited_Interface (E) then
+         return True;
+
+      --  A generic tagged limited type is a valid candidate. Limitedness will
+      --  be checked again on the actual at instantiation point.
+
+      elsif Nkind (P) = N_Formal_Type_Declaration
+        and then Ekind (E) = E_Record_Type_With_Private
+        and then Is_Generic_Type (E)
+        and then Is_Limited_Record (E)
+      then
+         return True;
+
+      --  A private extension declaration is a valid candidate if its parent
+      --  type is.
+
+      elsif Nkind (P) = N_Private_Extension_Declaration then
+         return Is_Valid_Remote_Object_Type (Etype (E));
+
+      else
+         return False;
+      end if;
+   end Is_Valid_Remote_Object_Type;
 
    ------------------------------------
    -- Package_Specification_Of_Scope --
@@ -451,9 +495,7 @@ package body Sem_Dist is
       --  True iff this RAS has an access formal parameter (see
       --  Exp_Dist.Add_RAS_Dereference_TSS for details).
 
-      Subpkg      : constant Entity_Id :=
-                      Make_Defining_Identifier (Loc,
-                        New_Internal_Name ('S'));
+      Subpkg      : constant Entity_Id := Make_Temporary (Loc, 'S');
       Subpkg_Decl : Node_Id;
       Subpkg_Body : Node_Id;
       Vis_Decls   : constant List_Id := New_List;
@@ -464,16 +506,14 @@ package body Sem_Dist is
                       New_External_Name (Chars (User_Type), 'R'));
 
       Full_Obj_Type : constant Entity_Id :=
-                        Make_Defining_Identifier (Loc,
-                          Chars (Obj_Type));
+                        Make_Defining_Identifier (Loc, Chars (Obj_Type));
 
       RACW_Type : constant Entity_Id :=
                     Make_Defining_Identifier (Loc,
                       New_External_Name (Chars (User_Type), 'P'));
 
       Fat_Type : constant Entity_Id :=
-                   Make_Defining_Identifier (Loc,
-                     Chars (User_Type));
+                   Make_Defining_Identifier (Loc, Chars (User_Type));
 
       Fat_Type_Decl : Node_Id;
 
@@ -482,8 +522,9 @@ package body Sem_Dist is
       Parameter := First (Parameter_Specifications (Type_Def));
       while Present (Parameter) loop
          if Nkind (Parameter_Type (Parameter)) = N_Access_Definition then
-            Error_Msg_N ("formal parameter& has anonymous access type?",
-              Defining_Identifier (Parameter));
+            Error_Msg_N
+              ("formal parameter& has anonymous access type??",
+               Defining_Identifier (Parameter));
             Is_Degenerate := True;
             exit;
          end if;
@@ -493,7 +534,7 @@ package body Sem_Dist is
 
       if Is_Degenerate then
          Error_Msg_NE
-           ("remote access-to-subprogram type& can only be null?",
+           ("remote access-to-subprogram type& can only be null??",
             Defining_Identifier (Parameter), User_Type);
 
          --  The only legal value for a RAS with a formal parameter of an
@@ -614,7 +655,7 @@ package body Sem_Dist is
       --  is active), and there are order of elaboration problems if we do try
       --  to generate an init proc for this created record type.
 
-      Set_Suppress_Init_Proc (Fat_Type);
+      Set_Suppress_Initialization (Fat_Type);
 
       if Expander_Active then
          Add_RAST_Features (Parent (User_Type));
@@ -781,7 +822,7 @@ package body Sem_Dist is
         Make_Aggregate (Loc,
           Component_Associations => New_List (
             Make_Component_Association (Loc,
-              Choices => New_List (Make_Identifier (Loc, Name_Ras)),
+              Choices    => New_List (Make_Identifier (Loc, Name_Ras)),
               Expression => Make_Null (Loc)))));
       Analyze_And_Resolve (N, Target_Type);
       return True;

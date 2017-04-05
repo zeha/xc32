@@ -1,6 +1,5 @@
 /* Generate code from machine description to perform peephole optimizations.
-   Copyright (C) 1987, 1989, 1992, 1997, 1998, 1999, 2000, 2003, 2004,
-   2007  Free Software Foundation, Inc.
+   Copyright (C) 1987-2013 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -47,18 +46,13 @@ static int max_opno;
 
 static int n_operands;
 
-/* Peephole optimizations get insn codes just like insn patterns.
-   Count them so we know the code of the define_peephole we are handling.  */
-
-static int insn_code_number = 0;
-
-static void gen_peephole (rtx);
+static void gen_peephole (rtx, int);
 static void match_rtx (rtx, struct link *, int);
 static void print_path (struct link *);
 static void print_code (RTX_CODE);
 
 static void
-gen_peephole (rtx peep)
+gen_peephole (rtx peep, int insn_code_number)
 {
   int ninsns = XVECLEN (peep, 0);
   int i;
@@ -75,20 +69,7 @@ gen_peephole (rtx peep)
 	  printf ("       if (insn == 0) goto L%d; }\n",
 		  insn_code_number);
 	  printf ("  while (NOTE_P (insn)\n");
-/* CAW
-
-   This was changed with revision 84341 from
-      GET_CODE(insn) == INSN to NONJUMP_INSN_P(insn)
-   The 'comment' is "Likewise" (ie use INSN_P,....)
-   These two are not identical and now we cannot peep jump instructions (like
-   return).  
-
-   If this was done on purpose the comment should be something other than
-   "Likewise".
-
-*/
-
-	  printf ("\t || (INSN_P (insn)\n");
+	  printf ("\t || (NONJUMP_INSN_P (insn)\n");
 	  printf ("\t     && (GET_CODE (PATTERN (insn)) == USE\n");
 	  printf ("\t\t || GET_CODE (PATTERN (insn)) == CLOBBER)));\n");
 
@@ -244,10 +225,6 @@ match_rtx (rtx x, struct link *path, int fail_label)
 	}
       return;
 
-    case ADDRESS:
-      match_rtx (XEXP (x, 0), path, fail_label);
-      return;
-
     default:
       break;
     }
@@ -371,7 +348,7 @@ main (int argc, char **argv)
 
   progname = "genpeep";
 
-  if (init_md_reader_args (argc, argv) != SUCCESS_EXIT_CODE)
+  if (!init_rtx_reader_args (argc, argv))
     return (FATAL_EXIT_CODE);
 
   printf ("/* Generated automatically by the program `genpeep'\n\
@@ -386,11 +363,10 @@ from the machine description file `md'.  */\n\n");
   printf ("#include \"tm_p.h\"\n");
   printf ("#include \"regs.h\"\n");
   printf ("#include \"output.h\"\n");
-  printf ("#include \"real.h\"\n");
   printf ("#include \"recog.h\"\n");
   printf ("#include \"except.h\"\n");
   printf ("#include \"function.h\"\n");
-  printf ("#include \"toplev.h\"\n");
+  printf ("#include \"diagnostic-core.h\"\n");
   printf ("#include \"flags.h\"\n");
   printf ("#include \"tm-constrs.h\"\n\n");
 
@@ -410,24 +386,15 @@ from the machine description file `md'.  */\n\n");
 
   while (1)
     {
-      int line_no, rtx_number = 0;
+      int line_no;
+      int insn_code_number;
 
-      desc = read_md_rtx (&line_no, &rtx_number);
+      desc = read_md_rtx (&line_no, &insn_code_number);
       if (desc == NULL)
 	break;
 
-       if (GET_CODE (desc) == DEFINE_PEEPHOLE)
-	{
-	  gen_peephole (desc);
-	  insn_code_number++;
-	}
-      if (GET_CODE (desc) == DEFINE_INSN
-	  || GET_CODE (desc) == DEFINE_EXPAND
-	  || GET_CODE (desc) == DEFINE_SPLIT
-	  || GET_CODE (desc) == DEFINE_PEEPHOLE2)
-	{
-	  insn_code_number++;
-	}
+      if (GET_CODE (desc) == DEFINE_PEEPHOLE)
+	gen_peephole (desc, insn_code_number);
     }
 
   printf ("  return 0;\n}\n\n");

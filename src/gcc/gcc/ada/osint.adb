@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2009, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2012, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -23,22 +23,25 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
-with Unchecked_Conversion;
-
-with System.Case_Util; use System.Case_Util;
-
-with GNAT.HTable;
-
 with Alloc;
 with Debug;
-with Fmap;             use Fmap;
-with Gnatvsn;          use Gnatvsn;
+with Fmap;     use Fmap;
+with Gnatvsn;  use Gnatvsn;
 with Hostparm;
-with Opt;              use Opt;
-with Output;           use Output;
-with Sdefault;         use Sdefault;
+with Opt;      use Opt;
+with Output;   use Output;
+with Sdefault; use Sdefault;
 with Table;
-with Targparm;         use Targparm;
+with Targparm; use Targparm;
+
+with Unchecked_Conversion;
+
+pragma Warnings (Off);
+--  This package is used also by gnatcoll
+with System.Case_Util; use System.Case_Util;
+pragma Warnings (On);
+
+with GNAT.HTable;
 
 package body Osint is
 
@@ -441,6 +444,15 @@ package body Osint is
    --  Start of processing for Add_Default_Search_Dirs
 
    begin
+      --  If there was a -gnateO switch, add all object directories from the
+      --  file given in argument to the library search list.
+
+      if Object_Path_File_Name /= null then
+         Path_File_Name := String_Access (Object_Path_File_Name);
+         pragma Assert (Path_File_Name'Length > 0);
+         Get_Dirs_From_File (Additional_Source_Dir => False);
+      end if;
+
       --  After the locations specified on the command line, the next places
       --  to look for files are the directories specified by the appropriate
       --  environment variable. Get this value, extract the directory names
@@ -538,7 +550,11 @@ package body Osint is
             end loop;
          end if;
 
-         if not Opt.No_Stdlib and not Opt.RTS_Switch then
+         --  Even when -nostdlib is used, we still want to have visibility on
+         --  the run-time object directory, as it is used by gnatbind to find
+         --  the run-time ALI files in "real" ZFP set up.
+
+         if not Opt.RTS_Switch then
             Search_Path :=
               Read_Default_Search_Dirs
                 (String_Access (Update_Path (Search_Dir_Prefix)),
@@ -681,22 +697,23 @@ package body Osint is
    -- Canonical_Case_File_Name --
    ------------------------------
 
-   --  For now, we only deal with the case of a-z. Eventually we should
-   --  worry about other Latin-1 letters on systems that support this ???
-
    procedure Canonical_Case_File_Name (S : in out String) is
    begin
       if not File_Names_Case_Sensitive then
-         for J in S'Range loop
-            if S (J) in 'A' .. 'Z' then
-               S (J) := Character'Val (
-                          Character'Pos (S (J)) +
-                          Character'Pos ('a')   -
-                          Character'Pos ('A'));
-            end if;
-         end loop;
+         To_Lower (S);
       end if;
    end Canonical_Case_File_Name;
+
+   ---------------------------------
+   -- Canonical_Case_Env_Var_Name --
+   ---------------------------------
+
+   procedure Canonical_Case_Env_Var_Name (S : in out String) is
+   begin
+      if not Env_Vars_Case_Sensitive then
+         To_Lower (S);
+      end if;
+   end Canonical_Case_Env_Var_Name;
 
    ---------------------------
    -- Create_File_And_Check --
@@ -1155,7 +1172,7 @@ package body Osint is
       begin
          --  If we are looking for a config file, look only in the current
          --  directory, i.e. return input argument unchanged. Also look only in
-         --  the curren directory if we are looking for a .dg file (happens in
+         --  the current directory if we are looking for a .dg file (happens in
          --  -gnatD mode).
 
          if T = Config
@@ -1638,11 +1655,12 @@ package body Osint is
       Src_Search_Directories.Init;
       Lib_Search_Directories.Init;
 
-      --  Start off by setting all suppress options to False, these will
-      --  be reset later (turning some on if -gnato is not specified, and
-      --  turning all of them on if -gnatp is specified).
+      --  Start off by setting all suppress options, to False. The special
+      --  overflow fields are set to Not_Set (they will be set by -gnatp, or
+      --  by -gnato, or, if neither of these appear, in Adjust_Global_Switches
+      --  in Gnat1drv).
 
-      Suppress_Options := (others => False);
+      Suppress_Options := ((others => False), Not_Set, Not_Set);
 
       --  Reserve the first slot in the search paths table. This is the
       --  directory of the main source file or main library file and is filled
@@ -2500,6 +2518,13 @@ package body Osint is
 
                return null;
             end if;
+
+         elsif Current_Full_Obj_Stamp < Current_Full_Lib_Stamp then
+            Close (Lib_FD, Status);
+
+            --  No need to check the status, we return null anyway
+
+            return null;
          end if;
       end if;
 
@@ -3079,9 +3104,9 @@ package body Osint is
          return null;
    end To_Canonical_Path_Spec;
 
-   ---------------------------
+   ----------------------
    -- To_Host_Dir_Spec --
-   ---------------------------
+   ----------------------
 
    function To_Host_Dir_Spec
      (Canonical_Dir : String;
@@ -3114,9 +3139,9 @@ package body Osint is
       end if;
    end To_Host_Dir_Spec;
 
-   ----------------------------
+   -----------------------
    -- To_Host_File_Spec --
-   ----------------------------
+   -----------------------
 
    function To_Host_File_Spec
      (Canonical_File : String) return String_Access

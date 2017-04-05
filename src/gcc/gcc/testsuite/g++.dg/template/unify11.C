@@ -6,7 +6,8 @@ struct A
 {
 };
 
-template <typename S, typename T, typename U, typename S::v = &S::v::s>
+template <typename S, typename T, typename U,
+	  typename S::v = &S::v::s> // { dg-error "is not a" }
 typename S::A
 foo (S c, T t, U u)
 {

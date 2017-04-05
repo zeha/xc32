@@ -3,7 +3,7 @@
    function in which the variable is defined.  */
 
 /* { dg-do compile } */
-/* { dg-options "-O2 -fremove-local-statics" } */
+/* { dg-options "-O2" } */
 /* { dg-final { scan-assembler "thestatic" } } */
 
 int

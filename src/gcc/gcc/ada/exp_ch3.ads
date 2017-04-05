@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2009, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2012, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -46,15 +46,6 @@ package Exp_Ch3 is
    procedure Expand_Record_Extension (T : Entity_Id; Def : Node_Id);
    --  Add a field _parent in the extension part of the record
 
-   procedure Build_Class_Wide_Master (T : Entity_Id);
-   --  For access to class-wide limited types we must build a task master
-   --  because some subsequent extension may add a task component. To avoid
-   --  bringing in the tasking run-time whenever an access-to-class-wide
-   --  limited type is used, we use the soft-link mechanism and add a level of
-   --  indirection to calls to routines that manipulate Master_Ids. This must
-   --  also be used for anonymous access types whose designated type is a task
-   --  or synchronized interface.
-
    procedure Build_Discr_Checking_Funcs (N : Node_Id);
    --  Builds function which checks whether the component name is consistent
    --  with the current discriminants. N is the full type declaration node,
@@ -77,7 +68,7 @@ package Exp_Ch3 is
    --  enable the use of discriminals. Enclos_Type is the enclosing type when
    --  initializing a component in an outer init proc, and it is used for
    --  various expansion cases including the case where Typ is a task type
-   --  which is an array component, the indices of the enclosing type are
+   --  which is an array component, the indexes of the enclosing type are
    --  used to build the string that identifies each task at runtime.
    --
    --  Discr_Map is used to replace discriminants by their discriminals in
@@ -92,19 +83,6 @@ package Exp_Ch3 is
    --
    --  Constructor_Ref is a call to a constructor subprogram. It is currently
    --  used only to support C++ constructors.
-
-   procedure Build_Master_Renaming (N : Node_Id; T : Entity_Id);
-   --  If the designated type of an access type is a task type or contains
-   --  tasks, we make sure that a _Master variable is declared in the current
-   --  scope, and then declare a renaming for it:
-   --
-   --    atypeM : Master_Id renames _Master;
-   --
-   --  where atyp is the name of the access type. This declaration is
-   --  used when an allocator for the access type is expanded. The node N
-   --  is the full declaration of the designated type that contains tasks.
-   --  The renaming declaration is inserted before N, and after the Master
-   --  declaration.
 
    function Freeze_Type (N : Node_Id) return Boolean;
    --  This function executes the freezing actions associated with the given
@@ -126,14 +104,18 @@ package Exp_Ch3 is
    --  then tags components located at variable positions of Target are
    --  initialized.
 
-   function Needs_Simple_Initialization (T : Entity_Id) return Boolean;
+   function Needs_Simple_Initialization
+     (T           : Entity_Id;
+      Consider_IS : Boolean := True) return Boolean;
    --  Certain types need initialization even though there is no specific
-   --  initialization routine. In this category are access types (which need
-   --  initializing to null), packed array types whose implementation is a
-   --  modular type, and all scalar types if Normalize_Scalars is set, as well
-   --  as private types whose underlying type is present and meets any of these
-   --  criteria. Finally, descendants of String and Wide_String also need
-   --  initialization in Initialize/Normalize_Scalars mode.
+   --  initialization routine:
+   --    Access types (which need initializing to null)
+   --    All scalar types if Normalize_Scalars mode set
+   --    Descendents of standard string types if Normalize_Scalars mode set
+   --    Scalar types having a Default_Value attribute
+   --  Regarding Initialize_Scalars mode, this is ignored if Consider_IS is
+   --  set to False, but if Consider_IS is set to True, then the cases above
+   --  mentioning Normalize_Scalars also apply for Initialize_Scalars mode.
 
    function Get_Simple_Init_Val
      (T    : Entity_Id;

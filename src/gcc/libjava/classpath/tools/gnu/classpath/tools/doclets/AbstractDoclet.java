@@ -1,5 +1,5 @@
 /* gnu.classpath.tools.doclets.AbstractDoclet
-   Copyright (C) 2004 Free Software Foundation, Inc.
+   Copyright (C) 2004, 2012 Free Software Foundation, Inc.
 
 This file is part of GNU Classpath.
 
@@ -7,7 +7,7 @@ GNU Classpath is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2, or (at your option)
 any later version.
- 
+
 GNU Classpath is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
@@ -16,7 +16,24 @@ General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with GNU Classpath; see the file COPYING.  If not, write to the
 Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
-02111-1307 USA. */
+02111-1307 USA.
+
+Linking this library statically or dynamically with other modules is
+making a combined work based on this library.  Thus, the terms and
+conditions of the GNU General Public License cover the whole
+combination.
+
+As a special exception, the copyright holders of this library give you
+permission to link this library with independent modules to produce an
+executable, regardless of the license terms of these independent
+modules, and to copy and distribute the resulting executable under
+terms of your choice, provided that you also meet, for each linked
+independent module, the terms and conditions of the license of that
+module.  An independent module is a module which is not derived from
+or based on this library.  If you modify this library, you may extend
+this exception to your version of the library, but you are not
+obligated to do so.  If you do not wish to do so, delete this
+exception statement from your version. */
 
 package gnu.classpath.tools.doclets;
 
@@ -86,25 +103,20 @@ public abstract class AbstractDoclet
     *  Mapping from tag type to Taglet for user Taglets specified on
     *  the command line.
     */
-   protected Map tagletMap = new LinkedHashMap();
+   protected Map<String,Taglet> tagletMap = new LinkedHashMap<String,Taglet>();
 
    /**
     *  Stores the package groups specified in the user
     *  options. Contains objects of type PackageGroup.
     */
-   private List packageGroups = new LinkedList();
-
-   /**
-    *  The current classpath for loading taglet classes.
-    */
-   private String tagletPath;
+   private List<PackageGroup> packageGroups = new LinkedList<PackageGroup>();
 
    /**
     *  Keeps track of the tags mentioned by the user during option
     *  processiong so that an error can be emitted if a tag is
     *  mentioned more than once.
     */
-   private List mentionedTags = new LinkedList();
+   private List<Taglet> mentionedTags = new LinkedList<Taglet>();
 
    public static int optionLength(String option) {
       return instance.getOptionLength(option);
@@ -124,7 +136,7 @@ public abstract class AbstractDoclet
    protected abstract void run()
       throws DocletConfigurationException, IOException;
 
-   public static boolean start(RootDoc rootDoc) 
+   public static boolean start(RootDoc rootDoc)
    {
       try {
 
@@ -172,7 +184,7 @@ public abstract class AbstractDoclet
       // Process command line options
 
       for (int i=0, ilim=rootDoc.options().length; i<ilim; ++i) {
-            
+
          String[] optionArr = rootDoc.options()[i];
          String _optionTag = optionArr[0];
 
@@ -192,7 +204,7 @@ public abstract class AbstractDoclet
 
       if (!getTargetDirectory().exists()) {
          if (!getTargetDirectory().mkdirs()) {
-            throw new DocletConfigurationException("Cannot create target directory " 
+            throw new DocletConfigurationException("Cannot create target directory "
                                                    + getTargetDirectory());
          }
       }
@@ -205,132 +217,48 @@ public abstract class AbstractDoclet
       return optionTargetDirectory.getValue();
    }
 
-   private DocletOptionFile optionTargetDirectory = 
-     new DocletOptionFile("-d", 
+   private DocletOptionFile optionTargetDirectory =
+     new DocletOptionFile("-d",
                           new File(System.getProperty("user.dir")));
 
-   private DocletOptionFlag optionNoEmailWarn = 
-     new DocletOptionFlag("-noemailwarn");
-
-   private DocletOptionFlag optionAuthor = 
+   private DocletOptionFlag optionAuthor =
      new DocletOptionFlag("-author");
 
-   private DocletOptionFlag optionVersion = 
+   private DocletOptionFlag optionVersion =
      new DocletOptionFlag("-version");
 
-   private DocletOptionFlag optionNoSince = 
+   private DocletOptionFlag optionNoSince =
      new DocletOptionFlag("-nosince");
 
-   private DocletOptionFlag optionNoDeprecated = 
+   private DocletOptionFlag optionNoDeprecated =
      new DocletOptionFlag("-nodeprecated");
 
-   private DocletOptionGroup optionGroup = 
+   private DocletOptionGroup optionGroup =
      new DocletOptionGroup("-group");
 
-   private DocletOptionPackageWildcard optionNoQualifier = 
+   private DocletOptionPackageWildcard optionNoQualifier =
      new DocletOptionPackageWildcard("-noqualifier", true);
 
-   private DocletOptionFlag optionDocFilesSubDirs = 
+   private DocletOptionFlag optionDocFilesSubDirs =
      new DocletOptionFlag("-docfilessubdirs");
 
-   private DocletOptionColonSeparated optionExcludeDocFilesSubDir = 
+   private DocletOptionColonSeparated optionExcludeDocFilesSubDir =
      new DocletOptionColonSeparated("-excludedocfilessubdir");
 
-   private DocletOptionTagletPath optionTagletPath = 
-     new DocletOptionTagletPath("-tagletpath");
-
-   private DocletOptionTag optionTaglet = 
+   private DocletOptionTag optionTaglet =
      new DocletOptionTag("-taglet");
 
-   private DocletOptionTag optionTag = 
+   private DocletOptionTag optionTag =
      new DocletOptionTag("-tag");
 
-   private class DocletOptionTaglet
-      extends DocletOption
-   {
-      DocletOptionTaglet(String optionName)
-      {
-         super(optionName);
-      }
-      
-      public int getLength()
-      {
-         return 2;
-      }
-
-      public boolean set(String[] optionArr)
-      {
-
-         boolean tagletLoaded = false;
-
-         String useTagletPath = AbstractDoclet.this.tagletPath;
-         if (null == useTagletPath) {
-            useTagletPath = System.getProperty("java.class.path");
-         }
-
-         try {
-            Class tagletClass;
-            try {
-               tagletClass
-                  = new FileSystemClassLoader(useTagletPath).loadClass(optionArr[1]);
-            }
-            catch (ClassNotFoundException e) {
-               // If not found on specified tagletpath, try default classloader
-               tagletClass
-                  = Class.forName(optionArr[1]);
-            }
-            Method registerTagletMethod
-               = tagletClass.getDeclaredMethod("register", new Class[] { java.util.Map.class });
-
-            if (!registerTagletMethod.getReturnType().equals(Void.TYPE)) {
-               printError("Taglet class '" + optionArr[1] + "' found, but register method doesn't return void.");
-            }
-            else if (registerTagletMethod.getExceptionTypes().length > 0) {
-               printError("Taglet class '" + optionArr[1] + "' found, but register method contains throws clause.");
-            }
-            else if ((registerTagletMethod.getModifiers() & (Modifier.STATIC | Modifier.PUBLIC | Modifier.ABSTRACT)) != (Modifier.STATIC | Modifier.PUBLIC)) {
-               printError("Taglet class '" + optionArr[1] + "' found, but register method isn't public static, or is abstract..");
-            }
-            else {
-               Map tempMap = new HashMap();
-               registerTagletMethod.invoke(null, new Object[] { tempMap });
-               tagletLoaded = true;
-               String name = (String)tempMap.keySet().iterator().next();
-               Taglet taglet = (Taglet)tempMap.get(name);
-               tagletMap.put(name, taglet);
-               mentionedTags.add(taglet);
-            }
-         }
-         catch (NoSuchMethodException e) {
-            printError("Taglet class '" + optionArr[1] + "' found, but doesn't contain the register method.");
-         }
-         catch (SecurityException e) {
-            printError("Taglet class '" + optionArr[1] + "' cannot be loaded: " + e.getMessage());
-         }
-         catch (InvocationTargetException e) {
-            printError("Taglet class '" + optionArr[1] + "' found, but register method throws exception: " + e.toString());
-         }
-         catch (IllegalAccessException e) {
-            printError("Taglet class '" + optionArr[1] + "' found, but there was a problem when accessing the register method: " + e.toString());
-         }
-         catch (IllegalArgumentException e) {
-            printError("Taglet class '" + optionArr[1] + "' found, but there was a problem when accessing the register method: " + e.toString());
-         }
-         catch (ClassNotFoundException e) {
-            printError("Taglet class '" + optionArr[1] + "' cannot be found.");
-         }
-         return tagletLoaded;
-      }
-   }
-
-   private class DocletOptionGroup 
+   private class DocletOptionGroup
       extends DocletOption
    {
       DocletOptionGroup(String optionName)
       {
          super(optionName);
       }
-      
+
       public int getLength()
       {
          return 3;
@@ -346,8 +274,8 @@ public abstract class AbstractDoclet
                String packageWildcard = tokenizer.nextToken();
                packageMatcher.addWildcard(packageWildcard);
             }
-            
-            SortedSet groupPackages = packageMatcher.filter(rootDoc.specifiedPackages());
+
+            SortedSet<PackageDoc> groupPackages = packageMatcher.filter(rootDoc.specifiedPackages());
 
             packageGroups.add(new PackageGroup(optionArr[1], groupPackages));
 
@@ -359,27 +287,6 @@ public abstract class AbstractDoclet
       }
    }
 
-
-   private class DocletOptionTagletPath
-      extends DocletOption
-   {
-      DocletOptionTagletPath(String optionName)
-      {
-         super(optionName);
-      }
-      
-      public int getLength()
-      {
-         return 2;
-      }
-
-      public boolean set(String[] optionArr)
-      {
-         AbstractDoclet.this.tagletPath = optionArr[1];
-         return true;
-      }
-   }
-
    private class DocletOptionTag
       extends DocletOption
    {
@@ -387,7 +294,7 @@ public abstract class AbstractDoclet
       {
          super(optionName);
       }
-      
+
       public int getLength()
       {
          return 2;
@@ -409,7 +316,7 @@ public abstract class AbstractDoclet
                }
                else {
                   mentionedTags.add(taglet);
-                           
+
                   // re-append taglet
                   tagletMap.remove(tagSpec);
                   tagletMap.put(tagSpec, taglet);
@@ -439,11 +346,11 @@ public abstract class AbstractDoclet
                boolean tagScopeMethods = false;
                boolean tagScopeFields = false;
                boolean tagDisabled = false;
-                        
+
             tag_option_loop:
                for (int n=ndx1+1; n<ndx2; ++n) {
                   switch (tagSpec.charAt(n)) {
-                  case 'X': 
+                  case 'X':
                      tagDisabled = true;
                      break;
                   case 'a':
@@ -477,7 +384,7 @@ public abstract class AbstractDoclet
                      break tag_option_loop;
                   }
                }
-                        
+
                if (validTagSpec) {
                   GenericTaglet taglet
                      = new GenericTaglet(tagName,
@@ -501,7 +408,7 @@ public abstract class AbstractDoclet
       }
    }
 
-   private DocletOption[] commonOptions = 
+   private DocletOption[] commonOptions =
       {
          optionTargetDirectory,
          optionAuthor,
@@ -511,7 +418,6 @@ public abstract class AbstractDoclet
          optionGroup,
          optionDocFilesSubDirs,
          optionExcludeDocFilesSubDir,
-         optionTagletPath,
          optionTaglet,
          optionTag,
       };
@@ -536,17 +442,17 @@ public abstract class AbstractDoclet
 
    private boolean optionsRegistered = false;
 
-   private void registerOption(DocletOption option) 
+   private void registerOption(DocletOption option)
    {
       nameToOptionMap.put(option.getName(), option);
    }
 
-   private Map nameToOptionMap = new HashMap();
+   private Map<String,DocletOption> nameToOptionMap = new HashMap<String,DocletOption>();
 
    private int getOptionLength(String optionName)
    {
       registerOptions();
-      DocletOption option = (DocletOption)nameToOptionMap.get(optionName.toLowerCase());
+      DocletOption option = nameToOptionMap.get(optionName.toLowerCase());
       if (null != option) {
          return option.getLength();
       }
@@ -555,9 +461,9 @@ public abstract class AbstractDoclet
       }
    }
 
-   protected List getKnownDirectSubclasses(ClassDoc classDoc)
+   protected List<ClassDoc> getKnownDirectSubclasses(ClassDoc classDoc)
    {
-      List result = new LinkedList();
+      List<ClassDoc> result = new LinkedList<ClassDoc>();
       if (!"java.lang.Object".equals(classDoc.qualifiedName())) {
          ClassDoc[] classes = rootDoc.classes();
          for (int i=0; i<classes.length; ++i) {
@@ -570,7 +476,7 @@ public abstract class AbstractDoclet
    }
 
    protected static class IndexKey
-      implements Comparable
+      implements Comparable<IndexKey>
    {
       private String name;
       private String lowerName;
@@ -591,9 +497,9 @@ public abstract class AbstractDoclet
          return lowerName.hashCode();
       }
 
-      public int compareTo(Object other)
+      public int compareTo(IndexKey ik)
       {
-         return lowerName.compareTo(((IndexKey)other).lowerName);
+         return lowerName.compareTo(ik.lowerName);
       }
 
       public String getName()
@@ -601,30 +507,30 @@ public abstract class AbstractDoclet
          return name;
       }
    }
-   
-   private Map categorizedIndex;
 
-   protected Map getCategorizedIndex()
+   private Map<Character,List<Doc>> categorizedIndex;
+
+   protected Map<Character,List<Doc>> getCategorizedIndex()
    {
       if (null == categorizedIndex) {
-         categorizedIndex = new LinkedHashMap();
-         
-         Map indexMap = getIndexByName();
-         LinkedList keys = new LinkedList(); //indexMap.keySet().size());
+         categorizedIndex = new LinkedHashMap<Character,List<Doc>>();
+
+         Map<IndexKey,Doc> indexMap = getIndexByName();
+         LinkedList<IndexKey> keys = new LinkedList<IndexKey>(); //indexMap.keySet().size());
          keys.addAll(indexMap.keySet());
          Collections.sort(keys);
-         Iterator it = keys.iterator(); //indexMap.keySet().iterator();
+         Iterator<IndexKey> it = keys.iterator(); //indexMap.keySet().iterator();
          char previousCategoryLetter = '\0';
          Character keyLetter = null;
          while (it.hasNext()) {
-            IndexKey key = (IndexKey)it.next();
+            IndexKey key = it.next();
             char firstChar = Character.toUpperCase(key.getName().charAt(0));
             if (firstChar != previousCategoryLetter) {
                keyLetter = new Character(firstChar);
                previousCategoryLetter = firstChar;
-               categorizedIndex.put(keyLetter, new LinkedList());
+               categorizedIndex.put(keyLetter, new LinkedList<Doc>());
             }
-            List letterList = (List)categorizedIndex.get(keyLetter);
+            List<Doc> letterList = categorizedIndex.get(keyLetter);
             letterList.add(indexMap.get(key));
          }
       }
@@ -633,16 +539,16 @@ public abstract class AbstractDoclet
    }
 
 
-   private Map indexByName;
+   private Map<IndexKey,Doc> indexByName;
 
-   protected Map getIndexByName()
+   protected Map<IndexKey,Doc> getIndexByName()
    {
       if (null == indexByName) {
          // Create index
 
          // Collect index
-            
-         indexByName = new HashMap(); //TreeMap();
+
+         indexByName = new HashMap<IndexKey,Doc>(); //TreeMap();
 
          // Add packages to index
 
@@ -690,31 +596,30 @@ public abstract class AbstractDoclet
       tagletMap.put(taglet.getName(), taglet);
    }
 
-   protected void printTaglets(Tag[] tags, TagletContext context, TagletPrinter output, boolean inline) 
+   protected void printTaglets(Tag[] tags, TagletContext context, TagletPrinter output, boolean inline)
    {
-      for (Iterator it = tagletMap.keySet().iterator(); it.hasNext(); ) {
-         String tagName = (String)it.next();
-         Object o = tagletMap.get(tagName);
-         Taglet taglet = (Taglet)o;
+      for (Iterator<String> it = tagletMap.keySet().iterator(); it.hasNext(); ) {
+         String tagName = it.next();
+         Taglet taglet = tagletMap.get(tagName);
          Doc doc = context.getDoc();
          if (inline == taglet.isInlineTag()
-             && ((doc == null 
+             && ((doc == null
                   && taglet.inOverview())
-                 || (doc != null 
+                 || (doc != null
                      && ((doc.isConstructor() && taglet.inConstructor())
                          || (doc.isField() && taglet.inField())
                          || (doc.isMethod() && taglet.inMethod())
                          || (doc instanceof PackageDoc && taglet.inPackage())
                          || ((doc.isClass() || doc.isInterface()) && taglet.inType()))))) {
 
-            List tagsOfThisType = new LinkedList();
+            List<Tag> tagsOfThisType = new LinkedList<Tag>();
             for (int i=0; i<tags.length; ++i) {
                if (tags[i].name().substring(1).equals(tagName)) {
                   tagsOfThisType.add(tags[i]);
                }
             }
 
-            Tag[] tagletTags = (Tag[])tagsOfThisType.toArray(new Tag[tagsOfThisType.size()]);
+            Tag[] tagletTags = tagsOfThisType.toArray(new Tag[tagsOfThisType.size()]);
 
             String tagletString;
             if (taglet instanceof StandardTaglet) {
@@ -733,7 +638,7 @@ public abstract class AbstractDoclet
       }
    }
 
-   protected void printInlineTaglet(Tag tag, TagletContext context, TagletPrinter output) 
+   protected void printInlineTaglet(Tag tag, TagletContext context, TagletPrinter output)
    {
       Taglet taglet = (Taglet)tagletMap.get(tag.name().substring(1));
       if (null != taglet) {
@@ -753,7 +658,7 @@ public abstract class AbstractDoclet
       }
    }
 
-   protected void printMainTaglets(Tag[] tags, TagletContext context, TagletPrinter output) 
+   protected void printMainTaglets(Tag[] tags, TagletContext context, TagletPrinter output)
    {
       printTaglets(tags, context, output, false);
    }
@@ -761,24 +666,24 @@ public abstract class AbstractDoclet
    /**
     *  @param usedClassToPackagesMap  ClassDoc to (PackageDoc to (UsageType to (Set of Doc)))
     */
-   private void addUsedBy(Map usedClassToPackagesMap,
+   private void addUsedBy(Map<ClassDoc,Map<PackageDoc,Map<UsageType,Set<Doc>>>> usedClassToPackagesMap,
                           ClassDoc usedClass, UsageType usageType, Doc user, PackageDoc userPackage)
    {
-      Map packageToUsageTypeMap = (Map)usedClassToPackagesMap.get(usedClass);
+      Map<PackageDoc,Map<UsageType,Set<Doc>>> packageToUsageTypeMap = usedClassToPackagesMap.get(usedClass);
       if (null == packageToUsageTypeMap) {
-         packageToUsageTypeMap = new HashMap();
+         packageToUsageTypeMap = new HashMap<PackageDoc,Map<UsageType,Set<Doc>>>();
          usedClassToPackagesMap.put(usedClass, packageToUsageTypeMap);
       }
 
-      Map usageTypeToUsersMap = (Map)packageToUsageTypeMap.get(userPackage);
+      Map<UsageType,Set<Doc>> usageTypeToUsersMap = packageToUsageTypeMap.get(userPackage);
       if (null == usageTypeToUsersMap) {
-         usageTypeToUsersMap = new TreeMap();
+        usageTypeToUsersMap = new TreeMap<UsageType,Set<Doc>>();
          packageToUsageTypeMap.put(userPackage, usageTypeToUsersMap);
       }
 
-      Set userSet = (Set)usageTypeToUsersMap.get(usageType);
+      Set<Doc> userSet = usageTypeToUsersMap.get(usageType);
       if (null == userSet) {
-         userSet = new TreeSet(); // FIXME: we need the collator from Main here
+         userSet = new TreeSet<Doc>(); // FIXME: we need the collator from Main here
          usageTypeToUsersMap.put(usageType, userSet);
       }
       userSet.add(user);
@@ -789,26 +694,27 @@ public abstract class AbstractDoclet
     */
    private Map collectUsage() {
 
-      Map _usedClassToPackagesMap = new HashMap();
+      Map<ClassDoc,Map<PackageDoc,Map<UsageType,Set<Doc>>>> _usedClassToPackagesMap =
+        new HashMap<ClassDoc,Map<PackageDoc,Map<UsageType,Set<Doc>>>>();
 
       ClassDoc[] classes = rootDoc.classes();
       for (int i = 0, ilim = classes.length; i < ilim; ++ i) {
          ClassDoc clazz = classes[i];
-         
+
          if (clazz.isInterface()) {
             // classes implementing
             InterfaceRelation relation
                = (InterfaceRelation)getInterfaceRelations().get(clazz);
-            Iterator it = relation.implementingClasses.iterator();
+            Iterator<ClassDoc> it = relation.implementingClasses.iterator();
             while (it.hasNext()) {
-               ClassDoc implementor = (ClassDoc)it.next();
+               ClassDoc implementor = it.next();
                addUsedBy(_usedClassToPackagesMap,
                          clazz, UsageType.CLASS_IMPLEMENTING, implementor, implementor.containingPackage());
             }
          }
          else {
             // classes derived from
-            for (ClassDoc superclass = clazz.superclass(); superclass != null; 
+            for (ClassDoc superclass = clazz.superclass(); superclass != null;
                  superclass = superclass.superclass()) {
                addUsedBy(_usedClassToPackagesMap,
                          superclass, UsageType.CLASS_DERIVED_FROM, clazz, clazz.containingPackage());
@@ -819,11 +725,11 @@ public abstract class AbstractDoclet
          for (int j = 0, jlim = fields.length; j < jlim; ++ j) {
             FieldDoc field = fields[j];
 
-            // fields of type                  
+            // fields of type
             ClassDoc fieldType = field.type().asClassDoc();
             if (null != fieldType) {
                addUsedBy(_usedClassToPackagesMap,
-                         fieldType, UsageType.FIELD_OF_TYPE, 
+                         fieldType, UsageType.FIELD_OF_TYPE,
                          field, clazz.containingPackage());
             }
          }
@@ -837,7 +743,7 @@ public abstract class AbstractDoclet
             ClassDoc returnType = method.returnType().asClassDoc();
             if (null != returnType) {
                addUsedBy(_usedClassToPackagesMap,
-                         returnType, UsageType.METHOD_WITH_RETURN_TYPE, 
+                         returnType, UsageType.METHOD_WITH_RETURN_TYPE,
                          method, clazz.containingPackage());
             }
             Parameter[] parameters = method.parameters();
@@ -849,7 +755,7 @@ public abstract class AbstractDoclet
                ClassDoc parameterType = parameter.type().asClassDoc();
                if (null != parameterType) {
                   addUsedBy(_usedClassToPackagesMap,
-                            parameterType, UsageType.METHOD_WITH_PARAMETER_TYPE, 
+                            parameterType, UsageType.METHOD_WITH_PARAMETER_TYPE,
                             method, clazz.containingPackage());
                }
             }
@@ -860,11 +766,11 @@ public abstract class AbstractDoclet
             for (int k = 0, klim = thrownExceptions.length; k < klim; ++ k) {
                ClassDoc thrownException = thrownExceptions[k];
                addUsedBy(_usedClassToPackagesMap,
-                         thrownException, UsageType.METHOD_WITH_THROWN_TYPE, 
+                         thrownException, UsageType.METHOD_WITH_THROWN_TYPE,
                          method, clazz.containingPackage());
             }
          }
-                  
+
          ConstructorDoc[] constructors = clazz.constructors();
          for (int j = 0, jlim = constructors.length; j < jlim; ++ j) {
 
@@ -874,12 +780,12 @@ public abstract class AbstractDoclet
             for (int k = 0, klim = parameters.length; k < klim; ++ k) {
 
                // constructors with parameter type
-                     
+
                Parameter parameter = parameters[k];
                ClassDoc parameterType = parameter.type().asClassDoc();
                if (null != parameterType) {
                   addUsedBy(_usedClassToPackagesMap,
-                            parameterType, UsageType.CONSTRUCTOR_WITH_PARAMETER_TYPE, 
+                            parameterType, UsageType.CONSTRUCTOR_WITH_PARAMETER_TYPE,
                             constructor, clazz.containingPackage());
                }
             }
@@ -890,7 +796,7 @@ public abstract class AbstractDoclet
             for (int k = 0, klim = thrownExceptions.length; k < klim; ++ k) {
                ClassDoc thrownException = thrownExceptions[k];
                addUsedBy(_usedClassToPackagesMap,
-                         thrownException, UsageType.CONSTRUCTOR_WITH_THROWN_TYPE, 
+                         thrownException, UsageType.CONSTRUCTOR_WITH_THROWN_TYPE,
                          constructor, clazz.containingPackage());
             }
          }
@@ -898,18 +804,18 @@ public abstract class AbstractDoclet
       return _usedClassToPackagesMap;
    }
 
-   private Map usedClassToPackagesMap = null;
+   private Map<ClassDoc,Map<PackageDoc,Map<UsageType,Set<Doc>>>> usedClassToPackagesMap = null;
 
-   protected Map getUsageOfClass(ClassDoc classDoc)
+   protected Map<PackageDoc,Map<UsageType,Set<Doc>>> getUsageOfClass(ClassDoc classDoc)
    {
       if (null == this.usedClassToPackagesMap) {
          this.usedClassToPackagesMap = collectUsage();
       }
-      return (Map)this.usedClassToPackagesMap.get(classDoc);
+      return this.usedClassToPackagesMap.get(classDoc);
    }
 
    protected static class UsageType
-      implements Comparable
+      implements Comparable<UsageType>
    {
       public static final UsageType CLASS_DERIVED_FROM = new UsageType("class-derived-from");
       public static final UsageType CLASS_IMPLEMENTING = new UsageType("class-implementing");
@@ -926,13 +832,13 @@ public abstract class AbstractDoclet
          this.id = id;
       }
 
-      public int compareTo(Object other)
+      public int compareTo(UsageType ut)
       {
-         return this.id.compareTo(((UsageType)other).id);
+         return this.id.compareTo(ut.id);
       }
 
-      public String toString() { 
-         return "UsageType{id=" + id + "}"; 
+      public String toString() {
+         return "UsageType{id=" + id + "}";
       }
 
       public String getId() {
@@ -959,7 +865,7 @@ public abstract class AbstractDoclet
       return MessageFormat.format(getString(key), new Object[] { value1 });
    }
 
-   protected List getPackageGroups()
+   protected List<PackageGroup> getPackageGroups()
    {
       return packageGroups;
    }
@@ -1045,33 +951,33 @@ public abstract class AbstractDoclet
       throw new IOException("Couldn't locate source file for class " + classDoc.qualifiedTypeName());
    }
 
-   protected void printError(String error) 
+   protected void printError(String error)
    {
       if (null != rootDoc) {
-	 rootDoc.printError(error);
+         rootDoc.printError(error);
       }
       else {
-	 System.err.println("ERROR: "+error);
+         System.err.println("ERROR: "+error);
       }
    }
 
-   protected void printWarning(String warning) 
+   protected void printWarning(String warning)
    {
       if (null != rootDoc) {
-	 rootDoc.printWarning(warning);
+         rootDoc.printWarning(warning);
       }
       else {
-	 System.err.println("WARNING: "+warning);
+         System.err.println("WARNING: "+warning);
       }
    }
 
-   protected void printNotice(String notice) 
+   protected void printNotice(String notice)
    {
       if (null != rootDoc) {
-	 rootDoc.printNotice(notice);
+         rootDoc.printNotice(notice);
       }
       else {
-	 System.err.println(notice);
+         System.err.println(notice);
       }
    }
 
@@ -1113,7 +1019,7 @@ public abstract class AbstractDoclet
 
    protected String possiblyQualifiedName(Type type)
    {
-      if (null == type.asClassDoc() 
+      if (null == type.asClassDoc()
           || !omitPackageQualifier(type.asClassDoc().containingPackage())) {
          return type.qualifiedTypeName();
       }
@@ -1207,7 +1113,7 @@ public abstract class AbstractDoclet
          Iterator it = interfaceRelations.keySet().iterator();
          while (it.hasNext()) {
             ClassDoc interfaceDoc = (ClassDoc)it.next();
-            InterfaceRelation relation 
+            InterfaceRelation relation
                = (InterfaceRelation)interfaceRelations.get(interfaceDoc);
             Iterator superIt = relation.superInterfaces.iterator();
             while (superIt.hasNext()) {
@@ -1289,7 +1195,7 @@ public abstract class AbstractDoclet
    }
 
    protected abstract String renderTag(String tagName, Tag[] tags, TagletContext context);
-   
+
    protected abstract String getDocletVersion();
 
    protected SortedSet getThrownExceptions(ExecutableMemberDoc execMemberDoc)
@@ -1302,7 +1208,7 @@ public abstract class AbstractDoclet
       return result;
    }
 
-   protected boolean isUncheckedException(ClassDoc classDoc) 
+   protected boolean isUncheckedException(ClassDoc classDoc)
    {
       if (classDoc.isException()) {
          while (null != classDoc) {
@@ -1343,7 +1249,7 @@ public abstract class AbstractDoclet
             ClassDoc[] interfaces = cd.interfaces();
             for (int i=0; i<interfaces.length; ++i) {
                result.add(interfaces[i]);
-               InterfaceRelation relation 
+               InterfaceRelation relation
                   = (InterfaceRelation)getInterfaceRelations().get(interfaces[i]);
                if (null != relation) {
                   result.addAll(relation.superInterfaces);

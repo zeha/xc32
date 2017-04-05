@@ -1,4 +1,4 @@
-# Copyright (C) 1997, 2007, 2008, 2009 Free Software Foundation, Inc.
+# Copyright (C) 1997-2013 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -222,10 +222,15 @@ load_lib gcc-dg.exp
 # A list of GROUP REGEXP pairs.  Each GROUP represents a logical group of
 # options from which only one option should be chosen.  REGEXP matches all
 # the options in that group; it is implicitly wrapped in "^(...)$".
+#
+# Note that -O* is deliberately omitted from this list.  Tests in this
+# directory are run at various optimisation levels and should use
+# dg-skip-if to skip any incompatible levels.
 set mips_option_groups {
     abi "-mabi=.*"
     addressing "addressing=.*"
     arch "-mips([1-5]|32.*|64.*)|-march=.*|isa(|_rev)(=|<=|>=).*"
+    debug "-g.*"
     dump_pattern "-dp"
     endianness "-E(L|B)|-me(l|b)"
     float "-m(hard|soft)-float"
@@ -233,13 +238,17 @@ set mips_option_groups {
     fp "-mfp(32|64)"
     gp "-mgp(32|64)"
     long "-mlong(32|64)"
-    mips16 "-mips16|-mno-mips16"
+    micromips "-mmicromips|-mno-micromips"
+    mips16 "-mips16|-mno-mips16|-mflip-mips16"
     mips3d "-mips3d|-mno-mips3d"
-    optimization "-O(|[0-3s])"
     pic "-f(no-|)(pic|PIC)"
     profiling "-pg"
     small-data "-G[0-9]+"
     warnings "-w"
+    dump "-fdump-.*"
+    save_temps "-save-temps"
+    use_caller_save "-fuse-caller-save"
+    no_use_caller_save "-fno-use-caller-save"
 }
 
 # Add -mfoo/-mno-foo options to mips_option_groups.
@@ -256,7 +265,6 @@ foreach option {
     gpopt
     local-sdata
     long-calls
-    octeon-useun
     paired-single
     plt
     shared
@@ -266,15 +274,17 @@ foreach option {
     relax-pic-calls
     mcount-ra-address
     micromips
-    interlink-mips16
+    frame-header-opt
 } {
     lappend mips_option_groups $option "-m(no-|)$option"
 }
 
 # Add -mfoo= options to mips_option_groups.
 foreach option {
+    abs
     branch-cost
     code-readable
+    nan
     r10k-cache-barrier
     tune
 } {
@@ -284,13 +294,21 @@ foreach option {
 # Add -ffoo/-fno-foo options to mips_option_groups.
 foreach option {
     delayed-branch
+    expensive-optimizations
     fast-math
+    fat-lto-objects
     finite-math-only
     fixed-hi
     fixed-lo
     lax-vector-conversions
+    omit-frame-pointer
+    optimize-sibling-calls
+    peephole2
+    schedule-insns2
     split-wide-types
     tree-vectorize
+    unroll-all-loops
+    unroll-loops
 } {
     lappend mips_option_groups $option "-f(no-|)$option"
 }
@@ -524,6 +542,14 @@ proc mips_have_option_p { upstatus option } {
 		$option]
 }
 
+# Return true if the options described by UPSTATUS require MIPS16 support.
+proc mips_using_mips16_p { upstatus } {
+    upvar $upstatus status
+
+    return [expr { [mips_have_option_p status "-mips16"]
+		   || [mips_have_option_p status "-mflip-mips16"] }]
+}
+
 # Return true if the test described by UPSTATUS requires option OPTION.
 proc mips_have_test_option_p { upstatus option } {
     upvar $upstatus status
@@ -587,6 +613,30 @@ proc mips_64bit_abi_p { option } {
     switch -glob -- $option {
 	-mabi=o64 -
 	-mabi=n32 -
+	-mabi=64 {
+	    return 1
+	}
+    }
+    return 0
+}
+
+# Return true if the given abi-group option implicitly requires -mlong32.
+# o64 requires this for -mabicalls, but not otherwise; pick the conservative
+# case for simplicity.
+proc mips_long32_abi_p { option } {
+    switch -glob -- $option {
+	-mabi=o64 -
+	-mabi=n32 -
+	-mabi=32 {
+	    return 1
+	}
+    }
+    return 0
+}
+
+# Return true if the given abi-group option implicitly requires -mlong64.
+proc mips_long64_abi_p { option } {
+    switch -glob -- $option {
 	-mabi=64 {
 	    return 1
 	}
@@ -673,6 +723,18 @@ proc mips-dg-init {} {
 	    "-msoft-float",
 	    #endif
 
+	    #ifdef __mips_abs2008
+	    "-mabs=2008",
+	    #else
+	    "-mabs=legacy",
+	    #endif
+
+	    #ifdef __mips_nan2008
+	    "-mnan=2008",
+	    #else
+	    "-mnan=legacy",
+	    #endif
+
 	    #if __mips_fpr == 64
 	    "-mfp64",
 	    #else
@@ -737,6 +799,12 @@ proc mips-dg-init {} {
 	    "-mno-smartmips",
 	    #endif
 
+	    #ifdef __mips_synci
+	    "-msynci",
+	    #else
+	    "-mno-synci",
+	    #endif
+
 	    0
 	};
     }]
@@ -778,13 +846,17 @@ proc mips-dg-finish {} {
 #
 #          START                        END
 #            |                           |
-#         -mips16                     -mno-mips16
+#         -mips16/-mflip-mips16       -mno-mips16
+#            |                           |
+#         -micromips                  -mno-micromips
 #            |                           |
 #         -mips3d                     -mno-mips3d
 #            |                           |
 #         -mpaired-single             -mno-paired-single
 #            |                           |
 #         -mfp64                      -mfp32
+#            |                           |
+#         -mabs=2008/-mabs=legacy     <no option>
 #            |                           |
 #         -mhard-float                -msoft-float
 #            |                           |
@@ -816,6 +888,12 @@ proc mips-dg-finish {} {
 #            |                           |
 #         -mexplicit-relocs           -mno-explicit-relocs
 #            |                           |
+#         -mdspr2                     -mno-dspr2
+#            |                           |
+#         -mdsp                       -mno-dsp
+#            |                           |
+#         -msynci                     -mno-synci
+#            |                           |
 #            +-- gp, abi & arch ---------+
 #
 # For these purposes, the "gp", "abi" & "arch" option groups are treated
@@ -832,6 +910,15 @@ proc mips-dg-options { args } {
     # Information about this run.
     global mips_base_options
 
+    if { [llength $args] >= 3 } {
+        switch { [dg-process-target [lindex $args 2]] } {
+            "S" { }
+            "N" { return }
+            "F" { error "[lindex $args 0]: `xfail' not allowed here" }
+            "P" { error "[lindex $args 0]: `xfail' not allowed here" }
+        }
+    }
+
     # Start out with the default option state.
     array set options [array get mips_base_options]
 
@@ -847,16 +934,25 @@ proc mips-dg-options { args } {
 	}
     }
 
+    # Handle dependencies between the test options and the optimization ones.
+    mips_option_dependency options "-fno-unroll-loops" "-fno-unroll-all-loops"
+    mips_option_dependency options "-pg" "-fno-omit-frame-pointer"
+
     # Handle dependencies between options on the left of the
     # dependency diagram.
+    mips_option_dependency options "-mips16" "-mno-micromips"
+    mips_option_dependency options "-mmicromips" "-mno-mips16"
     mips_option_dependency options "-mips3d" "-mpaired-single"
     mips_option_dependency options "-mpaired-single" "-mfp64"
     mips_option_dependency options "-mfp64" "-mhard-float"
+    mips_option_dependency options "-mabs=2008" "-mhard-float"
+    mips_option_dependency options "-mabs=legacy" "-mhard-float"
     mips_option_dependency options "-mrelax-pic-calls" "-mno-plt"
     mips_option_dependency options "-mrelax-pic-calls" "-mabicalls"
     mips_option_dependency options "-mrelax-pic-calls" "-mexplicit-relocs"
     mips_option_dependency options "-fpic" "-mshared"
     mips_option_dependency options "-mshared" "-mno-plt"
+    mips_option_dependency options "-mshared" "-mabicalls"
     mips_option_dependency options "-mno-plt" "addressing=unknown"
     mips_option_dependency options "-mabicalls" "-G0"
     mips_option_dependency options "-mno-gpopt" "-mexplicit-relocs"
@@ -954,6 +1050,7 @@ proc mips-dg-options { args } {
 	#   - the DSP ASE
 	if { $isa_rev < 2
 	     && (($gp_size == 32 && [mips_have_test_option_p options "-mfp64"])
+		 || [mips_have_test_option_p options "-msynci"]
 		 || [mips_have_test_option_p options "-mdsp"]
 		 || [mips_have_test_option_p options "-mdspr2"]) } {
 	    if { $gp_size == 32 } {
@@ -1026,7 +1123,7 @@ proc mips-dg-options { args } {
 	    # EABI doesn't support -mabicalls.
 	    # EABI doesn't support the combination -mgp32 -mfp64.
 	    set force_abi 1
-	} elseif { [mips_have_option_p options "-mips16"]
+	} elseif { [mips_using_mips16_p options]
 		   && ![mips_same_option_p $abi "-mabi=32"]
 		   && ![mips_same_option_p $abi "-mabi=o64"]
 		   && (![mips_have_option_p options "addressing=absolute"]
@@ -1034,24 +1131,41 @@ proc mips-dg-options { args } {
 	    # -mips16 -mhard-float requires o32 or o64.
 	    # -mips16 PIC requires o32 or o64.
 	    set force_abi 1
+	} elseif { [mips_have_test_option_p options "-mlong32"]
+		   && [mips_long64_abi_p $abi] } {
+	    set force_abi 1
+	} elseif { [mips_have_test_option_p options "-mlong64"]
+		   && [mips_long32_abi_p $abi] } {
+	    set force_abi 1
 	} else {
 	    set force_abi 0
 	}
 	if { $gp_size == 32 } {
 	    if { $force_abi || [mips_64bit_abi_p $abi] } {
-		mips_make_test_option options "-mabi=32"
+		if { [mips_have_test_option_p options "-mlong64"] } {
+		    mips_make_test_option options "-mabi=eabi"
+		    mips_make_test_option options "-mgp32"
+		} else {
+		    mips_make_test_option options "-mabi=32"
+		}
 	    }
 	} else {
 	    if { $force_abi || [mips_32bit_abi_p $abi] } {
-		# All configurations should have an assembler that
-		# supports o64, since it requires the same BFD target
-		# vector as o32.  In contrast, many assembler
-		# configurations do not have n32 or n64 support.
-		mips_make_test_option options "-mabi=o64"
+		if { [mips_have_test_option_p options "-mlong64"] } {
+		    mips_make_test_option options "-mabi=eabi"
+		    mips_make_test_option options "-mgp64"
+		} else {
+		    # All configurations should have an assembler that
+		    # supports o64, since it requires the same BFD target
+		    # vector as o32.  In contrast, many assembler
+		    # configurations do not have n32 or n64 support.
+		    mips_make_test_option options "-mabi=o64"
+		}
 	    }
 	}
-	unset abi
-	unset eabi_p
+	set abi_test_option_p [mips_test_option_p options abi]
+	set abi [mips_option options abi]
+	set eabi_p [mips_same_option_p $abi "-mabi=eabi"]
     }
 
     # Handle dependencies between the abi options and the post-abi options.
@@ -1063,7 +1177,7 @@ proc mips-dg-options { args } {
 		mips_make_test_option options "-mfp32"
 	    }
 	}
-	if { [mips_have_option_p options "-mips16"]
+	if { [mips_using_mips16_p options]
 	     && ![mips_same_option_p $abi "-mabi=32"]
 	     && ![mips_same_option_p $abi "-mabi=o64"]
 	     && (![mips_have_option_p options "addressing=absolute"]
@@ -1075,8 +1189,11 @@ proc mips-dg-options { args } {
 		mips_make_test_option options "-mno-mips16"
 	    }
 	}
-	unset abi
-	unset eabi_p
+	if { [mips_long32_abi_p $abi] } {
+	    mips_make_test_option options "-mlong32"
+	} elseif { [mips_long64_abi_p $abi] } {
+	    mips_make_test_option options "-mlong64"
+	}
     }
 
     # Handle dependencies between the arch option and the post-arch options.
@@ -1097,7 +1214,7 @@ proc mips-dg-options { args } {
 		mips_make_test_option options "-mfp32"
 	    }
 	    mips_make_test_option options "-mno-dsp"
-	    mips_make_test_option options "-mno-dspr2"
+	    mips_make_test_option options "-mno-synci"
 	}
 	unset arch
 	unset isa
@@ -1105,6 +1222,7 @@ proc mips-dg-options { args } {
     }
 
     # Handle dependencies between options on the right of the diagram.
+    mips_option_dependency options "-mno-dsp" "-mno-dspr2"
     mips_option_dependency options "-mno-explicit-relocs" "-mgpopt"
     switch -- [mips_test_option options small-data] {
 	"" -
@@ -1168,6 +1286,10 @@ proc mips-dg-options { args } {
 	append extra_tool_flags " -DMIPS16=__attribute__((mips16))"
     }
 
+    if { [mips_have_test_option_p options "-mmicromips"] } {
+	append extra_tool_flags " -DMICROMIPS=__attribute__((micromips))"
+    }
+
     # Use our version of gcc-dg-test for this test.
     if { ![string equal [info procs "mips-gcc-dg-test"] ""] } {
 	rename gcc-dg-test mips-old-gcc-dg-test
@@ -1196,8 +1318,7 @@ proc mips-gcc-dg-test { prog do_what extra_tool_flags } {
 
 dg-init
 mips-dg-init
-# MIPS16 is defined by "-mips16" or "(-mips16)" in dg-options.
-dg-runtest [lsort [glob -nocomplain $srcdir/$subdir/*.c]] "" \
-    "-DNOMIPS16=__attribute__((nomips16))"
+gcc-dg-runtest [lsort [glob -nocomplain $srcdir/$subdir/*.c]] \
+    "-DNOMIPS16=__attribute__((nomips16)) -DNOMICROMIPS=__attribute__((nomicromips)) -DNOCOMPRESSION=__attribute__((nocompression))"
 mips-dg-finish
 dg-finish

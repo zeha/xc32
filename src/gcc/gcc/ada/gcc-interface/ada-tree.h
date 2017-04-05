@@ -6,7 +6,7 @@
  *                                                                          *
  *                              C Header File                               *
  *                                                                          *
- *          Copyright (C) 1992-2009, Free Software Foundation, Inc.         *
+ *          Copyright (C) 1992-2012, Free Software Foundation, Inc.         *
  *                                                                          *
  * GNAT is free software;  you can  redistribute it  and/or modify it under *
  * terms of the  GNU General Public License as published  by the Free Soft- *
@@ -25,39 +25,45 @@
 
 /* The resulting tree type.  */
 union GTY((desc ("0"),
-	   chain_next ("(union lang_tree_node *)TREE_CHAIN (&%h.generic)")))
+	   chain_next ("CODE_CONTAINS_STRUCT (TREE_CODE (&%h.generic), TS_COMMON) ? ((union lang_tree_node *) TREE_CHAIN (&%h.generic)) : NULL")))
   lang_tree_node
 {
   union tree_node GTY((tag ("0"),
 		       desc ("tree_node_structure (&%h)"))) generic;
 };
 
-/* Ada uses the lang_decl and lang_type fields to hold a tree.  */
-struct GTY(()) lang_type { tree t; };
-struct GTY(()) lang_decl { tree t; };
+/* Ada uses the lang_decl and lang_type fields to hold a tree.
+
+   FIXME: the variable_size annotation here is needed because these types are
+   variable-sized in some other front-ends.  Due to gengtype deficiency, the
+   GTY options of such types have to agree across all front-ends.  */
+struct GTY((variable_size)) lang_type { tree t; };
+struct GTY((variable_size)) lang_decl { tree t; };
 
 /* Macros to get and set the tree in TYPE_LANG_SPECIFIC.  */
 #define GET_TYPE_LANG_SPECIFIC(NODE) \
   (TYPE_LANG_SPECIFIC (NODE) ? TYPE_LANG_SPECIFIC (NODE)->t : NULL_TREE)
 
-#define SET_TYPE_LANG_SPECIFIC(NODE, X)			    \
-do {							    \
-  tree tmp = (X);					    \
-  if (!TYPE_LANG_SPECIFIC (NODE))			    \
-    TYPE_LANG_SPECIFIC (NODE) = GGC_NEW (struct lang_type); \
-  TYPE_LANG_SPECIFIC (NODE)->t = tmp;			    \
+#define SET_TYPE_LANG_SPECIFIC(NODE, X)			 \
+do {							 \
+  tree tmp = (X);					 \
+  if (!TYPE_LANG_SPECIFIC (NODE))			 \
+    TYPE_LANG_SPECIFIC (NODE)				 \
+      = ggc_alloc_lang_type (sizeof (struct lang_type)); \
+  TYPE_LANG_SPECIFIC (NODE)->t = tmp;			 \
 } while (0)
 
 /* Macros to get and set the tree in DECL_LANG_SPECIFIC.  */
 #define GET_DECL_LANG_SPECIFIC(NODE) \
   (DECL_LANG_SPECIFIC (NODE) ? DECL_LANG_SPECIFIC (NODE)->t : NULL_TREE)
 
-#define SET_DECL_LANG_SPECIFIC(NODE, X)			    \
-do {							    \
-  tree tmp = (X);					    \
-  if (!DECL_LANG_SPECIFIC (NODE))			    \
-    DECL_LANG_SPECIFIC (NODE) = GGC_NEW (struct lang_decl); \
-  DECL_LANG_SPECIFIC (NODE)->t = tmp;			    \
+#define SET_DECL_LANG_SPECIFIC(NODE, X)			 \
+do {							 \
+  tree tmp = (X);					 \
+  if (!DECL_LANG_SPECIFIC (NODE))			 \
+    DECL_LANG_SPECIFIC (NODE)				 \
+      = ggc_alloc_lang_decl (sizeof (struct lang_decl)); \
+  DECL_LANG_SPECIFIC (NODE)->t = tmp;			 \
 } while (0)
 
 
@@ -74,7 +80,8 @@ do {							    \
 /* For integral types and array types, nonzero if this is a packed array type
    used for bit-packed types.  Such types should not be extended to a larger
    size or validated against a specified size.  */
-#define TYPE_PACKED_ARRAY_TYPE_P(NODE) TYPE_LANG_FLAG_0 (NODE)
+#define TYPE_PACKED_ARRAY_TYPE_P(NODE) \
+  TYPE_LANG_FLAG_0 (TREE_CHECK2 (NODE, INTEGER_TYPE, ARRAY_TYPE))
 
 #define TYPE_IS_PACKED_ARRAY_TYPE_P(NODE) \
   ((TREE_CODE (NODE) == INTEGER_TYPE || TREE_CODE (NODE) == ARRAY_TYPE) \
@@ -90,7 +97,7 @@ do {							    \
 
 /* For FUNCTION_TYPE, nonzero if this denotes a function returning an
    unconstrained array or record.  */
-#define TYPE_RETURNS_UNCONSTRAINED_P(NODE) \
+#define TYPE_RETURN_UNCONSTRAINED_P(NODE) \
   TYPE_LANG_FLAG_1 (FUNCTION_TYPE_CHECK (NODE))
 
 /* For RECORD_TYPE, UNION_TYPE, and QUAL_UNION_TYPE, nonzero if this denotes
@@ -100,21 +107,33 @@ do {							    \
 
 /* Nonzero in an arithmetic subtype if this is a subtype not known to the
    front-end.  */
-#define TYPE_EXTRA_SUBTYPE_P(NODE) TYPE_LANG_FLAG_2 (NODE)
+#define TYPE_EXTRA_SUBTYPE_P(NODE) TYPE_LANG_FLAG_2 (INTEGER_TYPE_CHECK (NODE))
 
-/* Nonzero for composite types if this is a by-reference type.  */
-#define TYPE_BY_REFERENCE_P(NODE) TYPE_LANG_FLAG_2 (NODE)
+/* Nonzero for an aggregate type if this is a by-reference type.  We also
+   set this on an ENUMERAL_TYPE that is dummy.  */
+#define TYPE_BY_REFERENCE_P(NODE)				       \
+  TYPE_LANG_FLAG_2 (TREE_CHECK5 (NODE, RECORD_TYPE, UNION_TYPE,	       \
+				 ARRAY_TYPE, UNCONSTRAINED_ARRAY_TYPE, \
+				 ENUMERAL_TYPE))
+
+#define TYPE_IS_BY_REFERENCE_P(NODE)		    \
+  ((TREE_CODE (NODE) == RECORD_TYPE		    \
+    || TREE_CODE (NODE) == UNION_TYPE		    \
+    || TREE_CODE (NODE) == ARRAY_TYPE		    \
+    || TREE_CODE (NODE) == UNCONSTRAINED_ARRAY_TYPE \
+    || TREE_CODE (NODE) == ENUMERAL_TYPE)	    \
+   && TYPE_BY_REFERENCE_P (NODE))
+
+/* For INTEGER_TYPE, nonzero if this really represents a VAX
+   floating-point type.  */
+#define TYPE_VAX_FLOATING_POINT_P(NODE) \
+  TYPE_LANG_FLAG_3 (INTEGER_TYPE_CHECK (NODE))
 
 /* For RECORD_TYPE, UNION_TYPE, and QUAL_UNION_TYPE, nonzero if this is the
    type for an object whose type includes its template in addition to
    its value (only true for RECORD_TYPE).  */
 #define TYPE_CONTAINS_TEMPLATE_P(NODE) \
   TYPE_LANG_FLAG_3 (RECORD_OR_UNION_CHECK (NODE))
-
-/* For INTEGER_TYPE, nonzero if this really represents a VAX
-   floating-point type.  */
-#define TYPE_VAX_FLOATING_POINT_P(NODE) \
-  TYPE_LANG_FLAG_3 (INTEGER_TYPE_CHECK (NODE))
 
 /* True if NODE is a thin pointer.  */
 #define TYPE_IS_THIN_POINTER_P(NODE)			\
@@ -135,23 +154,22 @@ do {							    \
 #define TYPE_CONVENTION_FORTRAN_P(NODE) \
   TYPE_LANG_FLAG_4 (ARRAY_TYPE_CHECK (NODE))
 
-/* For FUNCTION_TYPEs, nonzero if the function returns by reference.  */
-#define TYPE_RETURNS_BY_REF_P(NODE) \
+/* For FUNCTION_TYPEs, nonzero if the function returns by direct reference,
+   i.e. the callee returns a pointer to a memory location it has allocated
+   and the caller only needs to dereference the pointer.  */
+#define TYPE_RETURN_BY_DIRECT_REF_P(NODE) \
   TYPE_LANG_FLAG_4 (FUNCTION_TYPE_CHECK (NODE))
 
-/* For VOID_TYPE, ENUMERAL_TYPE, UNION_TYPE, and RECORD_TYPE, nonzero if this
-   is a dummy type, made to correspond to a private or incomplete type.  */
-#define TYPE_DUMMY_P(NODE) TYPE_LANG_FLAG_4 (NODE)
+/* For RECORD_TYPE, UNION_TYPE and ENUMERAL_TYPE, nonzero if this is a dummy
+   type, made to correspond to a private or incomplete type.  */
+#define TYPE_DUMMY_P(NODE) \
+  TYPE_LANG_FLAG_4 (TREE_CHECK3 (NODE, RECORD_TYPE, UNION_TYPE, ENUMERAL_TYPE))
 
-#define TYPE_IS_DUMMY_P(NODE) \
-  ((TREE_CODE (NODE) == VOID_TYPE || TREE_CODE (NODE) == RECORD_TYPE	\
-    || TREE_CODE (NODE) == UNION_TYPE || TREE_CODE (NODE) == ENUMERAL_TYPE) \
+#define TYPE_IS_DUMMY_P(NODE)		  \
+  ((TREE_CODE (NODE) == RECORD_TYPE	  \
+    || TREE_CODE (NODE) == UNION_TYPE	  \
+    || TREE_CODE (NODE) == ENUMERAL_TYPE) \
    && TYPE_DUMMY_P (NODE))
-
-/* For FUNCTION_TYPEs, nonzero if function returns by being passed a pointer
-   to a place to store its result.  */
-#define TYPE_RETURNS_BY_TARGET_PTR_P(NODE) \
-  TYPE_LANG_FLAG_5 (FUNCTION_TYPE_CHECK (NODE))
 
 /* For an INTEGER_TYPE, nonzero if TYPE_ACTUAL_BOUNDS is present.  */
 #define TYPE_HAS_ACTUAL_BOUNDS_P(NODE) \
@@ -167,28 +185,28 @@ do {							    \
 /* True if TYPE can alias any other types.  */
 #define TYPE_UNIVERSAL_ALIASING_P(NODE) TYPE_LANG_FLAG_6 (NODE)
 
-/* In an UNCONSTRAINED_ARRAY_TYPE, this is the record containing both the
+/* For an UNCONSTRAINED_ARRAY_TYPE, this is the record containing both the
    template and the object.
 
    ??? We also put this on an ENUMERAL_TYPE that is dummy.  Technically,
    this is a conflict on the minval field, but there doesn't seem to be
    simple fix, so we'll live with this kludge for now.  */
 #define TYPE_OBJECT_RECORD_TYPE(NODE) \
-  (TREE_CHECK2 ((NODE), UNCONSTRAINED_ARRAY_TYPE, ENUMERAL_TYPE)->type.minval)
+  (TYPE_MINVAL (TREE_CHECK2 ((NODE), UNCONSTRAINED_ARRAY_TYPE, ENUMERAL_TYPE)))
 
 /* For numerical types, this is the GCC lower bound of the type.  The GCC
    type system is based on the invariant that an object X of a given type
    cannot hold at run time a value smaller than its lower bound; otherwise
    the behavior is undefined.  The optimizer takes advantage of this and
    considers that the assertion X >= LB is always true.  */
-#define TYPE_GCC_MIN_VALUE(NODE) (NUMERICAL_TYPE_CHECK (NODE)->type.minval)
+#define TYPE_GCC_MIN_VALUE(NODE) (TYPE_MINVAL (NUMERICAL_TYPE_CHECK (NODE)))
 
 /* For numerical types, this is the GCC upper bound of the type.  The GCC
    type system is based on the invariant that an object X of a given type
    cannot hold at run time a value larger than its upper bound; otherwise
    the behavior is undefined.  The optimizer takes advantage of this and
    considers that the assertion X <= UB is always true.  */
-#define TYPE_GCC_MAX_VALUE(NODE) (NUMERICAL_TYPE_CHECK (NODE)->type.maxval)
+#define TYPE_GCC_MAX_VALUE(NODE) (TYPE_MAXVAL (NUMERICAL_TYPE_CHECK (NODE)))
 
 /* For a FUNCTION_TYPE, if the subprogram has parameters passed by copy in/
    copy out, this is the list of nodes used to specify the return values of
@@ -275,7 +293,8 @@ do {						   \
 
 /* For an INTEGER_TYPE with TYPE_MODULAR_P, this is the value of the
    modulus. */
-#define TYPE_MODULUS(NODE) GET_TYPE_LANG_SPECIFIC (INTEGER_TYPE_CHECK (NODE))
+#define TYPE_MODULUS(NODE) \
+  GET_TYPE_LANG_SPECIFIC (INTEGER_TYPE_CHECK (NODE))
 #define SET_TYPE_MODULUS(NODE, X) \
   SET_TYPE_LANG_SPECIFIC (INTEGER_TYPE_CHECK (NODE), X)
 
@@ -301,9 +320,18 @@ do {						   \
 #define SET_TYPE_ACTUAL_BOUNDS(NODE, X) \
   SET_TYPE_LANG_SPECIFIC (TREE_CHECK2 (NODE, INTEGER_TYPE, ARRAY_TYPE), X)
 
+/* For a POINTER_TYPE that points to the template type of an unconstrained
+   array type, this is the address to be used in a null fat pointer.  */
+#define TYPE_NULL_BOUNDS(NODE) \
+  GET_TYPE_LANG_SPECIFIC (POINTER_TYPE_CHECK (NODE))
+#define SET_TYPE_NULL_BOUNDS(NODE, X) \
+  SET_TYPE_LANG_SPECIFIC (POINTER_TYPE_CHECK (NODE), X)
+
 /* For a RECORD_TYPE that is a fat pointer, this is the type for the
-   unconstrained object.  Likewise for a RECORD_TYPE that is pointed
-   to by a thin pointer.  */
+   unconstrained array.  Likewise for a RECORD_TYPE that is pointed
+   to by a thin pointer, if it is made for the unconstrained array
+   type itself; the field is NULL_TREE if the RECORD_TYPE is made
+   for a constrained subtype of the array type.  */
 #define TYPE_UNCONSTRAINED_ARRAY(NODE) \
   GET_TYPE_LANG_SPECIFIC (RECORD_TYPE_CHECK (NODE))
 #define SET_TYPE_UNCONSTRAINED_ARRAY(NODE, X) \
@@ -328,14 +356,31 @@ do {						   \
    been elaborated and TREE_READONLY is not set on it.  */
 #define DECL_READONLY_ONCE_ELAB(NODE) DECL_LANG_FLAG_0 (VAR_DECL_CHECK (NODE))
 
-/* Nonzero if this decl is always used by reference; i.e., an INDIRECT_REF
+/* Nonzero in a CONST_DECL if its value is (essentially) the address of a
+   constant CONSTRUCTOR.  */
+#define DECL_CONST_ADDRESS_P(NODE) DECL_LANG_FLAG_0 (CONST_DECL_CHECK (NODE))
+
+/* Nonzero in a FIELD_DECL if it is declared as aliased.  */
+#define DECL_ALIASED_P(NODE) DECL_LANG_FLAG_0 (FIELD_DECL_CHECK (NODE))
+
+/* Nonzero in a TYPE_DECL if this is the declaration of a Taft amendment type
+   in the main unit, i.e. the full declaration is available.  */
+#define DECL_TAFT_TYPE_P(NODE) DECL_LANG_FLAG_0 (TYPE_DECL_CHECK (NODE))
+
+/* Nonzero in a DECL if it is always used by reference, i.e. an INDIRECT_REF
    is needed to access the object.  */
 #define DECL_BY_REF_P(NODE) DECL_LANG_FLAG_1 (NODE)
+
+/* Nonzero in a DECL if it is made for a pointer that can never be null.  */
+#define DECL_CAN_NEVER_BE_NULL_P(NODE) DECL_LANG_FLAG_2 (NODE)
+
+/* Nonzero in a VAR_DECL if it is made for a loop parameter.  */
+#define DECL_LOOP_PARM_P(NODE) DECL_LANG_FLAG_3 (VAR_DECL_CHECK (NODE))
 
 /* Nonzero in a FIELD_DECL that is a dummy built for some internal reason.  */
 #define DECL_INTERNAL_P(NODE) DECL_LANG_FLAG_3 (FIELD_DECL_CHECK (NODE))
 
-/* Nonzero if this decl is a PARM_DECL for an Ada array being passed to a
+/* Nonzero in a PARM_DECL if it is made for an Ada array being passed to a
    foreign convention subprogram.  */
 #define DECL_BY_COMPONENT_PTR_P(NODE) DECL_LANG_FLAG_3 (PARM_DECL_CHECK (NODE))
 
@@ -343,8 +388,8 @@ do {						   \
 #define DECL_ELABORATION_PROC_P(NODE) \
   DECL_LANG_FLAG_3 (FUNCTION_DECL_CHECK (NODE))
 
-/* Nonzero if this is a decl for a pointer that points to something which
-   is readonly.  Used mostly for fat pointers.  */
+/* Nonzero in a DECL if it is made for a pointer that points to something which
+   is readonly.  */
 #define DECL_POINTS_TO_READONLY_P(NODE) DECL_LANG_FLAG_4 (NODE)
 
 /* Nonzero in a PARM_DECL if we are to pass by descriptor.  */
@@ -372,9 +417,30 @@ do {						   \
 #define SET_DECL_ORIGINAL_FIELD(NODE, X) \
   SET_DECL_LANG_SPECIFIC (FIELD_DECL_CHECK (NODE), X)
 
-/* In a VAR_DECL, points to the object being renamed if the VAR_DECL is a
-   renaming pointer, otherwise 0.  Note that this object is guaranteed to
-   be protected against multiple evaluations.  */
+/* Set DECL_ORIGINAL_FIELD of FIELD1 to (that of) FIELD2.  */
+#define SET_DECL_ORIGINAL_FIELD_TO_FIELD(FIELD1, FIELD2)	\
+  SET_DECL_ORIGINAL_FIELD ((FIELD1),				\
+			   DECL_ORIGINAL_FIELD (FIELD2)		\
+			   ? DECL_ORIGINAL_FIELD (FIELD2) : (FIELD2))
+
+/* Return true if FIELD1 and FIELD2 represent the same field.  */
+#define SAME_FIELD_P(FIELD1, FIELD2)					\
+  ((FIELD1) == (FIELD2)							\
+   || DECL_ORIGINAL_FIELD (FIELD1) == (FIELD2)				\
+   || (FIELD1) == DECL_ORIGINAL_FIELD (FIELD2)				\
+   || (DECL_ORIGINAL_FIELD (FIELD1)					\
+       && (DECL_ORIGINAL_FIELD (FIELD1) == DECL_ORIGINAL_FIELD (FIELD2))))
+
+/* In a VAR_DECL with the DECL_LOOP_PARM_P flag set, points to the special
+   induction variable that is built under certain circumstances, if any.  */
+#define DECL_INDUCTION_VAR(NODE) \
+  GET_DECL_LANG_SPECIFIC (VAR_DECL_CHECK (NODE))
+#define SET_DECL_INDUCTION_VAR(NODE, X) \
+  SET_DECL_LANG_SPECIFIC (VAR_DECL_CHECK (NODE), X)
+
+/* In a VAR_DECL without the DECL_LOOP_PARM_P flag set and that is a renaming
+   pointer, points to the object being renamed, if any.  Note that this object
+   is guaranteed to be protected against multiple evaluations.  */
 #define DECL_RENAMED_OBJECT(NODE) \
   GET_DECL_LANG_SPECIFIC (VAR_DECL_CHECK (NODE))
 #define SET_DECL_RENAMED_OBJECT(NODE, X) \
@@ -400,15 +466,42 @@ do {						   \
   SET_DECL_LANG_SPECIFIC (PARM_DECL_CHECK (NODE), X)
 
 
+/* Flags added to ref nodes.  */
+
+/* Nonzero means this node will not trap.  */
+#undef TREE_THIS_NOTRAP
+#define TREE_THIS_NOTRAP(NODE) \
+  (TREE_CHECK4 (NODE, INDIRECT_REF, ARRAY_REF, UNCONSTRAINED_ARRAY_REF, \
+		ARRAY_RANGE_REF)->base.nothrow_flag)
+
+
 /* Fields and macros for statements.  */
 #define IS_ADA_STMT(NODE) \
   (STATEMENT_CLASS_P (NODE) && TREE_CODE (NODE) >= STMT_STMT)
 
 #define STMT_STMT_STMT(NODE)     TREE_OPERAND_CHECK_CODE (NODE, STMT_STMT, 0)
-#define LOOP_STMT_TOP_COND(NODE) TREE_OPERAND_CHECK_CODE (NODE, LOOP_STMT, 0)
-#define LOOP_STMT_BOT_COND(NODE) TREE_OPERAND_CHECK_CODE (NODE, LOOP_STMT, 1)
-#define LOOP_STMT_UPDATE(NODE)   TREE_OPERAND_CHECK_CODE (NODE, LOOP_STMT, 2)
-#define LOOP_STMT_BODY(NODE)     TREE_OPERAND_CHECK_CODE (NODE, LOOP_STMT, 3)
-#define LOOP_STMT_LABEL(NODE)    TREE_OPERAND_CHECK_CODE (NODE, LOOP_STMT, 4)
+
+#define LOOP_STMT_COND(NODE)     TREE_OPERAND_CHECK_CODE (NODE, LOOP_STMT, 0)
+#define LOOP_STMT_UPDATE(NODE)   TREE_OPERAND_CHECK_CODE (NODE, LOOP_STMT, 1)
+#define LOOP_STMT_BODY(NODE)     TREE_OPERAND_CHECK_CODE (NODE, LOOP_STMT, 2)
+#define LOOP_STMT_LABEL(NODE)    TREE_OPERAND_CHECK_CODE (NODE, LOOP_STMT, 3)
+
+/* A loop statement is conceptually made up of 6 sub-statements:
+
+    loop:
+      TOP_CONDITION
+      TOP_UPDATE
+      BODY
+      BOTTOM_CONDITION
+      BOTTOM_UPDATE
+      GOTO loop
+
+  However, only 4 of them can exist for a given loop, the pair of conditions
+  and the pair of updates being mutually exclusive.  The default setting is
+  TOP_CONDITION and BOTTOM_UPDATE and the following couple of flags are used
+  to toggle the individual settings.  */
+#define LOOP_STMT_BOTTOM_COND_P(NODE) TREE_LANG_FLAG_0 (LOOP_STMT_CHECK (NODE))
+#define LOOP_STMT_TOP_UPDATE_P(NODE)  TREE_LANG_FLAG_1 (LOOP_STMT_CHECK (NODE))
+
 #define EXIT_STMT_COND(NODE)     TREE_OPERAND_CHECK_CODE (NODE, EXIT_STMT, 0)
 #define EXIT_STMT_LABEL(NODE)    TREE_OPERAND_CHECK_CODE (NODE, EXIT_STMT, 1)

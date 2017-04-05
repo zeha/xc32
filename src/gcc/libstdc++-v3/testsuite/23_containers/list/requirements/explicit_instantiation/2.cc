@@ -1,4 +1,4 @@
-// Copyright (C) 2004, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2004-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -19,9 +19,12 @@
 // This file tests explicit instantiation of library containers
 
 #include <list>
-#include <testsuite_hooks.h>
 #include <testsuite_api.h>
 
 // { dg-do compile }
 
+// N.B. In C++0x mode we cannot instantiate with T == NonDefaultConstructible
+// because of 23.3.4.1.4
+#if __cplusplus < 201103L
 template class std::list<__gnu_test::NonDefaultConstructible>;
+#endif

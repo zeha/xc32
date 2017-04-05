@@ -1,6 +1,6 @@
 // -*- C++ -*-
 
-// Copyright (C) 2005, 2006, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2005-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the terms
@@ -47,11 +47,11 @@ namespace __gnu_pbds
   namespace test
   {
     template<typename Key, class Cmp_Fn = std::less<Key>,
-	     class Allocator = std::allocator<char> >
+	     typename _Alloc = std::allocator<char> >
     class native_set : public PB_DS_BASE_C_DEC
     {
     private:
-      typedef std::set<Key, Cmp_Fn, typename Allocator::template rebind<Key>::other> base_type;
+      typedef std::set<Key, Cmp_Fn, typename _Alloc::template rebind<Key>::other> base_type;
 
     public:
       typedef native_tree_tag container_category;

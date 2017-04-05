@@ -13,7 +13,7 @@ enum struct Color2 {
   Blue,
   Indigo = Green + 2,
   Violet,
-  Red // { dg-error "redefinition" }
+  Red // { dg-error "redeclaration" }
 };
 
 enum Color {
@@ -24,7 +24,7 @@ enum class Color3 {
   Red
 };
 
-enum class Color color;
+enum Color color;
 enum Color3 color3;
 
 void f(int);

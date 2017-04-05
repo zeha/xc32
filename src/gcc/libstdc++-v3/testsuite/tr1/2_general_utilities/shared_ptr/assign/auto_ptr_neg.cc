@@ -1,6 +1,6 @@
 // { dg-do compile }
 
-// Copyright (C) 2005, 2009 Free Software Foundation
+// Copyright (C) 2005-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -46,4 +46,5 @@ main()
   test01();
   return 0;
 }
-// { dg-excess-errors "In constructor" }
+
+// { dg-prune-output "cannot convert" }

@@ -14,19 +14,20 @@
  *                                                                            *
  * Copyright (C) 2001-2005 Cedric Bastoul                                     *
  *                                                                            *
- * This is free software; you can redistribute it and/or modify it under the  *
- * terms of the GNU General Public License as published by the Free Software  *
- * Foundation; either version 2 of the License, or (at your option) any later *
- * version.                                                                   *
+ * This library is free software; you can redistribute it and/or              *
+ * modify it under the terms of the GNU Lesser General Public                 *
+ * License as published by the Free Software Foundation; either               *
+ * version 2.1 of the License, or (at your option) any later version.         *
  *                                                                            *
- * This software is distributed in the hope that it will be useful, but       *
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY *
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License   *
- * for more details.                                                          *
+ * This library is distributed in the hope that it will be useful,            *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *
+ * Lesser General Public License for more details.                            *
  *                                                                            *
- * You should have received a copy of the GNU General Public License along    *
- * with software; if not, write to the Free Software Foundation, Inc.,        *
- * 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA                     *
+ * You should have received a copy of the GNU Lesser General Public           *
+ * License along with this library; if not, write to the Free Software        *
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor,                         *
+ * Boston, MA  02110-1301  USA                                                *
  *                                                                            *
  * CLooG, the Chunky Loop Generator                                           *
  * Written by Cedric Bastoul, Cedric.Bastoul@inria.fr                         *
@@ -59,102 +60,23 @@ extern "C"
  *   the loop.
  */
 struct cloogloop
-{ CloogDomain * _domain ;      /**< The iteration domain. */
-  Value stride ;              /**< The stride for the corresponding iterator
+{
+  CloogState *state;          /**< State. */
+  CloogDomain * domain ;      /**< The iteration domain. */
+  CloogDomain *unsimplified;  /**< Unsimplified version of domain. */
+  int otl;                    /**< Loop is executed at most once. */
+  CloogStride *stride;        /**< If not NULL, stride information on iterator
                                *   (filled only after loop generation).
                                */
-  CloogBlock * _block ;        /**< The included statement block, NULL if none.*/
-  void * _usr;		      /**< User field, for library user convenience.
+  CloogBlock * block ;        /**< The included statement block, NULL if none.*/
+  void * usr;		      /**< User field, for library user convenience.
 			       *   This pointer is not freed when the
 			       *   CloogLoop structure is freed.
 			       */
-  struct cloogloop * _inner ;  /**< Loops at the next level. */
-  struct cloogloop * _next ;   /**< Next loop at the same level. */
+  struct cloogloop * inner ;  /**< Loops at the next level. */
+  struct cloogloop * next ;   /**< Next loop at the same level. */
 } ;
 typedef struct cloogloop CloogLoop ;
-
-
-static inline CloogDomain *cloog_loop_domain (CloogLoop *l)
-{
-  return l->_domain;
-}
-
-static inline void cloog_loop_set_domain (CloogLoop *l, CloogDomain *d)
-{
-  l->_domain = d;
-}
-
-#if 0
-static inline Value cloog_loop_stride (CloogLoop *l)
-{
-  return l->stride;
-}
-
-static inline void cloog_loop_set_stride (CloogLoop *l, Value v)
-{
-  value_assign (l->stride, v);
-}
-
-static inline void cloog_loop_clear_stride (CloogLoop *l)
-{
-  value_clear_c (l->stride);
-}
-
-static inline void cloog_loop_init_stride (CloogLoop *l)
-{
-  value_init_c (l->stride);
-}
-
-static inline void cloog_loop_set_si_stride (CloogLoop *l, int i)
-{
-  value_set_si (l->stride, i);
-}
-#endif
-
-static inline CloogBlock *cloog_loop_block (CloogLoop *l)
-{
-  return l->_block;
-}
-
-static inline void cloog_loop_set_block (CloogLoop *l, CloogBlock *b)
-{
-  l->_block = b;
-}
-
-static inline void *cloog_loop_usr (CloogLoop *l)
-{
-  return l->_usr;
-}
-
-static inline void cloog_loop_set_usr (CloogLoop *l, void *u)
-{
-  l->_usr = u;
-}
-
-static inline CloogLoop *cloog_loop_inner (CloogLoop *l)
-{
-  return l->_inner;
-}
-
-static inline void cloog_loop_set_inner (CloogLoop *l, CloogLoop *i)
-{
-  l->_inner = i;
-}
-
-static inline CloogLoop *cloog_loop_next (CloogLoop *l)
-{
-  return l->_next;
-}
-
-static inline CloogLoop **cloog_loop_next_addr (CloogLoop *l)
-{
-  return &l->_next;
-}
-
-static inline void cloog_loop_set_next (CloogLoop *l, CloogLoop *n)
-{
-  l->_next = n;
-}
 
 
 /******************************************************************************
@@ -173,17 +95,23 @@ void cloog_loop_free(CloogLoop *) ;
 /******************************************************************************
  *                              Reading functions                             *
  ******************************************************************************/
-CloogLoop * cloog_loop_read(FILE *, int, int) ;
+CloogLoop *cloog_loop_from_domain(CloogState *state, CloogDomain *domain,
+				  int number);
+CloogLoop * cloog_loop_read(CloogState *state,
+			    FILE * foo, int number, int nb_parameters);
 
 
 /******************************************************************************
  *                            Processing functions                            *
  ******************************************************************************/
-CloogLoop * cloog_loop_malloc(void);
-CloogLoop * cloog_loop_generate(CloogLoop *, CloogDomain *, int, int,
-                                int *, int, int, CloogOptions *) ;
-CloogLoop * cloog_loop_simplify(CloogLoop *, CloogDomain *, int, int) ;
-void cloog_loop_scatter(CloogLoop *, CloogDomain *) ;
+CloogLoop * cloog_loop_block(CloogLoop *loop, int *scaldims, int nb_scattdims);
+CloogLoop * cloog_loop_malloc(CloogState *state);
+CloogLoop *cloog_loop_generate(CloogLoop *loop, CloogDomain *context,
+	int level, int scalar, int *scaldims, int nb_scattdims,
+	CloogOptions *options);
+CloogLoop *cloog_loop_simplify(CloogLoop *loop, CloogDomain *context, int level,
+	int nb_scattdims, CloogOptions *options);
+void cloog_loop_scatter(CloogLoop *, CloogScattering *);
 
 
 #if defined(__cplusplus)

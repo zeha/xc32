@@ -24,10 +24,9 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
+
 #ifndef GCC_MIPS_MACHINE_FUNCTION_H
 #define GCC_MIPS_MACHINE_FUNCTION_H
-
-#include "hwint.h"
 
 #undef TRUE
 #undef FALSE
@@ -56,7 +55,7 @@ enum mips_function_type_tag { NON_INTERRUPT, SOFTWARE_CONTEXT_SAVE, SRS_CONTEXT_
                             };
 
 /* Information about a function's frame layout.  */
-struct mips_frame_info GTY(()) {
+struct GTY(())  mips_frame_info {
   /* The size of the frame in bytes.  */
   HOST_WIDE_INT total_size;
 
@@ -72,6 +71,8 @@ struct mips_frame_info GTY(()) {
 
   /* Bit X is set if the function saves or restores GPR X.  */
   unsigned int mask;
+  
+  /*PIC32MX */
   unsigned int savedgpr;
 
   /* Likewise FPR X.  */
@@ -92,32 +93,40 @@ struct mips_frame_info GTY(()) {
      needed.  */
   HOST_WIDE_INT gp_save_offset;
   HOST_WIDE_INT fp_save_offset;
+  HOST_WIDE_INT fcsr_save_offset;
   HOST_WIDE_INT acc_save_offset;
   HOST_WIDE_INT cop0_save_offset;
-
-  /* Likewise, but giving offsets from the bottom of the frame.  */
+    /* Likewise, but giving offsets from the bottom of the frame.  */
   HOST_WIDE_INT gp_sp_offset;
   HOST_WIDE_INT fp_sp_offset;
+  HOST_WIDE_INT fcsr_sp_offset;
   HOST_WIDE_INT acc_sp_offset;
   HOST_WIDE_INT cop0_sp_offset;
 
   /* Similar, but the value passed to _mcount.  */
   HOST_WIDE_INT ra_fp_offset;
 
-  /* The offset of arg_pointer_rtx from frame_pointer_rtx.  */
+  /* The offset of arg_pointer_rtx from the bottom of the frame.  */
   HOST_WIDE_INT arg_pointer_offset;
 
-  /* The offset of hard_frame_pointer_rtx from frame_pointer_rtx.  */
+  /* The offset of hard_frame_pointer_rtx from the bottom of the frame.  */
   HOST_WIDE_INT hard_frame_pointer_offset;
 
-  /* TODO: remove? */
+  /* Skip stack frame allocation if possible.  */
+  bool skip_stack_frame_allocation_p;
+
+  /*PIC32MX */
   /* true if interrupt context is saved */
   bool has_interrupt_context;
   /* true if hi and lo registers are saved */
   bool has_hilo_context;
 };
 
-struct GTY(()) machine_function  {
+struct GTY(())  machine_function {
+  /* The next floating-point condition-code register to allocate
+     for ISA_HAS_8CC targets, relative to ST_REG_FIRST.  */
+  unsigned int next_fcc;
+
   /* The register returned by mips16_gp_pseudo_reg; see there for details.  */
   rtx mips16_gp_pseudo_rtx;
 
@@ -133,7 +142,7 @@ struct GTY(()) machine_function  {
   unsigned int global_pointer;
 
   /* How many instructions it takes to load a label into $AT, or 0 if
-     this property hasn't yet been calculated.  */
+  this property hasn't yet been calculated.  */
   unsigned int load_label_num_insns;
 
   /* True if mips_adjust_insn_length should ignore an instruction's
@@ -164,8 +173,10 @@ struct GTY(()) machine_function  {
 
   /* True if this is an interrupt handler.  */
   bool interrupt_handler_p;
-  enum mips_function_type_tag current_function_type;
+
+  /*MCHP Added */
   int interrupt_priority;
+  enum mips_function_type_tag current_function_type;
 
   /* True if this is an interrupt handler that uses shadow registers.  */
   bool use_shadow_register_set_p;
@@ -175,7 +186,7 @@ struct GTY(()) machine_function  {
   bool keep_interrupts_masked_p;
 
   /* True if this is an interrupt handler that should use DERET
-     instead of ERET.  */
+   instead of ERET.  */
   bool use_debug_exception_return_p;
 
   /* True if some of the callees uses its frame header.  */
@@ -188,6 +199,6 @@ struct GTY(()) machine_function  {
   HOST_WIDE_INT initial_total_size;
 };
 
-
 #endif /*  GCC_MIPS_MACHINE_FUNCTION_H */
+
 

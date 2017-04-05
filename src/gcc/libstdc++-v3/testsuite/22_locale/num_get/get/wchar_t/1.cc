@@ -1,9 +1,8 @@
-// { dg-require-namedlocale "" }
+// { dg-require-namedlocale "de_DE" }
 
 // 2001-11-21 Benjamin Kosnik  <bkoz@redhat.com>
 
-// Copyright (C) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2009
-// Free Software Foundation
+// Copyright (C) 2001-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -63,7 +62,7 @@ void test01()
   // bool, simple
   iss.str(L"1");
   iterator_type os_it00 = iss.rdbuf();
-  iterator_type os_it01 = ng.get(os_it00, 0, iss, err, b1);
+  ng.get(os_it00, 0, iss, err, b1);
   VERIFY( b1 == true );
   VERIFY( err & ios_base::eofbit );
 

@@ -110,4 +110,51 @@ BEGIN
           GET_LINE (FILE, STR, LAST);
 
           BEGIN
-               IF STR(1..LAST) /= "D LIN
+               IF STR(1..LAST) /= "D LINE OF INPUT" THEN
+                    FAILED ("GET_LINE - REMAINDER OF PARTLY READ LINE");
+               END IF;
+          EXCEPTION
+               WHEN CONSTRAINT_ERROR =>
+                    FAILED ("CONSTRAINT_ERROR RAISED AFTER " &
+                            "GET_LINE - 2");
+          END;
+
+          GET_LINE (FILE, ITEM1, LAST);
+          IF LAST /= 6 THEN
+               FAILED ("INCORRECT VALUE FOR LAST PARAMETER - 1");
+          END IF;
+
+          WHILE NOT END_OF_LINE (FILE) LOOP
+               GET (FILE, CH);
+          END LOOP;
+
+          GET_LINE (FILE, ITEM1, LAST);
+          IF LAST /= 1 THEN
+               FAILED ("INCORRECT VALUE FOR LAST PARAMETER - 2");
+          END IF;
+
+          IF NOT END_OF_LINE (FILE) THEN
+               FAILED ("END_OF_LINE NOT TRUE");
+          END IF;
+
+          GET_LINE (FILE, ITEM2, LAST);
+          IF LAST /= 2 THEN
+               FAILED ("INCORRECT VALUE FOR LAST PARAMETER - 3");
+          END IF;
+
+          BEGIN
+               DELETE (FILE);
+          EXCEPTION
+               WHEN USE_ERROR =>
+                    NULL;
+          END;
+
+     EXCEPTION
+          WHEN INCOMPLETE =>
+               NULL;
+
+     END;
+
+     RESULT;
+
+END CE3604A;

@@ -1,6 +1,5 @@
 /* Common block and equivalence list handling
-   Copyright (C) 2000, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 2000-2013 Free Software Foundation, Inc.
    Contributed by Canqun Yang <canqun@nudt.edu.cn>
 
 This file is part of GCC.
@@ -85,7 +84,7 @@ along with GCC; see the file COPYING3.  If not see
    Each segment is described by a chain of segment_info structures.  Each
    segment_info structure describes the extents of a single variable within
    the segment.  This list is maintained in the order the elements are
-   positioned withing the segment.  If two elements have the same starting
+   positioned within the segment.  If two elements have the same starting
    offset the smaller will come first.  If they also have the same size their
    ordering is undefined. 
    
@@ -96,11 +95,8 @@ along with GCC; see the file COPYING3.  If not see
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
-#include "target.h"
-#include "tree.h"
-#include "toplev.h"
 #include "tm.h"
-#include "rtl.h"
+#include "tree.h"
 #include "gfortran.h"
 #include "trans.h"
 #include "trans-types.h"
@@ -135,7 +131,7 @@ get_segment_info (gfc_symbol * sym, HOST_WIDE_INT offset)
     gfc_conv_const_charlen (sym->ts.u.cl);
 
   /* Create the segment_info and fill it in.  */
-  s = (segment_info *) gfc_getmem (sizeof (segment_info));
+  s = XCNEW (segment_info);
   s->sym = sym;
   /* We will use this type when building the segment aggregate type.  */
   s->field = gfc_sym_type (sym);
@@ -157,14 +153,14 @@ copy_equiv_list_to_ns (segment_info *c)
   gfc_equiv_info *s;
   gfc_equiv_list *l;
 
-  l = (gfc_equiv_list *) gfc_getmem (sizeof (gfc_equiv_list));
+  l = XCNEW (gfc_equiv_list);
 
   l->next = c->sym->ns->equiv_lists;
   c->sym->ns->equiv_lists = l;
 
   for (f = c; f; f = f->next)
     {
-      s = (gfc_equiv_info *) gfc_getmem (sizeof (gfc_equiv_info));
+      s = XCNEW (gfc_equiv_info);
       s->next = l->equiv;
       l->equiv = s;
       s->sym = f->sym;
@@ -245,7 +241,7 @@ gfc_sym_mangled_common_id (gfc_common_head *com)
   strcpy (name, com->name);
 
   /* If we're suppose to do a bind(c).  */
-  if (com->is_bind_c == 1 && com->binding_label[0] != '\0')
+  if (com->is_bind_c == 1 && com->binding_label)
     return get_identifier (com->binding_label);
 
   if (strcmp (name, BLANK_COMMON_NAME) == 0)
@@ -311,7 +307,7 @@ build_field (segment_info *h, tree union_type, record_layout_info rli)
       addr = gfc_create_var_np (pvoid_type_node, h->sym->name);
       TREE_STATIC (len) = 1;
       TREE_STATIC (addr) = 1;
-      DECL_INITIAL (len) = build_int_cst (NULL_TREE, -2);
+      DECL_INITIAL (len) = build_int_cst (gfc_charlen_type_node, -2);
       gfc_set_decl_location (len, &h->sym->declared_at);
       gfc_set_decl_location (addr, &h->sym->declared_at);
       GFC_DECL_STRING_LEN (field) = pushdecl_top_level (len);
@@ -392,14 +388,20 @@ build_common_decl (gfc_common_head *com, tree union_type, bool is_init)
   if (decl != NULL_TREE)
     {
       tree size = TYPE_SIZE_UNIT (union_type);
+
+      /* Named common blocks of the same name shall be of the same size
+	 in all scoping units of a program in which they appear, but
+	 blank common blocks may be of different sizes.  */
+      if (!tree_int_cst_equal (DECL_SIZE_UNIT (decl), size)
+	  && strcmp (com->name, BLANK_COMMON_NAME))
+	gfc_warning ("Named COMMON block '%s' at %L shall be of the "
+		     "same size as elsewhere (%lu vs %lu bytes)", com->name,
+		     &com->where,
+		     (unsigned long) TREE_INT_CST_LOW (size),
+		     (unsigned long) TREE_INT_CST_LOW (DECL_SIZE_UNIT (decl)));
+
       if (tree_int_cst_lt (DECL_SIZE_UNIT (decl), size))
-        {
-	  /* Named common blocks of the same name shall be of the same size
-	     in all scoping units of a program in which they appear, but
-	     blank common blocks may be of different sizes.  */
-	  if (strcmp (com->name, BLANK_COMMON_NAME))
-	    gfc_warning ("Named COMMON block '%s' at %L shall be of the "
-			 "same size", com->name, &com->where);
+	{
 	  DECL_SIZE (decl) = TYPE_SIZE (union_type);
 	  DECL_SIZE_UNIT (decl) = size;
 	  DECL_MODE (decl) = TYPE_MODE (union_type);
@@ -434,7 +436,7 @@ build_common_decl (gfc_common_head *com, tree union_type, bool is_init)
 	     what C will do.  */
 	  tree field = NULL_TREE;
 	  field = TYPE_FIELDS (TREE_TYPE (decl));
-	  if (TREE_CHAIN (field) == NULL_TREE)
+	  if (DECL_CHAIN (field) == NULL_TREE)
 	    DECL_ALIGN (decl) = TYPE_ALIGN (TREE_TYPE (field));
 	}
       DECL_USER_ALIGN (decl) = 0;
@@ -483,7 +485,7 @@ get_init_field (segment_info *head, tree union_type, tree *field_init,
   tree tmp, field;
   tree init;
   unsigned char *data, *chk;
-  VEC(constructor_elt,gc) *v = NULL;
+  vec<constructor_elt, va_gc> *v = NULL;
 
   tree type = unsigned_char_type_node;
   int i;
@@ -507,8 +509,8 @@ get_init_field (segment_info *head, tree union_type, tree *field_init,
 
   /* Now absorb all the initializer data into a single vector,
      whilst checking for overlapping, unequal values.  */
-  data = (unsigned char*)gfc_getmem ((size_t)length);
-  chk = (unsigned char*)gfc_getmem ((size_t)length);
+  data = XCNEWVEC (unsigned char, (size_t)length);
+  chk = XCNEWVEC (unsigned char, (size_t)length);
 
   /* TODO - change this when default initialization is implemented.  */
   memset (data, '\0', (size_t)length);
@@ -523,8 +525,8 @@ get_init_field (segment_info *head, tree union_type, tree *field_init,
   for (i = 0; i < length; i++)
     CONSTRUCTOR_APPEND_ELT (v, NULL, build_int_cst (type, data[i]));
 
-  gfc_free (data);
-  gfc_free (chk);
+  free (data);
+  free (chk);
 
   /* Build a char[length] array to hold the initializers.  Much of what
      follows is borrowed from build_field, above.  */
@@ -610,7 +612,7 @@ create_common (gfc_common_head *com, segment_info *head, bool saw_equiv)
     {
       is_init = true;
       *field_link = field;
-      field_link = &TREE_CHAIN (field);
+      field_link = &DECL_CHAIN (field);
     }
 
   for (s = head; s; s = s->next)
@@ -619,7 +621,7 @@ create_common (gfc_common_head *com, segment_info *head, bool saw_equiv)
 
       /* Link the field into the type.  */
       *field_link = s->field;
-      field_link = &TREE_CHAIN (s->field);
+      field_link = &DECL_CHAIN (s->field);
 
       /* Has initial value.  */
       if (s->sym->value)
@@ -640,7 +642,7 @@ create_common (gfc_common_head *com, segment_info *head, bool saw_equiv)
   if (is_init)
     {
       tree ctor, tmp;
-      VEC(constructor_elt,gc) *v = NULL;
+      vec<constructor_elt, va_gc> *v = NULL;
 
       if (field != NULL_TREE && field_init != NULL_TREE)
 	CONSTRUCTOR_APPEND_ELT (v, field, field_init);
@@ -651,14 +653,16 @@ create_common (gfc_common_head *com, segment_info *head, bool saw_equiv)
 	      {
 		/* Add the initializer for this field.  */
 		tmp = gfc_conv_initializer (s->sym->value, &s->sym->ts,
-		    TREE_TYPE (s->field), s->sym->attr.dimension,
-		    s->sym->attr.pointer || s->sym->attr.allocatable);
+					    TREE_TYPE (s->field),
+					    s->sym->attr.dimension,
+					    s->sym->attr.pointer
+					    || s->sym->attr.allocatable, false);
 
 		CONSTRUCTOR_APPEND_ELT (v, s->field, tmp);
 	      }
 	  }
 
-      gcc_assert (!VEC_empty (constructor_elt, v));
+      gcc_assert (!v->is_empty ());
       ctor = build_constructor (union_type, v);
       TREE_CONSTANT (ctor) = 1;
       TREE_STATIC (ctor) = 1;
@@ -683,13 +687,13 @@ create_common (gfc_common_head *com, segment_info *head, bool saw_equiv)
 			     VAR_DECL, DECL_NAME (s->field),
 			     TREE_TYPE (s->field));
       TREE_STATIC (var_decl) = TREE_STATIC (decl);
-      TREE_USED (var_decl) = TREE_USED (decl);
+      /* Mark the variable as used in order to avoid warnings about
+	 unused variables.  */
+      TREE_USED (var_decl) = 1;
       if (s->sym->attr.use_assoc)
 	DECL_IGNORED_P (var_decl) = 1;
       if (s->sym->attr.target)
 	TREE_ADDRESSABLE (var_decl) = 1;
-      /* This is a fake variable just for debugging purposes.  */
-      TREE_ASM_WRITTEN (var_decl) = 1;
       /* Fake variables are not visible from other translation units. */
       TREE_PUBLIC (var_decl) = 0;
 
@@ -703,8 +707,9 @@ create_common (gfc_common_head *com, segment_info *head, bool saw_equiv)
 	gfc_add_decl_to_function (var_decl);
 
       SET_DECL_VALUE_EXPR (var_decl,
-			   fold_build3 (COMPONENT_REF, TREE_TYPE (s->field),
-					decl, s->field, NULL_TREE));
+			   fold_build3_loc (input_location, COMPONENT_REF,
+					    TREE_TYPE (s->field),
+					    decl, s->field, NULL_TREE));
       DECL_HAS_VALUE_EXPR_P (var_decl) = 1;
       GFC_DECL_COMMON_OR_EQUIV (var_decl) = 1;
 
@@ -719,7 +724,7 @@ create_common (gfc_common_head *com, segment_info *head, bool saw_equiv)
       s->sym->backend_decl = var_decl;
 
       next_s = s->next;
-      gfc_free (s);
+      free (s);
     }
 }
 
@@ -1060,14 +1065,12 @@ translate_common (gfc_common_head *common, gfc_symbol *var_list)
   HOST_WIDE_INT offset;
   HOST_WIDE_INT current_offset;
   unsigned HOST_WIDE_INT align;
-  unsigned HOST_WIDE_INT max_align;
   bool saw_equiv;
 
   common_segment = NULL;
   offset = 0;
   current_offset = 0;
   align = 1;
-  max_align = 1;
   saw_equiv = false;
 
   /* Add symbols to the segment.  */
@@ -1110,7 +1113,7 @@ translate_common (gfc_common_head *common, gfc_symbol *var_list)
 	  if (gfc_option.flag_align_commons)
 	    offset = align_segment (&align);
 
-	  if (offset & (max_align - 1))
+	  if (offset)
 	    {
 	      /* The required offset conflicts with previous alignment
 		 requirements.  Insert padding immediately before this
@@ -1133,8 +1136,6 @@ translate_common (gfc_common_head *common, gfc_symbol *var_list)
 	  /* Apply the offset to the new segments.  */
 	  apply_segment_offset (current_segment, offset);
 	  current_offset += offset;
-	  if (max_align < align)
-	    max_align = align;
 
 	  /* Add the new segments to the common block.  */
 	  common_segment = add_segments (common_segment, current_segment);
@@ -1154,11 +1155,11 @@ translate_common (gfc_common_head *common, gfc_symbol *var_list)
   if (common_segment->offset != 0 && gfc_option.warn_align_commons)
     {
       if (strcmp (common->name, BLANK_COMMON_NAME))
-	gfc_warning ("COMMON '%s' at %L requires %d bytes of padding at start; "
+	gfc_warning ("COMMON '%s' at %L requires %d bytes of padding; "
 		     "reorder elements or use -fno-align-commons",
 		     common->name, &common->where, (int)common_segment->offset);
       else
-	gfc_warning ("COMMON at %L requires %d bytes of padding at start; "
+	gfc_warning ("COMMON at %L requires %d bytes of padding; "
 		     "reorder elements or use -fno-align-commons",
 		     &common->where, (int)common_segment->offset);
     }

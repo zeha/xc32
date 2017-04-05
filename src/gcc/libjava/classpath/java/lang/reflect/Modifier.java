@@ -1,5 +1,5 @@
 /* java.lang.reflect.Modifier
-   Copyright (C) 1998, 1999, 2001, 2002, 2005, 2008  Free Software Foundation, Inc.
+   Copyright (C) 1998, 1999, 2001, 2002, 2005, 2008, 2012  Free Software Foundation, Inc.
 
 This file is part of GNU Classpath.
 
@@ -7,7 +7,7 @@ GNU Classpath is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2, or (at your option)
 any later version.
- 
+
 GNU Classpath is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
@@ -300,6 +300,46 @@ public class Modifier
   }
 
   /**
+   * @since 1.7
+   */
+  public static int classModifiers()
+  {
+    return PUBLIC | PROTECTED | PRIVATE | STATIC | ABSTRACT | FINAL | STRICT;
+  }
+
+  /**
+   * @since 1.7
+   */
+  public static int interfaceModifiers()
+  {
+    return PUBLIC | PROTECTED | PRIVATE | STATIC | ABSTRACT | STRICT;
+  }
+
+  /**
+   * @since 1.7
+   */
+  public static int constructorModifiers()
+  {
+    return PUBLIC | PROTECTED | PRIVATE;
+  }
+
+  /**
+   * @since 1.7
+   */
+  public static int methodModifiers()
+  {
+    return PUBLIC | PROTECTED | PRIVATE | STATIC | ABSTRACT | FINAL | STRICT | SYNCHRONIZED | NATIVE;
+  }
+
+  /**
+   * @since 1.7
+   */
+  public static int fieldModifiers()
+  {
+    return PUBLIC | PROTECTED | PRIVATE | STATIC | FINAL | TRANSIENT | VOLATILE;
+  }
+
+  /**
    * Get a string representation of all the modifiers represented by the
    * given int. The keywords are printed in this order:
    * <code>&lt;public|protected|private&gt; abstract static final transient
@@ -345,7 +385,7 @@ public class Modifier
       r.append("strictfp ");
     if (isInterface(mod))
       r.append("interface ");
-    
+
     // Trim trailing space.
     if ((mod & ALL_FLAGS) != 0)
       r.setLength(r.length() - 1);

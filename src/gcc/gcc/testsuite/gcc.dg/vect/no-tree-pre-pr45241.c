@@ -1,6 +1,6 @@
 /* PR tree-optimization/45241 */
 /* { dg-do compile } */
-/* { dg-options "-fno-tree-vectorize" } */
+/* { dg-options "-ftree-vectorize" } */
 
 int
 foo (short x)

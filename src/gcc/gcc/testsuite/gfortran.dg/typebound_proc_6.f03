@@ -59,7 +59,7 @@ MODULE testmod
     PROCEDURE, NOPASS :: pure2 => proc_sub ! { dg-error "must also be PURE" }
     PROCEDURE, NOPASS :: nonpure => proc_pure ! Ok, overridden not pure.
     PROCEDURE, NOPASS :: elemental1 => proc_elemental ! Ok, both elemental.
-    PROCEDURE, NOPASS :: elemental2 => proc_nonelem ! { dg-error "must also be ELEMENTAL" }
+    PROCEDURE, NOPASS :: elemental2 => proc_nonelem ! { dg-error "must also be" }
     PROCEDURE, NOPASS :: nonelem1 => proc_nonelem ! Ok, non elemental.
     PROCEDURE, NOPASS :: nonelem2 => proc_elemental ! { dg-error "must not be ELEMENTAL" }
 
@@ -72,7 +72,7 @@ MODULE testmod
     PROCEDURE, NOPASS :: subroutine2 => proc_intfunc ! { dg-error "must also be a SUBROUTINE" }
     PROCEDURE, NOPASS :: intfunction1 => proc_intfunc ! Ok, matching functions.
     PROCEDURE, NOPASS :: intfunction2 => proc_sub ! { dg-error "must also be a FUNCTION" }
-    PROCEDURE, NOPASS :: intfunction3 => proc_realfunc ! { dg-error "matching result types" }
+    PROCEDURE, NOPASS :: intfunction3 => proc_realfunc ! { dg-error "Type/rank mismatch in function result" }
 
     ! For access-based checks.
     PROCEDURE, NOPASS, PUBLIC :: priv => proc_sub ! Ok, increases visibility.
@@ -89,7 +89,7 @@ MODULE testmod
     ! For corresponding dummy arguments.
     PROCEDURE, PASS :: corresp1 => proc_tmeint ! Ok.
     PROCEDURE, PASS :: corresp2 => proc_tmeintx ! { dg-error "should be named 'a'" }
-    PROCEDURE, PASS :: corresp3 => proc_tmereal ! { dg-error "Types mismatch for dummy argument 'a'" }
+    PROCEDURE, PASS :: corresp3 => proc_tmereal ! { dg-error "Type/rank mismatch in argument 'a'" }
 
   END TYPE t
 
@@ -176,5 +176,3 @@ CONTAINS
   END SUBROUTINE proc_tmereal
 
 END MODULE testmod
-
-! { dg-final { cleanup-modules "testmod" } }

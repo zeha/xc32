@@ -1,12 +1,13 @@
 /* { dg-do compile } */
+/* { dg-options "-msse2" { target { i?86-*-* x86_64-*-* } } } */
 
 /* Test overload resolution of vector types.
    From Janis Johnson and Paolo Bonzini, based on PR/16882 */
 
 #define vector __attribute__((vector_size(16)))
 
-vector signed int vld (int a1, const vector signed int *a2) { return *a2; } /* { dg-message "vld" } */
-vector signed short vld (int a1, const vector signed short *a2) { return *a2; } /* { dg-message "vld" } */
+vector signed int vld (int a1, const vector signed int *a2) { return *a2; } /* { dg-message "vld|no known conversion" } */
+vector signed short vld (int a1, const vector signed short *a2) { return *a2; } /* { dg-message "vld|no known conversion" } */
 
 extern int i;
 extern vector signed short vss;
@@ -17,6 +18,7 @@ extern const vector signed short *cvssp;
 void foo ()
 {
   vss = vld(i, vscp);        /* { dg-error "no matching function for call" } */
+  // { dg-message "candidate" "candidate note" { target *-*-* } 20 }
   vss = vld(i, vssp);
   vss = vld(i, cvssp);
 }

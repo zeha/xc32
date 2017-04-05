@@ -70,9 +70,9 @@ public final class Matcher implements MatchResult
    * The end of the region of the input on which to match.
    */
   private int regionEnd;
-  
+
   /**
-   * True if the match process should look beyond the 
+   * True if the match process should look beyond the
    * region marked by regionStart to regionEnd when
    * performing lookAhead, lookBehind and boundary
    * matching.
@@ -101,7 +101,29 @@ public final class Matcher implements MatchResult
     transparentBounds = false;
     anchoringBounds = 0;
   }
-  
+
+  /**
+   * Changes the pattern used by the {@link Matcher} to
+   * the one specified.  Existing match information is lost,
+   * but the input and the matcher's position within it is
+   * retained.
+   *
+   * @param newPattern the new pattern to use.
+   * @return this matcher.
+   * @throws IllegalArgumentException if {@code newPattern} is
+   *                                  {@code null}.
+   * @since 1.5
+   */
+  public Matcher usePattern(Pattern newPattern)
+  {
+    if (newPattern == null)
+      throw new IllegalArgumentException("The new pattern was null.");
+    pattern = newPattern;
+    match = null;
+
+    return this;
+  }
+
   /**
    * @param sb The target string buffer
    * @param replacement The replacement string
@@ -116,9 +138,9 @@ public final class Matcher implements MatchResult
   {
     assertMatchOp();
     sb.append(input.subSequence(appendPosition,
-				match.getStartIndex()).toString());
+                                match.getStartIndex()).toString());
     sb.append(RE.getReplacement(replacement, match,
-	RE.REG_REPLACE_USE_BACKSLASHESCAPE));
+        RE.REG_REPLACE_USE_BACKSLASHESCAPE));
     appendPosition = match.getEndIndex();
     return this;
   }
@@ -131,7 +153,7 @@ public final class Matcher implements MatchResult
     sb.append(input.subSequence(appendPosition, input.length()).toString());
     return sb;
   }
- 
+
   /**
    * @exception IllegalStateException If no match has yet been attempted,
    * or if the previous match operation failed
@@ -142,7 +164,7 @@ public final class Matcher implements MatchResult
     assertMatchOp();
     return match.getEndIndex();
   }
-  
+
   /**
    * @param group The index of a capturing group in this matcher's pattern
    *
@@ -157,7 +179,7 @@ public final class Matcher implements MatchResult
     assertMatchOp();
     return match.getEndIndex(group);
   }
- 
+
   public boolean find ()
   {
     boolean first = (match == null);
@@ -165,28 +187,34 @@ public final class Matcher implements MatchResult
       match = pattern.getRE().getMatch(inputCharIndexed, position, anchoringBounds);
     else
       match = pattern.getRE().getMatch(input.subSequence(regionStart, regionEnd),
-				       position, anchoringBounds);
+                                       position, anchoringBounds);
     if (match != null)
       {
-	int endIndex = match.getEndIndex();
-	// Are we stuck at the same position?
-	if (!first && endIndex == position)
-	  {	    
-	    match = null;
-	    // Not at the end of the input yet?
-	    if (position < input.length() - 1)
-	      {
-		position++;
-		return find(position);
-	      }
-	    else
-	      return false;
-	  }
-	position = endIndex;
-	return true;
+        int endIndex = match.getEndIndex();
+        // Is the match within input limits?
+        if (endIndex > input.length())
+          {
+            match = null;
+            return false;
+          }
+        // Are we stuck at the same position?
+        if (!first && endIndex == position)
+          {
+            match = null;
+            // Not at the end of the input yet?
+            if (position < input.length() - 1)
+              {
+                position++;
+                return find(position);
+              }
+            else
+              return false;
+          }
+        position = endIndex;
+        return true;
       }
     return false;
-  } 
+  }
 
   /**
    * @param start The index to start the new pattern matching
@@ -200,15 +228,15 @@ public final class Matcher implements MatchResult
       match = pattern.getRE().getMatch(inputCharIndexed, start, anchoringBounds);
     else
       match = pattern.getRE().getMatch(input.subSequence(regionStart, regionEnd),
-				       start, anchoringBounds);
+                                       start, anchoringBounds);
     if (match != null)
       {
-	position = match.getEndIndex();
-	return true;
+        position = match.getEndIndex();
+        return true;
       }
     return false;
   }
- 
+
   /**
    * @exception IllegalStateException If no match has yet been attempted,
    * or if the previous match operation failed
@@ -218,7 +246,7 @@ public final class Matcher implements MatchResult
     assertMatchOp();
     return match.toString();
   }
-  
+
   /**
    * @param group The index of a capturing group in this matcher's pattern
    *
@@ -242,7 +270,7 @@ public final class Matcher implements MatchResult
     reset();
     // Semantics might not quite match
     return pattern.getRE().substitute(input, replacement, position,
-	RE.REG_REPLACE_USE_BACKSLASHESCAPE);
+        RE.REG_REPLACE_USE_BACKSLASHESCAPE);
   }
 
   /**
@@ -252,36 +280,36 @@ public final class Matcher implements MatchResult
   {
     reset();
     return pattern.getRE().substituteAll(input, replacement, position,
-	RE.REG_REPLACE_USE_BACKSLASHESCAPE);
+        RE.REG_REPLACE_USE_BACKSLASHESCAPE);
   }
-  
+
   public int groupCount ()
   {
     return pattern.getRE().getNumSubs();
   }
- 
+
   public boolean lookingAt ()
   {
     if (transparentBounds || (regionStart == 0 && regionEnd == input.length()))
       match = pattern.getRE().getMatch(inputCharIndexed, regionStart,
-				       anchoringBounds|RE.REG_FIX_STARTING_POSITION|RE.REG_ANCHORINDEX);
+                                       anchoringBounds|RE.REG_FIX_STARTING_POSITION|RE.REG_ANCHORINDEX);
     else
       match = pattern.getRE().getMatch(input.subSequence(regionStart, regionEnd), 0,
-				       anchoringBounds|RE.REG_FIX_STARTING_POSITION);
+                                       anchoringBounds|RE.REG_FIX_STARTING_POSITION);
     if (match != null)
       {
-	if (match.getStartIndex() == 0)
-	  {
-	    position = match.getEndIndex();
-	    return true;
-	  }
-	match = null;
+        if (match.getStartIndex() == 0)
+          {
+            position = match.getEndIndex();
+            return true;
+          }
+        match = null;
       }
     return false;
   }
-  
+
   /**
-   * Attempts to match the entire input sequence against the pattern. 
+   * Attempts to match the entire input sequence against the pattern.
    *
    * If the match succeeds then more information can be obtained via the
    * start, end, and group methods.
@@ -294,23 +322,23 @@ public final class Matcher implements MatchResult
   {
     if (transparentBounds || (regionStart == 0 && regionEnd == input.length()))
       match = pattern.getRE().getMatch(inputCharIndexed, regionStart,
-				       anchoringBounds|RE.REG_TRY_ENTIRE_MATCH|RE.REG_FIX_STARTING_POSITION|RE.REG_ANCHORINDEX);
+                                       anchoringBounds|RE.REG_TRY_ENTIRE_MATCH|RE.REG_FIX_STARTING_POSITION|RE.REG_ANCHORINDEX);
     else
       match = pattern.getRE().getMatch(input.subSequence(regionStart, regionEnd), 0,
-				       anchoringBounds|RE.REG_TRY_ENTIRE_MATCH|RE.REG_FIX_STARTING_POSITION);
+                                       anchoringBounds|RE.REG_TRY_ENTIRE_MATCH|RE.REG_FIX_STARTING_POSITION);
     if (match != null)
       {
-	if (match.getStartIndex() == 0)
-	  {
-	    position = match.getEndIndex();
-	    if (position == input.length())
-	        return true;
-	  }
-	match = null;
+        if (match.getStartIndex() == 0)
+          {
+            position = match.getEndIndex();
+            if (position == input.length())
+                return true;
+          }
+        match = null;
       }
     return false;
   }
-  
+
   /**
    * Returns the Pattern that is interpreted by this Matcher
    */
@@ -318,7 +346,7 @@ public final class Matcher implements MatchResult
   {
     return pattern;
   }
-  
+
   /**
    * Resets the internal state of the matcher, including
    * resetting the region to its default state of encompassing
@@ -340,7 +368,7 @@ public final class Matcher implements MatchResult
     appendPosition = 0;
     return this;
   }
-  
+
   /**
    * Resets the internal state of the matcher, including
    * resetting the region to its default state of encompassing
@@ -360,7 +388,7 @@ public final class Matcher implements MatchResult
     this.inputCharIndexed = RE.makeCharIndexed(input, 0);
     return reset();
   }
-  
+
   /**
    * @return the index of a capturing group in this matcher's pattern
    *
@@ -493,7 +521,7 @@ public final class Matcher implements MatchResult
   {
     return regionStart;
   }
-  
+
   /**
    * The end of the region on which to perform matches (exclusive).
    *
@@ -603,8 +631,32 @@ public final class Matcher implements MatchResult
   public MatchResult toMatchResult()
   {
     Matcher snapshot = new Matcher(pattern, input);
-    snapshot.match = (REMatch) match.clone();
+    if (match != null)
+      snapshot.match = (REMatch) match.clone();
     return snapshot;
+  }
+
+  /**
+   * Returns a literalized string of s where characters {@code $} and {@code
+   * \\} are escaped.
+   *
+   * @param s the string to literalize.
+   * @return the literalized string.
+   * @since 1.5
+   */
+  public static String quoteReplacement(String s)
+  {
+    if (s == null)
+      throw new NullPointerException();
+    CPStringBuilder sb = new CPStringBuilder();
+    for (int i = 0; i < s.length(); i++)
+    {
+      char ch = s.charAt(i);
+      if (ch == '$' || ch == '\\')
+        sb.append('\\');
+      sb.append(ch);
+    }
+    return sb.toString();
   }
 
 }

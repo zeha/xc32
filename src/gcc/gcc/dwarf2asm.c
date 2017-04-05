@@ -1,6 +1,5 @@
 /* Dwarf2 assembler output helper routines.
-   Copyright (C) 2001, 2002, 2003, 2004, 2005, 2007, 2008, 2009, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 2001-2013 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -34,12 +33,6 @@ along with GCC; see the file COPYING3.  If not see
 #include "ggc.h"
 #include "tm_p.h"
 
-
-/* How to start an assembler comment.  */
-#ifndef ASM_COMMENT_START
-#define ASM_COMMENT_START ";#"
-#endif
-
 
 /* Output an unaligned integer with the given value and size.  Prefer not
    to print a newline, since the caller may want to add a comment.  */
@@ -53,8 +46,7 @@ dw2_assemble_integer (int size, rtx x)
     {
       fputs (op, asm_out_file);
       if (CONST_INT_P (x))
-	fprintf (asm_out_file, HOST_WIDE_INT_PRINT_HEX,
-		 (unsigned HOST_WIDE_INT) INTVAL (x));
+	fprint_whex (asm_out_file, (unsigned HOST_WIDE_INT) INTVAL (x));
       else
 	output_addr_const (asm_out_file, x);
     }
@@ -80,15 +72,31 @@ dw2_asm_output_data_raw (int size, unsigned HOST_WIDE_INT value)
   if (BYTES_BIG_ENDIAN)
     {
       for (i = size - 1; i > 0; --i)
-	fprintf (asm_out_file, "0x%x,", bytes[i]);
-      fprintf (asm_out_file, "0x%x", bytes[0]);
+	fprintf (asm_out_file, "%#x,", bytes[i]);
+      fprintf (asm_out_file, "%#x", bytes[0]);
     }
   else
     {
       for (i = 0; i < size - 1; ++i)
-	fprintf (asm_out_file, "0x%x,", bytes[i]);
-      fprintf (asm_out_file, "0x%x", bytes[i]);
+	fprintf (asm_out_file, "%#x,", bytes[i]);
+      fprintf (asm_out_file, "%#x", bytes[i]);
     }
+}
+
+/* Output a comment.  */
+void
+dw2_asm_output_comment (const char *comment, ...)
+{
+  va_list ap;
+
+  va_start (ap, comment);
+
+  if (flag_debug_asm && comment)
+    {
+      fprintf (asm_out_file, "\t%s ", ASM_COMMENT_START);
+      vfprintf (asm_out_file, comment, ap);
+    }
+  fputc ('\n', asm_out_file);
 }
 
 /* Output an immediate constant in a given SIZE in bytes.  */
@@ -106,16 +114,19 @@ dw2_asm_output_data (int size, unsigned HOST_WIDE_INT value,
     value &= ~(~(unsigned HOST_WIDE_INT) 0 << (size * 8));
 
   if (op)
-    fprintf (asm_out_file, "%s" HOST_WIDE_INT_PRINT_HEX, op, value);
+    {
+      fputs (op, asm_out_file);
+      fprint_whex (asm_out_file, value);
+    }
   else
     assemble_integer (GEN_INT (value), size, BITS_PER_UNIT, 1);
 
   if (flag_debug_asm && comment)
     {
-      fprintf (asm_out_file, "\t%s ", ASM_COMMENT_START);
+      fputs ("\t" ASM_COMMENT_START " ", asm_out_file);
       vfprintf (asm_out_file, comment, ap);
     }
-  fputc ('\n', asm_out_file);
+  putc ('\n', asm_out_file);
 
   va_end (ap);
 }
@@ -142,12 +153,42 @@ dw2_asm_output_delta (int size, const char *lab1, const char *lab2,
 				       gen_rtx_SYMBOL_REF (Pmode, lab1),
 				       gen_rtx_SYMBOL_REF (Pmode, lab2)));
 #endif
+
   if (flag_debug_asm && comment)
     {
       fprintf (asm_out_file, "\t%s ", ASM_COMMENT_START);
       vfprintf (asm_out_file, comment, ap);
     }
   fputc ('\n', asm_out_file);
+
+  va_end (ap);
+}
+
+/* Output the difference between two symbols in instruction units
+   in a given size.  */
+
+void
+dw2_asm_output_vms_delta (int size ATTRIBUTE_UNUSED,
+			  const char *lab1, const char *lab2,
+			  const char *comment, ...)
+{
+  va_list ap;
+
+  va_start (ap, comment);
+
+#ifndef ASM_OUTPUT_DWARF_VMS_DELTA
+  /* VMS Delta is only special on ia64-vms, but this function also gets
+     called on alpha-vms so it has to do something sane.  */
+  dw2_asm_output_delta (size, lab1, lab2, comment);
+#else
+  ASM_OUTPUT_DWARF_VMS_DELTA (asm_out_file, size, lab1, lab2);
+  if (flag_debug_asm && comment)
+    {
+      fprintf (asm_out_file, "\t%s ", ASM_COMMENT_START);
+      vfprintf (asm_out_file, comment, ap);
+    }
+  fputc ('\n', asm_out_file);
+#endif
 
   va_end (ap);
 }
@@ -285,11 +326,7 @@ dw2_asm_output_nstring (const char *str, size_t orig_len,
 
   if (flag_debug_asm && comment)
     {
-#ifdef _BUILD_C30_
-      fputs ("\t.asciz \"", asm_out_file);
-#else
       fputs ("\t.ascii \"", asm_out_file);
-#endif
       for (i = 0; i < len; i++)
 	{
 	  int c = str[i];
@@ -300,11 +337,7 @@ dw2_asm_output_nstring (const char *str, size_t orig_len,
 	  else
 	    fprintf (asm_out_file, "\\%o", c);
 	}
-#ifdef _BUILD_C30_
-      fprintf (asm_out_file, "\"\t%s ", ASM_COMMENT_START);
-#else
       fprintf (asm_out_file, "\\0\"\t%s ", ASM_COMMENT_START);
-#endif
       vfprintf (asm_out_file, comment, ap);
       fputc ('\n', asm_out_file);
     }
@@ -557,7 +590,7 @@ dw2_asm_output_data_uleb128_raw (unsigned HOST_WIDE_INT value)
 	/* More bytes to follow.  */
 	byte |= 0x80;
 
-      fprintf (asm_out_file, "0x%x", byte);
+      fprintf (asm_out_file, "%#x", byte);
       if (value == 0)
 	break;
       fputc (',', asm_out_file);
@@ -575,7 +608,8 @@ dw2_asm_output_data_uleb128 (unsigned HOST_WIDE_INT value,
   va_start (ap, comment);
 
 #ifdef HAVE_AS_LEB128
-  fprintf (asm_out_file, "\t.uleb128 " HOST_WIDE_INT_PRINT_HEX , value);
+  fputs ("\t.uleb128 ", asm_out_file);
+  fprint_whex (asm_out_file, value);
 
   if (flag_debug_asm && comment)
     {
@@ -599,7 +633,7 @@ dw2_asm_output_data_uleb128 (unsigned HOST_WIDE_INT value,
 
 	if (byte_op)
 	  {
-	    fprintf (asm_out_file, "0x%x", byte);
+	    fprintf (asm_out_file, "%#x", byte);
 	    if (work != 0)
 	      fputc (',', asm_out_file);
 	  }
@@ -620,7 +654,7 @@ dw2_asm_output_data_uleb128 (unsigned HOST_WIDE_INT value,
     }
   }
 #endif
-  fputc ('\n', asm_out_file);
+  putc ('\n', asm_out_file);
 
   va_end (ap);
 }
@@ -641,7 +675,7 @@ dw2_asm_output_data_sleb128_raw (HOST_WIDE_INT value)
       if (more)
 	byte |= 0x80;
 
-      fprintf (asm_out_file, "0x%x", byte);
+      fprintf (asm_out_file, "%#x", byte);
       if (!more)
 	break;
       fputc (',', asm_out_file);
@@ -686,7 +720,7 @@ dw2_asm_output_data_sleb128 (HOST_WIDE_INT value,
 
 	if (byte_op)
 	  {
-	    fprintf (asm_out_file, "0x%x", byte);
+	    fprintf (asm_out_file, "%#x", byte);
 	    if (more)
 	      fputc (',', asm_out_file);
 	  }
@@ -724,7 +758,7 @@ dw2_asm_output_delta_uleb128 (const char *lab1 ATTRIBUTE_UNUSED,
 #ifdef HAVE_AS_LEB128
   fputs ("\t.uleb128 ", asm_out_file);
   assemble_name (asm_out_file, lab1);
-  fputc ('-', asm_out_file);
+  putc ('-', asm_out_file);
   assemble_name (asm_out_file, lab2);
 #else
   gcc_unreachable ();
@@ -740,6 +774,99 @@ dw2_asm_output_delta_uleb128 (const char *lab1 ATTRIBUTE_UNUSED,
   va_end (ap);
 }
 
+/* Output a compact EH region length entry. */
+void
+dw2_asm_output_compact_region_length (const char *lab1 ATTRIBUTE_UNUSED,
+				      const char *lab2 ATTRIBUTE_UNUSED,
+				      bool setbit0,
+				      const char *comment, ...)
+{
+  va_list ap;
+
+  va_start (ap, comment);
+
+#ifdef HAVE_AS_LEB128
+  fputs ("\t.uleb128 (", asm_out_file);
+  assemble_name (asm_out_file, lab1);
+  fputs ("-", asm_out_file);
+  assemble_name (asm_out_file, lab2);
+  fputs (")", asm_out_file);
+  if (setbit0)
+    fputs ("|1", asm_out_file);
+#else
+  gcc_unreachable ();
+#endif
+
+  if (flag_debug_asm && comment)
+    {
+      fprintf (asm_out_file, "\t%s ", ASM_COMMENT_START);
+      vfprintf (asm_out_file, comment, ap);
+    }
+  fputc ('\n', asm_out_file);
+
+  va_end (ap);
+}
+
+/* Output a compact EH landing pad entry.  */
+
+void
+dw2_asm_output_compact_landing_pad (const char *lab1 ATTRIBUTE_UNUSED,
+				    const char *lab2 ATTRIBUTE_UNUSED,
+				    const char *comment, ...)
+{
+  va_list ap;
+
+  va_start (ap, comment);
+
+#ifdef HAVE_AS_LEB128
+  fputs ("\t.sleb128 (", asm_out_file);
+  assemble_name (asm_out_file, lab1);
+  fputs ("-(", asm_out_file);
+  assemble_name (asm_out_file, lab2);
+  fputs ("))", asm_out_file);
+#else
+  gcc_unreachable ();
+#endif
+
+  if (flag_debug_asm && comment)
+    {
+      fprintf (asm_out_file, "\t%s ", ASM_COMMENT_START);
+      vfprintf (asm_out_file, comment, ap);
+    }
+  fputc ('\n', asm_out_file);
+
+  va_end (ap);
+}
+
+/* Output a compact EH action/chain pair.  */
+
+void
+dw2_asm_output_compact_ac_pair_sleb128 (int action, int chain_value,
+					const char *comment, ...)
+{
+  va_list ap;
+
+  va_start (ap, comment);
+
+#ifdef HAVE_AS_LEB128
+  fputs ("\t.sleb128 ", asm_out_file);
+  fputc ('(', asm_out_file);
+  fprintf (asm_out_file, "%#x", chain_value);
+  fputs ("<<2)|", asm_out_file);
+  fprintf (asm_out_file, "%#x", action);
+#else
+  gcc_unreachable ();
+#endif
+
+  if (flag_debug_asm && comment)
+    {
+      fprintf (asm_out_file, "\t%s ", ASM_COMMENT_START);
+      vfprintf (asm_out_file, comment, ap);
+    }
+  fputc ('\n', asm_out_file);
+
+  va_end (ap);
+}
 #if 0
 
 void
@@ -754,7 +881,7 @@ dw2_asm_output_delta_sleb128 (const char *lab1 ATTRIBUTE_UNUSED,
 #ifdef HAVE_AS_LEB128
   fputs ("\t.sleb128 ", asm_out_file);
   assemble_name (asm_out_file, lab1);
-  fputc ('-', asm_out_file);
+  putc ('-', asm_out_file);
   assemble_name (asm_out_file, lab2);
 #else
   gcc_unreachable ();
@@ -777,8 +904,8 @@ static GTY((param1_is (char *), param2_is (tree))) splay_tree indirect_pool;
 
 static GTY(()) int dw2_const_labelno;
 
-#if defined(HAVE_GAS_HIDDEN) && defined(SUPPORTS_ONE_ONLY)
-# define USE_LINKONCE_INDIRECT 1
+#if defined(HAVE_GAS_HIDDEN)
+# define USE_LINKONCE_INDIRECT (SUPPORTS_ONE_ONLY)
 #else
 # define USE_LINKONCE_INDIRECT 0
 #endif
@@ -824,7 +951,9 @@ dw2_force_const_mem (rtx x, bool is_public)
   if (! indirect_pool)
     /* We use strcmp, rather than just comparing pointers, so that the
        sort order will not depend on the host system.  */
-    indirect_pool = splay_tree_new_ggc (splay_tree_compare_strings);
+    indirect_pool = splay_tree_new_ggc (splay_tree_compare_strings,
+					ggc_alloc_splay_tree_str_tree_node_splay_tree_s,
+					ggc_alloc_splay_tree_str_tree_node_splay_tree_node_s);
 
   gcc_assert (GET_CODE (x) == SYMBOL_REF);
 
@@ -839,30 +968,29 @@ dw2_force_const_mem (rtx x, bool is_public)
 
       if (is_public && USE_LINKONCE_INDIRECT)
 	{
-	  char *ref_name = XALLOCAVEC (char, strlen (str) + sizeof "DW.ref." + 1);
-
+	  char *ref_name = XALLOCAVEC (char, strlen (str) + sizeof "DW.ref.");
 #if defined(_BUILD_C32_)
-	  /* Ensure that Microchip flags remain at the beginning of the section name */
-	  char *first_extended_flag, *last_extended_flag;
-	  char *stripped = XALLOCAVEC (char, strlen (str)+1);
-	  memset (stripped, 0, strlen (str)+1);
-	  first_extended_flag = strchr(str,MCHP_EXTENDED_FLAG[0]);
-	  if (first_extended_flag)
-	    {
-	      last_extended_flag = strrchr(str,MCHP_EXTENDED_FLAG[0]);
-	    }
-	  if (first_extended_flag && last_extended_flag)
-	    {
-	      strncpy (stripped, first_extended_flag, abs(last_extended_flag-first_extended_flag)+1);
-	      stripped[abs(last_extended_flag-first_extended_flag)+1] = '\0';
-	      sprintf (ref_name, "%s" "DW.ref.%s", stripped, last_extended_flag+1);
-	    }
-	  else
-	    {
-	      sprintf (ref_name, "DW.ref.%s", str);
-	    }
+          /* Ensure that Microchip flags remain at the beginning of the section name */
+          char *first_extended_flag, *last_extended_flag;
+          char *stripped = XALLOCAVEC (char, strlen (str)+1);
+          memset (stripped, 0, strlen (str)+1);
+          first_extended_flag = strchr((char *)str,MCHP_EXTENDED_FLAG[0]);
+          if (first_extended_flag)
+            {
+              last_extended_flag = strrchr((char *)str,MCHP_EXTENDED_FLAG[0]);
+            }
+          if (first_extended_flag && last_extended_flag)
+            {
+              strncpy (stripped, first_extended_flag, abs(last_extended_flag-first_extended_flag)+1);
+              stripped[abs(last_extended_flag-first_extended_flag)+1] = '\0';
+              sprintf (ref_name, "%s" "DW.ref.%s", stripped, last_extended_flag+1);
+            }
+          else
+            {
+              sprintf (ref_name, "DW.ref.%s", str);
+            }
 #else
-	  sprintf (ref_name, "DW.ref.%s", str);
+          sprintf (ref_name, "DW.ref.%s", str);
 #endif
 	  gcc_assert (!maybe_get_identifier (ref_name));
 	  decl_id = get_identifier (ref_name);
@@ -904,6 +1032,7 @@ dw2_output_indirect_constant_1 (splay_tree_node node,
   id = (tree) node->value;
 
   decl = build_decl (UNKNOWN_LOCATION, VAR_DECL, id, ptr_type_node);
+  SET_DECL_ASSEMBLER_NAME (decl, id);
   DECL_ARTIFICIAL (decl) = 1;
   DECL_IGNORED_P (decl) = 1;
   DECL_INITIAL (decl) = decl;
@@ -913,14 +1042,13 @@ dw2_output_indirect_constant_1 (splay_tree_node node,
     {
       TREE_PUBLIC (decl) = 1;
       make_decl_one_only (decl, DECL_ASSEMBLER_NAME (decl));
+      if (USE_LINKONCE_INDIRECT)
+	DECL_VISIBILITY (decl) = VISIBILITY_HIDDEN;
     }
   else
     TREE_STATIC (decl) = 1;
 
   sym_ref = gen_rtx_SYMBOL_REF (Pmode, sym);
-  sym = targetm.strip_name_encoding (sym);
-  if (TREE_PUBLIC (decl) && USE_LINKONCE_INDIRECT)
-    fprintf (asm_out_file, "\t.hidden %sDW.ref.%s\n", user_label_prefix, sym);
   assemble_variable (decl, 1, 1, 1);
   assemble_integer (sym_ref, POINTER_SIZE / BITS_PER_UNIT, POINTER_SIZE, 1);
 
@@ -955,6 +1083,7 @@ dw2_asm_output_encoded_addr_rtx (int encoding, rtx addr, bool is_public,
     {
       assemble_align (POINTER_SIZE);
       assemble_integer (addr, size, POINTER_SIZE, 1);
+      va_end (ap);
       return;
     }
 

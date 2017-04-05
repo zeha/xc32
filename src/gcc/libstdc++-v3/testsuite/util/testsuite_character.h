@@ -3,8 +3,7 @@
 // Testing character type and state type with char_traits and codecvt
 // specializations for the C++ library testsuite.
 //
-// Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009
-// Free Software Foundation, Inc.
+// Copyright (C) 2003-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -37,7 +36,7 @@ namespace __gnu_test
   {
     int value;
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
     // For std::iota.
     pod_int&
     operator++()
@@ -294,7 +293,7 @@ namespace std
 		const extern_type* end, size_t max) const
       {
 	const extern_type* beg = from;
-	while (from < end && max)
+	while (from < end)
 	  {
 	    unsigned char c = *from;
 	    if (c & 0xc0)
@@ -304,6 +303,8 @@ namespace std
 		++from;
 		continue;
 	      }
+	    
+	    if (max == 0) break;
 
 	    unsigned char tmp;
 	    if (state.value & 0x8)

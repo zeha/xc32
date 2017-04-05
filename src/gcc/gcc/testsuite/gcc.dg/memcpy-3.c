@@ -1,11 +1,14 @@
 /* { dg-do compile } */
-/* { dg-options "-O2 -fdump-rtl-expand" } */
+/* { dg-options "-O -fdump-tree-optimized" } */
+/* { dg-require-effective-target non_strict_align } */
 
-void
-f1 (char *p)
+int get_int(const void *p)
 {
-  __builtin_memcpy (p, "123", 3);
+  int w;
+  __builtin_memcpy(&w, p, sizeof (int));
+  return w;
 }
 
-/* { dg-final { scan-rtl-dump-times "mem/s/u:" 3 "expand" { target mips*-*-* } } } */
-/* { dg-final { cleanup-rtl-dump "expand" } } */
+/* { dg-final { scan-tree-dump-not "memcpy" "optimized" } } */
+/* { dg-final { scan-tree-dump-times "MEM" 1 "optimized" } } */
+/* { dg-final { cleanup-tree-dump "optimized" } } */

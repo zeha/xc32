@@ -1,27 +1,25 @@
-/* altivec-34.c */
-/* { dg-do run { target powerpc*-*-* } } */
-/* { dg-options "-O0 -maltivec" } */
+/* PR target/49621 */
+/* { dg-do compile } */
+/* { dg-require-effective-target powerpc_altivec_ok } */
+/* { dg-options "-O2 -maltivec -mno-vsx" } */
 
-#include <stdlib.h>
+#include <altivec.h>
 
-/* #4053 (Align large local Altivec arrays at 128 bits)  */
-
-long l1;
-int main(void)
+int
+foo (void)
 {
-  long a1[5], a2[6], a3[4];
-  char c1[4], c2[17];
-  if (((long)(&a1[0])) & 0xf)
-    abort ();
-  if (((long)(&a2[0])) & 0xf)
-    abort ();
-  if (((long)(&a3[0])) & 0xf)
-    abort ();
-  if (((long)(&c1[0])) & 0xf)
-    abort ();
-  if (((long)(&c2[0])) & 0xf)
-    abort ();
-  exit (0);
+  vector unsigned a, b, c;
+  unsigned k = 1;
+
+  a = (vector unsigned) { 0, 0, 0, 1 };
+  b = c = (vector unsigned) { 0, 0, 0, 0 };
+
+  a = vec_add (a, vec_splats (k));
+  b = vec_add (b, a);
+  c = vec_sel (c, a, b);
+
+  if (vec_any_eq (b, c))
+    return 1;
+
+  return 0;
 }
-
-

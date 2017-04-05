@@ -14,6 +14,7 @@
 #include "tree-pass.h"
 #include "intl.h"
 #include "plugin-version.h"
+#include "diagnostic.h"
 
 int plugin_is_GPL_compatible;
 
@@ -45,16 +46,14 @@ get_real_ref_rhs (tree expr)
              e.g. D.1797_14, we need to grab the rhs of its SSA def
              statement (i.e. foo.x).  */
           tree vdecl = SSA_NAME_VAR (expr);
-          if (DECL_ARTIFICIAL (vdecl)
+          if ((!vdecl || DECL_ARTIFICIAL (vdecl))
               && !gimple_nop_p (SSA_NAME_DEF_STMT (expr)))
             {
               gimple def_stmt = SSA_NAME_DEF_STMT (expr);
               /* We are only interested in an assignment with a single
                  rhs operand because if it is not, the original assignment
                  will not possibly be a self-assignment.  */
-              if (is_gimple_assign (def_stmt)
-                  && (get_gimple_rhs_class (gimple_assign_rhs_code (def_stmt))
-                      == GIMPLE_SINGLE_RHS))
+              if (gimple_assign_single_p (def_stmt))
                 return get_real_ref_rhs (gimple_assign_rhs1 (def_stmt));
               else
                 return NULL_TREE;
@@ -66,7 +65,7 @@ get_real_ref_rhs (tree expr)
       case PARM_DECL:
       case FIELD_DECL:
       case COMPONENT_REF:
-      case INDIRECT_REF:
+      case MEM_REF:
       case ARRAY_REF:
         return expr;
       default:
@@ -87,6 +86,8 @@ get_real_ref_rhs (tree expr)
 static tree
 get_non_ssa_expr (tree expr)
 {
+  if (!expr)
+    return NULL_TREE;
   switch (TREE_CODE (expr))
     {
       case VAR_DECL:
@@ -116,17 +117,18 @@ get_non_ssa_expr (tree expr)
           else
             return expr;
         }
-      case INDIRECT_REF:
+      case MEM_REF:
         {
           tree orig_base = TREE_OPERAND (expr, 0);
-          tree base = get_non_ssa_expr (orig_base);
-          if (!base)
-            return NULL_TREE;
-          /* If BASE is converted, build a new indirect reference tree.  */
-          if (base != orig_base)
-            return build1 (INDIRECT_REF, TREE_TYPE (TREE_TYPE (base)), base);
-          else
-            return expr;
+	  if (TREE_CODE (orig_base) == SSA_NAME)
+	    {
+	      tree base = get_non_ssa_expr (orig_base);
+	      if (!base)
+		return NULL_TREE;
+	      return fold_build2 (MEM_REF, TREE_TYPE (expr),
+				  base, TREE_OPERAND (expr, 1));
+	    }
+	  return expr;
         }
       case ARRAY_REF:
         {
@@ -149,13 +151,11 @@ get_non_ssa_expr (tree expr)
       case SSA_NAME:
         {
           tree vdecl = SSA_NAME_VAR (expr);
-          if (DECL_ARTIFICIAL (vdecl)
+          if ((!vdecl || DECL_ARTIFICIAL (vdecl))
               && !gimple_nop_p (SSA_NAME_DEF_STMT (expr)))
             {
               gimple def_stmt = SSA_NAME_DEF_STMT (expr);
-              if (is_gimple_assign (def_stmt)
-                  && (get_gimple_rhs_class (gimple_assign_rhs_code (def_stmt))
-                      == GIMPLE_SINGLE_RHS))
+              if (gimple_assign_single_p (def_stmt))
                 vdecl = gimple_assign_rhs1 (def_stmt);
             }
           return get_non_ssa_expr (vdecl);
@@ -201,9 +201,7 @@ warn_self_assign (gimple stmt)
   tree rhs, lhs;
 
   /* Check assigment statement.  */
-  if (is_gimple_assign (stmt)
-      && (get_gimple_rhs_class (gimple_assign_rhs_code (stmt))
-          == GIMPLE_SINGLE_RHS))
+  if (gimple_assign_single_p (stmt))
     {
       rhs = get_real_ref_rhs (gimple_assign_rhs1 (stmt));
       if (!rhs)
@@ -213,7 +211,7 @@ warn_self_assign (gimple stmt)
       if (TREE_CODE (lhs) == SSA_NAME)
         {
           lhs = SSA_NAME_VAR (lhs);
-          if (DECL_ARTIFICIAL (lhs))
+          if (!lhs || DECL_ARTIFICIAL (lhs))
             return;
         }
 
@@ -270,17 +268,18 @@ static struct gimple_opt_pass pass_warn_self_assign =
   {
     GIMPLE_PASS,
     "warn_self_assign",                   /* name */
+    OPTGROUP_NONE,                        /* optinfo_flags */
     gate_warn_self_assign,                /* gate */
     execute_warn_self_assign,             /* execute */
     NULL,                                 /* sub */
     NULL,                                 /* next */
     0,                                    /* static_pass_number */
-    0,                                    /* tv_id */
+    TV_NONE,                              /* tv_id */
     PROP_ssa,                             /* properties_required */
     0,                                    /* properties_provided */
     0,                                    /* properties_destroyed */
     0,                                    /* todo_flags_start */
-    TODO_dump_func                        /* todo_flags_finish */
+    0					  /* todo_flags_finish */
   }
 };
 

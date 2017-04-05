@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2005-2009, Free Software Foundation, Inc.         --
+--          Copyright (C) 2005-2012, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -37,6 +37,7 @@
 with System.UTF_32;
 
 package Ada.Wide_Characters.Unicode is
+   pragma Pure;
 
    --  The following type defines the categories from the unicode definitions.
    --  The one addition we make is Fe, which represents the characters FFFE
@@ -176,7 +177,15 @@ package Ada.Wide_Characters.Unicode is
    --  The following function is used to fold to upper case, as required by
    --  the Ada 2005 standard rules for identifier case folding. Two
    --  identifiers are equivalent if they are identical after folding all
-   --  letters to upper case using this routine.
+   --  letters to upper case using this routine. A corresponding function to
+   --  fold to lower case is also provided.
+
+   function To_Lower_Case (U : Wide_Character) return Wide_Character;
+   pragma Inline (To_Lower_Case);
+   --  If U represents an upper case letter, returns the corresponding lower
+   --  case letter, otherwise U is returned unchanged. The folding is locale
+   --  independent as defined by documents referenced in the note in section
+   --  1 of ISO/IEC 10646:2003
 
    function To_Upper_Case (U : Wide_Character) return Wide_Character;
    pragma Inline (To_Upper_Case);

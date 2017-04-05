@@ -1,7 +1,7 @@
 /* Test whether using target specific options, we can generate FMA4 code.  */
 /* { dg-do compile } */
+/* { dg-skip-if "" { i?86-*-* x86_64-*-* } { "-march=*" } { "-march=k8" } } */
 /* { dg-options "-O2 -march=k8 -mfpmath=sse -msse2" } */
-/* { dg-require-effective-target sse2 } */
 
 extern void exit (int);
 

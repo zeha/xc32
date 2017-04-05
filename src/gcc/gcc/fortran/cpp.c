@@ -1,4 +1,4 @@
-/* Copyright (C) 2008, 2009 Free Software Foundation, Inc.
+/* Copyright (C) 2008-2013 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -35,7 +35,16 @@ along with GCC; see the file COPYING3.  If not see
 #include "../../libcpp/internal.h"
 #include "cpp.h"
 #include "incpath.h"
+#include "cppbuiltin.h"
 #include "mkdeps.h"
+
+#ifndef TARGET_SYSTEM_ROOT
+# define TARGET_SYSTEM_ROOT NULL
+#endif
+
+#ifndef TARGET_CPU_CPP_BUILTINS
+# define TARGET_CPU_CPP_BUILTINS()
+#endif
 
 #ifndef TARGET_OS_CPP_BUILTINS
 # define TARGET_OS_CPP_BUILTINS()
@@ -110,12 +119,6 @@ gfc_cpp_option;
 static cpp_options *cpp_option = NULL;
 static cpp_reader *cpp_in = NULL;
 
-/* Defined in toplev.c.  */
-extern const char *asm_file_name;
-
-
-
-
 /* Encapsulates state used to convert a stream of cpp-tokens into
    a text file.  */
 static struct
@@ -144,9 +147,9 @@ static void cb_include (cpp_reader *, source_location, const unsigned char *,
 static void cb_ident (cpp_reader *, source_location, const cpp_string *);
 static void cb_used_define (cpp_reader *, source_location, cpp_hashnode *);
 static void cb_used_undef (cpp_reader *, source_location, cpp_hashnode *);
-static bool cb_cpp_error (cpp_reader *, int, location_t, unsigned int,
+static bool cb_cpp_error (cpp_reader *, int, int, location_t, unsigned int,
 			  const char *, va_list *)
-     ATTRIBUTE_GCC_DIAG(5,0);
+     ATTRIBUTE_GCC_DIAG(6,0);
 void pp_dir_change (cpp_reader *, const char *);
 
 static int dump_macro (cpp_reader *, cpp_hashnode *, void *);
@@ -156,85 +159,18 @@ static void dump_queued_macros (cpp_reader *);
 static void
 cpp_define_builtins (cpp_reader *pfile)
 {
-  int major, minor, patchlevel;
-
   /* Initialize CPP built-ins; '1' corresponds to 'flag_hosted'
      in C, defines __STDC_HOSTED__?!  */
   cpp_init_builtins (pfile, 0);
 
   /* Initialize GFORTRAN specific builtins.
      These are documented.  */
-  if (sscanf (BASEVER, "%d.%d.%d", &major, &minor, &patchlevel) != 3)
-    {
-      sscanf (BASEVER, "%d.%d", &major, &minor);
-      patchlevel = 0;
-    }
-  cpp_define_formatted (pfile, "__GNUC__=%d", major);
-  cpp_define_formatted (pfile, "__GNUC_MINOR__=%d", minor);
-  cpp_define_formatted (pfile, "__GNUC_PATCHLEVEL__=%d", patchlevel);
-
+  define_language_independent_builtin_macros (pfile);
   cpp_define (pfile, "__GFORTRAN__=1");
   cpp_define (pfile, "_LANGUAGE_FORTRAN=1");
 
-  if (gfc_option.flag_openmp)
-    cpp_define (pfile, "_OPENMP=200805");
-
-
-  /* More builtins that might be useful, but are not documented
-     (in no particular order).  */
-  cpp_define_formatted (pfile, "__VERSION__=\"%s\"", version_string);
-
-  if (flag_pic)
-    {
-      cpp_define_formatted (pfile, "__pic__=%d", flag_pic);
-      cpp_define_formatted (pfile, "__PIC__=%d", flag_pic);
-    }
-  if (flag_pie)
-    {
-      cpp_define_formatted (pfile, "__pie__=%d", flag_pie);
-      cpp_define_formatted (pfile, "__PIE__=%d", flag_pie);
-    }
-
-  if (optimize_size)
-    cpp_define (pfile, "__OPTIMIZE_SIZE__");
-  if (optimize)
-    cpp_define (pfile, "__OPTIMIZE__");
-
-  if (fast_math_flags_set_p ())
-    cpp_define (pfile, "__FAST_MATH__");
-  if (flag_signaling_nans)
-    cpp_define (pfile, "__SUPPORT_SNAN__");
-
-  cpp_define_formatted (pfile, "__FINITE_MATH_ONLY__=%d", flag_finite_math_only);
-
-  /* Definitions for LP64 model. */
-  if (TYPE_PRECISION (long_integer_type_node) == 64
-      && POINTER_SIZE == 64
-      && TYPE_PRECISION (integer_type_node) == 32)
-    {
-      cpp_define (pfile, "_LP64");
-      cpp_define (pfile, "__LP64__");
-    }
-
-  /* Define NAME with value TYPE size_unit.
-     The C-side also defines __SIZEOF_WCHAR_T__, __SIZEOF_WINT_T__
-     __SIZEOF_PTRDIFF_T__, however, fortran seems to lack the
-     appropriate type nodes.  */
-
-#define define_type_sizeof(NAME, TYPE)                             \
-    cpp_define_formatted (pfile, NAME"="HOST_WIDE_INT_PRINT_DEC,   \
-                          tree_low_cst (TYPE_SIZE_UNIT (TYPE), 1))
-
-  define_type_sizeof ("__SIZEOF_INT__", integer_type_node);
-  define_type_sizeof ("__SIZEOF_LONG__", long_integer_type_node);
-  define_type_sizeof ("__SIZEOF_LONG_LONG__", long_long_integer_type_node);
-  define_type_sizeof ("__SIZEOF_SHORT__", short_integer_type_node);
-  define_type_sizeof ("__SIZEOF_FLOAT__", float_type_node);
-  define_type_sizeof ("__SIZEOF_DOUBLE__", double_type_node);
-  define_type_sizeof ("__SIZEOF_LONG_DOUBLE__", long_double_type_node);
-  define_type_sizeof ("__SIZEOF_SIZE_T__", size_type_node);
-
-#undef define_type_sizeof
+  if (gfc_option.gfc_flag_openmp)
+    cpp_define (pfile, "_OPENMP=201107");
 
   /* The defines below are necessary for the TARGET_* macros.
 
@@ -304,8 +240,8 @@ gfc_cpp_temporary_file (void)
 }
 
 void
-gfc_cpp_init_options (unsigned int argc,
-		      const char **argv ATTRIBUTE_UNUSED)
+gfc_cpp_init_options (unsigned int decoded_options_count,
+		      struct cl_decoded_option *decoded_options ATTRIBUTE_UNUSED)
 {
   /* Do not create any objects from libcpp here. If no
      preprocessing is requested, this would be wasted
@@ -335,9 +271,10 @@ gfc_cpp_init_options (unsigned int argc,
 
   gfc_cpp_option.multilib = NULL;
   gfc_cpp_option.prefix = NULL;
-  gfc_cpp_option.sysroot = NULL;
+  gfc_cpp_option.sysroot = TARGET_SYSTEM_ROOT;
 
-  gfc_cpp_option.deferred_opt = XNEWVEC (gfc_cpp_deferred_opt_t, argc);
+  gfc_cpp_option.deferred_opt = XNEWVEC (gfc_cpp_deferred_opt_t,
+					 decoded_options_count);
   gfc_cpp_option.deferred_opt_count = 0;
 }
 
@@ -353,7 +290,7 @@ gfc_cpp_handle_option (size_t scode, const char *arg, int value ATTRIBUTE_UNUSED
       result = 0;
       break;
 
-    case OPT_cpp:
+    case OPT_cpp_:
       gfc_cpp_option.temporary_filename = arg;
       break;
 
@@ -509,10 +446,10 @@ gfc_cpp_post_options (void)
 	  || gfc_cpp_option.dump_includes))
     gfc_fatal_error("To enable preprocessing, use -cpp");
 
-  cpp_in = cpp_create_reader (CLK_GNUC89, NULL, line_table);
   if (!gfc_cpp_enabled ())
     return;
 
+  cpp_in = cpp_create_reader (CLK_GNUC89, NULL, line_table);
   gcc_assert (cpp_in);
 
   /* The cpp_options-structure defines far more flags than those set here.
@@ -525,7 +462,7 @@ gfc_cpp_post_options (void)
   cpp_option->traditional = 1;
   cpp_option->cplusplus_comments = 0;
 
-  cpp_option->pedantic = pedantic;
+  cpp_option->cpp_pedantic = pedantic;
 
   cpp_option->dollars_in_ident = gfc_option.flag_dollar_ok;
   cpp_option->discard_comments = gfc_cpp_option.discard_comments;
@@ -605,7 +542,8 @@ gfc_cpp_init_0 (void)
 	  print.outf = fopen (gfc_cpp_option.output_filename, "w");
 	  if (print.outf == NULL)
 	    gfc_fatal_error ("opening output file %s: %s",
-			     gfc_cpp_option.output_filename, strerror(errno));
+			     gfc_cpp_option.output_filename,
+			     xstrerror (errno));
 	}
       else
 	print.outf = stdout;
@@ -615,7 +553,7 @@ gfc_cpp_init_0 (void)
       print.outf = fopen (gfc_cpp_option.temporary_filename, "w");
       if (print.outf == NULL)
 	gfc_fatal_error ("opening output file %s: %s",
-			 gfc_cpp_option.temporary_filename, strerror(errno));
+			 gfc_cpp_option.temporary_filename, xstrerror (errno));
     }
 
   gcc_assert(cpp_in);
@@ -631,9 +569,17 @@ gfc_cpp_init (void)
   if (gfc_option.flag_preprocessed)
     return;
 
-  cpp_change_file (cpp_in, LC_RENAME, _("<built-in>"));
   if (!gfc_cpp_option.no_predefined)
-    cpp_define_builtins (cpp_in);
+    {
+      /* Make sure all of the builtins about to be declared have
+	BUILTINS_LOCATION has their source_location.  */
+      source_location builtins_loc = BUILTINS_LOCATION;
+      cpp_force_token_locations (cpp_in, &builtins_loc);
+
+      cpp_define_builtins (cpp_in);
+
+      cpp_stop_forcing_token_locations (cpp_in);
+    }
 
   /* Handle deferred options from command-line.  */
   cpp_change_file (cpp_in, LC_RENAME, _("<command-line>"));
@@ -876,27 +822,31 @@ print_line (source_location src_loc, const char *special_flags)
 
   if (!gfc_cpp_option.no_line_commands)
     {
-      const struct line_map *map = linemap_lookup (line_table, src_loc);
-
-      size_t to_file_len = strlen (map->to_file);
-      unsigned char *to_file_quoted =
-         (unsigned char *) alloca (to_file_len * 4 + 1);
+      expanded_location loc;
+      size_t to_file_len;
+      unsigned char *to_file_quoted;
       unsigned char *p;
+      int sysp;
 
-      print.src_line = SOURCE_LINE (map, src_loc);
+      loc = expand_location (src_loc);
+      to_file_len = strlen (loc.file);
+      to_file_quoted = (unsigned char *) alloca (to_file_len * 4 + 1);
+
+      print.src_line = loc.line;
 
       /* cpp_quote_string does not nul-terminate, so we have to do it
 	 ourselves.  */
       p = cpp_quote_string (to_file_quoted,
-			    (const unsigned char *) map->to_file, to_file_len);
+			    (const unsigned char *) loc.file, to_file_len);
       *p = '\0';
       fprintf (print.outf, "# %u \"%s\"%s",
 	       print.src_line == 0 ? 1 : print.src_line,
 	       to_file_quoted, special_flags);
 
-      if (map->sysp == 2)
+      sysp = in_system_header_at (src_loc);
+      if (sysp == 2)
 	fputs (" 3 4", print.outf);
-      else if (map->sysp == 1)
+      else if (sysp == 1)
 	fputs (" 3", print.outf);
 
       putc ('\n', print.outf);
@@ -993,7 +943,7 @@ cb_define (cpp_reader *pfile ATTRIBUTE_UNUSED, source_location line,
     fputs ((const char *) NODE_NAME (node), print.outf);
 
   putc ('\n', print.outf);
-  if (linemap_lookup (line_table, line)->to_line != 0)
+  if (LOCATION_LINE (line) != 0)
     print.src_line++;
 }
 
@@ -1060,25 +1010,26 @@ cb_used_define (cpp_reader *pfile, source_location line ATTRIBUTE_UNUSED,
 }
 
 /* Callback from cpp_error for PFILE to print diagnostics from the
-   preprocessor.  The diagnostic is of type LEVEL, at location
+   preprocessor.  The diagnostic is of type LEVEL, with REASON set
+   to the reason code if LEVEL is represents a warning, at location
    LOCATION, with column number possibly overridden by COLUMN_OVERRIDE
    if not zero; MSG is the translated message and AP the arguments.
    Returns true if a diagnostic was emitted, false otherwise.  */
 
 static bool
-cb_cpp_error (cpp_reader *pfile ATTRIBUTE_UNUSED, int level,
+cb_cpp_error (cpp_reader *pfile ATTRIBUTE_UNUSED, int level, int reason,
 	      location_t location, unsigned int column_override,
 	      const char *msg, va_list *ap)
 {
   diagnostic_info diagnostic;
   diagnostic_t dlevel;
-  int save_warn_system_headers = warn_system_headers;
+  bool save_warn_system_headers = global_dc->dc_warn_system_headers;
   bool ret;
 
   switch (level)
     {
     case CPP_DL_WARNING_SYSHDR:
-      warn_system_headers = 1;
+      global_dc->dc_warn_system_headers = 1;
       /* Fall through.  */
     case CPP_DL_WARNING:
       dlevel = DK_WARNING;
@@ -1105,9 +1056,11 @@ cb_cpp_error (cpp_reader *pfile ATTRIBUTE_UNUSED, int level,
 				  location, dlevel);
   if (column_override)
     diagnostic_override_column (&diagnostic, column_override);
+  if (reason == CPP_W_WARNING_DIRECTIVE)
+    diagnostic_override_option_index (&diagnostic, OPT_Wcpp);
   ret = report_diagnostic (&diagnostic);
   if (level == CPP_DL_WARNING_SYSHDR)
-    warn_system_headers = save_warn_system_headers;
+    global_dc->dc_warn_system_headers = save_warn_system_headers;
   return ret;
 }
 
@@ -1172,8 +1125,8 @@ dump_queued_macros (cpp_reader *pfile ATTRIBUTE_UNUSED)
       print.src_line++;
       oq = q;
       q = q->next;
-      gfc_free (oq->macro);
-      gfc_free (oq);
+      free (oq->macro);
+      free (oq);
     }
   cpp_define_queue = NULL;
   for (q = cpp_undefine_queue; q;)
@@ -1183,10 +1136,8 @@ dump_queued_macros (cpp_reader *pfile ATTRIBUTE_UNUSED)
       print.src_line++;
       oq = q;
       q = q->next;
-      gfc_free (oq->macro);
-      gfc_free (oq);
+      free (oq->macro);
+      free (oq);
     }
   cpp_undefine_queue = NULL;
 }
-
-

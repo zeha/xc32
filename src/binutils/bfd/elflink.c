@@ -5566,7 +5566,9 @@ elf_link_add_archive_symbols (bfd *abfd, struct bfd_link_info *info)
           if (mchp_elf_link_check_archive_element &&
               !mchp_elf_link_check_archive_element (symdef->name, element,
                                                      info))
-            continue;
+            {
+              continue;
+            }
 #endif
 
 	  element->archive_pass = 1;
@@ -12674,7 +12676,11 @@ bfd_elf_gc_sections (bfd *abfd, struct bfd_link_info *info)
 	    && (o->flags & SEC_EXCLUDE) == 0
 	    && ((o->flags & SEC_KEEP) != 0
 		|| (elf_section_data (o)->this_hdr.sh_type == SHT_NOTE
-		    && elf_next_in_group (o) == NULL )))
+		    && elf_next_in_group (o) == NULL 
+#ifdef TARGET_IS_PIC32MX
+		    && ((o->flags & SEC_DEBUGGING) == 0)
+#endif
+		    )))
 	  {
 	    if (!_bfd_elf_gc_mark (info, o, gc_mark_hook))
 	      return FALSE;

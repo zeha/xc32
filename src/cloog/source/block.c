@@ -14,19 +14,20 @@
  *                                                                            *
  * Copyright (C) 2001-2005 Cedric Bastoul                                     *
  *                                                                            *
- * This is free software; you can redistribute it and/or modify it under the  *
- * terms of the GNU General Public License as published by the Free Software  *
- * Foundation; either version 2 of the License, or (at your option) any later *
- * version.                                                                   *
+ * This library is free software; you can redistribute it and/or              *
+ * modify it under the terms of the GNU Lesser General Public                 *
+ * License as published by the Free Software Foundation; either               *
+ * version 2.1 of the License, or (at your option) any later version.         *
  *                                                                            *
- * This software is distributed in the hope that it will be useful, but       *
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY *
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License   *
- * for more details.                                                          *
+ * This library is distributed in the hope that it will be useful,            *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU          *
+ * Lesser General Public License for more details.                            *
  *                                                                            *
- * You should have received a copy of the GNU General Public License along    *
- * with software; if not, write to the Free Software Foundation, Inc.,        *
- * 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA                     *
+ * You should have received a copy of the GNU Lesser General Public           *
+ * License along with this library; if not, write to the Free Software        *
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor,                         *
+ * Boston, MA  02110-1301  USA                                                *
  *                                                                            *
  * CLooG, the Chunky Loop Generator                                           *
  * Written by Cedric Bastoul, Cedric.Bastoul@inria.fr                         *
@@ -59,43 +60,18 @@
  */
 
 
-int cloog_block_allocated = 0 ;
-int cloog_block_freed = 0 ;
-int cloog_block_max = 0 ;
-
-
-static void cloog_block_leak_up (void)
-{ cloog_block_allocated ++ ;
-  if ((cloog_block_allocated - cloog_block_freed) > cloog_block_max)
-  cloog_block_max = cloog_block_allocated - cloog_block_freed ;
+static void cloog_block_leak_up(CloogState *state)
+{ 
+  state->block_allocated++;
+  if ((state->block_allocated - state->block_freed) > state->block_max)
+    state->block_max = state->block_allocated - state->block_freed;
 }
 
 
-static void cloog_block_leak_down (void)
-{ cloog_block_freed ++ ;
-}
-
-static inline int cloog_block_references (CloogBlock *b)
+static void cloog_block_leak_down(CloogState *state)
 {
-  return b->_references;
+  state->block_freed++;
 }
-
-static inline void cloog_block_init_references (CloogBlock *b)
-{
-  b->_references = 1;
-}
-
-static inline void cloog_block_inc_references (CloogBlock *b)
-{
-  b->_references++;
-}
-
-static inline void cloog_block_dec_references (CloogBlock *b)
-{
-  b->_references--;
-}
-
-
 
 
 /******************************************************************************
@@ -126,13 +102,19 @@ void cloog_block_print_structure(FILE * file, CloogBlock * block, int level)
     fprintf(file,"\n") ;    
 
     /* Print statement list. */
-    cloog_statement_print_structure(file,cloog_block_stmt (block),level+1) ;
+    cloog_statement_print_structure(file,block->statement,level+1) ;
     
     /* A blank line. */
     for (i=0; i<level+2; i++)
     fprintf(file,"|\t") ;    
     fprintf(file,"\n") ;    
+
+    /* Print scattering function. */
+    for(i=0; i<level+1; i++)
+    fprintf(file,"|\t") ;
   
+    fprintf(file,"+-- Null scattering function\n") ;
+
     /* A blank line. */
     for (i=0; i<level+2; i++)
     fprintf(file,"|\t") ;    
@@ -142,15 +124,16 @@ void cloog_block_print_structure(FILE * file, CloogBlock * block, int level)
     for (i=0; i<level+1; i++)
     fprintf(file,"|\t") ;
     
-    if (cloog_block_nb_scaldims (block) == 0)
+    if (block->nb_scaldims == 0)
     fprintf(file,"No scalar dimensions\n") ;
     else
-      {
-	fprintf (file, "Scalar dimensions (%d):", cloog_block_nb_scaldims (block));
-	for (i = 0; i < cloog_block_nb_scaldims (block); i++)
-	  value_print (file, " "VALUE_FMT, block->scaldims[i]);
-	fprintf (file, "\n");
+    { fprintf(file,"Scalar dimensions (%d):",block->nb_scaldims) ;
+      for (i = 0; i < block->nb_scaldims; i++) {
+	fprintf(file, " ");
+	cloog_int_print(file, block->scaldims[i]);
       }
+      fprintf(file,"\n") ;
+    }
     
     /* A blank line. */
     for (i=0; i<level+2; i++)
@@ -160,7 +143,7 @@ void cloog_block_print_structure(FILE * file, CloogBlock * block, int level)
     /* Print depth. */
     for (i=0; i<level+1; i++)
     fprintf(file,"|\t") ;
-    fprintf (file, "Depth: %d\n", cloog_block_depth (block));
+    fprintf(file,"Depth: %d\n",block->depth) ;
     
     /* A blank line. */
     for (i=0; i<level+1; i++)
@@ -194,12 +177,11 @@ void cloog_block_list_print(FILE * file, CloogBlockList * blocklist)
 { int i=0 ;
   
   while (blocklist != NULL)
-    {
-      fprintf(file,"+-- CloogBlockList node %d\n",i) ;
-      cloog_block_print_structure (file, cloog_block_list_block (blocklist), 1);
-      blocklist = cloog_block_list_next (blocklist);
-      i++ ;
-    }
+  { fprintf(file,"+-- CloogBlockList node %d\n",i) ;
+    cloog_block_print_structure(file,blocklist->block,1) ;
+    blocklist = blocklist->next ;
+    i++ ;
+  }
 }
 
 
@@ -218,22 +200,21 @@ void cloog_block_free(CloogBlock * block)
 { int i ;
 
   if (block != NULL)
-    {
-      cloog_block_dec_references (block);
+  { block->references -- ;
     
-      if (cloog_block_references (block) == 0)
-	{ cloog_block_leak_down() ;
-	  if (cloog_block_scaldims (block))
-	    {
-	      for (i = 0; i < cloog_block_nb_scaldims (block); i++)
-		value_clear_c (block->scaldims[i]);
+    if (block->references == 0) {
+      cloog_block_leak_down(block->state);
+      if (block->scaldims != NULL)
+      { for (i=0;i<block->nb_scaldims;i++)
+	  cloog_int_clear(block->scaldims[i]);
       
-	      free (cloog_block_scaldims (block)) ;
-	    }
-	  cloog_statement_free(cloog_block_stmt (block)) ;
-	  free(block) ;
-	}
+        free(block->scaldims) ;
+      }
+      if (block->statement)
+	cloog_statement_free(block->statement);
+      free(block) ;
     }
+  }
 }
 
 
@@ -246,12 +227,11 @@ void cloog_block_list_free(CloogBlockList * blocklist)
 { CloogBlockList * temp ;
   
   while (blocklist != NULL)
-    {
-      temp = cloog_block_list_next (blocklist);
-      cloog_block_free (cloog_block_list_block (blocklist));
-      free(blocklist) ;
-      blocklist = temp ;
-    }
+  { temp = blocklist->next ;
+    cloog_block_free(blocklist->block) ;
+    free(blocklist) ;
+    blocklist = temp ;
+  }
 }
 
 
@@ -266,24 +246,23 @@ void cloog_block_list_free(CloogBlockList * blocklist)
  * allocated space.
  * - November 21th 2005: first version.
  */
-CloogBlock * cloog_block_malloc (void)
+CloogBlock *cloog_block_malloc(CloogState *state)
 { CloogBlock * block ;
   
   /* Memory allocation for the CloogBlock structure. */
   block = (CloogBlock *)malloc(sizeof(CloogBlock)) ;
   if (block == NULL) 
-  { fprintf(stderr, "[CLooG]ERROR: memory overflow.\n") ;
-    exit(1) ;
-  }
-  cloog_block_leak_up() ;
+    cloog_die("memory overflow.\n");
+  cloog_block_leak_up(state);
   
   /* We set the various fields with default values. */
-  cloog_block_set_stmt (block, NULL);
-  cloog_block_set_nb_scaldims (block, 0);
-  cloog_block_set_scaldims (block, NULL);
-  cloog_block_set_depth (block, 0);
-  cloog_block_init_references (block);
-  cloog_block_set_usr (block, NULL);
+  block->state = state;
+  block->statement = NULL ;
+  block->nb_scaldims = 0 ;
+  block->scaldims = NULL ;
+  block->depth = 0 ;
+  block->references = 1 ;
+  block->usr = NULL;
   
   return block ;
 }  
@@ -297,6 +276,7 @@ CloogBlock * cloog_block_malloc (void)
  * service, put to respectively 0 and NULL if you don't know what they are
  * useful for !
  * - statement is the statement list of the block,
+ * - scattering is the scattering function for the block (NULL if unsure !),
  * - nb_scaldims is the number of scalar dimensions (0 if unsure !),
  * - scaldims is the array with the scalar dimensions values (NULL if unsure !),
  * - depth is the original block depth (the number of outer loops).
@@ -305,19 +285,18 @@ CloogBlock * cloog_block_malloc (void)
  * - June     30th 2005: addition of the nb_scaldims and scaldims parameters.
  * - November 21th 2005: use of cloog_block_malloc.
  */
-CloogBlock * cloog_block_alloc(CloogStatement * statement, int nb_scaldims,
-			       Value * scaldims, int depth)
-{
-  CloogBlock * block ;
+CloogBlock *cloog_block_alloc(CloogStatement *statement, int nb_scaldims,
+				cloog_int_t *scaldims, int depth)
+{ CloogBlock * block ;
     
   /* Block allocation. */
-  block = cloog_block_malloc() ;
+  block = cloog_block_malloc(statement->state);
 
-  cloog_block_set_stmt (block, statement);
-  cloog_block_set_nb_scaldims (block, nb_scaldims);
-  cloog_block_set_scaldims (block, scaldims);
-  cloog_block_set_depth (block, depth);
-  cloog_block_init_references (block);
+  block->statement = statement ;
+  block->nb_scaldims = nb_scaldims ;
+  block->scaldims = scaldims ;
+  block->depth = depth ;
+  block->references = 1 ;
   
   return block ;
 }
@@ -330,20 +309,17 @@ CloogBlock * cloog_block_alloc(CloogStatement * statement, int nb_scaldims,
  * allocated space.
  * - November 21th 2005: first version.
  */
-CloogBlockList * cloog_block_list_malloc (void)
-{
-  CloogBlockList * blocklist ;
+CloogBlockList * cloog_block_list_malloc()
+{ CloogBlockList * blocklist ;
   
   /* Memory allocation for the CloogBlock structure. */
   blocklist = (CloogBlockList *)malloc(sizeof(CloogBlockList)) ;
   if (blocklist == NULL) 
-  { fprintf(stderr, "[CLooG]ERROR: memory overflow.\n") ;
-    exit(1) ;
-  }
+    cloog_die("memory overflow.\n");
   
   /* We set the various fields with default values. */
-  cloog_block_list_set_block (blocklist, NULL);
-  cloog_block_list_set_next (blocklist, NULL);
+  blocklist->block = NULL ;
+  blocklist->next  = NULL ;
   
   return blocklist ;
 }  
@@ -365,9 +341,9 @@ CloogBlockList * cloog_block_list_alloc(CloogBlock * block)
   /* Block list node allocation. */
   blocklist = cloog_block_list_malloc() ;
 
-  cloog_block_list_set_block (blocklist, block);
-  cloog_block_inc_references (cloog_block_list_block (blocklist)); /* The block has a new reference to it. */
-  cloog_block_list_set_next (blocklist, NULL);
+  blocklist->block = block ;
+  blocklist->block->references ++ ; /* The block has a new reference to it. */
+  blocklist->next = NULL ;
   
   return blocklist ;
 }
@@ -383,7 +359,7 @@ CloogBlock * cloog_block_copy(CloogBlock * block)
 { if (block == NULL)
   return NULL ;
 
-  cloog_block_inc_references (block);
+  block->references ++ ;
   return block ;
 }
 
@@ -402,20 +378,19 @@ void cloog_block_merge(CloogBlock * block, CloogBlock * merged)
   if ((block == NULL) || (merged == NULL))
   return ;
   
-  if (cloog_block_stmt (block))
-    {
-      statement = cloog_block_stmt (block) ;
+  if (block->statement != NULL)
+  { statement = block->statement ;
     
-      while (cloog_statement_next (statement))
-	statement = cloog_statement_next (statement) ;
+    while (statement->next != NULL)
+    statement = statement->next ;
     
-      cloog_statement_set_next (statement, cloog_block_stmt (merged));
-    }
+    statement->next = merged->statement ;
+  }
   else
-    cloog_block_set_stmt (block, cloog_block_stmt (merged));
+  block->statement = merged->statement ;
 
-  cloog_block_leak_down() ;
-  free(merged) ;
+  merged->statement = NULL;
+  cloog_block_free(merged);
 }
 
 

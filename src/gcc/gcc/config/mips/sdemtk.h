@@ -1,7 +1,6 @@
 /* Definitions of target machine for GNU compiler.
    MIPS SDE version, for use with the SDE C library rather than newlib.
-   Copyright (C) 2007, 2008, 2009
-   Free Software Foundation, Inc.
+   Copyright (C) 2007-2013 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -19,8 +18,6 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
-#define TARGET_MIPS_SDEMTK	1
-
 #define TARGET_OS_CPP_BUILTINS()			\
   do							\
     {							\
@@ -37,10 +34,7 @@ along with GCC; see the file COPYING3.  If not see
 	builtin_define ("__mipsfp64");			\
 							\
       if (TARGET_NO_FLOAT) 				\
-	{						\
-	  builtin_define ("__NO_FLOAT");		\
-	  builtin_define ("__mips_no_float");		\
-	}						\
+	builtin_define ("__NO_FLOAT");			\
       else if (TARGET_SOFT_FLOAT_ABI)			\
 	builtin_define ("__SOFT_FLOAT");		\
       else if (TARGET_SINGLE_FLOAT)			\
@@ -55,18 +49,6 @@ along with GCC; see the file COPYING3.  If not see
         {						\
 	  builtin_assert ("endian=little");		\
 	  builtin_assert ("cpu=mipsel");		\
-	}						\
-    }							\
-  while (0)
-
-#undef SUBTARGET_OVERRIDE_OPTIONS
-#define SUBTARGET_OVERRIDE_OPTIONS			\
-  do							\
-    {							\
-      if (TARGET_NO_FLOAT)				\
-	{						\
-	  target_flags |= MASK_SOFT_FLOAT_ABI;		\
-	  target_flags_explicit |= MASK_SOFT_FLOAT_ABI;	\
 	}						\
     }							\
   while (0)
@@ -116,11 +98,5 @@ extern void mips_sync_icache (void *beg, unsigned long len);
 #undef MIPS_SAVE_REG_FOR_PROFILING_P
 #define MIPS_SAVE_REG_FOR_PROFILING_P(REGNO) ((REGNO) == RETURN_ADDR_REGNUM)
 
-/* From mips.h, with mno-float option added.  */
-
-#undef MIPS_ARCH_FLOAT_SPEC
-#define MIPS_ARCH_FLOAT_SPEC \
-  "%{mhard-float|msoft-float|mno-float|march=mips*:; \
-     march=vr41*|march=m4k|march=4k*|march=24kc|march=24kec|march=m14k* \
-     |march=34kc|march=34kn|march=74kc|march=1004kc|march=5kc|march=octeon|march=xlr: -msoft-float; \
-     march=*: -mhard-float}"
+/* Compile in support for the -mno-float option.  */
+#define TARGET_SUPPORTS_NO_FLOAT 1

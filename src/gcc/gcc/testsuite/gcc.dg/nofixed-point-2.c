@@ -9,7 +9,7 @@ f1 (void)
 }
 
 __typeof (0r)		       /* { dg-error "not supported" "reject fixed-point" } */
-b2 (void)		       /* { dg-warning "defaults to" } */
+b2 (void)		       /* { dg-bogus "defaults to" } */
 {
   return 0r;		       /* { dg-error "not supported" "reject fixed-point" } */
 }
@@ -20,10 +20,10 @@ f3 (void)
   return 0k;			/* { dg-error "not supported" "reject fixed-point" } */
 }
 
-_Sat
-f4 (void)			/* { dg-error "not supported" "reject fixed-point" } */
+_Sat                            /* { dg-error "not supported" "reject fixed-point" } */
+f4 (void)
 {
   return 0k;			/* { dg-error "not supported" "reject fixed-point" } */
 }
 
-/* { dg-error "is used without" "" { target *-*-* } 24 } */
+/* { dg-error "is used without" "" { target *-*-* } 23 } */

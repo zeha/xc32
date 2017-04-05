@@ -1,5 +1,5 @@
 // -*- C++ -*- std::unexpected handler
-// Copyright (C) 2002, 2009 Free Software Foundation
+// Copyright (C) 2002-2013 Free Software Foundation, Inc.
 //
 // This file is part of GCC.
 //
@@ -25,14 +25,5 @@
 #include "unwind-cxx.h"
 
 /* The current installed user handler.  */
-#ifdef __symbian__
-/* SymbianOS does not allow initialized data, so use a constructor function.  */
-std::unexpected_handler __cxxabiv1::__unexpected_handler;
-
-void __cxxabiv1::__init_unexpected_handler (void)
-{
-  __cxxabiv1::__unexpected_handler = std::terminate;
-}
-#else /* !__symbian__ */
 std::unexpected_handler __cxxabiv1::__unexpected_handler = std::terminate;
-#endif
+

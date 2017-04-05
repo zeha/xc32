@@ -7,7 +7,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 2000-2009, Free Software Foundation, Inc.         --
+--          Copyright (C) 2000-2012, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -78,25 +78,31 @@ pragma Style_Checks ("M32766");
  **  $ RUN xoscons
  **/
 
+/* Feature macro definitions */
+
 #if defined (__linux__) && !defined (_XOPEN_SOURCE)
 /** For Linux _XOPEN_SOURCE must be defined, otherwise IOV_MAX is not defined
  **/
 #define _XOPEN_SOURCE 500
+#endif
 
-#elif defined (__mips) && defined (__sgi)
-/** For IRIX 6, _XOPEN5 must be defined and _XOPEN_IOV_MAX must be used as
- ** IOV_MAX, otherwise IOV_MAX is not defined.  IRIX 5 has neither.
- **/
-#ifdef _XOPEN_IOV_MAX
-#define _XOPEN5
-#define IOV_MAX _XOPEN_IOV_MAX
-#endif
-#endif
+/* Include gsocket.h before any system header so it can redefine FD_SETSIZE */
+
+#include "gsocket.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
 #include <fcntl.h>
+#include <time.h>
+
+#if defined (__VMS)
+/** VMS is unable to do vector IO operations with default value of IOV_MAX,
+ ** so its value is redefined to a small one which is known to work properly.
+ **/
+#undef IOV_MAX
+#define IOV_MAX 16
+#endif
 
 #if ! (defined (__vxworks) || defined (__VMS) || defined (__MINGW32__) || \
        defined (__nucleus__))
@@ -113,8 +119,6 @@ pragma Style_Checks ("M32766");
 # include <vxWorks.h>
 #endif
 
-#include "gsocket.h"
-
 #ifdef DUMMY
 
 # if defined (TARGET)
@@ -129,7 +133,7 @@ pragma Style_Checks ("M32766");
 
 # define NATIVE
 
-#endif
+#endif /* DUMMY */
 
 #ifndef TARGET
 # error Please define TARGET
@@ -147,6 +151,15 @@ pragma Style_Checks ("M32766");
 # include <_types.h>
 #endif
 
+#ifdef __linux__
+# include <pthread.h>
+# include <signal.h>
+#endif
+
+#ifdef __MINGW32__
+# include <winbase.h>
+#endif
+
 #ifdef NATIVE
 #include <stdio.h>
 
@@ -160,11 +173,17 @@ int counter = 0;
 #define CND(name,comment) \
   printf ("\n->CND:$%d:" #name ":$%d:" comment, __LINE__, ((int) _VAL (name)));
 
+#define CNU(name,comment) \
+  printf ("\n->CNU:$%d:" #name ":$%u:" comment, __LINE__, ((unsigned int) _VAL (name)));
+
 #define CNS(name,comment) \
   printf ("\n->CNS:$%d:" #name ":" name ":" comment, __LINE__);
 
 #define C(sname,type,value,comment)\
   printf ("\n->C:$%d:" sname ":" #type ":" value ":" comment, __LINE__);
+
+#define SUB(sname)\
+  printf ("\n->SUB:$%d:" #sname ":" sname, __LINE__);
 
 #define TXT(text) \
   printf ("\n->TXT:$%d:" text, __LINE__);
@@ -176,6 +195,13 @@ int counter = 0;
   : : "i" (__LINE__), "i" ((int) name));
 /* Decimal constant in the range of type "int" */
 
+#define CNU(name, comment) \
+  asm volatile("\n->CNU:%0:" #name ":%1:" comment \
+  : : "i" (__LINE__), "i" ((int) name));
+/* Decimal constant in the range of type "unsigned int" (note, assembler
+ * always wants a signed int, we convert back in xoscons).
+ */
+
 #define CNS(name, comment) \
   asm volatile("\n->CNS:%0:" #name ":" name ":" comment \
   : : "i" (__LINE__));
@@ -186,14 +212,20 @@ int counter = 0;
   : : "i" (__LINE__));
 /* Typed constant */
 
+#define SUB(sname) \
+  asm volatile("\n->SUB:%0:" #sname ":" sname \
+  : : "i" (__LINE__));
+/* Subtype */
+
 #define TXT(text) \
   asm volatile("\n->TXT:%0:" text \
   : : "i" (__LINE__));
 /* Freeform text */
 
-#endif
+#endif /* NATIVE */
 
 #define CST(name,comment) C(#name,String,name,comment)
+/* String constant */
 
 #define STR(x) STR1(x)
 #define STR1(x) #x
@@ -220,14 +252,7 @@ main (void) {
  **/
 TXT("--  This is the version for " TARGET)
 TXT("")
-
-#ifdef HAVE_SOCKETS
-/**
- **  The type definitions for struct hostent components uses Interfaces.C
- **/
-
 TXT("with Interfaces.C;")
-#endif
 
 /*
 package System.OS_Constants is
@@ -241,9 +266,9 @@ package System.OS_Constants is
 
 /*
 
-   -----------------------------
-   -- Platform identification --
-   -----------------------------
+   ---------------------------------
+   -- General platform parameters --
+   ---------------------------------
 
    type OS_Type is (Windows, VMS, Other_OS);
 */
@@ -255,8 +280,23 @@ package System.OS_Constants is
 # define TARGET_OS "Other_OS"
 #endif
 C("Target_OS", OS_Type, TARGET_OS, "")
+/*
+   pragma Warnings (Off, Target_OS);
+   --  Suppress warnings on Target_OS since it is in general tested for
+   --  equality with a constant value to implement conditional compilation,
+   --  which normally generates a constant condition warning.
+
+*/
 #define Target_Name TARGET
 CST(Target_Name, "")
+
+/**
+ ** Note: the name of the following constant is recognized specially by
+ **  xoscons (case sensitive).
+ **/
+#define SIZEOF_unsigned_int sizeof (unsigned int)
+CND(SIZEOF_unsigned_int, "Size of unsigned int")
+
 /*
 
    -------------------
@@ -332,15 +372,27 @@ CND(FNDELAY, "Nonblocking")
 
 */
 
+/* ioctl(2) requests are "int" in UNIX, but "unsigned long" on FreeBSD */
+
+#ifdef __FreeBSD__
+# define CNI CNU
+# define IOCTL_Req_T "unsigned"
+#else
+# define CNI CND
+# define IOCTL_Req_T "int"
+#endif
+
+SUB(IOCTL_Req_T)
+
 #ifndef FIONBIO
 # define FIONBIO -1
 #endif
-CND(FIONBIO, "Set/clear non-blocking io")
+CNI(FIONBIO, "Set/clear non-blocking io")
 
 #ifndef FIONREAD
 # define FIONREAD -1
 #endif
-CND(FIONREAD, "How many bytes to read")
+CNI(FIONREAD, "How many bytes to read")
 
 /*
 
@@ -580,12 +632,21 @@ CND(ETOOMANYREFS, "Too many references")
 #endif
 CND(EWOULDBLOCK, "Operation would block")
 
+#ifndef E2BIG
+# define E2BIG -1
+#endif
+CND(E2BIG, "Argument list too long")
+
+#ifndef EILSEQ
+# define EILSEQ -1
+#endif
+CND(EILSEQ, "Illegal byte sequence")
+
 /**
- **  Terminal I/O constants
+ **  Terminal/serial I/O constants
  **/
 
-#ifdef HAVE_TERMIOS
-
+#if defined(HAVE_TERMIOS) || defined(__MINGW32__)
 /*
 
    ----------------------
@@ -593,6 +654,9 @@ CND(EWOULDBLOCK, "Operation would block")
    ----------------------
 
 */
+#endif
+
+#ifdef HAVE_TERMIOS
 
 #ifndef TCSANOW
 # define TCSANOW -1
@@ -604,210 +668,215 @@ CND(TCSANOW, "Immediate")
 #endif
 CND(TCIFLUSH, "Flush input")
 
+#ifndef IXON
+# define IXON -1
+#endif
+CNU(IXON, "Output sw flow control")
+
 #ifndef CLOCAL
 # define CLOCAL -1
 #endif
-CND(CLOCAL, "Local")
+CNU(CLOCAL, "Local")
 
 #ifndef CRTSCTS
 # define CRTSCTS -1
 #endif
-CND(CRTSCTS, "Hardware flow control")
+CNU(CRTSCTS, "Output hw flow control")
 
 #ifndef CREAD
 # define CREAD -1
 #endif
-CND(CREAD, "Read")
+CNU(CREAD, "Read")
 
 #ifndef CS5
 # define CS5 -1
 #endif
-CND(CS5, "5 data bits")
+CNU(CS5, "5 data bits")
 
 #ifndef CS6
 # define CS6 -1
 #endif
-CND(CS6, "6 data bits")
+CNU(CS6, "6 data bits")
 
 #ifndef CS7
 # define CS7 -1
 #endif
-CND(CS7, "7 data bits")
+CNU(CS7, "7 data bits")
 
 #ifndef CS8
 # define CS8 -1
 #endif
-CND(CS8, "8 data bits")
+CNU(CS8, "8 data bits")
 
 #ifndef CSTOPB
 # define CSTOPB -1
 #endif
-CND(CSTOPB, "2 stop bits")
+CNU(CSTOPB, "2 stop bits")
 
 #ifndef PARENB
 # define PARENB -1
 #endif
-CND(PARENB, "Parity enable")
+CNU(PARENB, "Parity enable")
 
 #ifndef PARODD
 # define PARODD -1
 #endif
-CND(PARODD, "Parity odd")
+CNU(PARODD, "Parity odd")
 
 #ifndef B0
 # define B0 -1
 #endif
-CND(B0, "0 bps")
+CNU(B0, "0 bps")
 
 #ifndef B50
 # define B50 -1
 #endif
-CND(B50, "50 bps")
+CNU(B50, "50 bps")
 
 #ifndef B75
 # define B75 -1
 #endif
-CND(B75, "75 bps")
+CNU(B75, "75 bps")
 
 #ifndef B110
 # define B110 -1
 #endif
-CND(B110, "110 bps")
+CNU(B110, "110 bps")
 
 #ifndef B134
 # define B134 -1
 #endif
-CND(B134, "134 bps")
+CNU(B134, "134 bps")
 
 #ifndef B150
 # define B150 -1
 #endif
-CND(B150, "150 bps")
+CNU(B150, "150 bps")
 
 #ifndef B200
 # define B200 -1
 #endif
-CND(B200, "200 bps")
+CNU(B200, "200 bps")
 
 #ifndef B300
 # define B300 -1
 #endif
-CND(B300, "300 bps")
+CNU(B300, "300 bps")
 
 #ifndef B600
 # define B600 -1
 #endif
-CND(B600, "600 bps")
+CNU(B600, "600 bps")
 
 #ifndef B1200
 # define B1200 -1
 #endif
-CND(B1200, "1200 bps")
+CNU(B1200, "1200 bps")
 
 #ifndef B1800
 # define B1800 -1
 #endif
-CND(B1800, "1800 bps")
+CNU(B1800, "1800 bps")
 
 #ifndef B2400
 # define B2400 -1
 #endif
-CND(B2400, "2400 bps")
+CNU(B2400, "2400 bps")
 
 #ifndef B4800
 # define B4800 -1
 #endif
-CND(B4800, "4800 bps")
+CNU(B4800, "4800 bps")
 
 #ifndef B9600
 # define B9600 -1
 #endif
-CND(B9600, "9600 bps")
+CNU(B9600, "9600 bps")
 
 #ifndef B19200
 # define B19200 -1
 #endif
-CND(B19200, "19200 bps")
+CNU(B19200, "19200 bps")
 
 #ifndef B38400
 # define B38400 -1
 #endif
-CND(B38400, "38400 bps")
+CNU(B38400, "38400 bps")
 
 #ifndef B57600
 # define B57600 -1
 #endif
-CND(B57600, "57600 bps")
+CNU(B57600, "57600 bps")
 
 #ifndef B115200
 # define B115200 -1
 #endif
-CND(B115200, "115200 bps")
+CNU(B115200, "115200 bps")
 
 #ifndef B230400
 # define B230400 -1
 #endif
-CND(B230400, "230400 bps")
+CNU(B230400, "230400 bps")
 
 #ifndef B460800
 # define B460800 -1
 #endif
-CND(B460800, "460800 bps")
+CNU(B460800, "460800 bps")
 
 #ifndef B500000
 # define B500000 -1
 #endif
-CND(B500000, "500000 bps")
+CNU(B500000, "500000 bps")
 
 #ifndef B576000
 # define B576000 -1
 #endif
-CND(B576000, "576000 bps")
+CNU(B576000, "576000 bps")
 
 #ifndef B921600
 # define B921600 -1
 #endif
-CND(B921600, "921600 bps")
+CNU(B921600, "921600 bps")
 
 #ifndef B1000000
 # define B1000000 -1
 #endif
-CND(B1000000, "1000000 bps")
+CNU(B1000000, "1000000 bps")
 
 #ifndef B1152000
 # define B1152000 -1
 #endif
-CND(B1152000, "1152000 bps")
+CNU(B1152000, "1152000 bps")
 
 #ifndef B1500000
 # define B1500000 -1
 #endif
-CND(B1500000, "1500000 bps")
+CNU(B1500000, "1500000 bps")
 
 #ifndef B2000000
 # define B2000000 -1
 #endif
-CND(B2000000, "2000000 bps")
+CNU(B2000000, "2000000 bps")
 
 #ifndef B2500000
 # define B2500000 -1
 #endif
-CND(B2500000, "2500000 bps")
+CNU(B2500000, "2500000 bps")
 
 #ifndef B3000000
 # define B3000000 -1
 #endif
-CND(B3000000, "3000000 bps")
+CNU(B3000000, "3000000 bps")
 
 #ifndef B3500000
 # define B3500000 -1
 #endif
-CND(B3500000, "3500000 bps")
+CNU(B3500000, "3500000 bps")
 
 #ifndef B4000000
 # define B4000000 -1
 #endif
-CND(B4000000, "4000000 bps")
+CNU(B4000000, "4000000 bps")
 
 /*
 
@@ -904,6 +973,26 @@ CND(VEOL2, "Alternative EOL")
 
 #endif /* HAVE_TERMIOS */
 
+#ifdef __MINGW32__
+CNU(DTR_CONTROL_ENABLE, "Enable DTR flow ctrl")
+CNU(RTS_CONTROL_ENABLE, "Enable RTS flow ctrl")
+#endif
+
+/*
+
+   -----------------------------
+   -- Pseudo terminal library --
+   -----------------------------
+
+*/
+
+#if defined (__FreeBSD__) || defined (linux)
+# define PTY_Library "-lutil"
+#else
+# define PTY_Library ""
+#endif
+CST(PTY_Library, "for g-exptty")
+
 /**
  **  Sockets constants
  **/
@@ -928,15 +1017,6 @@ CND(AF_INET, "IPv4 address family")
  ** Its TCP/IP stack is in transition.  It has newer .h files but no IPV6 yet.
  **/
 #if defined(__rtems__)
-# undef AF_INET6
-#endif
-
-/**
- ** Tru64 UNIX V4.0F defines AF_INET6 without IPv6 support, specificially
- ** without struct sockaddr_in6.  We use _SS_MAXSIZE (used for the definition
- ** of struct sockaddr_storage on Tru64 UNIX V5.1) to detect this.
- **/
-#if defined(__osf__) && !defined(_SS_MAXSIZE)
 # undef AF_INET6
 #endif
 
@@ -1068,7 +1148,13 @@ CND(MSG_PEEK, "Peek at incoming data")
 CND(MSG_EOR, "Send end of record")
 
 #ifndef MSG_WAITALL
+#ifdef __MINWGW32__
+/* The value of MSG_WAITALL is 8.  Nevertheless winsock.h doesn't
+   define it, but it is still usable as we link to winsock2 API.  */
+# define MSG_WAITALL (1 << 3)
+#else
 # define MSG_WAITALL -1
+#endif
 #endif
 CND(MSG_WAITALL, "Wait for full reception")
 
@@ -1197,6 +1283,26 @@ CND(IP_PKTINFO, "Get datagram info")
 CND(SIZEOF_tv_sec, "tv_sec")
 #define SIZEOF_tv_usec (sizeof tv.tv_usec)
 CND(SIZEOF_tv_usec, "tv_usec")
+/*
+
+   --  Maximum allowed value for tv_sec
+*/
+
+/**
+ ** On Solaris, field tv_sec in struct timeval has an undocumented
+ ** hard-wired limit of 100 million.
+ ** On IA64 HP-UX the limit is 2**31 - 1.
+ **/
+#if defined (sun)
+# define MAX_tv_sec "100_000_000"
+
+#elif defined (__hpux__)
+# define MAX_tv_sec "16#7fffffff#"
+
+#else
+# define MAX_tv_sec "2 ** (SIZEOF_tv_sec * 8 - 1) - 1"
+#endif
+CNS(MAX_tv_sec, "")
 }
 /*
 
@@ -1214,24 +1320,18 @@ CND(SIZEOF_sockaddr_in6, "struct sockaddr_in6")
 
 #define SIZEOF_fd_set (sizeof (fd_set))
 CND(SIZEOF_fd_set, "fd_set");
+CND(FD_SETSIZE, "Max fd value");
+
+#define SIZEOF_struct_hostent (sizeof (struct hostent))
+CND(SIZEOF_struct_hostent, "struct hostent");
 
 #define SIZEOF_struct_servent (sizeof (struct servent))
 CND(SIZEOF_struct_servent, "struct servent");
-/*
 
-   --  Fields of struct hostent
-*/
-
-#ifdef __MINGW32__
-# define h_addrtype_t "short"
-# define h_length_t   "short"
-#else
-# define h_addrtype_t "int"
-# define h_length_t   "int"
+#if defined (__linux__)
+#define SIZEOF_sigset (sizeof (sigset_t))
+CND(SIZEOF_sigset, "sigset");
 #endif
-
-TXT("   subtype H_Addrtype_T is Interfaces.C." h_addrtype_t ";")
-TXT("   subtype H_Length_T   is Interfaces.C." h_length_t ";")
 
 /*
 
@@ -1239,12 +1339,12 @@ TXT("   subtype H_Length_T   is Interfaces.C." h_length_t ";")
 */
 
 #if defined (__sun__) || defined (__hpux__)
-# define msg_iovlen_t "int"
+# define Msg_Iovlen_T "int"
 #else
-# define msg_iovlen_t "size_t"
+# define Msg_Iovlen_T "size_t"
 #endif
 
-TXT("   subtype Msg_Iovlen_T is Interfaces.C." msg_iovlen_t ";")
+SUB(Msg_Iovlen_T)
 
 /*
 
@@ -1255,6 +1355,7 @@ TXT("   subtype Msg_Iovlen_T is Interfaces.C." msg_iovlen_t ";")
 */
 
 CND(Need_Netdb_Buffer, "Need buffer for Netdb ops")
+CND(Need_Netdb_Lock,   "Need lock for Netdb ops")
 CND(Has_Sockaddr_Len,  "Sockaddr has sa_len field")
 
 /**
@@ -1275,6 +1376,105 @@ C("Thread_Blocking_IO", Boolean, "True", "")
 CST(Inet_Pton_Linkname, "")
 
 #endif /* HAVE_SOCKETS */
+
+/*
+
+   ---------------------
+   -- Threads support --
+   ---------------------
+
+   --  Clock identifier definitions
+
+*/
+
+/* Note: On HP-UX, CLOCK_REALTIME is an enum, not a macro. */
+
+#if defined(CLOCK_REALTIME) || defined (__hpux__)
+# define HAVE_CLOCK_REALTIME
+#endif
+
+#ifdef HAVE_CLOCK_REALTIME
+CND(CLOCK_REALTIME, "System realtime clock")
+#endif
+
+#ifdef CLOCK_MONOTONIC
+CND(CLOCK_MONOTONIC, "System monotonic clock")
+#endif
+
+#ifdef CLOCK_FASTEST
+CND(CLOCK_FASTEST, "Fastest clock")
+#endif
+
+#ifndef CLOCK_THREAD_CPUTIME_ID
+# define CLOCK_THREAD_CPUTIME_ID -1
+#endif
+CND(CLOCK_THREAD_CPUTIME_ID, "Thread CPU clock")
+
+#if defined(__APPLE__)
+/* There's no clock_gettime or clock_id's on Darwin, generate a dummy value */
+# define CLOCK_RT_Ada "-1"
+
+#elif defined(__FreeBSD__) || defined(_AIX)
+/** On these platforms use system provided monotonic clock instead of
+ ** the default CLOCK_REALTIME. We then need to set up cond var attributes
+ ** appropriately (see thread.c).
+ **/
+# define CLOCK_RT_Ada "CLOCK_MONOTONIC"
+# define NEED_PTHREAD_CONDATTR_SETCLOCK
+
+#elif defined(HAVE_CLOCK_REALTIME)
+/* By default use CLOCK_REALTIME */
+# define CLOCK_RT_Ada "CLOCK_REALTIME"
+#endif
+
+#ifdef CLOCK_RT_Ada
+CNS(CLOCK_RT_Ada, "")
+#endif
+
+#if defined (__APPLE__) || defined (__linux__) || defined (DUMMY)
+/*
+
+   --  Sizes of pthread data types
+
+*/
+
+#if defined (__APPLE__) || defined (DUMMY)
+/*
+   --  (on Darwin, these are just placeholders)
+
+*/
+#define PTHREAD_SIZE            __PTHREAD_SIZE__
+#define PTHREAD_ATTR_SIZE       __PTHREAD_ATTR_SIZE__
+#define PTHREAD_MUTEXATTR_SIZE  __PTHREAD_MUTEXATTR_SIZE__
+#define PTHREAD_MUTEX_SIZE      __PTHREAD_MUTEX_SIZE__
+#define PTHREAD_CONDATTR_SIZE   __PTHREAD_CONDATTR_SIZE__
+#define PTHREAD_COND_SIZE       __PTHREAD_COND_SIZE__
+#define PTHREAD_RWLOCKATTR_SIZE __PTHREAD_RWLOCKATTR_SIZE__
+#define PTHREAD_RWLOCK_SIZE     __PTHREAD_RWLOCK_SIZE__
+#define PTHREAD_ONCE_SIZE       __PTHREAD_ONCE_SIZE__
+#else
+#define PTHREAD_SIZE            (sizeof (pthread_t))
+#define PTHREAD_ATTR_SIZE       (sizeof (pthread_attr_t))
+#define PTHREAD_MUTEXATTR_SIZE  (sizeof (pthread_mutexattr_t))
+#define PTHREAD_MUTEX_SIZE      (sizeof (pthread_mutex_t))
+#define PTHREAD_CONDATTR_SIZE   (sizeof (pthread_condattr_t))
+#define PTHREAD_COND_SIZE       (sizeof (pthread_cond_t))
+#define PTHREAD_RWLOCKATTR_SIZE (sizeof (pthread_rwlockattr_t))
+#define PTHREAD_RWLOCK_SIZE     (sizeof (pthread_rwlock_t))
+#define PTHREAD_ONCE_SIZE       (sizeof (pthread_once_t))
+#endif
+
+CND(PTHREAD_SIZE,            "pthread_t")
+CND(PTHREAD_ATTR_SIZE,       "pthread_attr_t")
+CND(PTHREAD_MUTEXATTR_SIZE,  "pthread_mutexattr_t")
+CND(PTHREAD_MUTEX_SIZE,      "pthread_mutex_t")
+CND(PTHREAD_CONDATTR_SIZE,   "pthread_condattr_t")
+CND(PTHREAD_COND_SIZE,       "pthread_cond_t")
+CND(PTHREAD_RWLOCKATTR_SIZE, "pthread_rwlockattr_t")
+CND(PTHREAD_RWLOCK_SIZE,     "pthread_rwlock_t")
+CND(PTHREAD_ONCE_SIZE,       "pthread_once_t")
+
+#endif /* __APPLE__ || __linux__ */
 
 /**
  **  System-specific constants follow
@@ -1297,7 +1497,7 @@ CST(Inet_Pton_Linkname, "")
 CND(OK,    "VxWorks generic success")
 CND(ERROR, "VxWorks generic error")
 
-#endif
+#endif /* __vxworks */
 
 #if defined (__MINGW32__) || defined (DUMMY)
 /*
@@ -1315,50 +1515,14 @@ CND(WSAVERNOTSUPPORTED, "Version not supported")
 CND(WSANOTINITIALISED,  "Winsock not initialized")
 CND(WSAEDISCON,         "Disconnected")
 
-#endif
+#endif /* __MINGW32__ */
+
+/**
+ ** End of constants definitions
+ **/
 
 #ifdef NATIVE
    putchar ('\n');
-#endif
-
-#if defined (__APPLE__) || defined (DUMMY)
-/*
-
-   -------------------------------
-   -- Darwin-specific constants --
-   -------------------------------
-
-   --  These constants may be used only within the Darwin version of the GNAT
-   --  runtime library.
-*/
-
-#define PTHREAD_SIZE __PTHREAD_SIZE__
-CND(PTHREAD_SIZE, "Pad in pthread_t")
-
-#define PTHREAD_ATTR_SIZE __PTHREAD_ATTR_SIZE__
-CND(PTHREAD_ATTR_SIZE, "Pad in pthread_attr_t")
-
-#define PTHREAD_MUTEXATTR_SIZE __PTHREAD_MUTEXATTR_SIZE__
-CND(PTHREAD_MUTEXATTR_SIZE, "Pad in pthread_mutexattr_t")
-
-#define PTHREAD_MUTEX_SIZE __PTHREAD_MUTEX_SIZE__
-CND(PTHREAD_MUTEX_SIZE, "Pad in pthread_mutex_t")
-
-#define PTHREAD_CONDATTR_SIZE __PTHREAD_CONDATTR_SIZE__
-CND(PTHREAD_CONDATTR_SIZE, "Pad in pthread_condattr_t")
-
-#define PTHREAD_COND_SIZE __PTHREAD_COND_SIZE__
-CND(PTHREAD_COND_SIZE, "Pad in pthread_cond_t")
-
-#define PTHREAD_RWLOCKATTR_SIZE __PTHREAD_RWLOCKATTR_SIZE__
-CND(PTHREAD_RWLOCKATTR_SIZE, "Pad in pthread_rwlockattr_t")
-
-#define PTHREAD_RWLOCK_SIZE __PTHREAD_RWLOCK_SIZE__
-CND(PTHREAD_RWLOCK_SIZE, "Pad in pthread_rwlock_t")
-
-#define PTHREAD_ONCE_SIZE __PTHREAD_ONCE_SIZE__
-CND(PTHREAD_ONCE_SIZE, "Pad in pthread_once_t")
-
 #endif
 
 /*

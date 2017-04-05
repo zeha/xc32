@@ -1,4 +1,4 @@
-! { dg-do "compile" }
+! { dg-do compile }
 ! Test the fix for PR43266, in which an ICE followed correct error messages.
 !
 ! Contributed by Tobias Burnus <burnus@gcc.gnu.org>
@@ -10,7 +10,7 @@
 module m
 TYPE, ABSTRACT :: top
 CONTAINS
-   PROCEDURE(xxx), DEFERRED :: proc_a ! { dg-error "must be a module procedure" }
+   PROCEDURE(xxx), DEFERRED :: proc_a ! { dg-error "must be explicit" }
    ! some useful default behaviour
    PROCEDURE :: proc_c => top_c ! { dg-error "must be a module procedure" }
 END TYPE top
@@ -31,7 +31,7 @@ TYPE, EXTENDS(middle) :: bottom
 CONTAINS
    ! useful proc to satisfy deferred procedure in top. Because we've
    ! extended middle we wouldn't get told off if we forgot this.
-   PROCEDURE :: proc_a => bottom_a
+   PROCEDURE :: proc_a => bottom_a  ! { dg-error "must be a module procedure" }
    ! calls middle%proc_b and then provides extra behaviour
    PROCEDURE :: proc_b => bottom_b
    ! calls top_c and then provides extra behaviour
@@ -50,4 +50,3 @@ SUBROUTINE bottom_c(obj)
    ! other stuff
 END SUBROUTINE bottom_c 
 end module
-! { dg-final { cleanup-modules "m" } }

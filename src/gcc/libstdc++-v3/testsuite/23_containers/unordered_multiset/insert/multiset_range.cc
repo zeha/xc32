@@ -1,6 +1,6 @@
 // { dg-options "-std=gnu++0x" }
 
-// Copyright (C) 2010 Free Software Foundation, Inc.
+// Copyright (C) 2010-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -25,6 +25,19 @@
 #include <unordered_set>
 #include <testsuite_hooks.h>
 
+namespace
+{
+  template <typename _Tp>
+    std::size_t
+    get_nb_bucket_elems(const std::unordered_multiset<_Tp>& us)
+    {
+      std::size_t nb = 0;
+      for (std::size_t b = 0; b != us.bucket_count(); ++b)
+	nb += us.bucket_size(b);
+      return nb;
+    }
+}
+
 void test01()
 {
   bool test __attribute__((unused)) = true;
@@ -37,15 +50,17 @@ void test01()
   const std::string A[N] = { "red", "green", "blue", "violet", "cyan",
 			     "magenta", "yellow", "orange", "pink", "gray" };
 
-  s.insert(A+0, A+N);
-  VERIFY(s.size() == static_cast<unsigned int>(N));
-  VERIFY(std::distance(s.begin(), s.end()) == N);
+  s.insert(A + 0, A + N);
+  VERIFY( s.size() == static_cast<unsigned int>(N) );
+  VERIFY( std::distance(s.begin(), s.end()) - N == 0 );
+  VERIFY( get_nb_bucket_elems(s) - N == 0 );
 
-  for (int i = 0; i < N; ++i) {
-    std::string str = A[i];
-    Set::iterator it = std::find(s.begin(), s.end(), str);
-    VERIFY(it != s.end());
-  }
+  for (int i = 0; i < N; ++i)
+    {
+      std::string str = A[i];
+      Set::iterator it = std::find(s.begin(), s.end(), str);
+      VERIFY(it != s.end());
+    }
 }
 
 void test02()
@@ -60,15 +75,16 @@ void test02()
   const int A[N] = { 3, 7, 4, 8, 2, 4, 6, 7 };
 
   s.insert(A+0, A+N);
-  VERIFY(s.size() == static_cast<unsigned int>(N));
-  VERIFY(std::distance(s.begin(), s.end()) == N);
+  VERIFY( s.size() == static_cast<unsigned int>(N) );
+  VERIFY( std::distance(s.begin(), s.end()) - N == 0 );
+  VERIFY( get_nb_bucket_elems(s) - N == 0 );
 
-  VERIFY(std::count(s.begin(), s.end(), 2) == 1);
-  VERIFY(std::count(s.begin(), s.end(), 3) == 1);
-  VERIFY(std::count(s.begin(), s.end(), 4) == 2);
-  VERIFY(std::count(s.begin(), s.end(), 6) == 1);
-  VERIFY(std::count(s.begin(), s.end(), 7) == 2);
-  VERIFY(std::count(s.begin(), s.end(), 8) == 1);
+  VERIFY( std::count(s.begin(), s.end(), 2) == 1 );
+  VERIFY( std::count(s.begin(), s.end(), 3) == 1 );
+  VERIFY( std::count(s.begin(), s.end(), 4) == 2 );
+  VERIFY( std::count(s.begin(), s.end(), 6) == 1 );
+  VERIFY( std::count(s.begin(), s.end(), 7) == 2 );
+  VERIFY( std::count(s.begin(), s.end(), 8) == 1 );
 }
 
 int main()

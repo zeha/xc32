@@ -1,6 +1,6 @@
 // 2000-03-29 sss/bkoz
 
-// Copyright (C) 2000, 2003, 2004, 2005, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2000-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -25,13 +25,13 @@ void test01()
 {
   bool test __attribute__((unused)) = true;
 
-  const int& z = std::min(1, 2);
-  const int& w = std::min(4, 3);
+  const int z = std::min(1, 2);
+  const int w = std::min(4, 3);
   VERIFY( z == 1 );
   VERIFY( w == 3 );
 
-  const int& zc = std::min(1, 2, std::greater<int>());
-  const int& wc = std::min(4, 3, std::greater<int>());
+  const int zc = std::min(1, 2, std::greater<int>());
+  const int wc = std::min(4, 3, std::greater<int>());
   VERIFY( zc == 2 );
   VERIFY( wc == 4 );
 }

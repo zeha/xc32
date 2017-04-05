@@ -1,7 +1,7 @@
 // -*- C++ -*-
 // typelist for the C++ library testsuite. 
 //
-// Copyright (C) 2005, 2006, 2007, 2008, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2005-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -36,6 +36,7 @@
 #include <list>
 #include <deque>
 #include <string>
+#include <limits>
 
 #include <map>
 #include <set>
@@ -43,7 +44,7 @@
 #include <tr1/unordered_map>
 #include <tr1/unordered_set>
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
 #include <atomic>
 #include <type_traits>
 #endif
@@ -255,7 +256,7 @@ namespace __gnu_test
       typedef typename append<a1, a2>::type type;
     };
 
-  // A typelist of all integral types.
+  // A typelist of all standard integral types.
   struct integral_types
   {
     typedef bool 		a1;
@@ -271,7 +272,7 @@ namespace __gnu_test
     typedef long long 		a11;
     typedef unsigned long long 	a12;
     typedef wchar_t 		a13;
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
     typedef char16_t 		a14;
     typedef char32_t 		a15;
 
@@ -283,7 +284,51 @@ namespace __gnu_test
 #endif
   };
 
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+  // A typelist of all standard integral types + the GNU 128-bit types.
+  struct integral_types_gnu
+  {
+    typedef bool 		a1;
+    typedef char 		a2;
+    typedef signed char 	a3;
+    typedef unsigned char 	a4;
+    typedef short 		a5;
+    typedef unsigned short 	a6;
+    typedef int 		a7;
+    typedef unsigned int 	a8;
+    typedef long 		a9;
+    typedef unsigned long 	a10;
+    typedef long long 		a11;
+    typedef unsigned long long 	a12;
+    typedef wchar_t 		a13;
+#if __cplusplus >= 201103L
+    typedef char16_t 		a14;
+    typedef char32_t 		a15;
+# if !defined(__STRICT_ANSI__) && defined(_GLIBCXX_USE_INT128)
+    typedef __int128            a16;
+    typedef unsigned __int128   a17;
+
+    typedef node<_GLIBCXX_TYPELIST_CHAIN17(a1, a2, a3, a4, a5, a6, a7, a8, a9, 
+					   a10, a11, a12, a13, a14, a15,
+					   a16, a17)> type;
+# else
+    typedef node<_GLIBCXX_TYPELIST_CHAIN15(a1, a2, a3, a4, a5, a6, a7, a8, a9, 
+					   a10, a11, a12, a13, a14, a15)> type;
+# endif
+#else
+# if !defined(__STRICT_ANSI__) && defined(_GLIBCXX_USE_INT128)
+    typedef __int128            a14;
+    typedef unsigned __int128   a15;
+
+    typedef node<_GLIBCXX_TYPELIST_CHAIN15(a1, a2, a3, a4, a5, a6, a7, a8, a9, 
+					   a10, a11, a12, a13, a14, a15)> type;
+# else
+   typedef node<_GLIBCXX_TYPELIST_CHAIN13(a1, a2, a3, a4, a5, a6, a7, a8, a9, 
+					  a10, a11, a12, a13)> type;
+# endif
+#endif
+  };
+
+#if __cplusplus >= 201103L
   struct atomic_integrals_no_bool
   {
     typedef std::atomic_char        	a2;
@@ -338,6 +383,14 @@ namespace __gnu_test
   typedef transform<integral_types::type, atomics>::type atomics_tl;
 #endif
 
+  template<typename Tp>
+    struct numeric_limits
+    {
+      typedef Tp			value_type;
+      typedef std::numeric_limits<value_type>	type;
+    };
+
+  typedef transform<integral_types_gnu::type, numeric_limits>::type limits_tl;
 
   struct has_increment_operators
   {
@@ -382,6 +435,20 @@ namespace __gnu_test
 	  = &_Concept::__constraint;
       }
   };
+
+#if __cplusplus >= 201103L
+  template<typename _Tp>
+    void
+    constexpr_bitwise_operators()
+    {
+      constexpr _Tp a = _Tp();
+      constexpr _Tp b = _Tp();
+      constexpr _Tp c1 __attribute__((unused)) = a | b;
+      constexpr _Tp c2 __attribute__((unused)) = a & b;
+      constexpr _Tp c3 __attribute__((unused)) = a ^ b;
+      constexpr _Tp c4 __attribute__((unused)) = ~b;
+    }
+#endif
 
   template<typename _Tp>
     void
@@ -439,8 +506,35 @@ namespace __gnu_test
       }
   };
 
+#if __cplusplus >= 201103L
+
+  struct constexpr_comparison_eq_ne
+  {
+    template<typename _Tp1, typename _Tp2 = _Tp1>
+      void 
+      operator()()
+      {
+	static_assert(_Tp1() == _Tp2(), "eq");
+	static_assert(!(_Tp1() != _Tp2()), "ne");
+      }
+  };
+
+  struct constexpr_comparison_operators
+  {
+    template<typename _Tp>
+      void 
+      operator()()
+      {
+	static_assert(!(_Tp() < _Tp()), "less");
+	static_assert(_Tp() <= _Tp(), "leq");
+	static_assert(!(_Tp() > _Tp()), "more");
+	static_assert(_Tp() >= _Tp(), "meq");
+	static_assert(_Tp() == _Tp(), "eq");
+	static_assert(!(_Tp() != _Tp()), "ne");
+      }
+  };
+
   // Generator to test standard layout
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
   struct has_trivial_cons_dtor
   {
     template<typename _Tp>
@@ -454,7 +548,7 @@ namespace __gnu_test
 	    typedef std::has_trivial_default_constructor<_Tp> ctor_p;
 	    static_assert(ctor_p::value, "default constructor not trivial");
 
-	    typedef std::has_trivial_destructor<_Tp> dtor_p;
+	    typedef std::is_trivially_destructible<_Tp> dtor_p;
 	    static_assert(dtor_p::value, "destructor not trivial");
 	  }
 	};
@@ -539,7 +633,7 @@ namespace __gnu_test
 	struct _Concept
 	{
 	  void __constraint()
-	  { _Tp __v; }
+	  { _Tp __v __attribute__((unused)); }
 	};
 
 	void (_Concept::*__x)() __attribute__((unused))
@@ -587,8 +681,102 @@ namespace __gnu_test
       }
   };
 
+#if __cplusplus >= 201103L
+  // Generator to test default constructor.
+  struct constexpr_default_constructible
+  {
+    template<typename _Tp, bool _IsLitp = std::is_literal_type<_Tp>::value>
+      struct _Concept;
+
+    // NB: _Tp must be a literal type.
+    // Have to have user-defined default ctor for this to work.
+    template<typename _Tp>
+      struct _Concept<_Tp, true>
+      {
+	void __constraint()
+	{ constexpr _Tp __obj; }
+      };
+
+    // Non-literal type, declare local static and verify no
+    // constructors generated for _Tp within the translation unit.
+    template<typename _Tp>
+      struct _Concept<_Tp, false>
+      {
+	void __constraint()
+	{ static _Tp __obj; }
+      };
+
+    template<typename _Tp>
+      void 
+      operator()()
+      {
+	_Concept<_Tp> c;
+	c.__constraint();
+      }
+  };
+
+  // Generator to test defaulted default constructor.
+  struct constexpr_defaulted_default_constructible
+  {
+    template<typename _Tp>
+      void
+      operator()()
+      {
+	struct _Concept
+	{
+	  void __constraint()
+	  { constexpr _Tp __v __attribute__((unused)) { }; }
+	};
+
+	void (_Concept::*__x)() __attribute__((unused))
+	  = &_Concept::__constraint;
+      }
+  };
+
+  struct constexpr_single_value_constructible
+  {
+    template<typename _Ttesttype, typename _Tvaluetype, 
+	     bool _IsLitp = std::is_literal_type<_Ttesttype>::value>
+      struct _Concept;
+
+    // NB: _Tvaluetype and _Ttesttype must be literal types.
+    // Additional constraint on _Tvaluetype needed.  Either assume
+    // user-defined default ctor as per
+    // constexpr_default_constructible and provide no initializer,
+    // provide an initializer, or assume empty-list init-able. Choose
+    // the latter.
+    template<typename _Ttesttype, typename _Tvaluetype>
+      struct _Concept<_Ttesttype, _Tvaluetype, true>
+      {
+	void __constraint()
+	{
+	  constexpr _Tvaluetype __v { };
+	  constexpr _Ttesttype __obj(__v);
+	}
+      };
+
+    template<typename _Ttesttype, typename _Tvaluetype>
+      struct _Concept<_Ttesttype, _Tvaluetype, false>
+      {
+	void __constraint()
+	{ 
+	  const _Tvaluetype __v { };
+	  static _Ttesttype __obj(__v);
+	}
+      };
+
+    template<typename _Ttesttype, typename _Tvaluetype>
+      void
+      operator()()
+      {
+	_Concept<_Ttesttype, _Tvaluetype> c;
+	c.__constraint();
+      }
+  };
+#endif
+
   // Generator to test direct list initialization
-#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#if __cplusplus >= 201103L
   struct direct_list_initializable
   {
     template<typename _Ttype, typename _Tvalue>
@@ -622,7 +810,7 @@ namespace __gnu_test
 	struct _Concept
 	{
 	  void __constraint()
-	  { _Ttype __v = {__a}; }
+	  { _Ttype __v __attribute__((unused)) = {__a}; }
 	  
 	  _Tvalue __a;
 	};

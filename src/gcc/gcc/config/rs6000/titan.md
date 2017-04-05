@@ -1,5 +1,5 @@
 ;; Pipeline description for the AppliedMicro Titan core.
-;;   Copyright (C) 2010 Free Software Foundation, Inc.
+;;   Copyright (C) 2010-2013 Free Software Foundation, Inc.
 ;;   Contributed by Theobroma Systems Design und Consulting GmbH
 ;;
 ;; This file is part of GCC.
@@ -19,8 +19,6 @@
 ;; <http://www.gnu.org/licenses/>.
 
 ;; AppliedMicro Titan core complex
-
-(automata_option "progress")
 
 (define_automaton "titan_core,titan_fpu,titan_fxu,titan_bpu,titan_lsu")
 (define_cpu_unit "titan_issue_0,titan_issue_1" "titan_core")

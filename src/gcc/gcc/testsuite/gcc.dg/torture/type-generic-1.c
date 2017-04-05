@@ -3,6 +3,7 @@
 
 /* { dg-do run } */
 /* { dg-skip-if "No Inf/NaN support" { spu-*-* } } */
+/* { dg-options "-DUNSAFE" { target tic6x*-*-* } } */
 /* { dg-add-options ieee } */
 /* { dg-options "-Wl,--defsym=__cs3_mips_float_type=2 -lcs3-mips-cp1 -lcs3-mips-fpemu" { target mips*-*sde*-* } } */
 

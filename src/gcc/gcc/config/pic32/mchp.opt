@@ -46,9 +46,9 @@ mflip-mips16
 Target Report Var(TARGET_FLIP_MIPS16)
 Switch on/off MIPS16 ASE on alternating functions for compiler testing
 
-mips16e
-Target Undocumented Var(TARGET_MCHP_MIPS16E)
-Use -mips16 instead of -mips16e
+;mips16e
+;Target Undocumented Var(TARGET_MCHP_MIPS16E)
+;Use -mips16 instead of -mips16e
 
 mcheck-zero-division
 Target Report Mask(CHECK_ZERO_DIV)
@@ -146,15 +146,15 @@ Target Report Var(TARGET_4300_MUL_FIX) Undocumented
 
 mfp-exceptions
 Target Report Mask(FP_EXCEPTIONS) Undocumented
-;FP exceptions are enabled
+FP exceptions are enabled
 
-;mfp32
-;Target Report RejectNegative InverseMask(FLOAT64) Undocumented
-;Use 32-bit floating-point registers
+mfp32
+Target Report RejectNegative InverseMask(FLOAT64) Undocumented
+Use 32-bit floating-point registers
 
-;mfp64
-;Target Report RejectNegative Mask(FLOAT64) Undocumented
-;Use 64-bit floating-point registers
+mfp64
+Target Report RejectNegative Mask(FLOAT64) Undocumented
+Use 64-bit floating-point registers
 
 mflush-func=
 Target RejectNegative Joined Var(mips_cache_flush_func) Init(CACHE_FLUSH_FUNC)
@@ -450,3 +450,19 @@ Identify compiler resource file
 mno-fallback
 Target Report RejectNegative Var Var(TARGET_NO_FALLBACKLICENSE)
 --nofallback		Require a MPLAB XC32 Standard or Pro license and do not fall back to a lesser license
+
+; -mcode-xonly is a traditional alias for -mcode-readable=pcrel and
+; -mno-data-in-code is a traditional alias for -mcode-readable=no.
+
+mno-data-in-code
+Target RejectNegative Alias(mcode-readable=, no)
+
+mcode-xonly
+Target RejectNegative Alias(mcode-readable=, pcrel)
+
+mmemorysummary=
+Target Joined Var(TARGET_MEMORY_SUMMARY) Undocumented
+
+mfill=
+Target Joined Var(TARGET_MEMORY_FILL) Undocumented
+

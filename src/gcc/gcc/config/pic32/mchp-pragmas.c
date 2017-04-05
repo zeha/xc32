@@ -25,6 +25,7 @@ along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
 /* TODO: Clean up these includes since refactoring out of mchp.c */
+#undef  IN_GCC_FRONTEND
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
@@ -43,7 +44,6 @@ along with GCC; see the file COPYING3.  If not see
 #include "tree.h"
 #include "function.h"
 #include "expr.h"
-#include "optabs.h"
 #include "libfuncs.h"
 #include "flags.h"
 #include "reload.h"
@@ -54,13 +54,13 @@ along with GCC; see the file COPYING3.  If not see
 #include "debug.h"
 #include "target.h"
 #include "target-def.h"
-#include "integrate.h"
+//#include "integrate.h"
 #include "langhooks.h"
-#include "cfglayout.h"
+//#include "cfglayout.h"
 #include "sched-int.h"
 #include "gimple.h"
 #include "bitmap.h"
-#include "diagnostic.h"
+//#include "diagnostic.h"
 
 #ifndef _BUILD_MCHP_
 #define _BUILD_MCHP_
@@ -73,9 +73,9 @@ along with GCC; see the file COPYING3.  If not see
 #include "cpplib.h"
 #include "mchp-pragmas.h"
 #include "mchp-protos.h"
-#include "c-common.h"
-#include "c-pragma.h"
-#include "c-tree.h"
+#include "c-family/c-common.h"
+#include "c-family/c-pragma.h"
+#include "c/c-tree.h"
 #include "config/mips/mips-machine-function.h"
 
 #define MCHP_DONT_DEFINE_RESOURCES
@@ -105,6 +105,12 @@ mchp_handle_vector_pragma (struct cpp_reader *pfile ATTRIBUTE_UNUSED)
   /* syntax:
      vector-pragma: # pragma vector target-name irq-num [ , irq-num ]...
    */
+
+  if (flag_generate_lto)
+    {
+      warning (0, "#pragma vector not supported with -flto option, this file will not participate in LTO");
+      flag_generate_lto = 0;
+    }
 
   /* Recognize the syntax. */
   /* First we have the name of the function which is an interrupt handler */
@@ -212,7 +218,7 @@ mchp_handle_interrupt_pragma (struct cpp_reader *pfile ATTRIBUTE_UNUSED)
   ipl = tok_value;
 
   /* add the interrupt designation to the list of interrupt pragmas */
-  p = (struct interrupt_pragma_spec *)ggc_alloc (sizeof (struct interrupt_pragma_spec));
+  p = (struct interrupt_pragma_spec *)ggc_alloc_atomic (sizeof (struct interrupt_pragma_spec));
   p->next = interrupt_pragma_list_head;
   p->name = fname;
   p->ipl = ipl;
@@ -383,7 +389,7 @@ void mchp_handle_section_pragma (struct cpp_reader *pfile) {
     mchp_pragma_section = NULL_TREE;
     return;
   }
-  name = TREE_STRING_POINTER(x);
+  name = (char *)TREE_STRING_POINTER(x);
   mchp_pragma_section = build_string(strlen(name), name);
   c = pragma_lex(&x);
   if (c == CPP_NUMBER) {
@@ -439,7 +445,7 @@ void mchp_handle_required_pragma(struct cpp_reader *pfile) {
     char *identifier;
     tree sym;
 
-    identifier = IDENTIFIER_POINTER(x);
+    identifier = (char *)IDENTIFIER_POINTER(x);
     sym = maybe_get_identifier(identifier);
     if (sym) {
       sym = lookup_name(sym);
@@ -491,7 +497,7 @@ void mchp_handle_optimize_pragma (struct cpp_reader *pfile) {
         char *keyword;
         char *equivalent=0;
 
-        keyword = IDENTIFIER_POINTER(x);
+        keyword = (char *)IDENTIFIER_POINTER(x);
         if (!strcmp(keyword,"balanced")) {
           equivalent = "-O2";
         } else if (!strcmp(keyword,"size")) {
@@ -530,4 +536,118 @@ void mchp_handle_optimize_pragma (struct cpp_reader *pfile) {
   c_cpp_builtins_optimize_pragma (parse_in,
                                       optimization_previous_node,
                                       optimization_current_node);
+}
+
+
+void mchp_handle_region_pragma (struct cpp_reader *pfile) {
+
+  int c;
+  tree region;
+  const char *region_name;
+  int region_origin;
+  int region_size;
+  enum cpp_ttype type;
+  tree x ;
+
+   if (flag_generate_lto)
+   {
+     warning (0, "#pragma region not supported with -flto option, this file will not participate in LTO" );
+     flag_generate_lto = 0;
+   }
+
+   type = pragma_lex (&x);
+
+   if ( (type == CPP_NAME) && (strncmp (IDENTIFIER_POINTER(x), "name", 4) == 0) ) { 
+   }
+   else
+   {
+    warning (OPT_Wpragmas, "malformed #pragma region, expected 'name'" );
+    return;
+   }
+   
+  type = pragma_lex(&x);
+  
+  if (type != CPP_EQ) 
+  {
+    warning (OPT_Wpragmas, "malformed #pragma region, expected '=' after 'name'");
+    return;
+  }
+  
+  type = pragma_lex(&x);
+
+  if (type != CPP_STRING) 
+  {
+    warning (OPT_Wpragmas, "malformed #pragma region, string literal expected for region name");
+    return;
+  }
+    
+  region_name = TREE_STRING_POINTER(x);
+  
+  type = pragma_lex(&x);
+ 
+   if ( (type == CPP_NAME) && (strncmp (IDENTIFIER_POINTER(x), "origin", 6) == 0) ) { 
+   }
+   else
+   {
+    warning (OPT_Wpragmas, "malformed #pragma region, expected 'origin'" );
+    return;
+   }
+  
+  type = pragma_lex(&x);
+  
+  if (type != CPP_EQ) 
+  {
+    warning (OPT_Wpragmas, "malformed #pragma region, expected '=' after 'origin'");
+    return;
+  }
+  
+  type = pragma_lex(&x);
+  
+  if ( (type != CPP_NUMBER) || (TREE_CODE(x) != INTEGER_CST) )
+  {
+    warning (OPT_Wpragmas, "malformed #pragma region, expected constant value for 'origin'");
+    return;
+  }
+  
+  region_origin = TREE_INT_CST_LOW(x);
+  
+  type = pragma_lex(&x);
+  
+   if ( (type == CPP_NAME) && (strncmp (IDENTIFIER_POINTER(x), "size", 4) == 0) ) { 
+   }
+   else
+   {
+    warning (OPT_Wpragmas, "malformed #pragma region, expected 'size'" );
+    return;
+   }
+  
+  type = pragma_lex(&x);
+  
+  if (type != CPP_EQ) 
+  {
+    warning (OPT_Wpragmas, "malformed #pragma region, expected '=' after 'size'");
+    return;
+  }
+  
+  type = pragma_lex(&x);
+  
+  if ( (type != CPP_NUMBER) || (TREE_CODE(x) != INTEGER_CST) )
+  {
+    warning (OPT_Wpragmas, "malformed #pragma region, expected constant value for 'size'");
+    return;
+  }
+  
+  region_size = TREE_INT_CST_LOW(x);
+
+  type = pragma_lex(&x);
+
+   if (type != CPP_EOF) {
+    /* return */
+    error ("extraneous data at end of line of #pragma region");
+    CLEAR_REST_OF_INPUT_LINE();
+    return;
+  }
+  
+  pic32_update_external_memory_info(region_name, region_origin, region_size);
+  return;
 }

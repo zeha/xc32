@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 S p e c                                  --
 --                                                                          --
---          Copyright (C) 1992-2009, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -41,6 +41,36 @@
 --  so we can do the instantiation under control of Discard_Names to remove
 --  the tables.
 
+---------------------------------------------------
+-- Note On Compile/Run-Time Consistency Checking --
+---------------------------------------------------
+
+--  This unit is with'ed by the run-time (to make System.Restrictions which is
+--  used for run-time access to restriction information), by the compiler (to
+--  determine what restrictions are implemented and what their category is) and
+--  by the binder (in processing ali files, and generating the information used
+--  at run-time to access restriction information).
+
+--  Normally the version of System.Rident referenced in all three contexts
+--  should be the same. However, problems could arise in certain inconsistent
+--  builds that used inconsistent versions of the compiler and run-time. This
+--  sort of thing is not strictly correct, but it does arise when short-cuts
+--  are taken in build procedures.
+
+--  Previously, this kind of inconsistency could cause a significant problem.
+--  If versions of System.Rident accessed by the compiler and binder differed,
+--  then the binder could fail to recognize the R (restrictions line) in the
+--  ali file, leading to bind errors when restrictions were added or removed.
+
+--  The latest implementation avoids both this problem by using a named
+--  scheme for recording restrictions, rather than a positional scheme which
+--  fails completely if restrictions are added or subtracted. Now the worst
+--  that happens at bind time in incosistent builds is that unrecognized
+--  restrictions are ignored, and the consistency checking for restrictions
+--  might be incomplete, which is no big deal.
+
+pragma Compiler_Unit;
+
 generic
 package System.Rident is
    pragma Preelaborate;
@@ -62,8 +92,11 @@ package System.Rident is
       No_Abort_Statements,                     -- (RM D.7(5), H.4(3))
       No_Access_Subprograms,                   -- (RM H.4(17))
       No_Allocators,                           -- (RM H.4(7))
-      No_Asynchronous_Control,                 -- (RM D.7(10))
+      No_Allocators_After_Elaboration,         -- Ada 2012 (RM D.7(19.1/2))
+      No_Anonymous_Allocators,                 -- Ada 2012 (RM H.4(8/1))
+      No_Asynchronous_Control,                 -- (RM J.13(3/2)
       No_Calendar,                             -- GNAT
+      No_Default_Stream_Attributes,            -- Ada 2012 (RM 13.12.1(4/2))
       No_Delay,                                -- (RM H.4(21))
       No_Direct_Boolean_Operators,             -- GNAT
       No_Dispatch,                             -- (RM H.4(19))
@@ -109,8 +142,8 @@ package System.Rident is
       No_Tasking,                              -- GNAT
       No_Terminate_Alternatives,               -- (RM D.7(6))
       No_Unchecked_Access,                     -- (RM H.4(18))
-      No_Unchecked_Conversion,                 -- (RM H.4(16))
-      No_Unchecked_Deallocation,               -- (RM H.4(9))
+      No_Unchecked_Conversion,                 -- (RM J.13(4/2))
+      No_Unchecked_Deallocation,               -- (RM J.13(5/2))
       Static_Priorities,                       -- GNAT
       Static_Storage_Size,                     -- GNAT
 
@@ -119,15 +152,28 @@ package System.Rident is
 
       No_Default_Initialization,               -- GNAT
 
-      --  The following cases do not require consistency checking
+      --  The following cases do not require consistency checking and if used
+      --  as a configuration pragma within a specific unit, apply only to that
+      --  unit (e.g. if used in the package spec, do not apply to the body)
+
+      --  Note: No_Elaboration_Code is handled specially. Like the other
+      --  non-partition-wide restrictions, it can only be set in a unit that
+      --  is part of the extended main source unit (body/spec/subunits). But
+      --  it is sticky, in that if it is found anywhere within any of these
+      --  units, it applies to all units in this extended main source.
 
       Immediate_Reclamation,                   -- (RM H.4(10))
+      No_Implementation_Aspect_Specifications, -- Ada 2012 AI-241
       No_Implementation_Attributes,            -- Ada 2005 AI-257
+      No_Implementation_Identifiers,           -- Ada 2012 AI-246
       No_Implementation_Pragmas,               -- Ada 2005 AI-257
       No_Implementation_Restrictions,          -- GNAT
+      No_Implementation_Units,                 -- Ada 2012 AI-242
+      No_Implicit_Aliasing,                    -- GNAT
       No_Elaboration_Code,                     -- GNAT
       No_Obsolescent_Features,                 -- Ada 2005 AI-368
       No_Wide_Characters,                      -- GNAT
+      SPARK,                                   -- GNAT
 
       --  The following cases require a parameter value
 
@@ -177,7 +223,7 @@ package System.Rident is
    --  All restrictions (excluding only Not_A_Restriction_Id)
 
    subtype All_Boolean_Restrictions is Restriction_Id range
-     Simple_Barriers .. No_Wide_Characters;
+     Simple_Barriers .. SPARK;
    --  All restrictions which do not take a parameter
 
    subtype Partition_Boolean_Restrictions is All_Boolean_Restrictions range
@@ -188,11 +234,11 @@ package System.Rident is
    --  case of Boolean restrictions.
 
    subtype Cunit_Boolean_Restrictions is All_Boolean_Restrictions range
-     Immediate_Reclamation .. No_Wide_Characters;
+     Immediate_Reclamation .. SPARK;
    --  Boolean restrictions that are not checked for partition consistency
    --  and that thus apply only to the current unit. Note that for these
    --  restrictions, the compiler does not apply restrictions found in
-   --  with'ed units, parent specs etc. to the main unit.
+   --  with'ed units, parent specs etc. to the main unit, and vice versa.
 
    subtype All_Parameter_Restrictions is
      Restriction_Id range
@@ -305,12 +351,21 @@ package System.Rident is
    -- Profile Definitions and Data --
    ----------------------------------
 
-   type Profile_Name is (No_Profile, Ravenscar, Restricted);
+   --  Note: to add a profile, modify the following declarations appropriately,
+   --  add Name_xxx to Snames, and add a branch to the conditions for pragmas
+   --  Profile and Profile_Warnings in the body of Sem_Prag.
+
+   type Profile_Name is
+     (No_Profile,
+      No_Implementation_Extensions,
+      Ravenscar,
+      Restricted);
    --  Names of recognized profiles. No_Profile is used to indicate that a
    --  restriction came from pragma Restrictions[_Warning], as opposed to
    --  pragma Profile[_Warning].
 
-   subtype Profile_Name_Actual is Profile_Name range Ravenscar .. Restricted;
+   subtype Profile_Name_Actual is Profile_Name
+     range No_Implementation_Extensions .. Restricted;
    --  Actual used profile names
 
    type Profile_Data is record
@@ -327,11 +382,28 @@ package System.Rident is
       --  value of the parameter permitted by the profile.
    end record;
 
-   Profile_Info : array (Profile_Name_Actual) of Profile_Data :=
+   Profile_Info : constant array (Profile_Name_Actual) of Profile_Data := (
+
+                     --  No_Implementation_Extensions profile
+
+                     No_Implementation_Extensions =>
+
+                       (Set   =>
+                          (No_Implementation_Aspect_Specifications => True,
+                           No_Implementation_Attributes            => True,
+                           No_Implementation_Identifiers           => True,
+                           No_Implementation_Pragmas               => True,
+                           No_Implementation_Units                 => True,
+                           others                                  => False),
+
+                        --  Value settings for Restricted profile (none
+
+                        Value =>
+                          (others                          => 0)),
 
                      --  Restricted Profile
 
-                    (Restricted =>
+                     Restricted =>
 
                         --  Restrictions for Restricted profile
 

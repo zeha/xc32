@@ -26,8 +26,6 @@ along with GCC; see the file COPYING3.  If not see
 #define SYSROOT_SUFFIX_SPEC			\
   "%{msgxx-glibc:/sgxx-glibc ;			\
      m64:/system64 ;				\
-     mrhel3:/system64 ;				\
-     mrh73:/system32-old ;			\
      :/system32}"
 
 #undef SYSROOT_HEADERS_SUFFIX_SPEC

@@ -1,6 +1,5 @@
 /* Build executable statement trees.
-   Copyright (C) 2000, 2001, 2002, 2004, 2005, 2006, 2007, 2008, 2009
-   Free Software Foundation, Inc.
+   Copyright (C) 2000-2013 Free Software Foundation, Inc.
    Contributed by Andy Vaught
 
 This file is part of GCC.
@@ -26,6 +25,7 @@ along with GCC; see the file COPYING3.  If not see
 
 #include "config.h"
 #include "system.h"
+#include "coretypes.h"
 #include "gfortran.h"
 
 gfc_code new_st;
@@ -89,6 +89,7 @@ gfc_free_statement (gfc_code *p)
     {
     case EXEC_NOP:
     case EXEC_END_BLOCK:
+    case EXEC_END_NESTED_BLOCK:
     case EXEC_ASSIGN:
     case EXEC_INIT_ASSIGN:
     case EXEC_GOTO:
@@ -98,6 +99,7 @@ gfc_free_statement (gfc_code *p)
     case EXEC_IF:
     case EXEC_PAUSE:
     case EXEC_STOP:
+    case EXEC_ERROR_STOP:
     case EXEC_EXIT:
     case EXEC_WHERE:
     case EXEC_IOLENGTH:
@@ -108,10 +110,17 @@ gfc_free_statement (gfc_code *p)
     case EXEC_LABEL_ASSIGN:
     case EXEC_ENTRY:
     case EXEC_ARITHMETIC_IF:
+    case EXEC_CRITICAL:
+    case EXEC_SYNC_ALL:
+    case EXEC_SYNC_IMAGES:
+    case EXEC_SYNC_MEMORY:
+    case EXEC_LOCK:
+    case EXEC_UNLOCK:
       break;
 
     case EXEC_BLOCK:
-      gfc_free_namespace (p->ext.ns);
+      gfc_free_namespace (p->ext.block.ns);
+      gfc_free_association_list (p->ext.block.assoc);
       break;
 
     case EXEC_COMPCALL:
@@ -123,8 +132,8 @@ gfc_free_statement (gfc_code *p)
 
     case EXEC_SELECT:
     case EXEC_SELECT_TYPE:
-      if (p->ext.case_list)
-	gfc_free_case_list (p->ext.case_list);
+      if (p->ext.block.case_list)
+	gfc_free_case_list (p->ext.block.case_list);
       break;
 
     case EXEC_DO:
@@ -169,6 +178,7 @@ gfc_free_statement (gfc_code *p)
 	 be freed.  */
       break;
 
+    case EXEC_DO_CONCURRENT:
     case EXEC_FORALL:
       gfc_free_forall_iterator (p->ext.forall_iterator);
       break;
@@ -187,7 +197,7 @@ gfc_free_statement (gfc_code *p)
       break;
 
     case EXEC_OMP_CRITICAL:
-      gfc_free (CONST_CAST (char *, p->ext.omp_name));
+      free (CONST_CAST (char *, p->ext.omp_name));
       break;
 
     case EXEC_OMP_FLUSH:
@@ -200,6 +210,7 @@ gfc_free_statement (gfc_code *p)
     case EXEC_OMP_ORDERED:
     case EXEC_OMP_END_NOWAIT:
     case EXEC_OMP_TASKWAIT:
+    case EXEC_OMP_TASKYIELD:
       break;
 
     default:
@@ -222,7 +233,19 @@ gfc_free_statements (gfc_code *p)
       if (p->block)
 	gfc_free_statements (p->block);
       gfc_free_statement (p);
-      gfc_free (p);
+      free (p);
     }
 }
 
+
+/* Free an association list (of an ASSOCIATE statement).  */
+
+void
+gfc_free_association_list (gfc_association_list* assoc)
+{
+  if (!assoc)
+    return;
+
+  gfc_free_association_list (assoc->next);
+  free (assoc);
+}

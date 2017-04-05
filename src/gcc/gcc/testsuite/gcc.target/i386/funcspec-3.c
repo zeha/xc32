@@ -2,7 +2,8 @@
    setting the architecture.  */
 /* { dg-do compile } */
 /* { dg-require-effective-target lp64 } */
-/* { dg-options "-O2 -march=k8" } */
+/* { dg-skip-if "" { i?86-*-* x86_64-*-* } { "-march=*" } { "-march=k8" } } */
+/* { dg-options "-O2 -march=k8 -mno-sse3" } */
 
 extern void exit (int);
 extern void abort (void);

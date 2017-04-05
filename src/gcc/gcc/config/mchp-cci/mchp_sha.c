@@ -27,7 +27,7 @@ along with GCC; see the file COPYING3.  If not see
 int mchp_sha256( const char *path, unsigned char output[65] )
 {
    int i,result;
-   unsigned char sha256sum[32];
+    unsigned char sha256sum[32];
    
    /* Calculate the SHA2 digest of given file */ 
    result = sha256_file( path , sha256sum, 0 );
@@ -37,7 +37,7 @@ int mchp_sha256( const char *path, unsigned char output[65] )
    {
       for( i=0 ; i<32 ; i++ )
       {
-         sprintf( output + i * 2, "%02x", sha256sum[i] );
+         sprintf((char *)output + i * 2, "%02x", sha256sum[i] );
       }
    }
    output[64]='\0';
@@ -58,12 +58,12 @@ int mchp_sha256_validate( const char *path, unsigned const char *sha2 )
    {
       for( i=0 ; i<32 ; i++ )
       {
-         sprintf( sha256hex + i * 2, "%02x", sha256sum[i] );
+         sprintf((char *) sha256hex + i * 2, "%02x", sha256sum[i] );
       }
    }
    sha256hex[64]='\0';
   
    /* Compare the calulated SAH2 digest with known value */
-   return strcmp( sha256hex , sha2 );
+   return strcmp( (char*)sha256hex ,(char*) sha2 );
 }
 

@@ -2,7 +2,7 @@
 // { dg-do compile }
 // 2007-08-22 Benjamin Kosnik  <bkoz@redhat.com>
 
-// Copyright (C) 2007, 2008, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2007-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -27,12 +27,10 @@ int main()
   bool test __attribute__((unused)) = true;
 
   __gnu_test::test_category c1;
-  __gnu_test::test_category c2(c1); 
+  __gnu_test::test_category c2(c1); // { dg-error "deleted" }
 
   return 0;
 }
 
-// { dg-error "deleted function" "" { target *-*-* } 72 }
-// { dg-error "used here" "" { target *-*-* } 31 }
-// { dg-error "first required here" "" { target *-*-* } 30 }
-// { dg-excess-errors "copy constructor" }
+// { dg-prune-output "testsuite_error" }
+// { dg-prune-output "include" }

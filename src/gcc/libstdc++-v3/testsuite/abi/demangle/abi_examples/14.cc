@@ -1,6 +1,6 @@
 // 2003-02-26 Benjamin Kosnik <bkoz@redhat.com>
 
-// Copyright (C) 2003, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2003-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -33,7 +33,7 @@ int main()
     template void foo<int, fun, int>();
   */
   //demangle("_Z3fooIiPFidEiEvv", "void foo<int, int (*)(double), int>(void)");
-  verify_demangle("_Z3fooIiFvdEiEvv", "void foo<int, void ()(double), int>()");
+  verify_demangle("_Z3fooIiFvdEiEvv", "void foo<int, void (double), int>()");
 
   return 0;
 }

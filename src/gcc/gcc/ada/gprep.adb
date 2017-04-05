@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 2002-2009, Free Software Foundation, Inc.         --
+--          Copyright (C) 2002-2012, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -23,8 +23,8 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
+with Atree;    use Atree;
 with Csets;
-with Err_Vars; use Err_Vars;
 with Errutil;
 with Namet;    use Namet;
 with Opt;
@@ -91,9 +91,6 @@ package body GPrep is
    procedure Display_Copyright;
    --  Display the copyright notice
 
-   procedure Obsolescent_Check (S : Source_Ptr);
-   --  Null procedure, needed by instantiation of Scng below
-
    procedure Post_Scan;
    --  Null procedure, needed by instantiation of Scng below
 
@@ -103,7 +100,6 @@ package body GPrep is
       Errutil.Error_Msg_S,
       Errutil.Error_Msg_SC,
       Errutil.Error_Msg_SP,
-      Obsolescent_Check,
       Errutil.Style);
    --  The scanner for the preprocessor
 
@@ -172,7 +168,6 @@ package body GPrep is
       --  Do some initializations (order is important here!)
 
       Csets.Initialize;
-      Namet.Initialize;
       Snames.Initialize;
       Stringt.Initialize;
       Prep.Initialize;
@@ -311,16 +306,6 @@ package body GPrep is
    begin
       New_Line (Outfile.all);
    end New_EOL_To_Outfile;
-
-   -----------------------
-   -- Obsolescent_Check --
-   -----------------------
-
-   procedure Obsolescent_Check (S : Source_Ptr) is
-      pragma Warnings (Off, S);
-   begin
-      null;
-   end Obsolescent_Check;
 
    ---------------
    -- Post_Scan --
@@ -539,13 +524,13 @@ package body GPrep is
 
          --  In verbose mode, if there is no error, report it
 
-         if Opt.Verbose_Mode and then Err_Vars.Total_Errors_Detected = 0 then
+         if Opt.Verbose_Mode and then Total_Errors_Detected = 0 then
             Errutil.Finalize (Source_Type => "input");
          end if;
 
          --  If we had some errors, delete the output file, and report them
 
-         if Err_Vars.Total_Errors_Detected > 0 then
+         if Total_Errors_Detected > 0 then
             if Outfile /= Standard_Output then
                Delete (Text_Outfile);
             end if;
@@ -735,7 +720,7 @@ package body GPrep is
 
       loop
          begin
-            Switch := GNAT.Command_Line.Getopt ("D: b c C r s T u v");
+            Switch := GNAT.Command_Line.Getopt ("D: a b c C r s T u v");
 
             case Switch is
 
@@ -745,6 +730,10 @@ package body GPrep is
                when 'D' =>
                   Process_Command_Line_Symbol_Definition
                     (S => GNAT.Command_Line.Parameter);
+
+               when 'a' =>
+                  Opt.No_Deletion := True;
+                  Opt.Undefined_Symbols_Are_False := True;
 
                when 'b' =>
                   Opt.Blank_Deleted_Lines := True;
@@ -823,6 +812,7 @@ package body GPrep is
       Write_Line ("  deffile    Name of the definition file");
       Write_Eol;
       Write_Line ("gnatprep switches:");
+      Display_Usage_Version_And_Help;
       Write_Line ("   -b  Replace preprocessor lines by blank lines");
       Write_Line ("   -c  Keep preprocessor lines as comments");
       Write_Line ("   -C  Do symbol replacements within comments");

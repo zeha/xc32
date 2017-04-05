@@ -38,11 +38,11 @@ along with GCC; see the file COPYING3.  If not see
 
 /* The various C libraries each have their own subdirectory.  */
 #undef SYSROOT_SUFFIX_SPEC
-#define SYSROOT_SUFFIX_SPEC			\
-"%{muclibc:/uclibc}\
-%{mmicromips:/micromips;\
-mips16:/mips16}\
-%{msoft-float:/soft-float}%{mel|EL:/el}"
+#define SYSROOT_SUFFIX_SPEC					\
+  "%{muclibc:/uclibc}"						\
+  "%{mmicromips:/micromips;mips16:/mips16;march=xlp:/xlp}"	\
+  "%{msoft-float:/soft-float;mnan=2008:/nan2008}"		\
+  "%{mel|EL:/el}"
 
 #undef SYSROOT_HEADERS_SUFFIX_SPEC
 #define SYSROOT_HEADERS_SUFFIX_SPEC \

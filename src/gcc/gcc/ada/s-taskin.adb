@@ -6,7 +6,7 @@
 --                                                                          --
 --                                  B o d y                                 --
 --                                                                          --
---          Copyright (C) 1992-2009, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2012, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNARL is free software; you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -33,27 +33,12 @@ pragma Polling (Off);
 --  Turn off polling, we do not want ATC polling to take place during tasking
 --  operations. It causes infinite loops and other problems.
 
-with Ada.Unchecked_Deallocation;
-
 with System.Task_Primitives.Operations;
 with System.Storage_Elements;
 
 package body System.Tasking is
 
    package STPO renames System.Task_Primitives.Operations;
-
-   ----------------------------
-   -- Free_Entry_Names_Array --
-   ----------------------------
-
-   procedure Free_Entry_Names_Array (Obj : in out Entry_Names_Array) is
-      procedure Free_String is new
-        Ada.Unchecked_Deallocation (String, String_Access);
-   begin
-      for Index in Obj'Range loop
-         Free_String (Obj (Index));
-      end loop;
-   end Free_Entry_Names_Array;
 
    ---------------------
    -- Detect_Blocking --
@@ -69,6 +54,15 @@ package body System.Tasking is
    begin
       return GL_Detect_Blocking = 1;
    end Detect_Blocking;
+
+   -----------------------
+   -- Number_Of_Entries --
+   -----------------------
+
+   function Number_Of_Entries (Self_Id : Task_Id) return Entry_Index is
+   begin
+      return Entry_Index (Self_Id.Entry_Num);
+   end Number_Of_Entries;
 
    ----------
    -- Self --
@@ -98,6 +92,8 @@ package body System.Tasking is
       Parent           : Task_Id;
       Elaborated       : Access_Boolean;
       Base_Priority    : System.Any_Priority;
+      Base_CPU         : System.Multiprocessors.CPU_Range;
+      Domain           : Dispatching_Domain_Access;
       Task_Info        : System.Task_Info.Task_Info_Type;
       Stack_Size       : System.Parameters.Size_Type;
       T                : Task_Id;
@@ -119,6 +115,8 @@ package body System.Tasking is
 
       T.Common.Parent                   := Parent;
       T.Common.Base_Priority            := Base_Priority;
+      T.Common.Base_CPU                 := Base_CPU;
+      T.Common.Domain                   := Domain;
       T.Common.Current_Priority         := 0;
       T.Common.Protected_Action_Nesting := 0;
       T.Common.Call                     := null;
@@ -133,6 +131,7 @@ package body System.Tasking is
       T.Common.Fall_Back_Handler        := null;
       T.Common.Specific_Handler         := null;
       T.Common.Debug_Events             := (others => False);
+      T.Common.Task_Image_Len           := 0;
 
       if T.Common.Parent = null then
 
@@ -170,13 +169,22 @@ package body System.Tasking is
    --  because we use the value -1 to indicate the default main priority, and
    --  that is of course not in Priority'range.
 
+   Main_CPU : Integer;
+   pragma Import (C, Main_CPU, "__gl_main_cpu");
+   --  Affinity for main task. Note that this is of type Integer, not
+   --  CPU_Range, because we use the value -1 to indicate the unassigned
+   --  affinity, and that is of course not in CPU_Range'Range.
+
    Initialized : Boolean := False;
    --  Used to prevent multiple calls to Initialize
 
    procedure Initialize is
       T             : Task_Id;
       Base_Priority : Any_Priority;
+      Base_CPU      : System.Multiprocessors.CPU_Range;
       Success       : Boolean;
+
+      use type System.Multiprocessors.CPU_Range;
 
    begin
       if Initialized then
@@ -192,10 +200,15 @@ package body System.Tasking is
          then Default_Priority
          else Priority (Main_Priority));
 
+      Base_CPU :=
+        (if Main_CPU = Unspecified_CPU
+         then System.Multiprocessors.Not_A_Specific_CPU
+         else System.Multiprocessors.CPU_Range (Main_CPU));
+
       T := STPO.New_ATCB (0);
       Initialize_ATCB
-        (null, null, Null_Address, Null_Task, null, Base_Priority,
-         Task_Info.Unspecified_Task_Info, 0, T, Success);
+        (null, null, Null_Address, Null_Task, null, Base_Priority, Base_CPU,
+         null, Task_Info.Unspecified_Task_Info, 0, T, Success);
       pragma Assert (Success);
 
       STPO.Initialize (T);
@@ -204,10 +217,50 @@ package body System.Tasking is
       T.Common.Task_Image_Len := Main_Task_Image'Length;
       T.Common.Task_Image (Main_Task_Image'Range) := Main_Task_Image;
 
+      --  At program start-up the environment task is allocated to the default
+      --  system dispatching domain.
+      --  Make sure that the processors which are not available are not taken
+      --  into account. Use Number_Of_CPUs to know the exact number of
+      --  processors in the system at execution time.
+
+      System_Domain :=
+        new Dispatching_Domain'
+          (Multiprocessors.CPU'First .. Multiprocessors.Number_Of_CPUs =>
+             True);
+
+      T.Common.Domain := System_Domain;
+
+      Dispatching_Domain_Tasks :=
+        new Array_Allocated_Tasks'
+          (Multiprocessors.CPU'First .. Multiprocessors.Number_Of_CPUs => 0);
+
+      --  Signal that this task is being allocated to a processor
+
+      if Base_CPU /= System.Multiprocessors.Not_A_Specific_CPU then
+
+         --  Increase the number of tasks attached to the CPU to which this
+         --  task is allocated.
+
+         Dispatching_Domain_Tasks (Base_CPU) :=
+           Dispatching_Domain_Tasks (Base_CPU) + 1;
+      end if;
+
       --  Only initialize the first element since others are not relevant
       --  in ravenscar mode. Rest of the initialization is done in Init_RTS.
 
       T.Entry_Calls (1).Self := T;
    end Initialize;
+
+   ---------------------
+   -- Set_Entry_Names --
+   ---------------------
+
+   procedure Set_Entry_Names
+     (Self_Id : Task_Id;
+      Names   : Task_Entry_Names_Access)
+   is
+   begin
+      Self_Id.Entry_Names := Names;
+   end Set_Entry_Names;
 
 end System.Tasking;

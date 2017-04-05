@@ -1,4 +1,4 @@
-/* Copyright (C) 2006, 2007, 2008 Free Software Foundation, Inc.
+/* Copyright (C) 2006-2013 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -24,11 +24,11 @@ along with GCC; see the file COPYING3.  If not see
 #endif
 
 #ifndef NAMED_REALCST
-# define NAMED_REALCST(a,b,c) 
+# define NAMED_REALCST(a,b,c,d) 
 #endif
 
 #ifndef NAMED_CMPXCST
-# define NAMED_CMPXCST(a,b,c) 
+# define NAMED_CMPXCST(a,b,c,d) 
 #endif
 
 #ifndef NAMED_LOGCST
@@ -37,6 +37,10 @@ along with GCC; see the file COPYING3.  If not see
 
 #ifndef NAMED_CHARKNDCST
 # define NAMED_CHARKNDCST(a,b,c) 
+#endif
+
+#ifndef NAMED_FUNCTION
+# define NAMED_FUNCTION(a,b,c,d)
 #endif
 
 /* The arguments to NAMED_*CST are:
@@ -57,6 +61,8 @@ NAMED_INTCST (ISOCBINDING_INTMAX_T, "c_intmax_t", \
               get_int_kind_from_name (INTMAX_TYPE), GFC_STD_F2003)
 NAMED_INTCST (ISOCBINDING_INTPTR_T, "c_intptr_t", \
               get_int_kind_from_name (INTPTR_TYPE), GFC_STD_F2003)
+NAMED_INTCST (ISOCBINDING_PTRDIFF_T, "c_ptrdiff_t", \
+              get_int_kind_from_name (PTRDIFF_TYPE), GFC_STD_F2008_TS)
 NAMED_INTCST (ISOCBINDING_SIZE_T, "c_size_t", \
               gfc_index_integer_kind, GFC_STD_F2003)
 NAMED_INTCST (ISOCBINDING_SIGNED_CHAR, "c_signed_char", \
@@ -99,17 +105,25 @@ NAMED_INTCST (ISOCBINDING_INT_FAST128_T, "c_int_fast128_t",
 	      get_int_kind_from_width (128), GFC_STD_GNU)
 
 NAMED_REALCST (ISOCBINDING_FLOAT, "c_float", \
-               get_real_kind_from_node (float_type_node))
+               get_real_kind_from_node (float_type_node), GFC_STD_F2003)
 NAMED_REALCST (ISOCBINDING_DOUBLE, "c_double", \
-               get_real_kind_from_node (double_type_node))
+               get_real_kind_from_node (double_type_node), GFC_STD_F2003)
 NAMED_REALCST (ISOCBINDING_LONG_DOUBLE, "c_long_double", \
-               get_real_kind_from_node (long_double_type_node))
+               get_real_kind_from_node (long_double_type_node), GFC_STD_F2003)
+NAMED_REALCST (ISOCBINDING_FLOAT128, "c_float128", \
+	       float128_type_node == NULL_TREE \
+		  ? -4 : get_real_kind_from_node (float128_type_node), \
+	       GFC_STD_GNU)
 NAMED_CMPXCST (ISOCBINDING_FLOAT_COMPLEX, "c_float_complex", \
-               get_real_kind_from_node (float_type_node))
+               get_real_kind_from_node (float_type_node), GFC_STD_F2003)
 NAMED_CMPXCST (ISOCBINDING_DOUBLE_COMPLEX, "c_double_complex", \
-               get_real_kind_from_node (double_type_node))
+               get_real_kind_from_node (double_type_node), GFC_STD_F2003)
 NAMED_CMPXCST (ISOCBINDING_LONG_DOUBLE_COMPLEX, "c_long_double_complex", \
-               get_real_kind_from_node (long_double_type_node))
+               get_real_kind_from_node (long_double_type_node), GFC_STD_F2003)
+NAMED_CMPXCST (ISOCBINDING_FLOAT128_COMPLEX, "c_float128_complex", \
+	       float128_type_node == NULL_TREE \
+		  ? -4 : get_real_kind_from_node (float128_type_node), \
+	       GFC_STD_GNU)
 
 NAMED_LOGCST (ISOCBINDING_BOOL, "c_bool", \
               get_int_kind_from_width (BOOL_TYPE_SIZE))
@@ -162,6 +176,15 @@ PROCEDURE (ISOCBINDING_LOC, "c_loc")
 PROCEDURE (ISOCBINDING_FUNLOC, "c_funloc")
 PROCEDURE (ISOCBINDING_F_PROCPOINTER, "c_f_procpointer")
 
+/* The arguments to NAMED_FUNCTIONS are:
+     -- the ISYM
+     -- the symbol name in the module, as seen by Fortran code
+     -- the Fortran standard  */
+
+NAMED_FUNCTION (ISOCBINDING_C_SIZEOF, "c_sizeof", \
+                GFC_ISYM_C_SIZEOF, GFC_STD_F2008)
+
+
 #undef NAMED_INTCST
 #undef NAMED_REALCST
 #undef NAMED_CMPXCST
@@ -170,3 +193,4 @@ PROCEDURE (ISOCBINDING_F_PROCPOINTER, "c_f_procpointer")
 #undef NAMED_CHARKNDCST
 #undef DERIVED_TYPE
 #undef PROCEDURE
+#undef NAMED_FUNCTION

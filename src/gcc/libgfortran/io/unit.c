@@ -1,8 +1,8 @@
-/* Copyright (C) 2002, 2003, 2005, 2007, 2008, 2009 Free Software Foundation, Inc.
+/* Copyright (C) 2002-2013 Free Software Foundation, Inc.
    Contributed by Andy Vaught
    F2003 I/O support contributed by Jerry DeLisle
 
-This file is part of the GNU Fortran 95 runtime library (libgfortran).
+This file is part of the GNU Fortran runtime library (libgfortran).
 
 Libgfortran is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #include "unix.h"
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 
 /* IO locking rules:
@@ -70,8 +71,9 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 
 /* Subroutines related to units */
 
-GFC_INTEGER_4 next_available_newunit;
+/* Unit number to be assigned when NEWUNIT is used in an OPEN statement.  */
 #define GFC_FIRST_NEWUNIT -10
+static GFC_INTEGER_4 next_available_newunit = GFC_FIRST_NEWUNIT;
 
 #define CACHE_SIZE 3
 static gfc_unit *unit_cache[CACHE_SIZE];
@@ -186,8 +188,7 @@ insert (gfc_unit *new, gfc_unit *t)
 static gfc_unit *
 insert_unit (int n)
 {
-  gfc_unit *u = get_mem (sizeof (gfc_unit));
-  memset (u, '\0', sizeof (gfc_unit));
+  gfc_unit *u = xcalloc (1, sizeof (gfc_unit));
   u->unit_number = n;
 #ifdef __GTHREAD_MUTEX_INIT
   {
@@ -210,7 +211,7 @@ static void
 destroy_unit_mutex (gfc_unit * u)
 {
   __gthread_mutex_destroy (&u->lock);
-  free_mem (u);
+  free (u);
 }
 
 
@@ -375,6 +376,38 @@ find_or_create_unit (int n)
 }
 
 
+/* Helper function to check rank, stride, format string, and namelist.
+   This is used for optimization. You can't trim out blanks or shorten
+   the string if trailing spaces are significant.  */
+static bool
+is_trim_ok (st_parameter_dt *dtp)
+{
+  /* Check rank and stride.  */
+  if (dtp->internal_unit_desc
+      && (GFC_DESCRIPTOR_RANK (dtp->internal_unit_desc) > 1
+	  || GFC_DESCRIPTOR_STRIDE(dtp->internal_unit_desc, 0) != 1))
+    return false;
+  /* Format strings can not have 'BZ' or '/'.  */
+  if (dtp->common.flags & IOPARM_DT_HAS_FORMAT)
+    {
+      char *p = dtp->format;
+      off_t i;
+      if (dtp->common.flags & IOPARM_DT_HAS_BLANK)
+	return false;
+      for (i = 0; i < dtp->format_len; i++)
+	{
+	  if (p[i] == '/') return false;
+	  if (p[i] == 'b' || p[i] == 'B')
+	    if (p[i+1] == 'z' || p[i+1] == 'Z')
+	      return false;
+	}
+    }
+  if (dtp->u.p.ionml) /* A namelist.  */
+    return false;
+  return true;
+}
+
+
 gfc_unit *
 get_internal_unit (st_parameter_dt *dtp)
 {
@@ -383,14 +416,8 @@ get_internal_unit (st_parameter_dt *dtp)
 
   /* Allocate memory for a unit structure.  */
 
-  iunit = get_mem (sizeof (gfc_unit));
-  if (iunit == NULL)
-    {
-      generate_error (&dtp->common, LIBERROR_INTERNAL_UNIT, NULL);
-      return NULL;
-    }
+  iunit = xcalloc (1, sizeof (gfc_unit));
 
-  memset (iunit, '\0', sizeof (gfc_unit));
 #ifdef __GTHREAD_MUTEX_INIT
   {
     __gthread_mutex_t tmp = __GTHREAD_MUTEX_INIT;
@@ -402,11 +429,27 @@ get_internal_unit (st_parameter_dt *dtp)
   __gthread_mutex_lock (&iunit->lock);
 
   iunit->recl = dtp->internal_unit_len;
-  
+
   /* For internal units we set the unit number to -1.
      Otherwise internal units can be mistaken for a pre-connected unit or
      some other file I/O unit.  */
   iunit->unit_number = -1;
+
+  /* As an optimization, adjust the unit record length to not
+     include trailing blanks. This will not work under certain conditions
+     where trailing blanks have significance.  */
+  if (dtp->u.p.mode == READING && is_trim_ok (dtp))
+    {
+      int len;
+      if (dtp->common.unit == 0)
+	  len = string_len_trim (dtp->internal_unit_len,
+						   dtp->internal_unit);
+      else
+	  len = string_len_trim_char4 (dtp->internal_unit_len,
+			      (const gfc_char4_t*) dtp->internal_unit);
+      dtp->internal_unit_len = len; 
+      iunit->recl = dtp->internal_unit_len;
+    }
 
   /* Set up the looping specification from the array descriptor, if any.  */
 
@@ -414,7 +457,7 @@ get_internal_unit (st_parameter_dt *dtp)
     {
       iunit->rank = GFC_DESCRIPTOR_RANK (dtp->internal_unit_desc);
       iunit->ls = (array_loop_spec *)
-	get_mem (iunit->rank * sizeof (array_loop_spec));
+	xmalloc (iunit->rank * sizeof (array_loop_spec));
       dtp->internal_unit_len *=
 	init_loop_spec (dtp->internal_unit_desc, iunit->ls, &start_record);
 
@@ -422,9 +465,16 @@ get_internal_unit (st_parameter_dt *dtp)
     }
 
   /* Set initial values for unit parameters.  */
+  if (dtp->common.unit)
+    {
+      iunit->s = open_internal4 (dtp->internal_unit - start_record,
+				 dtp->internal_unit_len, -start_record);
+      fbuf_init (iunit, 256);
+    }
+  else
+    iunit->s = open_internal (dtp->internal_unit - start_record,
+			      dtp->internal_unit_len, -start_record);
 
-  iunit->s = open_internal (dtp->internal_unit - start_record,
-			    dtp->internal_unit_len, -start_record);
   iunit->bytes_left = iunit->recl;
   iunit->last_record=0;
   iunit->maxrec=0;
@@ -444,7 +494,7 @@ get_internal_unit (st_parameter_dt *dtp)
   iunit->flags.decimal = DECIMAL_POINT;
   iunit->flags.encoding = ENCODING_DEFAULT;
   iunit->flags.async = ASYNC_NO;
-  iunit->flags.round = ROUND_COMPATIBLE;
+  iunit->flags.round = ROUND_UNSPECIFIED;
 
   /* Initialize the data transfer parameters.  */
 
@@ -470,13 +520,14 @@ free_internal_unit (st_parameter_dt *dtp)
   if (!is_internal_unit (dtp))
     return;
 
+  if (unlikely (is_char4_unit (dtp)))
+    fbuf_destroy (dtp->u.p.current_unit);
+
   if (dtp->u.p.current_unit != NULL)
     {
-      if (dtp->u.p.current_unit->ls != NULL)
-	free_mem (dtp->u.p.current_unit->ls);
+      free (dtp->u.p.current_unit->ls);
   
-      if (dtp->u.p.current_unit->s)
-	free_mem (dtp->u.p.current_unit->s);
+      free (dtp->u.p.current_unit->s);
   
       destroy_unit_mutex (dtp->u.p.current_unit);
     }
@@ -492,7 +543,7 @@ get_unit (st_parameter_dt *dtp, int do_create)
 {
 
   if ((dtp->common.flags & IOPARM_DT_HAS_INTERNAL_UNIT) != 0)
-    return get_internal_unit(dtp);
+    return get_internal_unit (dtp);
 
   /* Has to be an external unit.  */
 
@@ -516,8 +567,6 @@ init_units (void)
   __GTHREAD_MUTEX_INIT_FUNCTION (&unit_lock);
 #endif
 
-  next_available_newunit = GFC_FIRST_NEWUNIT;
-
   if (options.stdin_unit >= 0)
     {				/* STDIN */
       u = insert_unit (options.stdin_unit);
@@ -535,13 +584,13 @@ init_units (void)
       u->flags.decimal = DECIMAL_POINT;
       u->flags.encoding = ENCODING_DEFAULT;
       u->flags.async = ASYNC_NO;
-      u->flags.round = ROUND_COMPATIBLE;
+      u->flags.round = ROUND_UNSPECIFIED;
      
       u->recl = options.default_recl;
       u->endfile = NO_ENDFILE;
 
       u->file_len = strlen (stdin_name);
-      u->file = get_mem (u->file_len);
+      u->file = xmalloc (u->file_len);
       memmove (u->file, stdin_name, u->file_len);
 
       fbuf_init (u, 0);
@@ -565,13 +614,13 @@ init_units (void)
       u->flags.decimal = DECIMAL_POINT;
       u->flags.encoding = ENCODING_DEFAULT;
       u->flags.async = ASYNC_NO;
-      u->flags.round = ROUND_COMPATIBLE;
+      u->flags.round = ROUND_UNSPECIFIED;
 
       u->recl = options.default_recl;
       u->endfile = AT_ENDFILE;
     
       u->file_len = strlen (stdout_name);
-      u->file = get_mem (u->file_len);
+      u->file = xmalloc (u->file_len);
       memmove (u->file, stdout_name, u->file_len);
       
       fbuf_init (u, 0);
@@ -595,13 +644,13 @@ init_units (void)
       u->flags.decimal = DECIMAL_POINT;
       u->flags.encoding = ENCODING_DEFAULT;
       u->flags.async = ASYNC_NO;
-      u->flags.round = ROUND_COMPATIBLE;
+      u->flags.round = ROUND_UNSPECIFIED;
 
       u->recl = options.default_recl;
       u->endfile = AT_ENDFILE;
 
       u->file_len = strlen (stderr_name);
-      u->file = get_mem (u->file_len);
+      u->file = xmalloc (u->file_len);
       memmove (u->file, stderr_name, u->file_len);
       
       fbuf_init (u, 256);  /* 256 bytes should be enough, probably not doing
@@ -641,8 +690,7 @@ close_unit_1 (gfc_unit *u, int locked)
 
   delete_unit (u);
 
-  if (u->file)
-    free_mem (u->file);
+  free (u->file);
   u->file = NULL;
   u->file_len = 0;
 
@@ -698,24 +746,9 @@ close_units (void)
 }
 
 
-/* update_position()-- Update the flags position for later use by inquire.  */
-
-void
-update_position (gfc_unit *u)
-{
-  if (stell (u->s) == 0)
-    u->flags.position = POSITION_REWIND;
-  else if (file_length (u->s) == stell (u->s))
-    u->flags.position = POSITION_APPEND;
-  else
-    u->flags.position = POSITION_ASIS;
-}
-
-
-/* High level interface to truncate a file safely, i.e. flush format
-   buffers, check that it's a regular file, and generate error if that
-   occurs.  Just like POSIX ftruncate, returns 0 on success, -1 on
-   failure.  */
+/* High level interface to truncate a file, i.e. flush format buffers,
+   and generate an error or set some flags.  Just like POSIX
+   ftruncate, returns 0 on success, -1 on failure.  */
 
 int
 unit_truncate (gfc_unit * u, gfc_offset pos, st_parameter_common * common)
@@ -731,24 +764,12 @@ unit_truncate (gfc_unit * u, gfc_offset pos, st_parameter_common * common)
 	fbuf_flush (u, u->mode);
     }
   
-  /* Don't try to truncate a special file, just pretend that it
-     succeeds.  */
-  if (is_special (u->s) || !is_seekable (u->s))
-    {
-      sflush (u->s);
-      return 0;
-    }
-
   /* struncate() should flush the stream buffer if necessary, so don't
      bother calling sflush() here.  */
   ret = struncate (u->s, pos);
 
   if (ret != 0)
-    {
-      generate_error (common, LIBERROR_OS, NULL);
-      u->endfile = NO_ENDFILE;
-      u->flags.position = POSITION_ASIS;
-    }
+    generate_error (common, LIBERROR_OS, NULL);
   else
     {
       u->endfile = AT_ENDFILE;
@@ -786,7 +807,7 @@ filename_from_unit (int n)
   /* Get the filename.  */
   if (u != NULL)
     {
-      filename = (char *) get_mem (u->file_len + 1);
+      filename = (char *) xmalloc (u->file_len + 1);
       unpack_filename (filename, u->file, u->file_len);
       return filename;
     }
@@ -827,16 +848,19 @@ get_unique_unit_number (st_parameter_open *opp)
 {
   GFC_INTEGER_4 num;
 
+#ifdef HAVE_SYNC_FETCH_AND_ADD
+  num = __sync_fetch_and_add (&next_available_newunit, -1);
+#else
   __gthread_mutex_lock (&unit_lock);
   num = next_available_newunit--;
+  __gthread_mutex_unlock (&unit_lock);
+#endif
 
   /* Do not allow NEWUNIT numbers to wrap.  */
-  if (next_available_newunit >=  GFC_FIRST_NEWUNIT )
+  if (num > GFC_FIRST_NEWUNIT)
     {
-      __gthread_mutex_unlock (&unit_lock);
       generate_error (&opp->common, LIBERROR_INTERNAL, "NEWUNIT exhausted");
       return 0;
     }
-  __gthread_mutex_unlock (&unit_lock);
   return num;
 }

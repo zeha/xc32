@@ -60,6 +60,8 @@ bfd_boolean pic32_has_data_init_option = 0;
 bfd_boolean pic32_has_fill_option = 0;
 bfd_boolean pic32_has_stack_option = 0;
 bfd_boolean pic32_has_processor_option = 0;
+bfd_boolean pic32_has_hardfloat_option = 0;
+bfd_boolean pic32_has_softfloat_option = 0;
 unsigned int pic32_stack_size = 16;
 bfd_boolean pic32_has_stackguard_option = 0;
 unsigned int pic32_stackguard_size = 16;
@@ -14947,9 +14949,11 @@ mips_elf_merge_obj_attributes (bfd *ibfd, bfd *obfd)
 		break;
 
 	      case 3:
+#if 1 
 		_bfd_error_handler
-		  (_("Warning: %B uses hard float, %B uses soft float"),
+		  (_("Warning: %B uses FPU hard float, %B uses soft float"),
 		   obfd, ibfd);
+#endif
 		break;
 
 	      case 4:
@@ -14973,9 +14977,11 @@ mips_elf_merge_obj_attributes (bfd *ibfd, bfd *obfd)
 		break;
 
 	      case 3:
+#if 1 
 		_bfd_error_handler
-		  (_("Warning: %B uses hard float, %B uses soft float"),
+		  (_("Warning: %B uses FPU hard float, %B uses soft float"),
 		   obfd, ibfd);
+#endif
 		break;
 
 	      case 4:
@@ -14995,9 +15001,11 @@ mips_elf_merge_obj_attributes (bfd *ibfd, bfd *obfd)
 	      case 1:
 	      case 2:
 	      case 4:
+#if 1 
 		_bfd_error_handler
-		  (_("Warning: %B uses hard float, %B uses soft float"),
+		  (_("Warning: %B uses FPU hard float, %B uses soft float"),
 		   ibfd, obfd);
+#endif
 		break;
 
 	      default:
@@ -15021,9 +15029,11 @@ mips_elf_merge_obj_attributes (bfd *ibfd, bfd *obfd)
 		break;
 
 	      case 3:
+#if 1 
 		_bfd_error_handler
-		  (_("Warning: %B uses hard float, %B uses soft float"),
+		  (_("Warning: %B uses FPU hard float, %B uses soft float"),
 		   obfd, ibfd);
+#endif
 		break;
 
 	      default:
@@ -15890,7 +15900,7 @@ bfd_pic32_process_data_section(sect, fp)
     }
 
   /* process BSS-type sections */
-  if (PIC32_IS_BSS_ATTR(sect) && (sect->size > 0))
+  if ((PIC32_IS_BSS_ATTR(sect) || PIC32_IS_BSS_ATTR_WITH_MEMORY_ATTR(sect)) && (sect->size > 0))
     {
       if (pic32_debug)
         printf("  %s (bss), size = %x bytes, template addr = %lx\n",
@@ -15902,7 +15912,7 @@ bfd_pic32_process_data_section(sect, fp)
     }
 
    /* process DATA-type sections */
-  if ((PIC32_IS_DATA_ATTR(sect) || PIC32_IS_RAMFUNC_ATTR(sect)) && 
+  if ((PIC32_IS_DATA_ATTR(sect) || PIC32_IS_DATA_ATTR_WITH_MEMORY_ATTR(sect) || PIC32_IS_RAMFUNC_ATTR(sect)) && 
       (sect->size > 0))
     {
       if (pic32_debug)

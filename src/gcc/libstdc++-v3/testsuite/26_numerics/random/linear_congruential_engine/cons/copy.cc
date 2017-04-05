@@ -3,7 +3,7 @@
 //
 // 2010-02-16  Paolo Carlini  <paolo.carlini@oracle.com>
 //
-// Copyright (C) 2010 Free Software Foundation, Inc.
+// Copyright (C) 2010-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -28,7 +28,8 @@ test01()
   std::linear_congruential_engine<unsigned long, 48271, 0, 2147483647> e(1);
 
   const auto f(e);
-  auto g(f);  
+  auto g(f);
+  g = g; // Suppress unused warning.
 }
 
 int main()

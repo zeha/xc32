@@ -132,7 +132,7 @@ case "${host}" in
 	slow_pthread_self=yes
 	;;
   x86_64-*)
-	sysdeps_dir=x86-64
+	sysdeps_dir=i386
 	# For 64-bit we always use SSE registers for arithmetic,
 	# which doesn't have the extra precision problems of the fpu.
 	# But be careful about 32-bit multilibs.
@@ -141,6 +141,9 @@ case "${host}" in
 		libgcj_flags="${libgcj_flags} -ffloat-store" ;;
 	esac
 	libgcj_flags="${libgcj_flags} -fomit-frame-pointer"
+	# On Solaris we have defined 'sun' which later conflicts with 
+	# namespace usage. So to work this away we use the below undefine.
+	libgcj_flags="${libgcj_flags} -Usun"
 	libgcj_cxxflags=
 	libgcj_cflags=
 	DIVIDESPEC=-fno-use-divide-subroutine
@@ -274,16 +277,17 @@ EOF
 	  rm -f conftest conftest.c
 	fi
 	;;
-   i[34567]86*-kfreebsd*-gnu | x86_64*-kfreebsd*-gnu)
+  i[34567]86*-kfreebsd*-gnu | x86_64*-kfreebsd*-gnu)
         libgcj_ld_symbolic='-Wl,-Bsymbolic'
         slow_pthread_self=
         ;;
   i[34567]86-*-solaris2.1[0-9]* )
-	sysdeps_dir=x86-64
+	sysdeps_dir=i386
 	DIVIDESPEC=-f%{m32:no-}%{!m32:%{!m64:no-}}%{m64:}use-divide-subroutine
 	;;
-  mips-sgi-irix6* )
-	sysdeps_dir=mips
+  x86_64-*-solaris2.1[0-9]* )
+	sysdeps_dir=i386
+	DIVIDESPEC=-f%{m32:no-}use-divide-subroutine
 	;;
   arm*-linux* )
 	slow_pthread_self=no
@@ -318,7 +322,7 @@ EOF
 	DIVIDESPEC=-fuse-divide-subroutine
 	CHECKREFSPEC=-fcheck-references
 	;;
-  i?86-*-solaris2*)
+  i?86-*-solaris2* | x86_64-*-solaris2.1[0-9]*)
 	can_unwind_signal=yes
 	;;
   *-*-freebsd*)
@@ -356,7 +360,7 @@ case "${host}" in
   	BACKTRACESPEC=
 	# Win32 DLLs are limited to 64k exported symbols each.
 	enable_libgcj_sublibs_default=yes
-	libgcj_sublib_ltflags='-no-undefined -bindir $(bindir) \
+	libgcj_sublib_ltflags='$(lt_host_flags) \
 	    -Wl,-u,__ZN3org4ietf4jgss10GSSManagerC1Ev,-L..,-lgcj-noncore-dummy'
 	libgcj_sublib_core_extra_deps=libgcj-noncore-dummy.dll.a
   ;;

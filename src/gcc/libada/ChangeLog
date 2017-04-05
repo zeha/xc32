@@ -1,14 +1,71 @@
-2010-12-16  Release Manager
+2013-10-16  Release Manager
 
-	* GCC 4.5.2 released.
+	* GCC 4.8.2 released.
 
-2010-07-31  Release Manager
+2013-05-31  Release Manager
 
-	* GCC 4.5.1 released.
+	* GCC 4.8.1 released.
 
-2010-04-14  Release Manager
+2013-03-22  Release Manager
 
-	* GCC 4.5.0 released.
+	* GCC 4.8.0 released.
+
+2013-02-13  Kai Tietz  <ktietz@redhat.com>
+
+	PR target/52122
+	* Makefile.in (LN_S_RECURSIVE): New.
+	(adainclude, adalib): Use LN_S_RECURSIVE for copy.
+
+2013-01-14  Richard Sandiford  <rdsandiford@googlemail.com>
+
+	Update copyright years.
+
+2012-06-11  Olivier Hainque  <hainque@adacore.com>
+
+	* Makefile.in (GNATLIBCFLAGS_FOR_C): Remove $(PICFLAG).
+
+2012-01-22  Douglas B Rupp  <rupp@gnat.com>
+
+	* configure: Regenerate.
+
+2012-01-04  Andreas Krebbel  <Andreas.Krebbel@de.ibm.com>
+
+	* configure: Regenerate.
+
+2011-11-12  Iain Sandoe  <iains@gcc.gnu.org>
+
+	* Makefile.in: Change dependency on oscons to depend on the generator
+	tool.
+
+2011-10-12  Eric Botcazou  <ebotcazou@adacore.com>
+
+	* Makefile.in (LOOSE_WARN): Delete.
+	(GCC_WARN_CFLAGS): Likewise.
+	(WARN_CFLAGS): Likewise.
+	(GNATLIBFLAGS): Add -nostdinc.
+	(GNATLIBCFLAGS_FOR_C): Add -W -Wall.
+	(LIBADA_FLAGS_TO_PASS): Remove WARN_CFLAGS.
+	* configure.ac (warn_cflags): Delete.
+	* configure: Regenerate.
+
+2011-08-22  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
+
+	* configure.ac: Include ../config/picflag.m4.
+	(GCC_PICFLAG): Call it.
+	Substitute.
+	* configure: Regenerate.
+	* Makefile.in (TARGET_LIBGCC2_CFLAGS): Replace by PICFLAG.
+	(GNATLIBCFLAGS_FOR_C): Replace TARGET_LIBGCC2_CFLAGS by PICFLAG.
+	(LIBADA_FLAGS_TO_PASS): Pass PICFLAG as PICFLAG_FOR_TARGET.
+	Don't include $(GCC_DIR)/libgcc.mvars.
+
+2010-11-20  Ralf Wildenhues  <Ralf.Wildenhues@gmx.de>
+
+	PR other/46202
+	* Makefile.in (install-strip): New phony target.
+	(check, installcheck, info, dvi, pdf, html, install)
+	(install-info, install-pdf, install-html, mostlyclean)
+	(clean, distclean, maintainer-clean): Mark phony.
 
 2009-10-24  Eric Botcazou  <ebotcazou@adacore.com>
 
@@ -62,7 +119,7 @@
 
 2008-09-21  Laurent Guerby  <laurent@guerby.net>
             Paolo Bonzini  <bonzini@gnu.org>
-	
+
 	PR ada/5911
 	* Makefile.in (all, install, mostlyclean, clean, distclean): Add
 	multilib handling.
@@ -70,7 +127,7 @@
 	* configure: Regenerate.
 
 2008-08-29  Laurent Guerby  <laurent@guerby.net>
-	
+
 	* Makefile.in (FLAGS_TO_PASS): renamed to LIBADA_FLAGS_TO_PASS to
 	avoid conflicts. Factor more flags to pass.
 	(libsubdir): New variable.
@@ -79,7 +136,7 @@
 2008-08-28  Laurent Guerby  <laurent@guerby.net>
 
 	* configure: Regenerate.
-	
+
 2008-08-06  Thomas Quinot  <quinot@adacore.com>
 
 	* Makefile.in: generate s-oscons.ads again, previous change was
@@ -275,7 +332,7 @@
 
 	* New directory, new ChangeLog.
 
-Copyright 2003, 2004 Free Software Foundation, Inc.
+Copyright (C) 2003-2013 Free Software Foundation, Inc.
 
 This ChangeLog is free software; the Free Software Foundation gives
 unlimited permission to copy, distribute, and modify it.

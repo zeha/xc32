@@ -8,17 +8,22 @@
 # include <cloog/cloog.h>
 
 int main()
-{ CloogProgram * program ;
+{
+  CloogState *state;
+  CloogInput *input;
   CloogOptions * options ;
+  struct clast_stmt *root;
   
-  options = cloog_options_malloc() ;
-  program = cloog_program_read(stdin,options) ;
+  state = cloog_state_malloc();
+  options = cloog_options_malloc(state);
+  input = cloog_input_read(stdin, options);
   
-  program = cloog_program_generate(program,options) ;
-  cloog_program_pprint(stdout,program,options) ;
+  root = cloog_clast_create_from_input(input, options);
+  clast_pprint(stdout, root, 0, options);
 
+  cloog_clast_free(root);
   cloog_options_free(options) ;
-  cloog_program_free(program) ;
+  cloog_state_free(state);
   
   return 0 ;
 }

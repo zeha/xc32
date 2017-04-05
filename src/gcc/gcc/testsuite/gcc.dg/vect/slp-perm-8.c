@@ -1,12 +1,12 @@
 /* { dg-require-effective-target vect_int } */
 
 #include <stdarg.h>
-#include <stdio.h>
 #include "tree-vect.h"
 
 #define N 200
 
-void foo (unsigned char *__restrict__ pInput, unsigned char *__restrict__ pOutput)
+void __attribute__((noinline))
+foo (unsigned char *__restrict__ pInput, unsigned char *__restrict__ pOutput)
 {
   unsigned char i, a, b, c;
 
@@ -33,8 +33,7 @@ int main (int argc, const char* argv[])
     {
       input[i] = i;
       output[i] = 0;
-      if (input[i] > 256)
-        abort ();
+      __asm__ volatile ("");
     }
 
   for (i = 0; i < N / 3; i++)
@@ -53,7 +52,8 @@ int main (int argc, const char* argv[])
   return 0;
 }
 
-/* { dg-final { scan-tree-dump-times "vectorized 1 loops" 2 "vect" { target vect_perm } } } */
-/* { dg-final { scan-tree-dump-times "vectorizing stmts using SLP" 1 "vect" { target vect_perm } } } */
+/* { dg-final { scan-tree-dump-times "vectorized 1 loops" 2 "vect" { target { vect_perm_byte && vect_char_mult } } } } */
+/* { dg-final { scan-tree-dump-times "vectorized 1 loops" 1 "vect" { target { vect_perm_byte && {! vect_char_mult } } } } } */
+/* { dg-final { scan-tree-dump-times "vectorizing stmts using SLP" 1 "vect" { target vect_perm_byte } } } */
 /* { dg-final { cleanup-tree-dump "vect" } } */
 

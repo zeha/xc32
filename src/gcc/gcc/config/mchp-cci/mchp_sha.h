@@ -25,11 +25,11 @@ alng with GCC; see the file COPYING3.  If not see
 /* SHA-256 digest of xclm executables for Win, Linux and OS X */
 #if !defined(MCHP_XCLM_SHA256_DIGEST)
 # if defined(__MINGW32__)
-#  define MCHP_XCLM_SHA256_DIGEST   "9ee3489491c426025cf8d302494f899a2a049c3f45a235be00a2d63e90df9cb7"
+#  define MCHP_XCLM_SHA256_DIGEST   "2e162eef9b84179f6b5a6d3bcc3e8bfe603079c7daa70251297de54b07009fa3"
 # elif defined(__linux__)
-#  define MCHP_XCLM_SHA256_DIGEST   "4fae1d53570ebffe637d8c5f77789ecbe690f67af65d0e3af8474bfee479239e"
+#  define MCHP_XCLM_SHA256_DIGEST   "e8e20a7ad3f03445172e6e61d9d6f6b48d64f220034309f47343e805f33c0157"
 # elif defined(__MACH__)
-#  define MCHP_XCLM_SHA256_DIGEST   "595a7a77c69ee1a9b784af8908fe665bd5bcfbdf81abad8079e48c9c4ef8934e"
+#  define MCHP_XCLM_SHA256_DIGEST   "085a5ce305bf4c993d5d35eeef59bd1529127f1146c1ff06290886f36e54156c"
 # else 
 #  error "Unknown host"
 # endif

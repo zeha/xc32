@@ -1,4 +1,4 @@
-!   Copyright 2002, 2007, 2009 Free Software Foundation, Inc.
+!   Copyright (C) 2002-2013 Free Software Foundation, Inc.
 !   Contributed by Paul Brook <paul@nowt.org>
 !
 !This file is part of the GNU Fortran 95 runtime library (libgfortran).
@@ -7,7 +7,7 @@
 !modify it under the terms of the GNU General Public
 !License as published by the Free Software Foundation; either
 !version 3 of the License, or (at your option) any later version.
-!
+
 !GNU libgfortran is distributed in the hope that it will be useful,
 !but WITHOUT ANY WARRANTY; without even the implied warranty of
 !MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the

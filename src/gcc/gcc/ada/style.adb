@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2008, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2013, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -41,8 +41,8 @@ package body Style is
    -----------------------
 
    --  If the check specs mode (-gnatys) is set, then all subprograms must
-   --  have specs unless they are parameterless procedures that are not child
-   --  units at the library level (i.e. they are possible main programs).
+   --  have specs unless they are parameterless procedures at the library
+   --  level (i.e. they are possible main programs).
 
    procedure Body_With_No_Spec (N : Node_Id) is
    begin
@@ -78,11 +78,11 @@ package body Style is
    begin
       if Style_Check_Array_Attribute_Index then
          if D = 1 and then Present (E1) then
-            Error_Msg_N
+            Error_Msg_N -- CODEFIX
               ("(style) index number not allowed for one dimensional array",
                E1);
          elsif D > 1 and then No (E1) then
-            Error_Msg_N
+            Error_Msg_N -- CODEFIX
               ("(style) index number required for multi-dimensional array",
                N);
          end if;
@@ -94,7 +94,9 @@ package body Style is
    ----------------------
 
    --  In check references mode (-gnatyr), identifier uses must be cased
-   --  the same way as the corresponding identifier declaration.
+   --  the same way as the corresponding identifier declaration. If standard
+   --  references are checked (-gnatyn), then identifiers from Standard must
+   --  be cased as in the Reference Manual.
 
    procedure Check_Identifier
      (Ref : Node_Or_Entity_Id;
@@ -161,7 +163,7 @@ package body Style is
                then
                   Error_Msg_Node_1 := Def;
                   Error_Msg_Sloc := Sloc (Def);
-                  Error_Msg
+                  Error_Msg -- CODEFIX
                     ("(style) bad casing of & declared#", Sref);
                   return;
 
@@ -197,10 +199,30 @@ package body Style is
                if Entity (Ref) = Standard_ASCII then
                   Cas := All_Upper_Case;
 
-               --  Special names in ASCII are also all upper case
+               --  Special handling for names in package ASCII
 
                elsif Sdef = Standard_ASCII_Location then
-                  Cas := All_Upper_Case;
+                  declare
+                     Nam : constant String := Get_Name_String (Chars (Def));
+
+                  begin
+                     --  Bar is mixed case
+
+                     if Nam = "bar" then
+                        Cas := Mixed_Case;
+
+                     --  All names longer than 4 characters are mixed case
+
+                     elsif Nam'Length > 4 then
+                        Cas := Mixed_Case;
+
+                     --  All names shorter than 4 characters (other than Bar,
+                     --  which we already tested for specially) are Upper case.
+
+                     else
+                        Cas := All_Upper_Case;
+                     end if;
+                  end;
 
                --  All other entities are in mixed case
 
@@ -222,7 +244,7 @@ package body Style is
                     String (Tref (Sref .. Sref + Source_Ptr (Nlen) - 1));
                   Set_Casing (Cas);
                   Error_Msg_Name_1 := Name_Enter;
-                  Error_Msg_N
+                  Error_Msg_N -- CODEFIX
                     ("(style) bad casing of %% declared in Standard", Ref);
                end if;
             end if;
@@ -236,18 +258,20 @@ package body Style is
 
    procedure Missing_Overriding (N : Node_Id; E : Entity_Id) is
    begin
-      --  Note that Error_Msg_NE, which would be more natural to use here,
-      --  is not visible from this generic unit ???
 
-      Error_Msg_Name_1 := Chars (E);
+      --  Perform the check on source subprograms and on subprogram instances,
+      --  because these can be primitives of untagged types.
 
-      if Style_Check_Missing_Overriding and then Comes_From_Source (N) then
+      if Style_Check_Missing_Overriding
+        and then (Comes_From_Source (N) or else Is_Generic_Instance (E))
+      then
          if Nkind (N) = N_Subprogram_Body then
-            Error_Msg_N
-              ("(style) missing OVERRIDING indicator in body of%", N);
+            Error_Msg_NE -- CODEFIX
+              ("(style) missing OVERRIDING indicator in body of&", N, E);
          else
-            Error_Msg_N
-              ("(style) missing OVERRIDING indicator in declaration of%", N);
+            Error_Msg_NE -- CODEFIX
+              ("(style) missing OVERRIDING indicator in declaration of&",
+               N, E);
          end if;
       end if;
    end Missing_Overriding;
@@ -259,7 +283,7 @@ package body Style is
    procedure Subprogram_Not_In_Alpha_Order (Name : Node_Id) is
    begin
       if Style_Check_Order_Subprograms then
-         Error_Msg_N
+         Error_Msg_N -- CODEFIX
            ("(style) subprogram body& not in alphabetical order", Name);
       end if;
    end Subprogram_Not_In_Alpha_Order;

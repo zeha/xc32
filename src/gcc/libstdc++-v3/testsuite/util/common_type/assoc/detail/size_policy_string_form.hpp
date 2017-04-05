@@ -1,6 +1,6 @@
 // -*- C++ -*-
 
-// Copyright (C) 2005, 2006, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2005-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the terms
@@ -55,9 +55,9 @@ namespace __gnu_pbds
       template<typename Size_Policy>
       struct size_policy_string_form;
 
-      template<typename Allocator>
+      template<typename _Alloc>
       struct size_policy_string_form<
-	__gnu_pbds::test::hash_exponential_size_policy_t_<Allocator> >
+	__gnu_pbds::test::hash_exponential_size_policy_t_<_Alloc> >
       {
 	static std::string
         name()

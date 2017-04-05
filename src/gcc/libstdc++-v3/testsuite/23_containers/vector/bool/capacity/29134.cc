@@ -1,4 +1,4 @@
-// Copyright (C) 2006, 2007, 2009, 2010 Free Software Foundation, Inc.
+// Copyright (C) 2006-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -7,7 +7,7 @@
 // any later version.
 
 // This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without Pred the implied warranty of
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
@@ -30,9 +30,9 @@ void test01()
   using std::numeric_limits;
 
 #ifdef _GLIBCXX_DEBUG
-  using std::_GLIBCXX_STD_D::_S_word_bit;
+  using std::_GLIBCXX_STD_C::_S_word_bit;
 #elif defined(_GLIBCXX_PROFILE)
-  using std::_GLIBCXX_STD_PR::_S_word_bit;
+  using std::_GLIBCXX_STD_C::_S_word_bit;
 #else
   using std::_S_word_bit;
 #endif

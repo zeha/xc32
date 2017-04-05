@@ -37,7 +37,7 @@ MULTILIB_MATCHES      += march?armv6s-m=mcpu?cortex-m1
 MULTILIB_MATCHES      += march?armv6s-m=mcpu?cortex-m0
 MULTILIB_MATCHES      += march?armv6s-m=march?armv6-m
 
-MULTILIB_ALIASES       =
+MULTILIB_REUSE       =
 
 # FIXME: We need a sane way of doing this.
 # This isn't really a multilib, it's a hack to add an extra option
@@ -50,7 +50,7 @@ MULTILIB_EXCEPTIONS   += mthumb/mfix-cortex-m3-ldrd
 MULTILIB_EXCEPTIONS   += march=armv7/mfix-cortex-m3-ldrd
 MULTILIB_EXCEPTIONS   += *march=armv6s-m*mfix-cortex-m3-ldrd
 
-MULTILIB_ALIASES      += mthumb/march?armv7/mfix-cortex-m3-ldrd=mthumb/march?armv7
+MULTILIB_REUSE      += mthumb/march.armv7/mfix-cortex-m3-ldrd=mthumb/march.armv7
 
 
 MULTILIB_OSDIRNAMES    = mthumb/march.armv7/mfix-cortex-m3-ldrd=!thumb2

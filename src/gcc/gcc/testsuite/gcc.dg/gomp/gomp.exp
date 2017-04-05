@@ -1,4 +1,4 @@
-# Copyright (C) 2006 Free Software Foundation, Inc.
+# Copyright (C) 2006-2013 Free Software Foundation, Inc.
 #
 # This file is part of GCC.
 #
@@ -29,8 +29,7 @@ if ![check_effective_target_fopenmp] {
 dg-init
 
 # Main loop.
-dg-runtest [lsort [find $srcdir/$subdir *.c]] \
-	"" "-fopenmp"
+dg-runtest [lsort [glob -nocomplain $srcdir/$subdir/*.c $srcdir/c-c++-common/gomp/*.c]] "" "-fopenmp"
 
 # All done.
 dg-finish

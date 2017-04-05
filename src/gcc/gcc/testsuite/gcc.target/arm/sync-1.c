@@ -1,3 +1,4 @@
+
 /* { dg-do run { target sync_int_long } } */
 /* { dg-options "-O2" } */
 

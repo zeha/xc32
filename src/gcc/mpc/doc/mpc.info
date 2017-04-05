@@ -1,4 +1,4 @@
-This is ../../../../src45x/gcc/mpc/doc/mpc.info, produced by makeinfo version 4.13 from ../../../../src45x/gcc/mpc/doc/mpc.texi.
+This is /home/i16382/work/test_build/134/build/xc32-trunk/src45x/gcc/mpc/doc/mpc.info, produced by makeinfo version 4.13 from /home/i16382/work/test_build/134/build/xc32-trunk/src45x/gcc/mpc/doc/mpc.texi.
 
 START-INFO-DIR-ENTRY
 * mpc: (mpc.info).               Multiple Precision Complex Library.
@@ -1293,30 +1293,30 @@ Function and Type Index
 
 
 Tag Table:
-Node: Top1008
-Node: Copying1669
-Node: Introduction to MPC2327
-Node: Installing MPC3035
-Node: Reporting Bugs7694
-Node: MPC Basics9023
-Ref: return-value12673
-Node: Complex Functions14115
-Node: Initializing Complex Numbers15264
-Node: Assigning Complex Numbers17678
-Node: Converting Complex Numbers22086
-Node: String and Stream Input and Output22720
-Ref: string-io22867
-Node: Complex Comparison29299
-Node: Projection & Decomposing30378
-Node: Basic Arithmetic31753
-Node: Power Functions and Logarithm36393
-Node: Trigonometric Functions38048
-Node: Miscellaneous Complex Functions40273
-Node: Advanced Functions42418
-Node: Internals43491
-Node: Contributors43938
-Node: References44284
-Node: Concept Index45198
-Node: Function Index47512
+Node: Top1084
+Node: Copying1745
+Node: Introduction to MPC2403
+Node: Installing MPC3111
+Node: Reporting Bugs7770
+Node: MPC Basics9099
+Ref: return-value12749
+Node: Complex Functions14191
+Node: Initializing Complex Numbers15340
+Node: Assigning Complex Numbers17754
+Node: Converting Complex Numbers22162
+Node: String and Stream Input and Output22796
+Ref: string-io22943
+Node: Complex Comparison29375
+Node: Projection & Decomposing30454
+Node: Basic Arithmetic31829
+Node: Power Functions and Logarithm36469
+Node: Trigonometric Functions38124
+Node: Miscellaneous Complex Functions40349
+Node: Advanced Functions42494
+Node: Internals43567
+Node: Contributors44014
+Node: References44360
+Node: Concept Index45274
+Node: Function Index47588
 
 End Tag Table

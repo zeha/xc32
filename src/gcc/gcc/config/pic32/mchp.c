@@ -5,7 +5,7 @@
    Contributed by J. Grosbach, james.grosbach@microchip.com, and
    T. Kuhrt, tracy.kuhrt@microchip.com
    Changes by J. Kajita, jason.kajita@microchip.com,
-   G. Loegel, george.loegel@microchip.com, and
+   G. Loegel, george.loegel@microchip.com and
    S. Bekal, swaroopkumar.bekal@microchip.com
 
 This file is part of GCC.
@@ -66,9 +66,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "debug.h"
 #include "target.h"
 #include "target-def.h"
-#include "integrate.h"
 #include "langhooks.h"
-#include "cfglayout.h"
 #include "sched-int.h"
 #include "gimple.h"
 #include "bitmap.h"
@@ -76,17 +74,17 @@ along with GCC; see the file COPYING3.  If not see
 #include "params.h"
 #include "prefix.h"
 #include "bversion.h"
+#include "opts.h"
 
 #include <stdio.h>
 #include <string.h>
 #include "cpplib.h"
 #include "mchp-protos.h"
 #include "mchp-pragmas.h"
-#include "c-common.h"
-#include "c-pragma.h"
-#include "c-tree.h"
+#include "c-family/c-pragma.h"
 #include "incpath.h"
 #include "cppdefault.h"
+#include "hwint.h"
 #include "config/mips/mips-machine-function.h"
 #include "version.h"
 
@@ -112,9 +110,9 @@ void *alloca(size_t);
 #define dconst_section readonly_data_section
 
 /* Global Variables */
- const char *mchp_resource_file = NULL;
+ //const char *mchp_resource_file = NULL;
  char *mchp_resource_file_f;  /* stoopid options.c always makes this const */
-extern const char * mchp_text_scn;
+//extern const char * mchp_text_scn;
 SECTION_FLAGS_INT mchp_text_flags = SECTION_CODE;
 extern bool user_defined_section_attribute;
 
@@ -136,6 +134,16 @@ unsigned int mchp_pragma_coherent = 0;
 unsigned int mchp_pragma_printf_args = 0;
 unsigned int mchp_pragma_scanf_args = 0;
 tree mchp_pragma_section = NULL_TREE;
+typedef struct pic32_external_memory {
+  tree decl;
+  char *name;
+  int size;
+  unsigned int origin;
+  struct pic32_external_memory *next;
+} pic32_external_memory;
+
+static pic32_external_memory *pic32_external_memory_head,
+                             *pic32_external_memory_tail;
 
 
 /* Local Variables */
@@ -182,6 +190,7 @@ tree mchp_pragma_section = NULL_TREE;
 #define SECTION_ALIGN           (MCHP_ULL(SECTION_MACH_DEP) << 7ull)
 #define SECTION_KEEP            (MCHP_ULL(SECTION_MACH_DEP) << 8ull)
 #define SECTION_COHERENT        (MCHP_ULL(SECTION_MACH_DEP) << 9ull)
+#define SECTION_REGION          (MCHP_ULL(SECTION_MACH_DEP) << 10ull)
 
 /* the attribute names from the assemblers point of view */
 #define SECTION_ATTR_ADDRESS   "address"
@@ -198,6 +207,7 @@ tree mchp_pragma_section = NULL_TREE;
 #define SECTION_ATTR_DEFAULT   "unused"
 #define SECTION_ATTR_KEEP      "keep"
 #define SECTION_ATTR_COHERENT  "coherent"
+#define SECTION_ATTR_REGION    "memory"
 
 struct valid_section_flags_
 {
@@ -235,6 +245,11 @@ struct valid_section_flags_
     SECTION_INFO
   },
   {
+    SECTION_ATTR_COHERENT, 0,
+    SECTION_COHERENT,
+    0
+  },
+  {
     SECTION_ATTR_DATA, 'd',
     SECTION_WRITE,    SECTION_BSS | SECTION_PERSIST |
     SECTION_READ_ONLY
@@ -247,6 +262,16 @@ struct valid_section_flags_
     SECTION_ALIGN |
     SECTION_NOLOAD | SECTION_MERGE |
     SECTION_READ_ONLY
+  },
+  {
+    SECTION_ATTR_KEEP, 0,
+    SECTION_KEEP,
+    0
+  },
+  {
+    SECTION_ATTR_REGION, 0,
+    SECTION_REGION,
+    0
   },
   {
     SECTION_ATTR_NOLOAD, 0,
@@ -264,16 +289,6 @@ struct valid_section_flags_
     SECTION_NEAR |
     SECTION_PERSIST |
     SECTION_READ_ONLY
-  },
-  {
-    SECTION_ATTR_KEEP, 0,
-    SECTION_KEEP,
-    0
-  },
-  {
-    SECTION_ATTR_COHERENT, 0,
-    SECTION_COHERENT,
-    0
   },
   { 0, 0, 0, 0},
 };
@@ -444,6 +459,7 @@ static HOST_WIDE_INT mchp_offset_status = 0;
 static HOST_WIDE_INT mchp_offset_epc = 0;
 static HOST_WIDE_INT mchp_offset_srsctl = 0;
 static HOST_WIDE_INT mchp_offset_dspcontrol = 0;
+static HOST_WIDE_INT mchp_offset_fcsr = 0;
 
 static HOST_WIDE_INT mchp_invalid_ipl_warning = 0;
 #ifdef SKIP_LICENSE_MANAGER
@@ -471,6 +487,7 @@ int mchp_epilogue_uses (unsigned regno);
 
 static void mchp_output_configuration_words (void);
 static void mchp_output_vector_dispatch_table (void);
+static void mchp_output_ext_region_memory_info (void);
 static int mchp_vector_attribute_compound_expr (tree *node, tree expr,
     bool *no_add_attrs);
 inline int
@@ -494,10 +511,13 @@ static tree mchp_push_pop_constant_section(tree decl, enum css push,
 static void mchp_pop_section_name(void);
 #endif
 static tree get_mchp_space_attribute (tree decl);
+static tree get_mchp_region_attribute (tree decl);
 
-extern void mips_set_mips16_micromips_mode (int mips16_p, int micromips_p);
-extern void mips_for_each_saved_gpr_and_fpr (HOST_WIDE_INT sp_offset, mchp_save_restore_fn fn);
+extern unsigned int mips_get_compress_mode (tree decl);
+extern void mips_set_compression_mode (unsigned int compression_mode);
+extern void mips_for_each_saved_gpr_and_fpr (HOST_WIDE_INT sp_offset, mchp_save_restore_fn fn, rtx skip_label);
 extern void mips_restore_reg (rtx reg, rtx mem);
+extern bool mips_interrupt_type_p (tree type);
 
 SECTION_FLAGS_INT mchp_section_type_flags(tree decl, const char *name, int reloc ATTRIBUTE_UNUSED);
 void mchp_add_vector_dispatch_entry (const char *target_name, int vector_number, bool fartype, 
@@ -515,12 +535,12 @@ struct mchp_config_specification *mchp_configuration_values;
 static const char* mchp_get_resource_file_path(void);
 static const char* mchp_get_resource_file_path(void)
 {
-  extern char **save_argv;
+  extern struct cl_decoded_option *save_decoded_options;
   /* TODO Correct this path */
 #if 0
   char* path = make_relative_prefix(save_argv[0], "/bin/bin", "/bin");
 #endif
-  char* path = make_relative_prefix(save_argv[0],
+  char* path = make_relative_prefix(save_decoded_options[0].arg,
                                   "/pic32mx/bin/gcc/pic32mx/"
                                   str(BUILDING_GCC_MAJOR) "."
                                   str(BUILDING_GCC_MINOR) "."
@@ -543,6 +563,7 @@ static const char* mchp_get_resource_file_path(void)
   return path;
 }
 
+#if 1
 static unsigned int mchp_load_resource_info(char *id, char **matched_id, const char* mchp_resource_file_in);
 static unsigned int mchp_load_resource_info(char *id, char **matched_id, const char* mchp_resource_file_in) {
   struct resource_introduction_block *rib;
@@ -572,7 +593,7 @@ static unsigned int mchp_load_resource_info(char *id, char **matched_id, const c
       mchp_resource_file_in = mchp_get_resource_file_path();
   }
 
-  mchp_resource_file_generic = mchp_resource_file_in+strlen(mchp_resource_file_in)-strlen("xc32_device.info");
+  mchp_resource_file_generic = (char *)mchp_resource_file_in+strlen(mchp_resource_file_in)-strlen("xc32_device.info");
 
   /* read_device_rib assumes that the resource file name is xc32_device.inf. Ensure that it is. */
   if (strcmp (mchp_resource_file_generic, "xc32_device.info") != 0)
@@ -625,6 +646,7 @@ static unsigned int mchp_load_resource_info(char *id, char **matched_id, const c
   pic32_loaded_device_mask = true;
   return pic32_device_mask;
 }
+#endif
 
 unsigned int validate_device_mask (char *id, char **matched_id, const char* mchp_resource_file_in);
 unsigned int validate_device_mask (char *id, char **matched_id, const char* mchp_resource_file_in)
@@ -700,16 +722,16 @@ mchp_subtarget_override_options(void)
 #if !defined(MCHP_SKIP_RESOURCE_FILE)
   int mask;
   
-  /* DSP and mips16 cannot coexist  */
+  /* DSP and microMIPS cannot coexist  */
   if (TARGET_DSP && TARGET_MIPS16)
     error ("unsupported combination: %s", "-mips16 -mdsp");
   
-  /* DSPr2 and mips16 cannot coexist  */
+  /* DSPr2 and microMIPS cannot coexist  */
   if (TARGET_DSPR2 && TARGET_MIPS16)
     error ("unsupported combination: %s", "-mips16 -mdspr2");
   
-  mask = validate_device_mask (mchp_processor_string, &mchp_target_cpu_id,
-                               mchp_resource_file);
+  mask = validate_device_mask ((char*)mchp_processor_string, &mchp_target_cpu_id,
+                              mchp_resource_file);
 #endif
 }
 
@@ -770,7 +792,7 @@ get_line (char *buf, size_t n, FILE *fptr)
 static char*
 get_license_manager_path (void)
 {
-  extern char **save_argv;
+  extern struct cl_decoded_option *save_decoded_options;
   char *xclmpath = NULL;
   FILE *fptr = NULL;
   struct stat filestat;
@@ -782,7 +804,7 @@ get_license_manager_path (void)
   char line [MCHP_MAX_LICENSEPATH_LINE_LENGTH] = {0};
 
   /* MCHP_LICENSE_CONF_FILENAME must reside in the same directory as pic32-gcc */
-  conf_dir = make_relative_prefix(save_argv[0],
+  conf_dir = make_relative_prefix(save_decoded_options[0].arg,
                                   "/pic32mx/bin/gcc/pic32mx/"
                                   str(BUILDING_GCC_MAJOR) "."
                                   str(BUILDING_GCC_MINOR) "."
@@ -837,7 +859,7 @@ get_license_manager_path (void)
       /*  Try the compiler bin directory.
        *
        */
-      char* bindir = make_relative_prefix(save_argv[0],
+      char* bindir = make_relative_prefix(save_decoded_options[0].arg,
                                           "/pic32mx/bin/gcc/pic32mx/"
                                           str(BUILDING_GCC_MAJOR) "."
                                           str(BUILDING_GCC_MINOR) "."
@@ -955,7 +977,7 @@ pic32_get_license (int require_cpp)
     int status = 0;
     int err = 0;
     int major_ver =0, minor_ver=0;
-    extern char **save_argv;
+    extern struct cl_decoded_option *save_decoded_options;
     struct stat filestat;
     int found_xclm = 0, xclm_tampered = 1;
 
@@ -964,7 +986,7 @@ pic32_get_license (int require_cpp)
       {
         char *Microchip;
         gcc_assert(strlen(version_string) < 80);
-        Microchip = strrchr (version_string, 'v');
+        Microchip = strrchr ((char*)version_string, 'v');
         if (Microchip)
           {
             while ((*Microchip) &&
@@ -999,22 +1021,21 @@ pic32_get_license (int require_cpp)
 #endif
     /* Get a path to the license manager to try */
     exec = get_license_manager_path();
-
     if (exec == NULL)
       {
-        /* Set free edition if the license manager isn't available. */
+         /*Set free edition if the license manager isn't available.*/ 
         mchp_pic32_license_valid=PIC32_FREE_LICENSE;
         warning (0, "Could not retrieve compiler license");
         inform (input_location, "Please reinstall the compiler");
       }
     else if (-1 == stat (exec, &filestat))
       {
-        /* Set free edition if the license manager execution fails. */
+         /*Set free edition if the license manager execution fails. */
         mchp_pic32_license_valid=PIC32_FREE_LICENSE;
         warning (0, "Could not retrieve compiler license");
         inform (input_location, "Please reinstall the compiler");
       }
-    else
+    else 
       {
         /* Found xclm */
           found_xclm = 1;
@@ -1025,7 +1046,7 @@ pic32_get_license (int require_cpp)
       {
 
         /* Check if xclm executable is tampered */
-        xclm_tampered = mchp_sha256_validate(exec, MCHP_XCLM_SHA256_DIGEST);
+        xclm_tampered = mchp_sha256_validate(exec, (const unsigned char*)MCHP_XCLM_SHA256_DIGEST);
         
         if (xclm_tampered != 0)
           {
@@ -1055,7 +1076,6 @@ pic32_get_license (int require_cpp)
           }
       }
   }
-
 #endif /* SKIP_LICENSE_MANAGER */
   return mchp_pic32_license_valid;
 }
@@ -1151,22 +1171,20 @@ void mchp_override_options_after_change(void) {
     if (nullify_mips16)
       {
         /* Disable -mips16 and -mips16e */
-        if (mips_base_mips16 != 0)
+        if ((mips_base_compression_flags & (MASK_MIPS16)) != 0)
           {
             /* Disable -mips16 and -mips16e */
-            NULLIFY(mips_base_mips16, "mips16 mode") = 0;
+            NULLIFY(mips_base_compression_flags, "mips16 mode") = 0;
           }
-        /* Don't disable microMIPS for devices that don't support MIPS32R2 */
-        if (mips_base_micromips != 0 && mchp_subtarget_mips32_enabled())
+        if ((mips_base_compression_flags & (MASK_MICROMIPS)) != 0 && (strncmp (mchp_processor_string, "32MM", 4) != 0))
           {
-            /* If this device also supports mips32, disable -mmicromips */
-              NULLIFY(mips_base_micromips, "micromips mode") = 0;
+            /* Disable -mmicromips */
+            NULLIFY(mips_base_compression_flags, "micromips mode") = 0;
           }
       }
     if (nullify_lto)
       {
         NULLIFY(flag_lto, "Link-time optimization") = 0;
-        NULLIFY(flag_whopr, "Partitioned link-time optimization") = 0;
         NULLIFY(flag_whole_program, "Whole-program optimizations") = 0;
         NULLIFY(flag_generate_lto, "Link-time optimization") = 0;
       }
@@ -1202,83 +1220,13 @@ static void mchp_print_license_warning (void)
         disabled_option_message = NULL;
         message_purchase_display++;
       }
-}
-
-/* Implement OPTIMIZATION_OPTIONS */
-/* Set default optimization options.  */
-void
-pic32_optimization_options (int level ATTRIBUTE_UNUSED, int size ATTRIBUTE_UNUSED)
-{
-    extern char **save_argv;
-
-    if (mchp_it_transport && *mchp_it_transport) { 
-      if (strcasecmp(mchp_it_transport,"profile") == 0) {
-            mchp_profile_option = 1;
-      }
-    }
-
-  if (mchp_profile_option) {
-    flag_inline_small_functions = 0;
-    flag_inline_functions = 0;
-    flag_no_inline = 1;
-    flag_optimize_sibling_calls = 0;
-  }
-
-  if (size)
-    {
-      flag_inline_functions = 0;
-    }
-
-  /* Temporary workaround. Remove this condition after we upgrade to GCC 4.8 */
-  if (!flag_inline_small_functions || 
-      !flag_inline_functions ||
-      flag_no_inline)
-    {
-      flag_if_conversion = 0;
-      flag_if_conversion2 = 0;
-    }
-
-  {
-    int require_cpp    = 0;
-    nullify_O2     = 1;
-    nullify_O3     = 1;
-    nullify_Os     = 1;
-    nullify_mips16 = 1;
-    nullify_lto    = 1;
-
-    require_cpp = (strstr (save_argv[0], "cc1plus")!=NULL);
-    mchp_pic32_license_valid = pic32_get_license (require_cpp);
-
-    if ((mchp_pic32_license_valid == PIC32_VALID_PRO_LICENSE) ||
-        (mchp_pic32_license_valid == PIC32_VALID_CPP_FULL))
-      {
-        nullify_lto = nullify_mips16 = nullify_O2 =  nullify_O3 = nullify_Os = 0;
-      }
-    else if (mchp_pic32_license_valid == PIC32_VALID_STANDARD_LICENSE)
-      {
-        nullify_O2 = 0;
-      }
-    if (nullify_Os)
-      {
-        /* Disable -Os optimization(s) */
-        /* flag_web and flag_inline_functions already disabled */
-        if (optimize_size)
-          {
-            optimize = 2;
-          }
-        NULLIFY(optimize_size, "Optimize for size") = 0;
-      }
-
-    mchp_override_options_after_change();
-    mchp_print_license_warning();
-  }
-#endif
+#endif /* SKIP_LICENSE_MANAGER */
 }
 
 void
 mchp_subtarget_override_options2 (void)
 {
-  extern char **save_argv;
+  extern struct cl_decoded_option *save_decoded_options;
   require_cpp    = 0;
 
     if (mchp_it_transport && *mchp_it_transport) { 
@@ -1302,13 +1250,8 @@ mchp_subtarget_override_options2 (void)
     flag_optimize_sibling_calls = 0;
   }
 
-  require_cpp = (strstr (save_argv[0], "cc1plus")!=NULL);
-  /* If C++ is required and we don not yet have a C++ license, try getting one. */
-  if (require_cpp && !((mchp_pic32_license_valid == PIC32_VALID_CPP_FREE) ||
-                       (mchp_pic32_license_valid == PIC32_VALID_CPP_FULL)))
-    {
-       mchp_pic32_license_valid = pic32_get_license (require_cpp);
-    }
+  require_cpp = (strstr (save_decoded_options[0].arg, "cc1plus")!=NULL);
+  mchp_pic32_license_valid = pic32_get_license (require_cpp);
 
     if (require_cpp && !((mchp_pic32_license_valid == PIC32_VALID_CPP_FREE) ||
                          (mchp_pic32_license_valid == PIC32_VALID_CPP_FULL)))
@@ -1326,14 +1269,21 @@ mchp_subtarget_override_options2 (void)
       {
         nullify_O2 = 0;
       }
-
   /*
    *  On systems where we have a licence manager, call it
    */
 #ifdef TARGET_MCHP_PIC32MX
   {
-    mchp_print_license_warning();
-
+    /*
+     * Prior to v1.40 (gcc upgrade from 4.5.2 to 4.8.3),  
+     * mchp_override_options_after_change() was called from optimization_option()
+     * through OPTIMIZATION_OPTION target macro which is poisoned in 4.8.3. Hence
+     * optimization_option() was removed. Call to  mchp_override_options_after_change()
+     * added here to fix XC32-546
+     */
+    mchp_override_options_after_change();
+    mchp_print_license_warning(); 
+ 
     if (nullify_lto)
       {
         if (optimize_size)
@@ -1355,26 +1305,25 @@ mchp_subtarget_override_options2 (void)
         flag_ipa_cp = 0;
 
         NULLIFY(flag_lto, "Link-time optimization") = 0;
-        NULLIFY(flag_whopr, "Partitioned link-time optimization") = 0;
         NULLIFY(flag_whole_program, "Whole-program optimizations") = 0;
         NULLIFY(flag_generate_lto, "Link-time optimization") = 0;
 
         /* Disable -mips16 and -mips16e */
-        if (mips_base_mips16 != 0)
+        if ((mips_base_compression_flags & (MASK_MIPS16)) != 0)
           {
             /* Disable -mips16 and -mips16e */
-            NULLIFY(mips_base_mips16, "mips16 mode") = 0;
+            NULLIFY(mips_base_compression_flags, "mips16 mode") = 0;
           }
 
-        if (mips_base_micromips != 0 && mchp_subtarget_mips32_enabled()) 
+        if ((mips_base_compression_flags & (MASK_MICROMIPS)) != 0 && mchp_subtarget_mips32_enabled()) 
           {
             /* If this device also supports mips32, disable -mmicromips */
-              NULLIFY(mips_base_micromips, "micromips mode") = 0;
+              NULLIFY(mips_base_compression_flags, "micromips mode") = 0;
           }
       }
     if (message_displayed && TARGET_LICENSE_WARNING)
       {
-        /* Now display a warning for the Pro option */
+         /*Now display a warning for the Pro option */
         if (disabled_option_message != NULL)
           warning (0,"Pro Compiler option (%s) ignored %s", disabled_option_message,
                    invalid_license);
@@ -1386,7 +1335,7 @@ mchp_subtarget_override_options2 (void)
         inform (0, "Disable the option or visit http://www.microchip.com/MPLABXCcompilers "
                 "to purchase a new MPLAB XC compiler license.");
 
-        /* If the --nofallback option was specified, abort compilation. */
+         /*If the --nofallback option was specified, abort compilation. */
         if (TARGET_NO_FALLBACKLICENSE)
           error ("Unable to find a valid license, aborting");
 
@@ -1399,13 +1348,10 @@ mchp_subtarget_override_options2 (void)
         mchp_io_size_val = 0;
       }
 
-    /* Require a Standard or Pro license */
+     /*Require a Standard or Pro license */
     if (TARGET_NO_FALLBACKLICENSE && (mchp_pic32_license_valid == PIC32_FREE_LICENSE))
-      error ("Unable to find a valid license, aborting");
+      error ("Unable to find a valid license, aborting"); 
   }
-
-
-  
 #undef PIC32_EXPIRED_LICENSE
 #undef PIC32_ACADEMIC_LICENSE
 #undef PIC32_VALID_STANDARD_LICENSE
@@ -1700,8 +1646,26 @@ mchp_output_configuration_words (void)
     }
 }
 
+static void
+mchp_output_ext_region_memory_info (void)
+{
+    pic32_external_memory *m;
+    char printed = 0;
+
+    for (m = pic32_external_memory_head; m; m = m ->next) 
+    {
+      fprintf(asm_out_file, "\n\t.memory _%s, origin(0x%x), size(0x%x)", m->name, m->origin, m->size);
+      printed = 1 ;
+    }
+  
+    if (printed) 
+    {
+      fprintf(asm_out_file, "\n\n");
+    }
+}
 void mchp_file_end (void)
 {
+  mchp_output_ext_region_memory_info();
   mchp_output_vector_dispatch_table();
   mchp_output_configuration_words ();
 }
@@ -1731,6 +1695,12 @@ mchp_vector_attribute (tree *node, tree name ATTRIBUTE_UNUSED, tree args,
   if (TREE_CODE (decl) != FUNCTION_DECL)
     return NULL_TREE;
 
+  if (flag_generate_lto)
+    {
+      warning (0, "Attribute vector not supported with -flto option, this file will not participate in LTO");
+      flag_generate_lto = 0;
+    }
+
   /* The vector attribute has a comma delimited list of vector #'s as
      arguments. At least one must be present. */
   gcc_assert (args);
@@ -1748,7 +1718,7 @@ mchp_vector_attribute (tree *node, tree name ATTRIBUTE_UNUSED, tree args,
               return NULL_TREE;
             }
             
-          if (mips_micromips_decl_p (*node))
+          if (mips_base_compression_flags & (MASK_MICROMIPS))
             isamode = pic32_isa_micromips;
             
           /* add the vector to the list of dispatch functions to emit */
@@ -1807,7 +1777,7 @@ mchp_vector_attribute_compound_expr (tree *node, tree expr,
           return 0;
         }
         
-      if (mips_micromips_decl_p (*node))
+      if (mips_base_compression_flags & (MASK_MICROMIPS))
         isamode = pic32_isa_micromips;
             
       /* add the vector to the list of dispatch functions to emit */
@@ -1848,7 +1818,7 @@ mchp_at_vector_attribute (tree *node, tree name ATTRIBUTE_UNUSED, tree args,
   if (TREE_CODE (decl) != FUNCTION_DECL)
     return NULL_TREE;
 
-  if (DECL_SECTION_NAME (decl) != NULL_TREE)
+  if (DECL_SECTION_NAME (decl) != NULL)
     {
       error ("the 'at_vector' attribute cannot be used with the 'section' attribute");
       *no_add_attrs = true;
@@ -1868,7 +1838,7 @@ mchp_at_vector_attribute (tree *node, tree name ATTRIBUTE_UNUSED, tree args,
   sprintf (scn_name, ".vector_%d", (int)TREE_INT_CST_LOW (TREE_VALUE (args)));
   DECL_SECTION_NAME (decl) = build_string (strlen (scn_name), scn_name);
   
-  if (mips_micromips_decl_p (*node))
+  if (mips_base_compression_flags & (MASK_MICROMIPS))
     isamode = pic32_isa_micromips;
   
   /* add the vector to the list of dispatch functions to emit */
@@ -1903,8 +1873,7 @@ mchp_output_vector_dispatch_table (void)
         fprintf (asm_out_file, "\t.section\t.vector_%d,code,keep\n",
                  dispatch_entry->vector_number);
         fprintf (asm_out_file, "\t.set\tnomips16\n");
-        if ((pic32_device_mask & HAS_MICROMIPS) &&
-            (mips_base_micromips))
+        if ((mips_base_compression_flags & (MASK_MICROMIPS)) && (pic32_device_mask & HAS_MICROMIPS))
           {
             fprintf (asm_out_file, "\t.set\tmicromips\n");
           }
@@ -1915,10 +1884,9 @@ mchp_output_vector_dispatch_table (void)
                  
         fprintf (asm_out_file, "__vector_dispatch_%d:\n",
                  dispatch_entry->vector_number);
-
         if ((dispatch_entry->longcall) || 
-            (mips_base_micromips && (dispatch_entry->isr_isa_mode != pic32_isa_micromips)) ||
-            (!mips_base_micromips && (dispatch_entry->isr_isa_mode == pic32_isa_micromips)) ||
+            ((mips_base_compression_flags & (MASK_MICROMIPS)) && (dispatch_entry->isr_isa_mode != pic32_isa_micromips)) ||
+            (!(mips_base_compression_flags & (MASK_MICROMIPS)) && (dispatch_entry->isr_isa_mode == pic32_isa_micromips)) ||
             TARGET_LONG_CALLS)
           {
             fprintf (asm_out_file, "\tla\t$26, %s\n", dispatch_entry->target);
@@ -1931,7 +1899,6 @@ mchp_output_vector_dispatch_table (void)
 
         /* Branch delay slot */
         fprintf (asm_out_file, "\tnop\n");
-
         fprintf (asm_out_file, "\t.set reorder\n");
         fprintf (asm_out_file, "\t.end\t__vector_dispatch_%d\n",
                  dispatch_entry->vector_number);
@@ -2021,13 +1988,6 @@ mchp_target_insert_attributes (tree decl, tree *attr_ptr)
                                      *attr_ptr);
             }
         }
-
-      /* If the device supports only the microMIPS ISA, add the micromips attribute to all functions. */
-      if ((!(pic32_device_mask & HAS_MIPS32R2) && (pic32_device_mask & HAS_MICROMIPS)) ||
-           (mips_base_micromips && !nomicromips_p))
-        {
-          *attr_ptr = tree_cons (get_identifier ("micromips"), NULL, *attr_ptr);
-        }
     }
 }
 
@@ -2043,17 +2003,6 @@ mchp_prepare_function_start (tree fndecl)
   /* XXX do we still need to do this? */
   while ((x = decl_function_context (fndecl)))
     fndecl = x;
-
-#ifdef TARGET_MCHP_PIC32MX
-  /* If we're in MIPS16[e] mode for an interrupt function, that's an error */
-  mchp_function_interrupt_p (fndecl);
-  if ((current_function_type != NON_INTERRUPT) && TARGET_MIPS16)
-    {
-      warning (0, "interrupt handler functions cannot be mips16, "
-               "assuming nomips16 attribute");
-      mips_set_mips16_micromips_mode (0,0);
-    }
-#endif
 }
 /* Check if the interrupt attribute is set for a function. If it is, return
    the IPL identifier, else NULL */
@@ -2173,12 +2122,13 @@ mchp_interrupt_attribute (tree *node ATTRIBUTE_UNUSED,
        return NULL_TREE;
     }
 
-  if ((strncasecmp ("IPL", IDENTIFIER_POINTER (TREE_VALUE (args)), 3) == 0) && (strlen(IDENTIFIER_POINTER (TREE_VALUE (args)))==4))
-    {
-      warning (0, "Interrupt priority IPL%c is deprecated. Specify as 'IPL%c{AUTO|SOFT|SRS}' instead.", 
-               IDENTIFIER_POINTER (TREE_VALUE (args))[3],
-               IDENTIFIER_POINTER (TREE_VALUE (args))[3]);
-    }
+   if ((strncasecmp ("IPL", IDENTIFIER_POINTER (TREE_VALUE (args)), 3) == 0) && 
+       (strlen(IDENTIFIER_POINTER (TREE_VALUE (args)))==4))
+      {
+        warning (0, "Interrupt priority IPL%c is deprecated. Specify as 'IPL%c{AUTO|SOFT|SRS}' instead.", 
+                 IDENTIFIER_POINTER (TREE_VALUE (args))[3],
+                 IDENTIFIER_POINTER (TREE_VALUE (args))[3]);
+      }
 
   return NULL_TREE;
 }
@@ -2358,6 +2308,41 @@ tree mchp_naked_attribute(tree *decl, tree identifier ATTRIBUTE_UNUSED,
   return NULL_TREE;
 }
 
+/* Handle a "unique_section" attribute; arguments as in
+   struct attribute_spec.handler.  
+*/
+tree
+mchp_unique_section_attribute (tree *node, tree name ATTRIBUTE_UNUSED,
+                          tree args ATTRIBUTE_UNUSED, int flags ATTRIBUTE_UNUSED,
+                          bool *no_add_attrs)
+{
+  tree decl = *node;
+
+      if ((TREE_CODE (decl) == FUNCTION_DECL
+	   || TREE_CODE (decl) == VAR_DECL))
+	{
+	  if (TREE_CODE (decl) == VAR_DECL
+	      && current_function_decl != NULL_TREE
+	      && ! TREE_STATIC (decl))
+	    {
+	      error ("%Junique_section attribute cannot be specified for "
+                     "local variables", decl);
+	      *no_add_attrs = true;
+	    }
+
+	    DECL_UNIQUE_SECTION (decl) = 1;
+	    DECL_COMMON (decl) = 0;
+	}
+      else
+	{
+	  error ("%Junique_section attribute not allowed for '%D'", *node, *node);
+	  *no_add_attrs = true;
+	}
+
+  return NULL_TREE;
+}
+
+
 /*
 ** Return nonzero if IDENTIFIER is a valid attribute.
 */
@@ -2366,7 +2351,7 @@ tree mchp_nomicromips_attribute(tree *decl, tree identifier ATTRIBUTE_UNUSED,
                             bool *no_add_attrs ATTRIBUTE_UNUSED)
 {
   /* Naked attribute implies noinline and noclone */
-  if (!mchp_subtarget_mips32_enabled(*decl))
+    if (!mchp_subtarget_mips32_enabled())
     {
       error ("The %qs target device does not support the %qs attribute on %qs", 
              mchp_processor_string, 
@@ -2490,10 +2475,20 @@ tree mchp_space_attribute(tree *decl, tree identifier ATTRIBUTE_UNUSED,
         {
           warning(0, "ignoring previous space attribute");
         }
+
+        /*
+	   space(data) attribute can be specified for functions.
+           It will be treated as ramfunc.
+           If region() attribute is specified, space(data) can be
+           used to qualify the function to be copied to external
+           data memory.
+	  */
+#if 0		
       if (TREE_CODE(*decl) == FUNCTION_DECL)
         {
           warning (0, "space attribute does not apply to functions");
         }
+#endif		
       if (TREE_VALUE(args) == get_identifier("prog"))
         {
           return space;
@@ -2535,6 +2530,135 @@ tree mchp_space_attribute(tree *decl, tree identifier ATTRIBUTE_UNUSED,
   warning (0, "invalid space argument for '%s', ignoring attribute", attached_to);
   *no_add_attrs = 1;
   return NULL_TREE;
+}
+
+/*
+  This function process the region attribute.
+  The region attribute can be specified by any of the following method:
+
+    #pragma region name="reg1" origin=0x08000000 size=0x200000
+    int var __attribute__(( region("reg1") )) ;
+
+*/
+
+tree mchp_region_attribute( tree *decl, tree identifier ATTRIBUTE_UNUSED,
+                            tree args, int flags ATTRIBUTE_UNUSED,
+                            bool *no_add_attrs)
+{
+  const char *attached_to = 0;
+  tree region;
+  tree sub_arglist;
+  tree sub_arg,sub_arg_arg;
+  pic32_external_memory *memory = 0;
+
+  if (args == NULL)
+  {
+    return NULL_TREE;
+  }
+
+/* 
+  If LTO is enabled, then we ignore -flto and issue a warning.
+*/
+  if (flag_generate_lto)
+  {
+     flag_generate_lto = 0;
+  }
+
+  if (ignore_attribute("region", attached_to, *decl))
+  {
+    *no_add_attrs = 1;
+    return NULL_TREE;
+  }
+
+  region = lookup_attribute("region", DECL_ATTRIBUTES(*decl));
+
+  if (region)
+  {
+    warning(0, "ignoring previous region attribute");
+  }
+
+  if (DECL_P(*decl))
+  {
+    attached_to = IDENTIFIER_POINTER(DECL_NAME(*decl));
+  }
+
+  if (TREE_CODE(TREE_VALUE(args)) == STRING_CST)
+  {
+      pic32_external_memory *d;
+
+      for (d = pic32_external_memory_head; d; d = d->next)
+      {
+        if (strcmp (d->name, TREE_STRING_POINTER(TREE_VALUE (args))) == 0) break;
+      }
+
+      if (d == 0)
+      {
+          error("sub argument to region() is not a region definition");
+          *no_add_attrs=1;
+      }
+
+      return NULL_TREE;
+  }
+  else
+  {
+      error("invalid sub argument to region()");
+      if (memory) free(memory);
+      *no_add_attrs=1;
+      return NULL_TREE;
+  }
+}
+
+
+
+void
+pic32_update_external_memory_info(const char* region_name, unsigned int region_origin, int region_size)
+{
+  pic32_external_memory *memory = 0;
+  unsigned int origin;
+  int size;
+
+  if ((region_origin & 3) != 0)
+  {
+    error("invalid argument to origin; origin must be word aligned");
+    origin = 0;
+  }
+  else
+  {
+    origin = region_origin;
+  }
+
+  if (region_size <= 0)
+  {
+    error("Invalid argument to size");
+    size = 0;
+  }
+  else if ((region_size & 1) == 1)
+  {
+    error("invalid argument to size; size must be even");
+    size = 0;
+  }
+  else
+  {
+    size = region_size;
+  }
+
+  memory = (pic32_external_memory *)
+              xcalloc(sizeof(pic32_external_memory),1);
+  memory->name = xstrndup(region_name, strlen(region_name)+1);
+  memory->decl = NULL;
+  memory->origin = origin;
+  memory->size = size;
+
+  if (pic32_external_memory_head == 0)
+  {
+    pic32_external_memory_head = memory;
+    pic32_external_memory_tail = memory;
+  }
+  else
+  {
+    pic32_external_memory_tail->next = memory;
+    pic32_external_memory_tail = memory;
+  }
 }
 
 /*
@@ -2674,6 +2798,22 @@ mchp_function_profiling_epilogue (bool sibcall_p)
   }
 }
 
+static bool
+mchp_uses_fpu (void)
+{
+  enum machine_mode fpr_mode;
+  int regno;
+  fpr_mode = (TARGET_SINGLE_FLOAT ? SFmode : DFmode);
+  for (regno = FP_REG_LAST - MAX_FPRS_PER_FMT + 1;
+       regno >= FP_REG_FIRST;
+       regno -= MAX_FPRS_PER_FMT)
+    if (BITSET_P (cfun->machine->frame.fmask, regno - FP_REG_FIRST))
+      {
+        return true;
+      }
+  return false;
+}
+
 /* Expand the prologue into a bunch of separate insns at the end of the prologue.  */
 void
 mchp_expand_prologue_end (const struct mips_frame_info *frame)
@@ -2762,13 +2902,23 @@ mchp_expand_epilogue_restoreregs (HOST_WIDE_INT step1 ATTRIBUTE_UNUSED,
           if (SOFTWARE_CONTEXT_SAVE == cfun->machine->current_function_type)
             {
               /* Restore the registers.  */
+              if (TARGET_HARD_FLOAT && cfun->machine->frame.fmask)
+                {
+                  /* Restore the FPU FCSR control and status register */
+                  rtx insn;
+                  gcc_assert(mchp_offset_fcsr != 0);
+                  mips_save_restore_reg (SImode, V0_REGNUM, mchp_offset_fcsr, mips_restore_reg);
+                  insn = gen_mips_set_fcsr (gen_rtx_REG (SImode, V0_REGNUM));
+                  emit_insn (insn);
+                  offset -= UNITS_PER_WORD;
+                }
               if (TARGET_DSPR2 && cfun->machine->frame.acc_mask)
                 {
                   rtx insn;
                   /* Restore the DSPControl register */
                   gcc_assert (mchp_offset_dspcontrol != 0);
                   mem = gen_frame_mem (word_mode,
-                                       plus_constant (stack_pointer_rtx, mchp_offset_dspcontrol));
+                                       plus_constant (word_mode,stack_pointer_rtx, mchp_offset_dspcontrol));
                   mips_emit_move (gen_rtx_REG (word_mode, V1_REGNUM), mem);
                   insn = gen_mips_wrdsp (gen_rtx_REG (SImode, V1_REGNUM), GEN_INT (0x3Fu));
                   emit_insn (insn);
@@ -2776,13 +2926,13 @@ mchp_expand_epilogue_restoreregs (HOST_WIDE_INT step1 ATTRIBUTE_UNUSED,
                 }
               mips_for_each_saved_acc (frame->total_size - step2, mips_restore_reg);
               mips_for_each_saved_gpr_and_fpr (frame->total_size - step2,
-                                               mips_restore_reg);
+                                               mips_restore_reg, NULL_RTX);
               if (cfun->machine->interrupt_priority < 7)
                 {
                   /* Load the original EPC.  */
                   gcc_assert (mchp_offset_epc != 0);
                   mem = gen_frame_mem (word_mode,
-                                       plus_constant (stack_pointer_rtx, mchp_offset_epc));
+                                       plus_constant (word_mode,stack_pointer_rtx, mchp_offset_epc));
                   mips_emit_move (gen_rtx_REG (word_mode, K0_REG_NUM), mem);
                   offset -= UNITS_PER_WORD;
                 }
@@ -2790,7 +2940,7 @@ mchp_expand_epilogue_restoreregs (HOST_WIDE_INT step1 ATTRIBUTE_UNUSED,
               /* Load the original Status.  */
               gcc_assert (mchp_offset_status >= 0);
               mem = gen_frame_mem (word_mode,
-                                   plus_constant (stack_pointer_rtx, mchp_offset_status));
+                                   plus_constant (word_mode,stack_pointer_rtx, mchp_offset_status));
               mips_emit_move (gen_rtx_REG (word_mode, K1_REG_NUM), mem);
               offset -= UNITS_PER_WORD;
 
@@ -2806,7 +2956,7 @@ mchp_expand_epilogue_restoreregs (HOST_WIDE_INT step1 ATTRIBUTE_UNUSED,
                   /* Load the original SRSCTL.  */
                   gcc_assert (mchp_offset_srsctl != 0);
                   mem = gen_frame_mem (word_mode,
-                                       plus_constant (stack_pointer_rtx, mchp_offset_srsctl));
+                                       plus_constant (word_mode,stack_pointer_rtx, mchp_offset_srsctl));
                   mips_emit_move (gen_rtx_REG (word_mode, K0_REG_NUM), mem);
                   offset -= UNITS_PER_WORD;
                 }
@@ -2835,13 +2985,23 @@ mchp_expand_epilogue_restoreregs (HOST_WIDE_INT step1 ATTRIBUTE_UNUSED,
             {
               gcc_assert (true == cfun->machine->use_shadow_register_set_p);
               /* Restore the registers.  */
+              if (TARGET_HARD_FLOAT && cfun->machine->frame.fmask)
+                {
+                  /* Restore the FPU FCSR control and status register */
+                  rtx insn;
+                  gcc_assert(mchp_offset_fcsr != 0);
+                  mips_save_restore_reg (SImode, V0_REGNUM, mchp_offset_fcsr, mips_restore_reg);
+                  insn = gen_mips_set_fcsr (gen_rtx_REG (SImode, V0_REGNUM));
+                  emit_insn (insn);
+                  offset -= UNITS_PER_WORD;
+                }
               if (TARGET_DSPR2 && cfun->machine->frame.acc_mask)
                 {
                   rtx insn;
                   /* Restore the DSPControl register */
                   gcc_assert (mchp_offset_dspcontrol != 0);
                   mem = gen_frame_mem (word_mode,
-                                       plus_constant (stack_pointer_rtx, mchp_offset_dspcontrol));
+                                       plus_constant (word_mode,stack_pointer_rtx, mchp_offset_dspcontrol));
                   mips_emit_move (gen_rtx_REG (word_mode, V1_REGNUM), mem);
                   insn = gen_mips_wrdsp (gen_rtx_REG (SImode, V1_REGNUM), GEN_INT (0x3Fu));
                   emit_insn (insn);
@@ -2849,7 +3009,7 @@ mchp_expand_epilogue_restoreregs (HOST_WIDE_INT step1 ATTRIBUTE_UNUSED,
                 }
               mips_for_each_saved_acc (frame->total_size - step2, mips_restore_reg);
               mips_for_each_saved_gpr_and_fpr (frame->total_size - step2,
-                                               mips_restore_reg);
+                                               mips_restore_reg, NULL_RTX);
               if (7 == cfun->machine->interrupt_priority)
                 {
                   if (mchp_save_srsctl)
@@ -2858,14 +3018,14 @@ mchp_expand_epilogue_restoreregs (HOST_WIDE_INT step1 ATTRIBUTE_UNUSED,
                       /* Since we are in IPL7, we can use K0/K1 without executing a DI first. */
                       gcc_assert (mchp_offset_srsctl != 0);
                       mem = gen_frame_mem (word_mode,
-                                           plus_constant (stack_pointer_rtx, mchp_offset_srsctl));
+                                           plus_constant (word_mode,stack_pointer_rtx, mchp_offset_srsctl));
                       mips_emit_move (gen_rtx_REG (word_mode, K0_REG_NUM), mem);
                       offset -= UNITS_PER_WORD;
                     }
                   /* Load the original Status.  */
                   gcc_assert (mchp_offset_status != 0);
                   mem = gen_frame_mem (word_mode,
-                                       plus_constant (stack_pointer_rtx, mchp_offset_status));
+                                       plus_constant (word_mode,stack_pointer_rtx, mchp_offset_status));
                   mips_emit_move (gen_rtx_REG (word_mode, K1_REG_NUM), mem);
                   offset -= UNITS_PER_WORD;
                 }
@@ -2877,18 +3037,18 @@ mchp_expand_epilogue_restoreregs (HOST_WIDE_INT step1 ATTRIBUTE_UNUSED,
                       /* Load the original SRSCTL to K1.  */
                       gcc_assert (mchp_offset_srsctl != 0);
                       mem = gen_frame_mem (word_mode,
-                                           plus_constant (stack_pointer_rtx, mchp_offset_srsctl));
+                                           plus_constant (word_mode,stack_pointer_rtx, mchp_offset_srsctl));
                       mips_emit_move (gen_rtx_REG (word_mode, K1_REG_NUM), mem);
                       offset -= UNITS_PER_WORD;
                     }
-                  
-                  /* Load the original EPC to K0.  */
-                  gcc_assert (mchp_offset_epc != 0);
-                  mem = gen_frame_mem (word_mode,
-                                       plus_constant (stack_pointer_rtx, mchp_offset_epc));
-                  mips_emit_move (gen_rtx_REG (word_mode, K0_REG_NUM), mem);
-                  offset -= UNITS_PER_WORD;
-                    
+
+                    /* Load the original EPC to K0.  */
+                    gcc_assert (mchp_offset_epc != 0);
+                    mem = gen_frame_mem (word_mode,
+                                         plus_constant (word_mode,stack_pointer_rtx, mchp_offset_epc));
+                    mips_emit_move (gen_rtx_REG (word_mode, K0_REG_NUM), mem);
+                    offset -= UNITS_PER_WORD;
+
                   if (mchp_save_srsctl)
                     {
                       /* Restore previously loaded SRSCTL.  */
@@ -2898,7 +3058,7 @@ mchp_expand_epilogue_restoreregs (HOST_WIDE_INT step1 ATTRIBUTE_UNUSED,
                   /* Load the original Status.  */
                   gcc_assert (mchp_offset_status != 0);
                   mem = gen_frame_mem (word_mode,
-                                       plus_constant (stack_pointer_rtx, mchp_offset_status));
+                                       plus_constant (word_mode,stack_pointer_rtx, mchp_offset_status));
                   mips_emit_move (gen_rtx_REG (word_mode, K1_REG_NUM), mem);
                   offset -= UNITS_PER_WORD;
                   /* Restore the original EPC.  */
@@ -2935,15 +3095,26 @@ mchp_expand_epilogue_restoreregs (HOST_WIDE_INT step1 ATTRIBUTE_UNUSED,
               rtx do_save_label;
               rtx jumpskip;
               rtx cond;
+              rtx insns;
 
               /* Restore the registers.  */
+              if (TARGET_HARD_FLOAT && cfun->machine->frame.fmask)
+                {
+                  /* Restore the FPU FCSR control and status register */
+                  rtx insn;
+                  gcc_assert(mchp_offset_fcsr != 0);
+                  mips_save_restore_reg (SImode, V0_REGNUM, mchp_offset_fcsr, mips_restore_reg);
+                  insn = gen_mips_set_fcsr (gen_rtx_REG (SImode, V0_REGNUM));
+                  emit_insn (insn);
+                  offset -= UNITS_PER_WORD;
+                }
               if (TARGET_DSPR2 && cfun->machine->frame.acc_mask)
                 {
                   rtx insn;
                   /* Restore the DSPControl register */
                   gcc_assert (mchp_offset_dspcontrol != 0);
                   mem = gen_frame_mem (word_mode,
-                                       plus_constant (stack_pointer_rtx, mchp_offset_dspcontrol));
+                                       plus_constant (word_mode,stack_pointer_rtx, mchp_offset_dspcontrol));
                   mips_emit_move (gen_rtx_REG (word_mode, V1_REGNUM), mem);
                   insn = gen_mips_wrdsp (gen_rtx_REG (SImode, V1_REGNUM), GEN_INT (0x3Fu));
                   emit_insn (insn);
@@ -2954,31 +3125,31 @@ mchp_expand_epilogue_restoreregs (HOST_WIDE_INT step1 ATTRIBUTE_UNUSED,
               /* Load the original SRSCTL.  */
               gcc_assert (mchp_offset_srsctl != 0);
               mem = gen_frame_mem (word_mode,
-                                   plus_constant (stack_pointer_rtx, mchp_offset_srsctl));
+                                   plus_constant (word_mode,stack_pointer_rtx, mchp_offset_srsctl));
               mips_emit_move (gen_rtx_REG (word_mode, V0_REGNUM), mem);
               emit_insn (gen_andsi3 (gen_rtx_REG (SImode, V0_REGNUM),
                                      gen_rtx_REG (SImode, V0_REGNUM), GEN_INT((unsigned)0x0F) ));
+#if 1
               do_save_label = gen_label_rtx ();
               skip_save_label = gen_label_rtx ();
-
+              emit_insn (gen_blockage());
               cond = gen_rtx_NE(SImode,gen_rtx_REG(SImode, V0_REGNUM),const0_rtx);
               jumpskip =  emit_jump_insn (gen_condjump (cond, skip_save_label));
+              emit_insn (gen_blockage());
               JUMP_LABEL (jumpskip) = skip_save_label;
 
-              JUMP_LABEL (jumpskip) = skip_save_label;
               LABEL_NUSES (skip_save_label) = 1;
-
+              LABEL_NUSES (do_save_label) = 1;
               emit_label (do_save_label);
               mips_for_each_saved_gpr_and_fpr (frame->total_size - step2,
-                                               mips_restore_reg);
-              emit_label (skip_save_label);
-
+                                               mips_restore_reg, skip_save_label);
+#endif
               if (cfun->machine->interrupt_priority < 7)
                 {
                   /* Load the original EPC.  */
                   gcc_assert (mchp_offset_epc != 0);
                   mem = gen_frame_mem (word_mode,
-                                       plus_constant (stack_pointer_rtx, mchp_offset_epc));
+                                       plus_constant (word_mode,stack_pointer_rtx, mchp_offset_epc));
                   mips_emit_move (gen_rtx_REG (word_mode, K0_REG_NUM), mem);
                   offset -= UNITS_PER_WORD;
                 }
@@ -2986,7 +3157,7 @@ mchp_expand_epilogue_restoreregs (HOST_WIDE_INT step1 ATTRIBUTE_UNUSED,
               /* Load the original Status.  */
               gcc_assert (mchp_offset_status != 0);
               mem = gen_frame_mem (word_mode,
-                                   plus_constant (stack_pointer_rtx, mchp_offset_status));
+                                   plus_constant (word_mode,stack_pointer_rtx, mchp_offset_status));
               mips_emit_move (gen_rtx_REG (word_mode, K1_REG_NUM), mem);
               offset -= UNITS_PER_WORD;
 
@@ -3002,7 +3173,7 @@ mchp_expand_epilogue_restoreregs (HOST_WIDE_INT step1 ATTRIBUTE_UNUSED,
                   /* Load the original SRSCTL.  */
                   gcc_assert (mchp_offset_srsctl != 0);
                   mem = gen_frame_mem (word_mode,
-                                       plus_constant (stack_pointer_rtx, mchp_offset_srsctl));
+                                       plus_constant (word_mode,stack_pointer_rtx, mchp_offset_srsctl));
                   mips_emit_move (gen_rtx_REG (word_mode, K0_REG_NUM), mem);
                   offset -= UNITS_PER_WORD;
                 }
@@ -3024,6 +3195,7 @@ mchp_expand_epilogue_restoreregs (HOST_WIDE_INT step1 ATTRIBUTE_UNUSED,
               /* Restore previously loaded Status.  */
               emit_insn (gen_cop0_move (gen_rtx_REG (SImode, COP0_STATUS_REG_NUM),
                                         gen_rtx_REG (SImode, K1_REG_NUM)));
+
             } /* AUTO_CONTEXT_SAVE */
           else if (DEFAULT_CONTEXT_SAVE == cfun->machine->current_function_type)
             {
@@ -3034,13 +3206,23 @@ mchp_expand_epilogue_restoreregs (HOST_WIDE_INT step1 ATTRIBUTE_UNUSED,
               rtx cond;
 
               /* Restore the registers.  */
+              if (TARGET_HARD_FLOAT && cfun->machine->frame.fmask)
+                {
+                  /* Restore the FPU FCSR control and status register */
+                  rtx insn;
+                  gcc_assert(mchp_offset_fcsr != 0);
+                  mips_save_restore_reg (SImode, V0_REGNUM, mchp_offset_fcsr, mips_restore_reg);
+                  insn = gen_mips_set_fcsr (gen_rtx_REG (SImode, V0_REGNUM));
+                  emit_insn (insn);
+                  offset -= UNITS_PER_WORD;
+                }
               if (TARGET_DSPR2 && cfun->machine->frame.acc_mask)
                 {
                   rtx insn;
                   /* Restore the DSPControl register */
                   gcc_assert (mchp_offset_dspcontrol != 0);
                   mem = gen_frame_mem (word_mode,
-                                       plus_constant (stack_pointer_rtx, mchp_offset_dspcontrol));
+                                       plus_constant (word_mode,stack_pointer_rtx, mchp_offset_dspcontrol));
                   mips_emit_move (gen_rtx_REG (word_mode, V1_REGNUM), mem);
                   insn = gen_mips_wrdsp (gen_rtx_REG (SImode, V1_REGNUM), GEN_INT (0x3Fu));
                   emit_insn (insn);
@@ -3051,7 +3233,7 @@ mchp_expand_epilogue_restoreregs (HOST_WIDE_INT step1 ATTRIBUTE_UNUSED,
               /* Load the original SRSCTL.  */
               gcc_assert (mchp_offset_srsctl != 0);
               mem = gen_frame_mem (word_mode,
-                                   plus_constant (stack_pointer_rtx, mchp_offset_srsctl));
+                                   plus_constant (word_mode,stack_pointer_rtx, mchp_offset_srsctl));
               mips_emit_move (gen_rtx_REG (word_mode, V0_REGNUM), mem);
               emit_insn (gen_andsi3 (gen_rtx_REG (SImode, V0_REGNUM),
                                      gen_rtx_REG (SImode, V0_REGNUM), GEN_INT((unsigned)0x0F) ));
@@ -3065,28 +3247,28 @@ mchp_expand_epilogue_restoreregs (HOST_WIDE_INT step1 ATTRIBUTE_UNUSED,
                   {
                     savecount++;
                   }
-
+#if 1
               /* Branch over the software context saving only if it will
                  save cycles */
               if (savecount > 3)
                 {
+                emit_insn (gen_blockage());
                   cond = gen_rtx_NE(SImode,gen_rtx_REG(SImode, V0_REGNUM),const0_rtx);
                   jumpskip =  emit_jump_insn (gen_condjump (cond, skip_save_label));
                   JUMP_LABEL (jumpskip) = skip_save_label;
                 }
               LABEL_NUSES (skip_save_label) = 1;
-
+              LABEL_NUSES (do_save_label) = 1;
               emit_label (do_save_label);
               mips_for_each_saved_gpr_and_fpr (frame->total_size - step2,
-                                               mips_restore_reg);
-              emit_label (skip_save_label);
-
+                                               mips_restore_reg, skip_save_label);
+#endif
               if (cfun->machine->interrupt_priority < 7)
                 {
                   /* Load the original EPC.  */
                   gcc_assert (mchp_offset_epc != 0);
                   mem = gen_frame_mem (word_mode,
-                                       plus_constant (stack_pointer_rtx, mchp_offset_epc));
+                                       plus_constant (word_mode,stack_pointer_rtx, mchp_offset_epc));
                   mips_emit_move (gen_rtx_REG (word_mode, K0_REG_NUM), mem);
                   offset -= UNITS_PER_WORD;
                 }
@@ -3094,7 +3276,7 @@ mchp_expand_epilogue_restoreregs (HOST_WIDE_INT step1 ATTRIBUTE_UNUSED,
               /* Load the original Status.  */
               gcc_assert (mchp_offset_status != 0);
               mem = gen_frame_mem (word_mode,
-                                   plus_constant (stack_pointer_rtx, mchp_offset_status));
+                                   plus_constant (word_mode,stack_pointer_rtx, mchp_offset_status));
               mips_emit_move (gen_rtx_REG (word_mode, K1_REG_NUM), mem);
               offset -= UNITS_PER_WORD;
 
@@ -3110,7 +3292,7 @@ mchp_expand_epilogue_restoreregs (HOST_WIDE_INT step1 ATTRIBUTE_UNUSED,
                   /* Load the original SRSCTL.  */
                   gcc_assert (mchp_offset_srsctl != 0);
                   mem = gen_frame_mem (word_mode,
-                                       plus_constant (stack_pointer_rtx, mchp_offset_srsctl));
+                                       plus_constant (word_mode,stack_pointer_rtx, mchp_offset_srsctl));
                   mips_emit_move (gen_rtx_REG (word_mode, K0_REG_NUM), mem);
                   offset -= UNITS_PER_WORD;
                 }
@@ -3144,7 +3326,7 @@ mchp_expand_epilogue_restoreregs (HOST_WIDE_INT step1 ATTRIBUTE_UNUSED,
           /* Restore the registers.  */
           mips_for_each_saved_acc (frame->total_size - step2, mips_restore_reg);
           mips_for_each_saved_gpr_and_fpr (frame->total_size - step2,
-                                           mips_restore_reg);
+                                           mips_restore_reg, NULL_RTX);
           /* Deallocate the final bit of the frame.  */
           if (step2 > 0)
             emit_insn (gen_add3_insn (stack_pointer_rtx,
@@ -3220,12 +3402,21 @@ mchp_register_interrupt_context_p (unsigned regno)
 HOST_WIDE_INT
 mchp_compute_frame_info (void)
 {
-  HOST_WIDE_INT num_intreg;   /* # words needed for interrupt context regs */
+  HOST_WIDE_INT num_intreg;     /* # words needed for interrupt context regs */
+  bool use_v0v1_reg = false;    /* do we need to use v0/v1 to save other registers? */
   bool has_interrupt_context;   /* true if interrupt context is saved */
   bool has_hilo_context;        /* true if hi and lo registers are saved */
-
+  static bool printed_error = false;
   tree ipl_tree;
   unsigned ipl_len;
+
+  if (mchp_function_nofpu_p (TREE_TYPE (current_function_decl)) &&
+     !mips_interrupt_type_p (TREE_TYPE (current_function_decl)))
+    {
+      if (!printed_error)
+        error ("the %<no_fpu%> attribute requires the %<interrupt%> attribute");
+      printed_error = true;
+    }
   
   /* Reset warning counter when we move to a new function */
   static struct function *prevfun = NULL;
@@ -3325,7 +3516,7 @@ mchp_compute_frame_info (void)
                   cfun->machine->current_function_type = current_function_type = SOFTWARE_CONTEXT_SAVE;
                   if ((0 == mchp_invalid_ipl_warning) && (pic32_num_register_sets == 8))
                     {
-                      warning (0, "IPLnSOFT context saving used on a selected %qs device with 7 Shadow Register Sets, consider using IPLnSRS after initializing PRISS\n", 
+                      warning (0, "IPLnSOFT context saving used on a selected %qs device with 8 Shadow Register Sets, consider IPLnSRS\n", 
                                mchp_processor_string);
                       mchp_invalid_ipl_warning++;
                     }
@@ -3400,6 +3591,7 @@ mchp_compute_frame_info (void)
   /* has_hilo_context is true if we need to push/pop HI and LO */
   has_hilo_context = 0;
   num_intreg = 0;
+  use_v0v1_reg = false;
 
   /* add in space for the interrupt context information */
   if (has_interrupt_context)
@@ -3424,6 +3616,7 @@ mchp_compute_frame_info (void)
           (current_function_type == DEFAULT_CONTEXT_SAVE))
         {
           num_intreg++;
+          use_v0v1_reg = true;
           df_set_regs_ever_live (V1_REGNUM, true);
           fixed_regs[V1_REGNUM] = call_really_used_regs[V1_REGNUM] =
                                     call_used_regs[V1_REGNUM] = 1;
@@ -3431,10 +3624,12 @@ mchp_compute_frame_info (void)
       else if ((cfun->machine->current_function_type == SRS_CONTEXT_SAVE) ||
                (cfun->machine->current_function_type == SOFTWARE_CONTEXT_SAVE))
         {
-          if ((cfun->machine->interrupt_priority < 7) && (0 == mchp_isr_backcompat))
+          if (((cfun->machine->interrupt_priority < 7) && (0 == mchp_isr_backcompat)) ||
+              (pic32_num_register_sets > 2))
             {
               /* If we are not in Daytona compatibility mode, save SRSCTL. */
               num_intreg++;
+              use_v0v1_reg = true;
               df_set_regs_ever_live (V1_REGNUM, true);
               fixed_regs[V1_REGNUM] = call_really_used_regs[V1_REGNUM] =
                                         call_used_regs[V1_REGNUM] = 1;
@@ -3448,7 +3643,7 @@ mchp_compute_frame_info (void)
           || df_regs_ever_live_p (AC1LO_REGNUM) || df_regs_ever_live_p (AC1HI_REGNUM)
           || df_regs_ever_live_p (AC2LO_REGNUM) || df_regs_ever_live_p (AC2HI_REGNUM)
           || df_regs_ever_live_p (AC3LO_REGNUM) || df_regs_ever_live_p (AC3HI_REGNUM)
-          || !current_function_is_leaf)
+          || !crtl->is_leaf)
         {
           has_hilo_context = 1;
         }
@@ -3461,6 +3656,7 @@ mchp_compute_frame_info (void)
           /* AUTO and SOFTWARE use v0/v1 to save hi/lo */
           if (has_hilo_context)
             {
+              use_v0v1_reg = true;
               df_set_regs_ever_live (V0_REGNUM, true);
               fixed_regs[V0_REGNUM] = call_really_used_regs[V0_REGNUM] =
                                         call_used_regs[V0_REGNUM] = 1;
@@ -3472,15 +3668,26 @@ mchp_compute_frame_info (void)
             {
               /* If we have the DSPr2 ASE, save DSPControl. */
               num_intreg++;
+              use_v0v1_reg = true;
               df_set_regs_ever_live (V1_REGNUM, true);
               fixed_regs[V1_REGNUM] = call_really_used_regs[V1_REGNUM] =
                                       call_used_regs[V1_REGNUM] = 1;
+             }
+          if (TARGET_HARD_FLOAT && mchp_uses_fpu())
+             {
+               use_v0v1_reg = true;
+               df_set_regs_ever_live (V0_REGNUM, true);
+               fixed_regs[V0_REGNUM] = call_really_used_regs[V0_REGNUM] =
+                                        call_used_regs[V0_REGNUM] = 1;
              }
         }
     }
 
   cfun->machine->frame.has_interrupt_context = has_interrupt_context;
   cfun->machine->frame.has_hilo_context = has_hilo_context;
+
+  if (use_v0v1_reg == true)
+    num_intreg = 2;
 
   if ((num_intreg % 2) != 0)
     num_intreg++;
@@ -3581,6 +3788,12 @@ get_mchp_absolute_address (tree decl)
 }
 
 static tree
+get_mchp_region_attribute (tree decl)
+{
+  return lookup_attribute ("region", DECL_ATTRIBUTES (decl));
+}
+
+static tree
 get_mchp_space_attribute (tree decl)
 {
   return lookup_attribute ("space", DECL_ATTRIBUTES (decl));
@@ -3591,6 +3804,7 @@ mchp_ramfunc_type_p (tree decl)
 {
   bool retval = FALSE;
   tree space = 0;
+  tree region = 0;
   if (TREE_CODE(decl) == FUNCTION_DECL)
     {
       if (lookup_attribute ("ramfunc", TYPE_ATTRIBUTES (TREE_TYPE (decl))) != NULL)
@@ -3598,14 +3812,28 @@ mchp_ramfunc_type_p (tree decl)
           retval = TRUE;
         }
 
+      region = lookup_attribute("region", DECL_ATTRIBUTES(decl));
       space = lookup_attribute("space", DECL_ATTRIBUTES(decl));
-      if (space)
+      if (region)
+      {
+		  retval = FALSE ;
+      }
+      else if (space)
         {
           if (get_identifier("data") == (TREE_VALUE(TREE_VALUE(space))))
             retval = TRUE;
         }
     }
   return retval;
+}
+
+int
+mchp_function_nofpu_p (tree type)
+{
+  tree a;
+
+  a = lookup_attribute ("no_fpu", TYPE_ATTRIBUTES (type));
+  return a != NULL_TREE;
 }
 
 /* Utility function to add an entry to the vector dispatch list */
@@ -3738,7 +3966,7 @@ mchp_expand_prologue_saveregs (HOST_WIDE_INT size, HOST_WIDE_INT step1)
                   gcc_assert (offset > 0);
                   mchp_offset_epc = offset;
                   mem = gen_frame_mem (word_mode,
-                                       plus_constant (stack_pointer_rtx,
+                                       plus_constant (word_mode,stack_pointer_rtx,
                                                       mchp_offset_epc));
                   mips_emit_move (mem, gen_rtx_REG (word_mode, K0_REG_NUM));
                   offset -= UNITS_PER_WORD;
@@ -3754,7 +3982,7 @@ mchp_expand_prologue_saveregs (HOST_WIDE_INT size, HOST_WIDE_INT step1)
               gcc_assert (offset >= 0);
               mchp_offset_status = offset;
               mem = gen_frame_mem (word_mode,
-                                   plus_constant (stack_pointer_rtx,
+                                   plus_constant (word_mode,stack_pointer_rtx,
                                                   mchp_offset_status));
               mips_emit_move (mem, gen_rtx_REG (word_mode, K1_REG_NUM));
               offset -= UNITS_PER_WORD;
@@ -3790,14 +4018,21 @@ mchp_expand_prologue_saveregs (HOST_WIDE_INT size, HOST_WIDE_INT step1)
                                              GEN_INT (SR_EXL),
                                              gen_rtx_REG (SImode, GP_REG_FIRST)));
                     }
-                                         
+                  if (mchp_function_nofpu_p (TREE_TYPE (current_function_decl)))
+                    {
+                      /* Clear CU1 */
+                      emit_insn (gen_insvsi (gen_rtx_REG (SImode, K1_REG_NUM),
+                                             GEN_INT (1),
+                                             GEN_INT (SR_CU1),
+                                             gen_rtx_REG (SImode, GP_REG_FIRST)));
+                    }
                   /* Set the IPL */
                   emit_insn (gen_iorsi3 (gen_rtx_REG (SImode, K1_REG_NUM),
                                          gen_rtx_REG (SImode, K1_REG_NUM),GEN_INT((unsigned)interrupt_priority << SR_IPL)));
                 }
               /* We will move K1 to STATUS later in the generic MIPS code */
               emit_insn (gen_blockage ());
-              mips_for_each_saved_gpr_and_fpr (size, mips_save_reg);
+              mips_for_each_saved_gpr_and_fpr (size, mips_save_reg, NULL_RTX);
               /* Save HI/LO as late as possible to minimize stalls */
               mips_for_each_saved_acc (size, mips_save_reg);
               
@@ -3811,7 +4046,17 @@ mchp_expand_prologue_saveregs (HOST_WIDE_INT size, HOST_WIDE_INT step1)
                   mips_save_restore_reg (SImode, V1_REGNUM, mchp_offset_dspcontrol, mips_save_reg);
                   offset -= UNITS_PER_WORD;
                 }
-              
+              if (TARGET_HARD_FLOAT)
+                {
+                  rtx insn;
+                  mchp_offset_fcsr = frame->fcsr_sp_offset;
+                  if (mchp_uses_fpu()) {
+                      insn = gen_mips_get_fcsr (gen_rtx_REG (SImode, V0_REGNUM));
+                      emit_insn (insn);                 
+                      mips_save_restore_reg (SImode, V0_REGNUM, mchp_offset_fcsr, mips_save_reg);
+                    }
+                  offset -= UNITS_PER_WORD;
+                }
             } /* End SOFT context save */
           else if (SRS_CONTEXT_SAVE == current_function_type)
             {
@@ -3837,7 +4082,7 @@ mchp_expand_prologue_saveregs (HOST_WIDE_INT size, HOST_WIDE_INT step1)
               /* Start at the uppermost location for saving.  */
               offset = frame->cop0_sp_offset - size;
               gcc_assert (offset > 0);
-              if (interrupt_priority < 7)
+              if (mchp_save_srsctl)
                 {
                   /* Push EPC into its stack slot.  */
                   gcc_assert (offset > 0);
@@ -3856,12 +4101,10 @@ mchp_expand_prologue_saveregs (HOST_WIDE_INT size, HOST_WIDE_INT step1)
               mips_save_restore_reg (word_mode, K1_REG_NUM, mchp_offset_status, mips_save_reg);
               offset -= UNITS_PER_WORD;
 
-              if ((interrupt_priority < 7))
+              if (mchp_save_srsctl)
                 {
                   /* Push SRSCTL into its stack slot.  */
-                  /*
                   gcc_assert (offset > 0);
-                  */
                   mchp_offset_srsctl = offset;
                   mips_save_restore_reg (word_mode, K0_REG_NUM, mchp_offset_srsctl, mips_save_reg);
                   offset -= UNITS_PER_WORD;
@@ -3888,12 +4131,20 @@ mchp_expand_prologue_saveregs (HOST_WIDE_INT size, HOST_WIDE_INT step1)
                                              GEN_INT (SR_EXL),
                                              gen_rtx_REG (SImode, GP_REG_FIRST)));
                     }
+                  if (mchp_function_nofpu_p (TREE_TYPE (current_function_decl)))
+                    {
+                      /* Clear CU1 */
+                      emit_insn (gen_insvsi (gen_rtx_REG (SImode, K1_REG_NUM),
+                                             GEN_INT (1),
+                                             GEN_INT (SR_CU1),
+                                             gen_rtx_REG (SImode, GP_REG_FIRST)));
+                    }
                   /* Set the IPL */
                   emit_insn (gen_iorsi3 (gen_rtx_REG (SImode, K1_REG_NUM),
                                          gen_rtx_REG (SImode, K1_REG_NUM),GEN_INT((unsigned)interrupt_priority << SR_IPL)));
                 }
               /* Should not save anything because we are using a shadow register set. */
-              mips_for_each_saved_gpr_and_fpr (size, mips_save_reg);
+              mips_for_each_saved_gpr_and_fpr (size, mips_save_reg, NULL_RTX);
               /* Save HI/LO as late as possible to minimize stalls */
               mips_for_each_saved_acc (size, mips_save_reg);
               
@@ -3905,6 +4156,18 @@ mchp_expand_prologue_saveregs (HOST_WIDE_INT size, HOST_WIDE_INT step1)
                   emit_insn (insn);
                   mchp_offset_dspcontrol = offset;
                   mips_save_restore_reg (SImode, V1_REGNUM, mchp_offset_dspcontrol, mips_save_reg);
+                  offset -= UNITS_PER_WORD;
+                }
+              if (TARGET_HARD_FLOAT)
+                {
+                  /* Save the FPU FCSR control and status register */
+                  rtx insn;
+                  mchp_offset_fcsr = frame->fcsr_sp_offset;
+                  if (mchp_uses_fpu()) {
+                      insn = gen_mips_get_fcsr (gen_rtx_REG (SImode, V0_REGNUM));
+                      emit_insn (insn);                 
+                      mips_save_restore_reg (SImode, V0_REGNUM, mchp_offset_fcsr, mips_save_reg);
+                    }
                   offset -= UNITS_PER_WORD;
                 }
             }
@@ -3943,7 +4206,7 @@ mchp_expand_prologue_saveregs (HOST_WIDE_INT size, HOST_WIDE_INT step1)
                   /* Push EPC into its stack slot.  */
                   mchp_offset_epc = offset;
                   mem = gen_frame_mem (word_mode,
-                                       plus_constant (stack_pointer_rtx,
+                                       plus_constant (word_mode,stack_pointer_rtx,
                                                       mchp_offset_epc));
                   mips_emit_move (mem, gen_rtx_REG (word_mode, K1_REG_NUM));
                   offset -= UNITS_PER_WORD;
@@ -3978,7 +4241,7 @@ mchp_expand_prologue_saveregs (HOST_WIDE_INT size, HOST_WIDE_INT step1)
               /* Push STATUS into its stack slot.  */
 
               mem = gen_frame_mem (word_mode,
-                                   plus_constant (stack_pointer_rtx,
+                                   plus_constant (word_mode,stack_pointer_rtx,
                                                   mchp_offset_status));
               mips_emit_move (mem, gen_rtx_REG (word_mode, K1_REG_NUM));
 
@@ -4017,7 +4280,14 @@ mchp_expand_prologue_saveregs (HOST_WIDE_INT size, HOST_WIDE_INT step1)
                                              GEN_INT (SR_EXL),
                                              gen_rtx_REG (SImode, GP_REG_FIRST)));
                     }
-                                         
+                  if (mchp_function_nofpu_p (TREE_TYPE (current_function_decl)))
+                    {
+                      /* Clear CU1 */
+                      emit_insn (gen_insvsi (gen_rtx_REG (SImode, K1_REG_NUM),
+                                             GEN_INT (1),
+                                             GEN_INT (SR_CU1),
+                                             gen_rtx_REG (SImode, GP_REG_FIRST)));
+                    }
                   /* Set the IPL */
                   emit_insn (gen_iorsi3 (gen_rtx_REG (SImode, K1_REG_NUM),
                                          gen_rtx_REG (SImode, K1_REG_NUM),GEN_INT((unsigned)interrupt_priority << SR_IPL)));
@@ -4030,7 +4300,14 @@ mchp_expand_prologue_saveregs (HOST_WIDE_INT size, HOST_WIDE_INT step1)
                                          GEN_INT (SR_EXL),
                                          gen_rtx_REG (SImode, GP_REG_FIRST)));
                 }
-
+              if (mchp_function_nofpu_p (TREE_TYPE (current_function_decl)))
+                {
+                  /* Clear CU1 */
+                  emit_insn (gen_insvsi (gen_rtx_REG (SImode, K1_REG_NUM),
+                                         GEN_INT (1),
+                                         GEN_INT (SR_CU1),
+                                         gen_rtx_REG (SImode, GP_REG_FIRST)));
+                }
               /* We will move K1 to STATUS later in the generic MIPS code */
               emit_insn (gen_blockage ());
 
@@ -4054,7 +4331,7 @@ mchp_expand_prologue_saveregs (HOST_WIDE_INT size, HOST_WIDE_INT step1)
                   }
 
               mem = gen_frame_mem (word_mode,
-                                   plus_constant (stack_pointer_rtx,
+                                   plus_constant (word_mode,stack_pointer_rtx,
                                                   mchp_offset_srsctl));
               mips_emit_move (gen_rtx_REG (word_mode, V1_REGNUM), mem);
               emit_insn (gen_andsi3 (gen_rtx_REG (SImode, V1_REGNUM), gen_rtx_REG (SImode, V1_REGNUM), GEN_INT((unsigned)0x0F) ));
@@ -4071,9 +4348,8 @@ mchp_expand_prologue_saveregs (HOST_WIDE_INT size, HOST_WIDE_INT step1)
 
               emit_insn (gen_blockage ());
               emit_label (do_save_label);
-              mips_for_each_saved_gpr_and_fpr (size, mips_save_reg);
-              emit_label (skip_save_label);
               emit_insn (gen_blockage ());
+              mips_for_each_saved_gpr_and_fpr (size, mips_save_reg, skip_save_label);
 
               /* Save HI/LO as late as possible to minimize stalls */
               mips_for_each_saved_acc (size, mips_save_reg);
@@ -4086,6 +4362,18 @@ mchp_expand_prologue_saveregs (HOST_WIDE_INT size, HOST_WIDE_INT step1)
                   emit_insn (insn);
                   mchp_offset_dspcontrol = offset;
                   mips_save_restore_reg (SImode, V1_REGNUM, mchp_offset_dspcontrol, mips_save_reg);
+                  offset -= UNITS_PER_WORD;
+                }
+              if (TARGET_HARD_FLOAT)
+                {
+                  /* Save the FPU FCSR control and status register */
+                  rtx insn;
+                  mchp_offset_fcsr = frame->fcsr_sp_offset;
+                  if (mchp_uses_fpu()) {
+                      insn = gen_mips_get_fcsr (gen_rtx_REG (SImode, V0_REGNUM));
+                      emit_insn (insn);                 
+                      mips_save_restore_reg (SImode, V0_REGNUM, mchp_offset_fcsr, mips_save_reg);
+                    }
                   offset -= UNITS_PER_WORD;
                 }
               
@@ -4127,7 +4415,7 @@ mchp_expand_prologue_saveregs (HOST_WIDE_INT size, HOST_WIDE_INT step1)
                   /* Push EPC into its stack slot.  */
                   mchp_offset_epc = offset;
                   mem = gen_frame_mem (word_mode,
-                                       plus_constant (stack_pointer_rtx,
+                                       plus_constant (word_mode,stack_pointer_rtx,
                                                       mchp_offset_epc));
                   mips_emit_move (mem, gen_rtx_REG (word_mode, K1_REG_NUM));
                   offset -= UNITS_PER_WORD;
@@ -4141,7 +4429,7 @@ mchp_expand_prologue_saveregs (HOST_WIDE_INT size, HOST_WIDE_INT step1)
               /* Push SRSCTL into its stack slot.  */
               mchp_offset_srsctl = offset;
               mem = gen_frame_mem (word_mode,
-                                   plus_constant (stack_pointer_rtx,
+                                   plus_constant (word_mode,stack_pointer_rtx,
                                                   mchp_offset_srsctl));
               mips_emit_move (mem, gen_rtx_REG (word_mode, K0_REG_NUM));
               offset -= UNITS_PER_WORD;
@@ -4154,7 +4442,7 @@ mchp_expand_prologue_saveregs (HOST_WIDE_INT size, HOST_WIDE_INT step1)
               /* Push STATUS into its stack slot.  */
               mchp_offset_status = offset;
               mem = gen_frame_mem (word_mode,
-                                   plus_constant (stack_pointer_rtx,
+                                   plus_constant (word_mode,stack_pointer_rtx,
                                                   mchp_offset_status));
               mips_emit_move (mem, gen_rtx_REG (word_mode, K1_REG_NUM));
               offset -= UNITS_PER_WORD;
@@ -4164,11 +4452,11 @@ mchp_expand_prologue_saveregs (HOST_WIDE_INT size, HOST_WIDE_INT step1)
                                       gen_rtx_REG (SImode, K0_REG_NUM),
                                       GEN_INT (CAUSE_IPL)));
 
-              /* Insert the RIPL into our copy of SR (k1) as the new IPL.  */
-              emit_insn (gen_insvsi (gen_rtx_REG (SImode, K1_REG_NUM),
-                                     GEN_INT (6),
-                                     GEN_INT (SR_IPL),
-                                     gen_rtx_REG (SImode, K0_REG_NUM)));
+                  /* Insert the RIPL into our copy of SR (k1) as the new IPL.  */
+                  emit_insn (gen_insvsi (gen_rtx_REG (SImode, K1_REG_NUM),
+                                         GEN_INT (6),
+                                         GEN_INT (SR_IPL),
+                                         gen_rtx_REG (SImode, K0_REG_NUM)));
 
               if (cfun->machine->keep_interrupts_masked_p)
                 {
@@ -4178,8 +4466,9 @@ mchp_expand_prologue_saveregs (HOST_WIDE_INT size, HOST_WIDE_INT step1)
                                          GEN_INT (5),
                                          GEN_INT (SR_IE),
                                          gen_rtx_REG (SImode, GP_REG_FIRST)));
+                  /* We will move K1 to STATUS later in the generic MIPS code */
                 }
-              else /* !cfun->machine->keep_interrupts_masked_p */
+              else /* cfun->machine->keep_interrupts_masked_p */
                 {
                   /* Enable interrupts by clearing the KSU ERL and EXL bits.
                      IE is already the correct value, so we don't have to do
@@ -4190,7 +4479,14 @@ mchp_expand_prologue_saveregs (HOST_WIDE_INT size, HOST_WIDE_INT step1)
                                          gen_rtx_REG (SImode, GP_REG_FIRST)));
                   /* We will move K1 to STATUS later in the generic MIPS code */
                 }
-
+              if (mchp_function_nofpu_p (TREE_TYPE (current_function_decl)))
+                {
+                  /* Clear CU1 */
+                  emit_insn (gen_insvsi (gen_rtx_REG (SImode, K1_REG_NUM),
+                                         GEN_INT (1),
+                                         GEN_INT (SR_CU1),
+                                         gen_rtx_REG (SImode, GP_REG_FIRST)));
+                }
               /* We will move K1 to STATUS later in the generic MIPS code */
               emit_insn (gen_blockage ());
 
@@ -4214,7 +4510,7 @@ mchp_expand_prologue_saveregs (HOST_WIDE_INT size, HOST_WIDE_INT step1)
                   }
 
               mem = gen_frame_mem (word_mode,
-                                   plus_constant (stack_pointer_rtx,
+                                   plus_constant (word_mode,stack_pointer_rtx,
                                                   mchp_offset_srsctl));
               mips_emit_move (gen_rtx_REG (word_mode, V1_REGNUM), mem);
               emit_insn (gen_andsi3 (gen_rtx_REG (SImode, V1_REGNUM), gen_rtx_REG (SImode, V1_REGNUM), GEN_INT((unsigned)0x0F) ));
@@ -4230,8 +4526,7 @@ mchp_expand_prologue_saveregs (HOST_WIDE_INT size, HOST_WIDE_INT step1)
 
               emit_insn (gen_blockage ());
               emit_label (do_save_label);
-              mips_for_each_saved_gpr_and_fpr (size, mips_save_reg);
-              emit_label (skip_save_label);
+              mips_for_each_saved_gpr_and_fpr (size, mips_save_reg, skip_save_label);
 
               emit_insn (gen_blockage ());
 
@@ -4248,6 +4543,18 @@ mchp_expand_prologue_saveregs (HOST_WIDE_INT size, HOST_WIDE_INT step1)
                   mips_save_restore_reg (SImode, V1_REGNUM, mchp_offset_dspcontrol, mips_save_reg);
                   offset -= UNITS_PER_WORD;
                 }
+              if (TARGET_HARD_FLOAT)
+                {
+                  /* Save the FPU FCSR control and status register */
+                  rtx insn;
+                  mchp_offset_fcsr = frame->fcsr_sp_offset;
+                  if (mchp_uses_fpu()) {
+                      insn = gen_mips_get_fcsr (gen_rtx_REG (SImode, V0_REGNUM));
+                      emit_insn (insn);                 
+                      mips_save_restore_reg (SImode, V0_REGNUM, mchp_offset_fcsr, mips_save_reg);
+                    }
+                  offset -= UNITS_PER_WORD;
+                }
             }
         }
       else /* not an interrupt */
@@ -4260,7 +4567,7 @@ mchp_expand_prologue_saveregs (HOST_WIDE_INT size, HOST_WIDE_INT step1)
 
 
           mips_for_each_saved_acc (size, mips_save_reg);
-          mips_for_each_saved_gpr_and_fpr (size, mips_save_reg);
+          mips_for_each_saved_gpr_and_fpr (size, mips_save_reg, NULL_RTX);
         }
     }
   return size;
@@ -4379,36 +4686,36 @@ bool mchp_subtarget_mips32_enabled ()
 static mchp_interesting_fn mchp_fn_list[] =
 {
   /*  name         map_to        style          arg c, conv_flags */
-  { "_dasprintf",  "_dasprintf", info_dbl,    5,  0, 0, NULL },
-  { "_dfprintf",   "_dfprintf",  info_dbl,    5,  0, 0, NULL },
-  { "_dfscanf",    "_dfscanf",   info_dbl,    5,  0, 0, NULL },
-  { "_dprintf",    "_dprintf",   info_dbl,    4,  0, 0, NULL },
-  { "_dscanf",     "_dscanf",    info_dbl,    4,  0, 0, NULL },
-  { "_dsnprintf",  "_dsnprintf", info_dbl,    6,  0, 0, NULL },
-  { "_dsprintf",   "_dsprintf",  info_dbl,    5,  0, 0, NULL },
-  { "_dsscanf",    "_dsscanf",   info_dbl,    5,  0, 0, NULL },
-  { "_dvasprintf", "_dvasprintf",info_dbl,    5,  0, 0, NULL },
-  { "_dvfprintf",  "_dvfprintf", info_dbl,    5,  0, 0, NULL },
-  { "_dvfscanf",   "_dvfscanf",  info_dbl,    5,  0, 0, NULL },
-  { "_dvprintf",   "_dvprintf",  info_dbl,    4,  0, 0, NULL },
-  { "_dvsprintf",  "_dvsprintf", info_dbl,    5,  0, 0, NULL },
-  { "_dvsscanf",   "_dvsscanf",  info_dbl,    5,  0, 0, NULL },
-  { "asprintf",  "_asprintf",  info_O,        5,  0, 0, NULL },
-  { "fprintf",   "_fprintf",   info_O,        5,  0, 0, NULL },
-  { "fscanf",    "_fscanf",    info_I,        5,  0, 0, NULL },
-  { "printf",    "_printf",    info_O,        4,  0, 0, NULL },
-  { "scanf",     "_scanf",     info_I,        4,  0, 0, NULL },
-  { "snprintf",  "_snprintf",  info_O,        6,  0, 0, NULL },
-  { "sprintf",   "_sprintf",   info_O,        5,  0, 0, NULL },
-  { "sscanf",    "_sscanf",    info_I,        5,  0, 0, NULL },
-  { "vasprintf", "_vasprintf", info_O,        5,  0, 0, NULL },
-  { "vfprintf",  "_vfprintf",  info_O,        5,  0, 0, NULL },
-  { "vfscanf",   "_vfscanf",   info_I,        5,  0, 0, NULL },
-  { "vprintf",   "_vprintf",   info_O,        4,  0, 0, NULL },
-  { "vsnprintf", "_vsnprintf", info_O,        6,  0, 0, NULL },
-  { "vsprintf",  "_vsprintf",  info_O,        5,  0, 0, NULL },
-  { "vsscanf",   "_vsscanf",   info_I,        5,  0, 0, NULL },
-  { 0,           0,            0,            -1,  0, 0, NULL }
+  { "_dasprintf",  "_dasprintf", info_dbl,    5,  0, (mchp_conversion_status)0, NULL },
+  { "_dfprintf",   "_dfprintf",  info_dbl,    5,  0, (mchp_conversion_status)0, NULL },
+  { "_dfscanf",    "_dfscanf",   info_dbl,    5,  0, (mchp_conversion_status)0, NULL },
+  { "_dprintf",    "_dprintf",   info_dbl,    4,  0, (mchp_conversion_status)0, NULL },
+  { "_dscanf",     "_dscanf",    info_dbl,    4,  0, (mchp_conversion_status)0, NULL },
+  { "_dsnprintf",  "_dsnprintf", info_dbl,    6,  0, (mchp_conversion_status)0, NULL },
+  { "_dsprintf",   "_dsprintf",  info_dbl,    5,  0, (mchp_conversion_status)0, NULL },
+  { "_dsscanf",    "_dsscanf",   info_dbl,    5,  0, (mchp_conversion_status)0, NULL },
+  { "_dvasprintf", "_dvasprintf",info_dbl,    5,  0, (mchp_conversion_status)0, NULL },
+  { "_dvfprintf",  "_dvfprintf", info_dbl,    5,  0, (mchp_conversion_status)0, NULL },
+  { "_dvfscanf",   "_dvfscanf",  info_dbl,    5,  0, (mchp_conversion_status)0, NULL },
+  { "_dvprintf",   "_dvprintf",  info_dbl,    4,  0, (mchp_conversion_status)0, NULL },
+  { "_dvsprintf",  "_dvsprintf", info_dbl,    5,  0, (mchp_conversion_status)0, NULL },
+  { "_dvsscanf",   "_dvsscanf",  info_dbl,    5,  0, (mchp_conversion_status)0, NULL },
+  { "asprintf",  "_asprintf",  info_O,        5,  0, (mchp_conversion_status)0, NULL },
+  { "fprintf",   "_fprintf",   info_O,        5,  0, (mchp_conversion_status)0, NULL },
+  { "fscanf",    "_fscanf",    info_I,        5,  0, (mchp_conversion_status)0, NULL },
+  { "printf",    "_printf",    info_O,        4,  0, (mchp_conversion_status)0, NULL },
+  { "scanf",     "_scanf",     info_I,        4,  0, (mchp_conversion_status)0, NULL },
+  { "snprintf",  "_snprintf",  info_O,        6,  0, (mchp_conversion_status)0, NULL },
+  { "sprintf",   "_sprintf",   info_O,        5,  0, (mchp_conversion_status)0, NULL },
+  { "sscanf",    "_sscanf",    info_I,        5,  0, (mchp_conversion_status)0, NULL },
+  { "vasprintf", "_vasprintf", info_O,        5,  0, (mchp_conversion_status)0, NULL },
+  { "vfprintf",  "_vfprintf",  info_O,        5,  0, (mchp_conversion_status)0, NULL },
+  { "vfscanf",   "_vfscanf",   info_I,        5,  0, (mchp_conversion_status)0, NULL },
+  { "vprintf",   "_vprintf",   info_O,        4,  0, (mchp_conversion_status)0, NULL },
+  { "vsnprintf", "_vsnprintf", info_O,        6,  0, (mchp_conversion_status)0, NULL },
+  { "vsprintf",  "_vsprintf",  info_O,        5,  0, (mchp_conversion_status)0, NULL },
+  { "vsscanf",   "_vsscanf",   info_I,        5,  0, (mchp_conversion_status)0, NULL },
+  { 0,           0,            (mchp_interesting_fn_info)0,            -1,  0, (mchp_conversion_status)0, NULL }
 };
 
 /*
@@ -4466,13 +4773,13 @@ mchp_strip_name_encoding (const char *symbol_name)
 #define CCS_ADD_FLAG(FLAG) \
         if (match->conv_flags & JOIN(conv_,FLAG)) { \
           *f++=#FLAG[0]; \
-          added |=  JOIN(conv_,FLAG); }
+          added = (mchp_conversion_status) (added | JOIN(conv_,FLAG)); }
 
 #define CCS_ADD_FLAG_ALT(FLAG,ALT) \
         if ((match->conv_flags & JOIN(conv_,FLAG)) && \
             ((added & JOIN(conv_,ALT)) == 0)) {\
           *f++=#ALT[0]; \
-          added |=  JOIN(conv_,ALT); }
+          added =(mchp_conversion_status) (added |  (mchp_conversion_status)JOIN(conv_,ALT)); }
 
               {
                 char extra_flags[sizeof("_aAcdeEfFgGnopsuxX0")] = "_";
@@ -4485,7 +4792,7 @@ mchp_strip_name_encoding (const char *symbol_name)
                  *       _acdfgAEG
                  */
 
-                added = 0;
+                added = (mchp_conversion_status)0;
                 /*
                  * we don't implement all 131K unique combinations, only
                  * a subset...
@@ -4653,7 +4960,7 @@ static void conversion_info(mchp_conversion_status state,
   /* dependant upon the conversion status and the setting of the smart-io
      option, set up the mchp_fn_list table. */
 
-  fn_id->conv_flags = CCS_FLAG(fn_id->conv_flags) | state;
+  fn_id->conv_flags = (mchp_conversion_status) (CCS_FLAG(fn_id->conv_flags) | state);
   if (mchp_io_size_val== 0)
     {
       if (fn_id->encoded_name) free(fn_id->encoded_name);
@@ -4679,7 +4986,7 @@ static mchp_conversion_status
 mchp_convertable_output_format_string(const char *string)
 {
   const char *c = string;
-  enum mchp_conversion_status_ status = 0;
+  enum mchp_conversion_status_ status = (mchp_conversion_status_)0;
 
   for ( ; *c; c++)
     {
@@ -4741,71 +5048,71 @@ mchp_convertable_output_format_string(const char *string)
       switch (*c)
         {
         case 'a':
-          status |= conv_a;
+          status = (mchp_conversion_status_) (status | conv_a);
           break;
         case 'A':
-          status |= conv_A;
+          status = (mchp_conversion_status_) (status |conv_A);
           break;
         case 'c':
-          status |= conv_c;
+          status = (mchp_conversion_status_) (status |conv_c);
           break;
         case 'd':
-          status |= conv_d;
+          status = (mchp_conversion_status_) (status |conv_d);
           break;
         case 'i':
-          status |= conv_d;
+          status = (mchp_conversion_status_) (status |conv_d);
           break;
         case 'e':
-          status |= conv_e;
+          status = (mchp_conversion_status_) (status |conv_e);
           break;
         case 'E':
-          status |= conv_E;
+          status = (mchp_conversion_status_) (status |conv_E);
           break;
         case 'f':
-          status |= conv_f;
+          status = (mchp_conversion_status_) (status |conv_f);
           break;
         case 'F':
-          status |= conv_F;
+          status = (mchp_conversion_status_) (status |conv_F);
           break;
         case 'g':
-          status |= conv_g;
+          status = (mchp_conversion_status_) (status |conv_g);
           break;
         case 'G':
-          status |= conv_G;
+          status = (mchp_conversion_status_) (status |conv_G);
           break;
         case 'n':
-          status |= conv_n;
+          status = (mchp_conversion_status_) (status |conv_n);
           break;
         case 'o':
-          status |= conv_o;
+          status = (mchp_conversion_status_) (status |conv_o);
           break;
         case 'p':
-          status |= conv_p;
+          status = (mchp_conversion_status_) (status |conv_p);
           break;
         case 's':
-          status |= conv_s;
+          status = (mchp_conversion_status_) (status |conv_s);
           break;
         case 'u':
-          status |= conv_u;
+          status = (mchp_conversion_status_) (status |conv_u);
           break;
         case 'x':
-          status |= conv_x;
+          status = (mchp_conversion_status_) (status |conv_x);
           break;
         case 'X':
-          status |= conv_X;
+          status = (mchp_conversion_status_) (status |conv_X);
           break;
         default:   /* we aren't checking for legal format strings */
           break;
         }
     }
-  return conv_possible | status;
+  return (mchp_conversion_status)(conv_possible | status);
 }
 
 static mchp_conversion_status
 mchp_convertable_input_format_string(const char *string)
 {
   const char *c = string;
-  enum mchp_conversion_status_ status = 0;
+  enum mchp_conversion_status_ status = (mchp_conversion_status_)0;
 
   for ( ; *c; c++)
     {
@@ -4834,58 +5141,58 @@ mchp_convertable_input_format_string(const char *string)
       switch (*c)
         {
         case 'a':
-          status |= conv_a;
+          status = (mchp_conversion_status_)(status | conv_a);
           break;
         case 'A':
-          status |= conv_A;
+          status = (mchp_conversion_status_)(status |conv_A);
           break;
         case 'c':
-          status |= conv_c;
+          status = (mchp_conversion_status_)(status |conv_c);
           break;
         case 'd':
-          status |= conv_d;
+          status = (mchp_conversion_status_)(status |conv_d);
           break;
         case 'i':
-          status |= conv_d;
+          status = (mchp_conversion_status_)(status |conv_d);
           break;
         case 'e':
-          status |= conv_e;
+          status = (mchp_conversion_status_)(status |conv_e);
           break;
         case 'E':
-          status |= conv_E;
+          status = (mchp_conversion_status_)(status |conv_E);
           break;
         case 'f':
-          status |= conv_f;
+          status = (mchp_conversion_status_)(status |conv_f);
           break;
         case 'F':
-          status |= conv_F;
+          status = (mchp_conversion_status_)(status |conv_F);
           break;
         case 'g':
-          status |= conv_g;
+          status = (mchp_conversion_status_)(status |conv_g);
           break;
         case 'G':
-          status |= conv_G;
+          status = (mchp_conversion_status_)(status |conv_G);
           break;
         case 'n':
-          status |= conv_n;
+          status = (mchp_conversion_status_)(status |conv_n);
           break;
         case 'o':
-          status |= conv_o;
+          status = (mchp_conversion_status_)(status |conv_o);
           break;
         case 'p':
-          status |= conv_p;
+          status = (mchp_conversion_status_)(status |conv_p);
           break;
         case 's':
-          status |= conv_s;
+          status = (mchp_conversion_status_)(status |conv_s);
           break;
         case 'u':
-          status |= conv_u;
+          status = (mchp_conversion_status_)(status |conv_u);
           break;
         case 'x':
-          status |= conv_x;
+          status = (mchp_conversion_status_)(status |conv_x);
           break;
         case 'X':
-          status |= conv_X;
+          status = (mchp_conversion_status_)(status |conv_X);
           break;
           /* string selection expr */
         case '[':
@@ -4900,7 +5207,7 @@ mchp_convertable_input_format_string(const char *string)
           break;
         }
     }
-  return conv_possible | status;
+  return (mchp_conversion_status)(conv_possible | status);
 }
 
 /*
@@ -4928,10 +5235,10 @@ cache_conversion_state(rtx val, int variant, mchp_conversion_status s)
       /* we can only increase the current status */
       if (CCS_STATE(s) > CCS_STATE(save->valid[variant]))
         {
-          save->valid[variant] &= CCS_FLAG_MASK;
-          save->valid[variant] |= (s & CCS_STATE_MASK);
+          save->valid[variant] = (mchp_conversion_status) (save->valid[variant] & CCS_FLAG_MASK);
+          save->valid[variant] = (mchp_conversion_status) (save->valid[variant] | (s & CCS_STATE_MASK));
         }
-      save->valid[variant] = save->valid[variant] | CCS_FLAG(s);
+      save->valid[variant] = (mchp_conversion_status) (save->valid[variant] | CCS_FLAG(s));
       return save->valid[variant];
     }
   save = (mchp_conversion_cache *) xcalloc(sizeof(mchp_conversion_cache),1);
@@ -4991,17 +5298,21 @@ static tree constant_string(rtx x)
 static void mchp_handle_conversion(rtx val,
                                    mchp_interesting_fn *matching_fn)
 {
-  tree sym;
+  tree sym,var_decl;
   int style;
-
+ 
   if (val == 0)
     {
       conversion_info(conv_indeterminate, matching_fn);
       return;
     }
+  sym = var_decl = NULL;
   /* a constant string will be given a symbol name, and so will a
      symbol ... */
-  sym = constant_string(val);
+  var_decl = constant_string(val);
+  if(var_decl != NULL)
+	sym = DECL_INITIAL (var_decl);
+
   if (!(sym && (TREE_CODE(sym)==STRING_CST) && STRING_CST_CHECK(sym))) sym = 0;
   mchp_cache_conversion_state(val, sym);
   style = matching_fn->conversion_style == info_I ? status_input:status_output;
@@ -5150,6 +5461,7 @@ static int mchp_build_prefix(tree decl, int fnear, char *prefix)
 
   tree address_attr = 0;
   tree space_attr = 0;
+  tree region_attr = 0;
   bool is_ramfunc = FALSE;
   int const_rodata = 0;
 
@@ -5165,6 +5477,7 @@ static int mchp_build_prefix(tree decl, int fnear, char *prefix)
 
   address_attr = get_mchp_absolute_address (decl);
   space_attr = get_mchp_space_attribute (decl);
+  region_attr = get_mchp_region_attribute (decl);
   is_ramfunc = mchp_ramfunc_type_p (decl);
 
   if (space_attr)
@@ -5293,9 +5606,21 @@ static int mchp_build_prefix(tree decl, int fnear, char *prefix)
                           (TREE_VALUE(TREE_VALUE(space_attr))))))
         {
           if (TREE_CODE(decl) == FUNCTION_DECL)
+          {
+            if (!region_attr)
+            {
             f += sprintf(f, MCHP_RAMFUNC_FLAG);
+            }
+            else 
+            {
+              f += sprintf(f, MCHP_REGION_FLAG);	
+              f += sprintf(f, MCHP_DATA_FLAG);
+            }
+          }  
           else
+          {
             f += sprintf(f, MCHP_DATA_FLAG);
+          }
           section_type_set = 1;
         }
       /* we can't ask for a BSS section apart from by using the old naming
@@ -5390,7 +5715,7 @@ void mchp_subtarget_encode_section_info (tree decl, rtx rtl,
 #ifndef IN_NAMED_SECTION
 #define IN_NAMED_SECTION(DECL) \
   ((TREE_CODE (DECL) == FUNCTION_DECL || TREE_CODE (DECL) == VAR_DECL) \
-   && DECL_SECTION_NAME (DECL) != NULL_TREE)
+   && DECL_SECTION_NAME (DECL) != NULL)
 #endif
 /*
 ** A C statement or statements to switch to the appropriate
@@ -5417,6 +5742,7 @@ mchp_select_section (tree decl, int reloc,
           get_mchp_absolute_address(decl) ||
           lookup_attribute("space", DECL_ATTRIBUTES(decl)) ||
           lookup_attribute("persistent", DECL_ATTRIBUTES(decl)) ||
+          lookup_attribute("region", DECL_ATTRIBUTES(decl)) ||
           mchp_ramfunc_type_p(decl)
 #if defined(PIC32_SUPPORT_CRYPTO_ATTRIBUTE)
            || mchp_crypto_p(decl)
@@ -5485,12 +5811,6 @@ mchp_select_section (tree decl, int reloc,
     case SECCAT_TBSS:
       sname = ".tbss";
       break;
-    case SECCAT_EMUTLS_VAR:
-      sname = targetm.emutls.var_section;
-      break;
-    case SECCAT_EMUTLS_TMPL:
-      sname = targetm.emutls.tmpl_section;
-      break;
     default:
       gcc_unreachable ();
     }
@@ -5507,6 +5827,7 @@ static const char *default_section_name(tree decl, SECTION_FLAGS_INT flags)
   int i;
   tree a,is_aligned;
   tree p;
+  tree region, memory=0;
   bool is_rf;
 
   const char *pszSectionName=0;
@@ -5536,6 +5857,7 @@ static const char *default_section_name(tree decl, SECTION_FLAGS_INT flags)
                                     DECL_ATTRIBUTES(decl));
       a = get_mchp_absolute_address (decl);
       p = get_mchp_space_attribute (decl);
+      region = get_mchp_region_attribute (decl);
       is_rf = mchp_ramfunc_type_p (decl);
 
       if (DECL_SECTION_NAME (decl))
@@ -5652,6 +5974,34 @@ static const char *default_section_name(tree decl, SECTION_FLAGS_INT flags)
           if (!is_aligned) is_default = 1;
           f+= sprintf(result,"%s", this_default_name);
         }
+
+         if (region)
+         {
+            if (TREE_CODE(TREE_VALUE(TREE_VALUE(region))) == STRING_CST) 
+            {
+                 memory = TREE_VALUE(TREE_VALUE(region));
+            }
+         }
+
+         if (memory) 
+         {
+           pic32_external_memory *m;
+           is_default = 0;
+
+           for (m = pic32_external_memory_head; m; m = m->next) {
+              if (strcmp (m->name, TREE_STRING_POINTER (memory)) == 0) break;
+           }
+      
+           if (m == 0) error("invalid external memory attribute");
+      
+           f+= sprintf(f,",memory(_%s)", m->name);
+#if 0      
+           if (!(flags & SECTION_NOLOAD)) 
+           {
+              f+= sprintf(f, "," SECTION_ATTR_NOLOAD);
+           }
+#endif
+         }
 
       if ((!is_default) ||
           (strncmp(result,this_default_name,len_this_default_name)))
@@ -5852,7 +6202,7 @@ SECTION_FLAGS_INT validate_section_flags(const char *name,
   int first_flag = 1;
 
   f = 0;
-  flags = strchr(name, ',');
+  flags = (char*)strchr(name, ',');
   if (flags)
     {
       *flags = 0;
@@ -6287,7 +6637,7 @@ const char * mchp_text_section_asm_op(void)
       section_name = default_section_name(current_function_decl,
                                           ramfunc ? SECTION_RAMFUNC :
                                           SECTION_CODE);
-      DECL_SECTION_NAME(current_function_decl) = section_name;
+      DECL_SECTION_NAME(current_function_decl) = build_string (strlen (section_name), section_name);
     }
   else
     {
@@ -6429,13 +6779,18 @@ static SECTION_FLAGS_INT validate_identifier_flags(const char *id)
           flags |= SECTION_COHERENT;
           f += sizeof(MCHP_COHERENT_FLAG)-1;
         }
+      else if (strncmp(f, MCHP_REGION_FLAG, sizeof(MCHP_REGION_FLAG)-1) == 0)
+        {
+          flags |= SECTION_REGION;
+          f += sizeof(MCHP_REGION_FLAG)-1;
+        }
       else
         {
           error("Could not determine flags for: '%s'", id);
           return flags;
         }
     }
-  if (add_section_code_flag && !(flags & SECTION_RAMFUNC))
+  if (add_section_code_flag && !(flags & SECTION_RAMFUNC) && !(flags & SECTION_REGION))
     flags |= SECTION_CODE;
   for (v_flags = valid_section_flags; v_flags->flag_name; v_flags++)
     {
@@ -6736,4 +7091,3 @@ rtx pop_cheap_rtx(cheap_rtx_list **l, tree *t, int *flag) {
 }
 
 #endif
-

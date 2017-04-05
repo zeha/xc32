@@ -1,6 +1,5 @@
 /* { dg-do compile } */
-/* { dg-options "-O2 -msse" } */
-/* { dg-require-effective-target sse } */
+/* { dg-options "-O2 -msse -mno-sse2" } */
 
 typedef float v4sf __attribute__ ((__vector_size__ (16)));
 

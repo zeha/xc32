@@ -1,8 +1,8 @@
-// { dg-require-namedlocale "" }
+// { dg-require-namedlocale "en_US" }
 
 // 2003-10-23  Paolo Carlini  <pcarlini@suse.de>
 
-// Copyright (C) 2003, 2005, 2009 Free Software Foundation
+// Copyright (C) 2003-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the

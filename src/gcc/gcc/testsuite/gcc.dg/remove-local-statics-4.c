@@ -1,7 +1,7 @@
 /* Verify that we don't eliminate a global static variable.  */
 
 /* { dg-do compile } */
-/* { dg-options "-O2 -fremove-local-statics" } */
+/* { dg-options "-O2" } */
 /* { dg-final { scan-assembler "global_static" } } */
 
 static int global_static;

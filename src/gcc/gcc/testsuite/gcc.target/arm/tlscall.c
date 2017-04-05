@@ -1,7 +1,7 @@
 /* Test non-duplication of tlscall insn */
 
 /* { dg-do assemble } */
-/* { dg-options "-O2 -fPIC -mtls-dialect=gnu" } */
+/* { dg-options "-O2 -fPIC -mtls-dialect=gnu2" } */
 
 typedef struct _IO_FILE FILE;
 

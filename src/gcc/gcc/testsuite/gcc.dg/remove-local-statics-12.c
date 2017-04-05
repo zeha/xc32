@@ -2,7 +2,7 @@
    in a function that has nested functions.  */
 
 /* { dg-do compile } */
-/* { dg-options "-O2 -fremove-local-statics" } */
+/* { dg-options "-O2" } */
 /* { dg-final { scan-assembler "thestatic" } } */
 
 int test1 (int x)

@@ -187,7 +187,7 @@ allocate_memory() {
   result = allocate_program_memory();
   if (result != 0)
     einfo(_("%F%sprogram memory\n"), ERR_STR );
-#if 0
+#if 1
   if (has_user_defined_memory) {
     result = allocate_user_memory();
     if (result != 0)
@@ -238,7 +238,7 @@ allocate_memory() {
           continue;
 
         sec = os->output_section_statement.bfd_section;
-        if (os->output_section_statement.children.head                                      ->input_section.section->rawsize)
+        if (os->output_section_statement.children.head->input_section.section->rawsize)
           sec_len = os->output_section_statement.children.head
                     ->input_section.section->rawsize;
         else
@@ -405,7 +405,7 @@ allocate_program_memory() {
  */
 static int
 allocate_data_memory() {
-  struct memory_region_struct *region;
+  struct memory_region_struct *region = NULL;
   struct pic32_section *s;
   unsigned int mask = data|bss|persist|stack|heap|ramfunc;
   int result = 0;
@@ -428,15 +428,33 @@ allocate_data_memory() {
   }
   else
   {
-    /* Try to use kseg1_data_mem, but fall back to kseg0_data_mem. */
+    struct memory_region_struct *region1 = NULL, *region0 = NULL;
+    /* Use the largest kseg0/1_data_mem region */
     if (lang_memory_region_exist("kseg1_data_mem"))
-      region = region_lookup ("kseg1_data_mem");
-    else if (lang_memory_region_exist("kseg0_data_mem"))
-      region = region_lookup ("kseg0_data_mem");
+      region1 = region_lookup ("kseg1_data_mem");
+    if (lang_memory_region_exist("kseg0_data_mem"))
+      region0 = region_lookup ("kseg0_data_mem");
+    
+    if (region0 && region1)
+    {
+      if (pic32_debug)
+        printf ("region0->length = %lx, region1->length = %lx\n");
+      if ((region0->length) > (region1->length))
+        region = region0;
+      else
+        region = region1;
+    }
     else
-      region = region_lookup ("kseg1_data_mem");
+    {
+      if (region1)
+        region = region1;
+      else
+        region = region0;
+    }
   }
-  
+  if (region == NULL)
+    einfo (_(" Link Error: kseg0_data_mem or kseg1_data_mem region must be defined for this device"));
+
   build_free_block_list(region, mask);
 
   if (pic32_debug) {
@@ -1559,3 +1577,201 @@ allocate_default_stack() {
 }
 
 
+
+
+static int
+compare_memory_region_origin (const void *a, const void *b)
+{
+  const asection *sec1 = *(const asection **) a;
+  const asection *sec2 = *(const asection **) b;
+
+ 
+  /* If there's no section for some reason, compare equal.  */
+  if (!sec1 || !sec2)
+    return 0;
+  
+  if (sec1->vma < sec2->vma)
+    return -1;
+  else if (sec1->vma > sec2->vma)
+    return 1;
+  
+  return 0;
+}
+
+static int
+check_overlapping_memory_regions (asection **asec_list, unsigned int asec_count)
+{
+  int i ;
+  asection* a = NULL ;
+  asection* b = NULL ;
+  const char *asec_name = NULL ;
+  const char *bsec_name = NULL ;
+  
+  for (i=0; i<(asec_count-1); i++)
+  {
+    a = asec_list[i];
+    b = asec_list[i+1];
+    
+    if ( (a->vma + a->lma) >= b->vma )
+    {
+        asec_name = a->name + strlen(memory_region_prefix) + 1;
+        bsec_name = b->name + strlen(memory_region_prefix) + 1;
+
+        einfo(_(" Link Error: user defined memory region \'%s\' crosses"
+                " the boundary of region '%s'.\n"),
+                asec_name, bsec_name);
+    }
+  }
+}
+
+
+static int 
+validate_memory_region_list()
+{
+  /* Build a sorted list of memory regions, then use that to validate */
+  struct pic32_section *r, *rnext;
+  unsigned int list_size = 10;
+  unsigned int sec_count = 0;
+
+  asection **sec_list = (asection **)
+    xmalloc (list_size * sizeof (asection *));
+
+  for (r = memory_region_list; r != NULL; r = rnext) 
+  {
+    rnext = r->next;
+    asection *asec = r->sec;
+    if (asec) 
+    {
+      if (sec_count == list_size) 
+      {
+        list_size *= 2;
+        sec_list = (asection **) 
+        xrealloc (sec_list, list_size * sizeof (asection *));
+      }
+
+      sec_list[sec_count++] = asec;
+    }
+  }
+
+  qsort (sec_list, sec_count, sizeof (asection *), &compare_memory_region_origin);
+  check_overlapping_memory_regions(sec_list, sec_count);
+  free (sec_list);
+
+  return 0;
+}
+
+
+
+/*
+ * allocate_user_memory()
+ *
+ * This function attempts to allocate sections
+ * in user-defined memory regions.
+ *
+ * Called by: allocate_memory()
+ *
+ * Calls:     build_section_list()
+ *            build_free_block_list()
+ *            locate_sections() 
+ *
+ * Returns:   status code
+ *            (0 = success)
+ */
+static int
+allocate_user_memory() {
+  struct memory_region_struct temp_region;
+  struct pic32_section *r, *rnext, *s, *snext, *ss, *ssnext, *ssprev;
+  const char *region_name;
+  int result = 0;
+
+  /* Validate that the memory region list don't overlapping*/
+  validate_memory_region_list();
+
+  /* loop through any user-defined regions */
+  for (r = memory_region_list; r != NULL; r = rnext) {
+  
+    rnext = r->next;
+    if (r->sec == 0) continue;
+    
+    region_name = r->sec->name + strlen(memory_region_prefix);
+    if (pic32_debug)
+      printf("\nBuilding allocation list for user-defined region \"%s\""
+             " origin = %lx, length = %lx\n",
+             region_name, r->sec->vma, r->sec->lma);
+
+    /* the assembler will not accept a memory region
+       definition with length 0... if we see one here,
+       it indicates that a section has referenced a
+       region that was never defined */
+    if (r->sec->lma == 0)
+      einfo(_("%s: Link Error: Memory region \'%s\' has been referenced"
+              " but not defined\n"),
+              r->sec->owner->filename, region_name);
+
+    /* loop through the list of memory-type sections..
+       note that only two fields of this list are
+       used (file, sec) and they are both (char *) */
+    for (s = user_memory_sections; s != NULL; s = snext) {
+
+      snext = s->next;
+      if (!s->file || !s->sec) continue;
+      
+#if 0
+      printf("s->file =%s, s->sec = %s \n", (char *) s->file, (char *) s->sec);
+#endif
+      if (strcmp((char *)s->file, region_name) == 0) {
+        /* if this section has been assigned to the current region,
+           add it to the allocation list */
+        ssprev = unassigned_sections;
+        for (ss = ssprev; ss != NULL; ss = ssnext) {
+          ssnext = ss->next;
+          if (ss->sec && strcmp((char *) s->sec, ss->sec->name) == 0) {
+            if (pic32_debug)
+              printf("  input section \"%s\", len = %lx, flags = %x, attr = %x\n",
+                     ss->sec->name, ss->sec->size,
+                     ss->sec->flags, ss->attributes);
+
+            insert_alloc_section(alloc_section_list, ss);
+            ssprev->next = ssnext; /* unlink it from unassigned_sections */
+          } else
+            ssprev = ss;
+        }
+      }
+    }
+    
+    if (pic32_section_list_length(alloc_section_list) == 0) {
+      if (pic32_debug)
+        printf("\n  (none)\n");
+      continue;
+    }
+      
+//    temp_region.name = (char *) region_name;
+    temp_region.next = &temp_region;
+    temp_region.origin = r->sec->vma;
+    temp_region.length = r->sec->lma;
+
+    /* don't expect to need these.. */
+    temp_region.current = r->sec->vma;
+//    temp_region.old_length = 0;
+    temp_region.flags = 0;
+    temp_region.not_flags = 0;
+    temp_region.had_full_message = FALSE;
+
+    if (free_blocks)
+      pic32_free_memory_list(&free_blocks);
+    pic32_init_memory_list(&free_blocks);
+  
+    /* start with entire region as a free block */
+    pic32_add_to_memory_list(free_blocks, temp_region.origin,
+                             temp_region.length);
+
+    if (pic32_debug) {
+      pic32_print_section_list(alloc_section_list, "allocation");
+    }
+  
+    result |= locate_sections(address, 0, &temp_region);   /* most restrictive  */
+    result |= locate_sections(all_attr, 0, &temp_region);  /* least restrictive */
+  }
+
+  return result;
+} /* allocate_user_memory() */

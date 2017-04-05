@@ -1,5 +1,5 @@
 /* { dg-do compile } */
-/* { dg-options "-O2 -fdump-tree-vrp1-details -fno-remove-local-statics" } */
+/* { dg-options "-O2 -fdump-tree-vrp1-details -fno-tree-dse" } */
 
 static int blocksize = 4096;
 

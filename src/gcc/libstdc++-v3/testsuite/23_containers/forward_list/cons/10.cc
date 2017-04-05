@@ -1,8 +1,6 @@
-// { dg-options "-std=gnu++0x" }
+// { dg-options "-std=gnu++11" }
 
-// 2010-02-01  Paolo Carlini  <paolo.carlini@oracle.com>
-
-// Copyright (C) 2010 Free Software Foundation, Inc.
+// Copyright (C) 2012-2013 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -19,32 +17,42 @@
 // with this library; see the file COPYING3.  If not see
 // <http://www.gnu.org/licenses/>.
 
+// 23.3.4.2 forward_list construction [forwardlist.cons]
+
 #include <forward_list>
 #include <testsuite_hooks.h>
+#include <testsuite_allocator.h>
 
-struct NoCopyConstructor
+struct Counter
 {
-  NoCopyConstructor() : num(-1) { }
-  NoCopyConstructor(const NoCopyConstructor&) = delete;
+  Counter() { ++create; }
+  Counter(const Counter&) { ++create; }
+  ~Counter() { ++destroy; }
 
-  operator int() { return num; }
-
-private:
-  int num;
+  static int create;
+  static int destroy;
 };
+
+int Counter::create = 0;
+int Counter::destroy = 0;
 
 void test01()
 {
-  bool test __attribute__((unused)) = true;
+  typedef __gnu_test::uneq_allocator<Counter> alloc;
+  typedef std::forward_list<Counter, alloc> list;
 
-  std::forward_list<NoCopyConstructor> fl(5);
-  VERIFY( std::distance(fl.begin(), fl.end()) == 5 );
-  for(auto it = fl.begin(); it != fl.end(); ++it)
-    VERIFY( *it == -1 );
+  {
+    Counter c;
+
+    list l( list(10, c, alloc(1)), alloc(2) );
+
+    VERIFY( Counter::create == 21 );
+    VERIFY( Counter::destroy == 10 );
+  }
+  VERIFY( Counter::destroy == 21 );
 }
 
 int main()
 {
   test01();
-  return 0;
 }

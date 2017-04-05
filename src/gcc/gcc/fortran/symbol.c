@@ -1,7 +1,5 @@
 /* Maintain binary trees of symbols.
-   Copyright (C) 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008,
-   2009, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 2000-2013 Free Software Foundation, Inc.
    Contributed by Andy Vaught
 
 This file is part of GCC.
@@ -23,10 +21,12 @@ along with GCC; see the file COPYING3.  If not see
 
 #include "config.h"
 #include "system.h"
+#include "coretypes.h"
 #include "flags.h"
 #include "gfortran.h"
 #include "parse.h"
 #include "match.h"
+#include "constructor.h"
 
 
 /* Strings for all symbol attributes.  We use these for dumping the
@@ -97,21 +97,10 @@ gfc_namespace *gfc_global_ns_list;
 
 gfc_gsymbol *gfc_gsym_root = NULL;
 
-static gfc_symbol *changed_syms = NULL;
-
 gfc_dt_list *gfc_derived_types;
 
-
-/* List of tentative typebound-procedures.  */
-
-typedef struct tentative_tbp
-{
-  gfc_typebound_proc *proc;
-  struct tentative_tbp *next;
-}
-tentative_tbp;
-
-static tentative_tbp *tentative_tbp_list = NULL;
+static gfc_undo_change_set default_undo_chgset_var = { vNULL, vNULL, NULL };
+static gfc_undo_change_set *latest_undo_chgset = &default_undo_chgset_var;
 
 
 /*********** IMPLICIT NONE and IMPLICIT statement handlers ***********/
@@ -273,7 +262,7 @@ gfc_set_default_type (gfc_symbol *sym, int error_flag, gfc_namespace *ns)
   if (ts->type == BT_CHARACTER && ts->u.cl)
     sym->ts.u.cl = gfc_new_charlen (sym->ns, ts->u.cl);
 
-  if (sym->attr.is_bind_c == 1)
+  if (sym->attr.is_bind_c == 1 && gfc_option.warn_c_binding_type)
     {
       /* BIND(C) variables should not be implicitly declared.  */
       gfc_warning_now ("Implicitly declared BIND(C) variable '%s' at %L may "
@@ -286,7 +275,8 @@ gfc_set_default_type (gfc_symbol *sym, int error_flag, gfc_namespace *ns)
       if (sym->ns->proc_name != NULL
 	  && (sym->ns->proc_name->attr.subroutine != 0
 	      || sym->ns->proc_name->attr.function != 0)
-	  && sym->ns->proc_name->attr.is_bind_c != 0)
+	  && sym->ns->proc_name->attr.is_bind_c != 0
+	  && gfc_option.warn_c_binding_type)
         {
           /* Dummy args to a BIND(C) routine may not be interoperable if
              they are implicitly typed.  */
@@ -371,7 +361,8 @@ check_conflict (symbol_attribute *attr, const char *name, locus *where)
     *cray_pointee = "CRAY POINTEE", *data = "DATA", *value = "VALUE",
     *volatile_ = "VOLATILE", *is_protected = "PROTECTED",
     *is_bind_c = "BIND(C)", *procedure = "PROCEDURE",
-    *asynchronous = "ASYNCHRONOUS";
+    *asynchronous = "ASYNCHRONOUS", *codimension = "CODIMENSION",
+    *contiguous = "CONTIGUOUS", *generic = "GENERIC";
   static const char *threadprivate = "THREADPRIVATE";
 
   const char *a1, *a2;
@@ -384,6 +375,14 @@ check_conflict (symbol_attribute *attr, const char *name, locus *where)
     {
       a1 = pointer;
       a2 = intent;
+      standard = GFC_STD_F2003;
+      goto conflict_std;
+    }
+
+  if (attr->in_namelist && (attr->allocatable || attr->pointer))
+    {
+      a1 = in_namelist;
+      a2 = attr->allocatable ? allocatable : pointer;
       standard = GFC_STD_F2003;
       goto conflict_std;
     }
@@ -434,12 +433,15 @@ check_conflict (symbol_attribute *attr, const char *name, locus *where)
             a1 = gfc_code2string (flavors, attr->flavor);
             a2 = save;
 	    goto conflict;
-
+	  case FL_NAMELIST:
+	    gfc_error ("Namelist group name at %L cannot have the "
+		       "SAVE attribute", where);
+	    return FAILURE; 
+	    break;
 	  case FL_PROCEDURE:
 	    /* Conflicts between SAVE and PROCEDURE will be checked at
 	       resolution stage, see "resolve_fl_procedure".  */
 	  case FL_VARIABLE:
-	  case FL_NAMELIST:
 	  default:
 	    break;
 	}
@@ -466,7 +468,7 @@ check_conflict (symbol_attribute *attr, const char *name, locus *where)
     conf (external, subroutine);
 
   if (attr->proc_pointer && gfc_notify_std (GFC_STD_F2003,
-			    "Fortran 2003: Procedure pointer at %C") == FAILURE)
+			    "Procedure pointer at %C") == FAILURE)
     return FAILURE;
 
   conf (allocatable, pointer);
@@ -477,11 +479,11 @@ check_conflict (symbol_attribute *attr, const char *name, locus *where)
 
   conf (in_common, dummy);
   conf (in_common, allocatable);
+  conf (in_common, codimension);
   conf (in_common, result);
 
-  conf (dummy, result);
-
   conf (in_equivalence, use_assoc);
+  conf (in_equivalence, codimension);
   conf (in_equivalence, dummy);
   conf (in_equivalence, target);
   conf (in_equivalence, pointer);
@@ -491,10 +493,9 @@ check_conflict (symbol_attribute *attr, const char *name, locus *where)
   conf (in_equivalence, allocatable);
   conf (in_equivalence, threadprivate);
 
-  conf (in_namelist, pointer);
-  conf (in_namelist, allocatable);
-
+  conf (dummy, result);
   conf (entry, result);
+  conf (generic, result);
 
   conf (function, subroutine);
 
@@ -503,6 +504,7 @@ check_conflict (symbol_attribute *attr, const char *name, locus *where)
 
   conf (is_bind_c, cray_pointer);
   conf (is_bind_c, cray_pointee);
+  conf (is_bind_c, codimension);
   conf (is_bind_c, allocatable);
   conf (is_bind_c, elemental);
 
@@ -513,6 +515,8 @@ check_conflict (symbol_attribute *attr, const char *name, locus *where)
   /* Cray pointer/pointee conflicts.  */
   conf (cray_pointer, cray_pointee);
   conf (cray_pointer, dimension);
+  conf (cray_pointer, codimension);
+  conf (cray_pointer, contiguous);
   conf (cray_pointer, pointer);
   conf (cray_pointer, target);
   conf (cray_pointer, allocatable);
@@ -524,6 +528,8 @@ check_conflict (symbol_attribute *attr, const char *name, locus *where)
   conf (cray_pointer, entry);
 
   conf (cray_pointee, allocatable);
+  conf (cray_pointer, contiguous);
+  conf (cray_pointer, codimension);
   conf (cray_pointee, intent);
   conf (cray_pointee, optional);
   conf (cray_pointee, dummy);
@@ -539,7 +545,6 @@ check_conflict (symbol_attribute *attr, const char *name, locus *where)
   conf (data, function);
   conf (data, result);
   conf (data, allocatable);
-  conf (data, use_assoc);
 
   conf (value, pointer)
   conf (value, allocatable)
@@ -547,7 +552,10 @@ check_conflict (symbol_attribute *attr, const char *name, locus *where)
   conf (value, function)
   conf (value, volatile_)
   conf (value, dimension)
+  conf (value, codimension)
   conf (value, external)
+
+  conf (codimension, result)
 
   if (attr->value
       && (attr->intent == INTENT_OUT || attr->intent == INTENT_INOUT))
@@ -558,7 +566,6 @@ check_conflict (symbol_attribute *attr, const char *name, locus *where)
     }
 
   conf (is_protected, intrinsic)
-  conf (is_protected, external)
   conf (is_protected, in_common)
 
   conf (asynchronous, intrinsic)
@@ -576,8 +583,8 @@ check_conflict (symbol_attribute *attr, const char *name, locus *where)
 
   conf (procedure, allocatable)
   conf (procedure, dimension)
+  conf (procedure, codimension)
   conf (procedure, intrinsic)
-  conf (procedure, is_protected)
   conf (procedure, target)
   conf (procedure, value)
   conf (procedure, volatile_)
@@ -601,10 +608,12 @@ check_conflict (symbol_attribute *attr, const char *name, locus *where)
     case FL_BLOCK_DATA:
     case FL_MODULE:
     case FL_LABEL:
+      conf2 (codimension);
       conf2 (dimension);
       conf2 (dummy);
       conf2 (volatile_);
       conf2 (asynchronous);
+      conf2 (contiguous);
       conf2 (pointer);
       conf2 (is_protected);
       conf2 (target);
@@ -653,9 +662,11 @@ check_conflict (symbol_attribute *attr, const char *name, locus *where)
 	  conf2 (volatile_);
 	  conf2 (asynchronous);
 	  conf2 (in_namelist);
+	  conf2 (codimension);
 	  conf2 (dimension);
 	  conf2 (function);
-	  conf2 (threadprivate);
+	  if (!attr->proc_pointer)
+	    conf2 (threadprivate);
 	}
 
       if (!attr->proc_pointer)
@@ -665,6 +676,7 @@ check_conflict (symbol_attribute *attr, const char *name, locus *where)
 	{
 	case PROC_ST_FUNCTION:
 	  conf2 (dummy);
+	  conf2 (target);
 	  break;
 
 	case PROC_MODULE:
@@ -711,6 +723,7 @@ check_conflict (symbol_attribute *attr, const char *name, locus *where)
       conf2 (function);
       conf2 (subroutine);
       conf2 (entry);
+      conf2 (contiguous);
       conf2 (pointer);
       conf2 (is_protected);
       conf2 (target);
@@ -721,8 +734,10 @@ check_conflict (symbol_attribute *attr, const char *name, locus *where)
       conf2 (asynchronous);
       conf2 (threadprivate);
       conf2 (value);
-      conf2 (is_bind_c);
+      conf2 (codimension);
       conf2 (result);
+      if (!attr->is_iso_c)
+	conf2 (is_bind_c);
       break;
 
     default:
@@ -744,13 +759,13 @@ conflict:
 conflict_std:
   if (name == NULL)
     {
-      return gfc_notify_std (standard, "Fortran 2003: %s attribute "
+      return gfc_notify_std (standard, "%s attribute "
                              "with %s attribute at %L", a1, a2,
                              where);
     }
   else
     {
-      return gfc_notify_std (standard, "Fortran 2003: %s attribute "
+      return gfc_notify_std (standard, "%s attribute "
 			     "with %s attribute in '%s' at %L",
                              a1, a2, name, where);
     }
@@ -866,6 +881,32 @@ gfc_add_allocatable (symbol_attribute *attr, locus *where)
 
 
 gfc_try
+gfc_add_codimension (symbol_attribute *attr, const char *name, locus *where)
+{
+
+  if (check_used (attr, name, where))
+    return FAILURE;
+
+  if (attr->codimension)
+    {
+      duplicate_attr ("CODIMENSION", where);
+      return FAILURE;
+    }
+
+  if (attr->flavor == FL_PROCEDURE && attr->if_source == IFSRC_IFBODY
+      && gfc_find_state (COMP_INTERFACE) == FAILURE)
+    {
+      gfc_error ("CODIMENSION specified for '%s' outside its INTERFACE body "
+		 "at %L", name, where);
+      return FAILURE;
+    }
+
+  attr->codimension = 1;
+  return check_conflict (attr, name, where);
+}
+
+
+gfc_try
 gfc_add_dimension (symbol_attribute *attr, const char *name, locus *where)
 {
 
@@ -887,6 +928,18 @@ gfc_add_dimension (symbol_attribute *attr, const char *name, locus *where)
     }
 
   attr->dimension = 1;
+  return check_conflict (attr, name, where);
+}
+
+
+gfc_try
+gfc_add_contiguous (symbol_attribute *attr, const char *name, locus *where)
+{
+
+  if (check_used (attr, name, where))
+    return FAILURE;
+
+  attr->contiguous = 1;
   return check_conflict (attr, name, where);
 }
 
@@ -1042,13 +1095,14 @@ gfc_add_result (symbol_attribute *attr, const char *name, locus *where)
 
 
 gfc_try
-gfc_add_save (symbol_attribute *attr, const char *name, locus *where)
+gfc_add_save (symbol_attribute *attr, save_state s, const char *name,
+	      locus *where)
 {
 
   if (check_used (attr, name, where))
     return FAILURE;
 
-  if (gfc_pure (NULL))
+  if (s == SAVE_EXPLICIT && gfc_pure (NULL))
     {
       gfc_error
 	("SAVE attribute at %L cannot be specified in a PURE procedure",
@@ -1056,7 +1110,10 @@ gfc_add_save (symbol_attribute *attr, const char *name, locus *where)
       return FAILURE;
     }
 
-  if (attr->save == SAVE_EXPLICIT && !attr->vtab)
+  if (s == SAVE_EXPLICIT && gfc_implicit_pure (NULL))
+    gfc_current_ns->proc_name->attr.implicit_pure = 0;
+
+  if (s == SAVE_EXPLICIT && attr->save == SAVE_EXPLICIT)
     {
 	if (gfc_notify_std (GFC_STD_LEGACY, 
 			    "Duplicate SAVE attribute specified at %L",
@@ -1065,7 +1122,7 @@ gfc_add_save (symbol_attribute *attr, const char *name, locus *where)
 	  return FAILURE;
     }
 
-  attr->save = SAVE_EXPLICIT;
+  attr->save = s;
   return check_conflict (attr, name, where);
 }
 
@@ -1096,7 +1153,7 @@ gfc_add_volatile (symbol_attribute *attr, const char *name, locus *where)
 {
   /* No check_used needed as 11.2.1 of the F2003 standard allows
      that the local identifier made accessible by a use statement can be
-     given a VOLATILE attribute.  */
+     given a VOLATILE attribute - unless it is a coarray (F2008, C560).  */
 
   if (attr->volatile_ && attr->volatile_ns == gfc_current_ns)
     if (gfc_notify_std (GFC_STD_LEGACY, 
@@ -1527,7 +1584,7 @@ gfc_add_is_bind_c (symbol_attribute *attr, const char *name, locus *where,
   if (where == NULL)
     where = &gfc_current_locus;
    
-  if (gfc_notify_std (GFC_STD_F2003, "Fortran 2003: BIND(C) at %L", where)
+  if (gfc_notify_std (GFC_STD_F2003, "BIND(C) at %L", where)
       == FAILURE)
     return FAILURE;
 
@@ -1548,7 +1605,7 @@ gfc_add_extension (symbol_attribute *attr, locus *where)
   else
     attr->extension = 1;
 
-  if (gfc_notify_std (GFC_STD_F2003, "Fortran 2003: EXTENDS at %L", where)
+  if (gfc_notify_std (GFC_STD_F2003, "EXTENDS at %L", where)
 	== FAILURE)
     return FAILURE;
 
@@ -1610,7 +1667,12 @@ gfc_add_type (gfc_symbol *sym, gfc_typespec *ts, locus *where)
 
   if (type != BT_UNKNOWN && !(sym->attr.function && sym->attr.implicit_type))
     {
-      gfc_error ("Symbol '%s' at %L already has basic type of %s", sym->name,
+      if (sym->attr.use_assoc)
+	gfc_error ("Symbol '%s' at %L conflicts with symbol from module '%s', "
+		   "use-associated at %L", sym->name, where, sym->module,
+		   &sym->declared_at);
+      else
+	gfc_error ("Symbol '%s' at %L already has basic type of %s", sym->name,
 		 where, gfc_basic_typename (type));
       return FAILURE;
     }
@@ -1677,13 +1739,17 @@ gfc_copy_attr (symbol_attribute *dest, symbol_attribute *src, locus *where)
 
   if (src->dimension && gfc_add_dimension (dest, NULL, where) == FAILURE)
     goto fail;
+  if (src->codimension && gfc_add_codimension (dest, NULL, where) == FAILURE)
+    goto fail;
+  if (src->contiguous && gfc_add_contiguous (dest, NULL, where) == FAILURE)
+    goto fail;
   if (src->optional && gfc_add_optional (dest, where) == FAILURE)
     goto fail;
   if (src->pointer && gfc_add_pointer (dest, where) == FAILURE)
     goto fail;
   if (src->is_protected && gfc_add_protected (dest, NULL, where) == FAILURE)
     goto fail;
-  if (src->save && gfc_add_save (dest, NULL, where) == FAILURE)
+  if (src->save && gfc_add_save (dest, src->save, NULL, where) == FAILURE)
     goto fail;
   if (src->value && gfc_add_value (dest, NULL, where) == FAILURE)
     goto fail;
@@ -1873,6 +1939,15 @@ gfc_use_derived (gfc_symbol *sym)
   gfc_symtree *st;
   int i;
 
+  if (!sym)
+    return NULL;
+
+  if (sym->attr.unlimited_polymorphic)
+    return sym;
+
+  if (sym->attr.generic)
+    sym = gfc_find_dt_in_generic (sym);
+
   if (sym->components != NULL || sym->attr.zero_comp)
     return sym;               /* Already defined.  */
 
@@ -1930,7 +2005,7 @@ gfc_find_component (gfc_symbol *sym, const char *name,
 {
   gfc_component *p;
 
-  if (name == NULL)
+  if (name == NULL || sym == NULL)
     return NULL;
 
   sym = gfc_use_derived (sym);
@@ -1941,6 +2016,21 @@ gfc_find_component (gfc_symbol *sym, const char *name,
   for (p = sym->components; p; p = p->next)
     if (strcmp (p->name, name) == 0)
       break;
+
+  if (p && sym->attr.use_assoc && !noaccess)
+    {
+      bool is_parent_comp = sym->attr.extension && (p == sym->components);
+      if (p->attr.access == ACCESS_PRIVATE ||
+	  (p->attr.access != ACCESS_PUBLIC
+	   && sym->component_access == ACCESS_PRIVATE
+	   && !is_parent_comp))
+	{
+	  if (!silent)
+	    gfc_error ("Component '%s' at %C is a PRIVATE component of '%s'",
+		       name, sym->name);
+	  return NULL;
+	}
+    }
 
   if (p == NULL
 	&& sym->attr.extension
@@ -1956,21 +2046,6 @@ gfc_find_component (gfc_symbol *sym, const char *name,
   if (p == NULL && !silent)
     gfc_error ("'%s' at %C is not a member of the '%s' structure",
 	       name, sym->name);
-
-  else if (sym->attr.use_assoc && !noaccess)
-    {
-      bool is_parent_comp = sym->attr.extension && (p == sym->components);
-      if (p->attr.access == ACCESS_PRIVATE ||
-	  (p->attr.access != ACCESS_PUBLIC
-	   && sym->component_access == ACCESS_PRIVATE
-	   && !is_parent_comp))
-	{
-	  if (!silent)
-	    gfc_error ("Component '%s' at %C is a PRIVATE component of '%s'",
-		       name, sym->name);
-	  return NULL;
-	}
-    }
 
   return p;
 }
@@ -1990,8 +2065,9 @@ free_components (gfc_component *p)
 
       gfc_free_array_spec (p->as);
       gfc_free_expr (p->initializer);
+      free (p->tb);
 
-      gfc_free (p);
+      free (p);
     }
 }
 
@@ -2027,7 +2103,7 @@ gfc_free_st_label (gfc_st_label *label)
   if (label->format != NULL)
     gfc_free_expr (label->format);
 
-  gfc_free (label);
+  free (label);
 }
 
 
@@ -2045,7 +2121,7 @@ free_st_labels (gfc_st_label *label)
   
   if (label->format != NULL)
     gfc_free_expr (label->format);
-  gfc_free (label);
+  free (label);
 }
 
 
@@ -2058,11 +2134,16 @@ gfc_get_st_label (int labelno)
   gfc_st_label *lp;
   gfc_namespace *ns;
 
-  /* Find the namespace of the scoping unit:
-     If we're in a BLOCK construct, jump to the parent namespace.  */
-  ns = gfc_current_ns;
-  while (ns->proc_name && ns->proc_name->attr.flavor == FL_LABEL)
-    ns = ns->parent;
+  if (gfc_current_state () == COMP_DERIVED)
+    ns = gfc_current_block ()->f2k_derived;
+  else
+    {
+      /* Find the namespace of the scoping unit:
+	 If we're in a BLOCK construct, jump to the parent namespace.  */
+      ns = gfc_current_ns;
+      while (ns->proc_name && ns->proc_name->attr.flavor == FL_LABEL)
+	ns = ns->parent;
+    }
 
   /* First see if the label is already in this namespace.  */
   lp = ns->st_labels;
@@ -2111,7 +2192,8 @@ gfc_define_st_label (gfc_st_label *lp, gfc_sl_type type, locus *label_locus)
       switch (type)
 	{
 	case ST_LABEL_FORMAT:
-	  if (lp->referenced == ST_LABEL_TARGET)
+	  if (lp->referenced == ST_LABEL_TARGET
+	      || lp->referenced == ST_LABEL_DO_TARGET)
 	    gfc_error ("Label %d at %C already referenced as branch target",
 		       labelno);
 	  else
@@ -2120,12 +2202,18 @@ gfc_define_st_label (gfc_st_label *lp, gfc_sl_type type, locus *label_locus)
 	  break;
 
 	case ST_LABEL_TARGET:
+	case ST_LABEL_DO_TARGET:
 	  if (lp->referenced == ST_LABEL_FORMAT)
 	    gfc_error ("Label %d at %C already referenced as a format label",
 		       labelno);
 	  else
-	    lp->defined = ST_LABEL_TARGET;
+	    lp->defined = type;
 
+	  if (lp->referenced == ST_LABEL_DO_TARGET && type != ST_LABEL_DO_TARGET
+      	      && gfc_notify_std (GFC_STD_F95_OBS, "DO termination statement "
+				 "which is not END DO or CONTINUE with label "
+				 "%d at %C", labelno) == FAILURE)
+	    return;
 	  break;
 
 	default:
@@ -2161,14 +2249,16 @@ gfc_reference_st_label (gfc_st_label *lp, gfc_sl_type type)
       lp->where = gfc_current_locus;
     }
 
-  if (label_type == ST_LABEL_FORMAT && type == ST_LABEL_TARGET)
+  if (label_type == ST_LABEL_FORMAT
+      && (type == ST_LABEL_TARGET || type == ST_LABEL_DO_TARGET))
     {
       gfc_error ("Label %d at %C previously used as a FORMAT label", labelno);
       rc = FAILURE;
       goto done;
     }
 
-  if ((label_type == ST_LABEL_TARGET || label_type == ST_LABEL_BAD_TARGET)
+  if ((label_type == ST_LABEL_TARGET || label_type == ST_LABEL_DO_TARGET
+       || label_type == ST_LABEL_BAD_TARGET)
       && type == ST_LABEL_FORMAT)
     {
       gfc_error ("Label %d at %C previously used as branch target", labelno);
@@ -2176,40 +2266,17 @@ gfc_reference_st_label (gfc_st_label *lp, gfc_sl_type type)
       goto done;
     }
 
-  lp->referenced = type;
+  if (lp->referenced == ST_LABEL_DO_TARGET && type == ST_LABEL_DO_TARGET
+      && gfc_notify_std (GFC_STD_F95_OBS, "Shared DO termination label %d "
+			 "at %C", labelno) == FAILURE)
+    return FAILURE;
+
+  if (lp->referenced != ST_LABEL_DO_TARGET)
+    lp->referenced = type;
   rc = SUCCESS;
 
 done:
   return rc;
-}
-
-
-/*******A helper function for creating new expressions*************/
-
-
-gfc_expr *
-gfc_lval_expr_from_sym (gfc_symbol *sym)
-{
-  gfc_expr *lval;
-  lval = gfc_get_expr ();
-  lval->expr_type = EXPR_VARIABLE;
-  lval->where = sym->declared_at;
-  lval->ts = sym->ts;
-  lval->symtree = gfc_find_symtree (sym->ns->sym_root, sym->name);
-
-  /* It will always be a full array.  */
-  lval->rank = sym->as ? sym->as->rank : 0;
-  if (lval->rank)
-    {
-      lval->ref = gfc_get_ref ();
-      lval->ref->type = REF_ARRAY;
-      lval->ref->u.ar.type = AR_FULL;
-      lval->ref->u.ar.dimen = lval->rank;
-      lval->ref->u.ar.where = sym->declared_at;
-      lval->ref->u.ar.as = sym->as;
-    }
-
-  return lval;
 }
 
 
@@ -2225,7 +2292,7 @@ gfc_lval_expr_from_sym (gfc_symbol *sym)
    undo changes made to a symbol table if the current interpretation
    of a statement is found to be incorrect.  Whenever a symbol is
    looked up, we make a copy of it and link to it.  All of these
-   symbols are kept in a singly linked list so that we can commit or
+   symbols are kept in a vector so that we can commit or
    undo the changes at a later time.
 
    A symtree may point to a symbol node outside of its namespace.  In
@@ -2335,7 +2402,7 @@ gfc_delete_symtree (gfc_symtree **root, const char *name)
   st.name = gfc_get_string (name);
   gfc_delete_bbt (root, &st, compare_symtree);
 
-  gfc_free (st0);
+  free (st0);
 }
 
 
@@ -2432,7 +2499,8 @@ gfc_free_symbol (gfc_symbol *sym)
 
   gfc_free_namelist (sym->namelist);
 
-  gfc_free_namespace (sym->formal_ns);
+  if (sym->ns != sym->formal_ns)
+    gfc_free_namespace (sym->formal_ns);
 
   if (!sym->attr.generic_copy)
     gfc_free_interface (sym->generic);
@@ -2441,7 +2509,41 @@ gfc_free_symbol (gfc_symbol *sym)
 
   gfc_free_namespace (sym->f2k_derived);
 
-  gfc_free (sym);
+  if (sym->common_block && sym->common_block->name[0] != '\0')
+    { 
+      sym->common_block->refs--; 
+      if (sym->common_block->refs == 0)
+	free (sym->common_block);
+    }
+
+  free (sym);
+}
+
+
+/* Decrease the reference counter and free memory when we reach zero.  */
+
+void
+gfc_release_symbol (gfc_symbol *sym)
+{
+  if (sym == NULL)
+    return;
+
+  if (sym->formal_ns != NULL && sym->refs == 2 && sym->formal_ns != sym->ns
+      && (!sym->attr.entry || !sym->module))
+    {
+      /* As formal_ns contains a reference to sym, delete formal_ns just
+	 before the deletion of sym.  */
+      gfc_namespace *ns = sym->formal_ns;
+      sym->formal_ns = NULL;
+      gfc_free_namespace (ns);
+    }
+
+  sym->refs--;
+  if (sym->refs > 0)
+    return;
+
+  gcc_assert (sym->refs == 0);
+  gfc_free_symbol (sym);
 }
 
 
@@ -2468,12 +2570,11 @@ gfc_new_symbol (const char *name, gfc_namespace *ns)
   /* Make sure flags for symbol being C bound are clear initially.  */
   p->attr.is_bind_c = 0;
   p->attr.is_iso_c = 0;
-  /* Make sure the binding label field has a Nul char to start.  */
-  p->binding_label[0] = '\0';
 
   /* Clear the ptrs we may need.  */
   p->common_block = NULL;
   p->f2k_derived = NULL;
+  p->assoc = NULL;
   
   return p;
 }
@@ -2504,6 +2605,27 @@ select_type_insert_tmp (gfc_symtree **st)
   for (; stack; stack = stack->prev)
     if ((*st)->n.sym == stack->selector && stack->tmp)
       *st = stack->tmp;
+}
+
+
+/* Look for a symtree in the current procedure -- that is, go up to
+   parent namespaces but only if inside a BLOCK.  Returns NULL if not found.  */
+
+gfc_symtree*
+gfc_find_symtree_in_proc (const char* name, gfc_namespace* ns)
+{
+  while (ns)
+    {
+      gfc_symtree* st = gfc_find_symtree (ns->sym_root, name);
+      if (st)
+	return st;
+
+      if (!ns->construct_entities)
+	break;
+      ns = ns->parent;
+    }
+
+  return NULL;
 }
 
 
@@ -2542,6 +2664,11 @@ gfc_find_sym_tree (const char *name, gfc_namespace *ns, int parent_flag,
       if (!parent_flag)
 	break;
 
+      /* Don't escape an interface block.  */
+      if (ns && !ns->has_import_set
+          && ns->proc_name && ns->proc_name->attr.if_source == IFSRC_IFBODY)
+	break;
+
       ns = ns->parent;
     }
   while (ns != NULL);
@@ -2571,20 +2698,51 @@ gfc_find_symbol (const char *name, gfc_namespace *ns, int parent_flag,
 }
 
 
+/* Tells whether there is only one set of changes in the stack.  */
+
+static bool
+single_undo_checkpoint_p (void)
+{
+  if (latest_undo_chgset == &default_undo_chgset_var)
+    {
+      gcc_assert (latest_undo_chgset->previous == NULL);
+      return true;
+    }
+  else
+    {
+      gcc_assert (latest_undo_chgset->previous != NULL);
+      return false;
+    }
+}
+
 /* Save symbol with the information necessary to back it out.  */
 
 static void
 save_symbol_data (gfc_symbol *sym)
 {
+  gfc_symbol *s;
+  unsigned i;
 
-  if (sym->gfc_new || sym->old_symbol != NULL)
+  if (!single_undo_checkpoint_p ())
+    {
+      /* If there is more than one change set, look for the symbol in the
+         current one.  If it is found there, we can reuse it.  */
+      FOR_EACH_VEC_ELT (latest_undo_chgset->syms, i, s)
+	if (s == sym)
+	  {
+	    gcc_assert (sym->gfc_new || sym->old_symbol != NULL);
+	    return;
+	  }
+    }
+  else if (sym->gfc_new || sym->old_symbol != NULL)
     return;
 
-  sym->old_symbol = XCNEW (gfc_symbol);
-  *(sym->old_symbol) = *sym;
+  s = XCNEW (gfc_symbol);
+  *s = *sym;
+  sym->old_symbol = s;
+  sym->gfc_new = 0;
 
-  sym->tlink = changed_syms;
-  changed_syms = sym;
+  latest_undo_chgset->syms.safe_push (sym);
 }
 
 
@@ -2620,10 +2778,9 @@ gfc_get_sym_tree (const char *name, gfc_namespace *ns, gfc_symtree **result,
 
       /* Add to the list of tentative symbols.  */
       p->old_symbol = NULL;
-      p->tlink = changed_syms;
       p->mark = 1;
       p->gfc_new = 1;
-      changed_syms = p;
+      latest_undo_chgset->syms.safe_push (p);
 
       st = gfc_new_symtree (&ns->sym_root, name);
       st->n.sym = p;
@@ -2700,17 +2857,14 @@ gfc_get_ha_sym_tree (const char *name, gfc_symtree **result)
       return i;
     }
 
-  if (gfc_current_ns->parent != NULL)
-    {
-      i = gfc_find_sym_tree (name, gfc_current_ns->parent, 1, &st);
-      if (i)
-	return i;
+  i = gfc_find_sym_tree (name, gfc_current_ns, 1, &st);
+  if (i)
+    return i;
 
-      if (st != NULL)
-	{
-	  *result = st;
-	  return 0;
-	}
+  if (st != NULL)
+    {
+      *result = st;
+      return 0;
     }
 
   return gfc_get_sym_tree (name, gfc_current_ns, result, false);
@@ -2733,55 +2887,188 @@ gfc_get_ha_symbol (const char *name, gfc_symbol **result)
   return i;
 }
 
-/* Return true if both symbols could refer to the same data object.  Does
-   not take account of aliasing due to equivalence statements.  */
 
-int
-gfc_symbols_could_alias (gfc_symbol *lsym, gfc_symbol *rsym)
+/* Search for the symtree belonging to a gfc_common_head; we cannot use
+   head->name as the common_root symtree's name might be mangled.  */
+
+static gfc_symtree *
+find_common_symtree (gfc_symtree *st, gfc_common_head *head)
 {
-  /* Aliasing isn't possible if the symbols have different base types.  */
-  if (gfc_compare_types (&lsym->ts, &rsym->ts) == 0)
-    return 0;
 
-  /* Pointers can point to other pointers, target objects and allocatable
-     objects.  Two allocatable objects cannot share the same storage.  */
-  if (lsym->attr.pointer
-      && (rsym->attr.pointer || rsym->attr.allocatable || rsym->attr.target))
-    return 1;
-  if (lsym->attr.target && rsym->attr.pointer)
-    return 1;
-  if (lsym->attr.allocatable && rsym->attr.pointer)
-    return 1;
+  gfc_symtree *result;
 
-  /* Special case: Argument association, cf. F90 12.4.1.6, F2003 12.4.1.7
-     and F2008 12.5.2.13 items 3b and 4b. The pointer case (a) is already
-     checked above.  */
-  if (lsym->attr.target && rsym->attr.target
-      && ((lsym->attr.dummy
-	   && (!lsym->attr.dimension || lsym->as->type == AS_ASSUMED_SHAPE))
-	  || (rsym->attr.dummy
-	      && (!rsym->attr.dimension
-		  || rsym->as->type == AS_ASSUMED_SHAPE))))
-    return 1;
+  if (st == NULL)
+    return NULL;
 
-  return 0;
+  if (st->n.common == head)
+    return st;
+
+  result = find_common_symtree (st->left, head);
+  if (!result)  
+    result = find_common_symtree (st->right, head);
+
+  return result;
 }
 
 
-/* Undoes all the changes made to symbols in the current statement.
+/* Clear the given storage, and make it the current change set for registering
+   changed symbols.  Its contents are freed after a call to
+   gfc_restore_last_undo_checkpoint or gfc_drop_last_undo_checkpoint, but
+   it is up to the caller to free the storage itself.  It is usually a local
+   variable, so there is nothing to do anyway.  */
+
+void
+gfc_new_undo_checkpoint (gfc_undo_change_set &chg_syms)
+{
+  chg_syms.syms = vNULL;
+  chg_syms.tbps = vNULL;
+  chg_syms.previous = latest_undo_chgset;
+  latest_undo_chgset = &chg_syms;
+}
+
+
+/* Restore previous state of symbol.  Just copy simple stuff.  */
+  
+static void
+restore_old_symbol (gfc_symbol *p)
+{
+  gfc_symbol *old;
+
+  p->mark = 0;
+  old = p->old_symbol;
+
+  p->ts.type = old->ts.type;
+  p->ts.kind = old->ts.kind;
+
+  p->attr = old->attr;
+
+  if (p->value != old->value)
+    {
+      gcc_checking_assert (old->value == NULL);
+      gfc_free_expr (p->value);
+      p->value = NULL;
+    }
+
+  if (p->as != old->as)
+    {
+      if (p->as)
+	gfc_free_array_spec (p->as);
+      p->as = old->as;
+    }
+
+  p->generic = old->generic;
+  p->component_access = old->component_access;
+
+  if (p->namelist != NULL && old->namelist == NULL)
+    {
+      gfc_free_namelist (p->namelist);
+      p->namelist = NULL;
+    }
+  else
+    {
+      if (p->namelist_tail != old->namelist_tail)
+	{
+	  gfc_free_namelist (old->namelist_tail->next);
+	  old->namelist_tail->next = NULL;
+	}
+    }
+
+  p->namelist_tail = old->namelist_tail;
+
+  if (p->formal != old->formal)
+    {
+      gfc_free_formal_arglist (p->formal);
+      p->formal = old->formal;
+    }
+
+  p->old_symbol = old->old_symbol;
+  free (old);
+}
+
+
+/* Frees the internal data of a gfc_undo_change_set structure.  Doesn't free
+   the structure itself.  */
+
+static void
+free_undo_change_set_data (gfc_undo_change_set &cs)
+{
+  cs.syms.release ();
+  cs.tbps.release ();
+}
+
+
+/* Given a change set pointer, free its target's contents and update it with
+   the address of the previous change set.  Note that only the contents are
+   freed, not the target itself (the contents' container).  It is not a problem
+   as the latter will be a local variable usually.  */
+
+static void
+pop_undo_change_set (gfc_undo_change_set *&cs)
+{
+  free_undo_change_set_data (*cs);
+  cs = cs->previous;
+}
+
+
+static void free_old_symbol (gfc_symbol *sym);
+
+
+/* Merges the current change set into the previous one.  The changes themselves
+   are left untouched; only one checkpoint is forgotten.  */
+
+void
+gfc_drop_last_undo_checkpoint (void)
+{
+  gfc_symbol *s, *t;
+  unsigned i, j;
+
+  FOR_EACH_VEC_ELT (latest_undo_chgset->syms, i, s)
+    {
+      /* No need to loop in this case.  */
+      if (s->old_symbol == NULL)
+        continue;
+
+      /* Remove the duplicate symbols.  */
+      FOR_EACH_VEC_ELT (latest_undo_chgset->previous->syms, j, t)
+	if (t == s)
+	  {
+	    latest_undo_chgset->previous->syms.unordered_remove (j);
+
+	    /* S->OLD_SYMBOL is the backup symbol for S as it was at the
+	       last checkpoint.  We drop that checkpoint, so S->OLD_SYMBOL
+	       shall contain from now on the backup symbol for S as it was
+	       at the checkpoint before.  */
+	    if (s->old_symbol->gfc_new)
+	      {
+		gcc_assert (s->old_symbol->old_symbol == NULL);
+		s->gfc_new = s->old_symbol->gfc_new;
+		free_old_symbol (s);
+	      }
+	    else
+	      restore_old_symbol (s->old_symbol);
+	    break;
+	  }
+    }
+
+  latest_undo_chgset->previous->syms.safe_splice (latest_undo_chgset->syms);
+  latest_undo_chgset->previous->tbps.safe_splice (latest_undo_chgset->tbps);
+
+  pop_undo_change_set (latest_undo_chgset);
+}
+
+
+/* Undoes all the changes made to symbols since the previous checkpoint.
    This subroutine is made simpler due to the fact that attributes are
    never removed once added.  */
 
 void
-gfc_undo_symbols (void)
+gfc_restore_last_undo_checkpoint (void)
 {
-  gfc_symbol *p, *q, *old;
-  tentative_tbp *tbp, *tbq;
+  gfc_symbol *p;
+  unsigned i;
 
-  for (p = changed_syms; p; p = q)
+  FOR_EACH_VEC_ELT (latest_undo_chgset->syms, i, p)
     {
-      q = p->tlink;
-
       if (p->gfc_new)
 	{
 	  /* Symbol was new.  */
@@ -2790,6 +3077,19 @@ gfc_undo_symbols (void)
 	      /* If the symbol was added to any common block, it
 		 needs to be removed to stop the resolver looking
 		 for a (possibly) dead symbol.  */
+
+	      if (p->common_block->head == p && !p->common_next)
+		{
+		  gfc_symtree st, *st0;
+		  st0 = find_common_symtree (p->ns->common_root,
+					     p->common_block);
+		  if (st0)
+		    {
+		      st.name = st0->name;
+		      gfc_delete_bbt (&p->ns->common_root, &st, compare_symtree);
+		      free (st0);
+		    }
+		}
 
 	      if (p->common_block->head == p)
 	        p->common_block->head = p->common_next;
@@ -2812,77 +3112,48 @@ gfc_undo_symbols (void)
 		}
 	    }
 
-	  gfc_delete_symtree (&p->ns->sym_root, p->name);
+	  /* The derived type is saved in the symtree with the first
+	     letter capitalized; the all lower-case version to the
+	     derived type contains its associated generic function.  */
+	  if (p->attr.flavor == FL_DERIVED)
+	    gfc_delete_symtree (&p->ns->sym_root, gfc_get_string ("%c%s",
+                        (char) TOUPPER ((unsigned char) p->name[0]),
+                        &p->name[1]));
+	  else
+	    gfc_delete_symtree (&p->ns->sym_root, p->name);
 
-	  p->refs--;
-	  if (p->refs < 0)
-	    gfc_internal_error ("gfc_undo_symbols(): Negative refs");
-	  if (p->refs == 0)
-	    gfc_free_symbol (p);
-	  continue;
-	}
-
-      /* Restore previous state of symbol.  Just copy simple stuff.  */
-      p->mark = 0;
-      old = p->old_symbol;
-
-      p->ts.type = old->ts.type;
-      p->ts.kind = old->ts.kind;
-
-      p->attr = old->attr;
-
-      if (p->value != old->value)
-	{
-	  gfc_free_expr (old->value);
-	  p->value = NULL;
-	}
-
-      if (p->as != old->as)
-	{
-	  if (p->as)
-	    gfc_free_array_spec (p->as);
-	  p->as = old->as;
-	}
-
-      p->generic = old->generic;
-      p->component_access = old->component_access;
-
-      if (p->namelist != NULL && old->namelist == NULL)
-	{
-	  gfc_free_namelist (p->namelist);
-	  p->namelist = NULL;
+	  gfc_release_symbol (p);
 	}
       else
-	{
-	  if (p->namelist_tail != old->namelist_tail)
-	    {
-	      gfc_free_namelist (old->namelist_tail);
-	      old->namelist_tail->next = NULL;
-	    }
-	}
-
-      p->namelist_tail = old->namelist_tail;
-
-      if (p->formal != old->formal)
-	{
-	  gfc_free_formal_arglist (p->formal);
-	  p->formal = old->formal;
-	}
-
-      gfc_free (p->old_symbol);
-      p->old_symbol = NULL;
-      p->tlink = NULL;
+	restore_old_symbol (p);
     }
 
-  changed_syms = NULL;
+  latest_undo_chgset->syms.truncate (0);
+  latest_undo_chgset->tbps.truncate (0);
 
-  for (tbp = tentative_tbp_list; tbp; tbp = tbq)
-    {
-      tbq = tbp->next;
-      /* Procedure is already marked `error' by default.  */
-      gfc_free (tbp);
-    }
-  tentative_tbp_list = NULL;
+  if (!single_undo_checkpoint_p ())
+    pop_undo_change_set (latest_undo_chgset);
+}
+
+
+/* Makes sure that there is only one set of changes; in other words we haven't
+   forgotten to pair a call to gfc_new_checkpoint with a call to either
+   gfc_drop_last_undo_checkpoint or gfc_restore_last_undo_checkpoint.  */
+
+static void
+enforce_single_undo_checkpoint (void)
+{
+  gcc_checking_assert (single_undo_checkpoint_p ());
+}
+
+
+/* Undoes all the changes made to symbols in the current statement.  */
+
+void
+gfc_undo_symbols (void)
+{
+  enforce_single_undo_checkpoint ();
+  gfc_restore_last_undo_checkpoint ();
 }
 
 
@@ -2908,7 +3179,7 @@ free_old_symbol (gfc_symbol *sym)
   if (sym->old_symbol->formal != sym->formal)
     gfc_free_formal_arglist (sym->old_symbol->formal);
 
-  gfc_free (sym->old_symbol);
+  free (sym->old_symbol);
   sym->old_symbol = NULL;
 }
 
@@ -2919,26 +3190,23 @@ free_old_symbol (gfc_symbol *sym)
 void
 gfc_commit_symbols (void)
 {
-  gfc_symbol *p, *q;
-  tentative_tbp *tbp, *tbq;
+  gfc_symbol *p;
+  gfc_typebound_proc *tbp;
+  unsigned i;
 
-  for (p = changed_syms; p; p = q)
+  enforce_single_undo_checkpoint ();
+
+  FOR_EACH_VEC_ELT (latest_undo_chgset->syms, i, p)
     {
-      q = p->tlink;
-      p->tlink = NULL;
       p->mark = 0;
       p->gfc_new = 0;
       free_old_symbol (p);
     }
-  changed_syms = NULL;
+  latest_undo_chgset->syms.truncate (0);
 
-  for (tbp = tentative_tbp_list; tbp; tbp = tbq)
-    {
-      tbq = tbp->next;
-      tbp->proc->error = 0;
-      gfc_free (tbp);
-    }
-  tentative_tbp_list = NULL;
+  FOR_EACH_VEC_ELT (latest_undo_chgset->tbps, i, tbp)
+    tbp->error = 0;
+  latest_undo_chgset->tbps.truncate (0);
 }
 
 
@@ -2949,20 +3217,17 @@ void
 gfc_commit_symbol (gfc_symbol *sym)
 {
   gfc_symbol *p;
+  unsigned i;
 
-  if (changed_syms == sym)
-    changed_syms = sym->tlink;
-  else
-    {
-      for (p = changed_syms; p; p = p->tlink)
-        if (p->tlink == sym)
-          {
-            p->tlink = sym->tlink;
-            break;
-          }
-    }
+  enforce_single_undo_checkpoint ();
 
-  sym->tlink = NULL;
+  FOR_EACH_VEC_ELT (latest_undo_chgset->syms, i, p)
+    if (p == sym)
+      {
+	latest_undo_chgset->syms.unordered_remove (i);
+	break;
+      }
+
   sym->mark = 0;
   sym->gfc_new = 0;
 
@@ -2984,7 +3249,7 @@ free_tb_tree (gfc_symtree *t)
   /* TODO: Free type-bound procedure structs themselves; probably needs some
      sort of ref-counting mechanism.  */
 
-  gfc_free (t);
+  free (t);
 }
 
 
@@ -3000,7 +3265,7 @@ free_common_tree (gfc_symtree * common_tree)
   free_common_tree (common_tree->left);
   free_common_tree (common_tree->right);
 
-  gfc_free (common_tree);
+  free (common_tree);
 }  
 
 
@@ -3017,8 +3282,8 @@ free_uop_tree (gfc_symtree *uop_tree)
   free_uop_tree (uop_tree->right);
 
   gfc_free_interface (uop_tree->n.uop->op);
-  gfc_free (uop_tree->n.uop);
-  gfc_free (uop_tree);
+  free (uop_tree->n.uop);
+  free (uop_tree);
 }
 
 
@@ -3028,36 +3293,14 @@ free_uop_tree (gfc_symtree *uop_tree)
 static void
 free_sym_tree (gfc_symtree *sym_tree)
 {
-  gfc_namespace *ns;
-  gfc_symbol *sym;
-
   if (sym_tree == NULL)
     return;
 
   free_sym_tree (sym_tree->left);
   free_sym_tree (sym_tree->right);
 
-  sym = sym_tree->n.sym;
-
-  sym->refs--;
-  if (sym->refs < 0)
-    gfc_internal_error ("free_sym_tree(): Negative refs");
-
-  if (sym->formal_ns != NULL && sym->refs == 1)
-    {
-      /* As formal_ns contains a reference to sym, delete formal_ns just
-         before the deletion of sym.  */
-      ns = sym->formal_ns;
-      sym->formal_ns = NULL;
-      gfc_free_namespace (ns);
-    }
-  else if (sym->refs == 0)
-    {
-      /* Go ahead and delete the symbol.  */
-      gfc_free_symbol (sym);
-    }
-
-  gfc_free (sym_tree);
+  gfc_release_symbol (sym_tree->n.sym);
+  free (sym_tree);
 }
 
 
@@ -3071,7 +3314,7 @@ gfc_free_dt_list (void)
   for (dt = gfc_derived_types; dt; dt = n)
     {
       n = dt->next;
-      gfc_free (dt);
+      free (dt);
     }
 
   gfc_derived_types = NULL;
@@ -3086,7 +3329,7 @@ gfc_free_equiv_infos (gfc_equiv_info *s)
   if (s == NULL)
     return;
   gfc_free_equiv_infos (s->next);
-  gfc_free (s);
+  free (s);
 }
 
 
@@ -3099,7 +3342,7 @@ gfc_free_equiv_lists (gfc_equiv_list *l)
     return;
   gfc_free_equiv_lists (l->next);
   gfc_free_equiv_infos (l->equiv);
-  gfc_free (l);
+  free (l);
 }
 
 
@@ -3110,14 +3353,8 @@ gfc_free_finalizer (gfc_finalizer* el)
 {
   if (el)
     {
-      if (el->proc_sym)
-	{
-	  --el->proc_sym->refs;
-	  if (!el->proc_sym->refs)
-	    gfc_free_symbol (el->proc_sym);
-	}
-
-      gfc_free (el);
+      gfc_release_symbol (el->proc_sym);
+      free (el);
     }
 }
 
@@ -3142,18 +3379,28 @@ gfc_new_charlen (gfc_namespace *ns, gfc_charlen *old_cl)
   gfc_charlen *cl;
   cl = gfc_get_charlen ();
 
-  /* Put into namespace.  */
-  cl->next = ns->cl_list;
-  ns->cl_list = cl;
-
   /* Copy old_cl.  */
   if (old_cl)
     {
+      /* Put into namespace, but don't allow reject_statement
+	 to free it if old_cl is given.  */
+      gfc_charlen **prev = &ns->cl_list;
+      cl->next = ns->old_cl_list;
+      while (*prev != ns->old_cl_list)
+	prev = &(*prev)->next;
+      *prev = cl;
+      ns->old_cl_list = cl;
       cl->length = gfc_copy_expr (old_cl->length);
       cl->length_from_typespec = old_cl->length_from_typespec;
       cl->backend_decl = old_cl->backend_decl;
       cl->passed_length = old_cl->passed_length;
       cl->resolved = old_cl->resolved;
+    }
+  else
+    {
+      /* Put into namespace.  */
+      cl->next = ns->cl_list;
+      ns->cl_list = cl;
     }
 
   return cl;
@@ -3163,7 +3410,8 @@ gfc_new_charlen (gfc_namespace *ns, gfc_charlen *old_cl)
 /* Free the charlen list from cl to end (end is not freed). 
    Free the whole list if end is NULL.  */
 
-void gfc_free_charlen (gfc_charlen *cl, gfc_charlen *end)
+void
+gfc_free_charlen (gfc_charlen *cl, gfc_charlen *end)
 {
   gfc_charlen *cl2;
 
@@ -3173,8 +3421,24 @@ void gfc_free_charlen (gfc_charlen *cl, gfc_charlen *end)
 
       cl2 = cl->next;
       gfc_free_expr (cl->length);
-      gfc_free (cl);
+      free (cl);
     }
+}
+
+
+/* Free entry list structs.  */
+
+static void
+free_entry_list (gfc_entry_list *el)
+{
+  gfc_entry_list *next;
+
+  if (el == NULL)
+    return;
+
+  next = el->next;
+  free (el);
+  free_entry_list (next);
 }
 
 
@@ -3207,6 +3471,7 @@ gfc_free_namespace (gfc_namespace *ns)
   gfc_free_charlen (ns->cl_list, NULL);
   free_st_labels (ns->st_labels);
 
+  free_entry_list (ns->entries);
   gfc_free_equiv (ns->equiv);
   gfc_free_equiv_lists (ns->equiv_lists);
   gfc_free_use_stmts (ns->use_stmts);
@@ -3216,7 +3481,7 @@ gfc_free_namespace (gfc_namespace *ns)
 
   gfc_free_data (ns->data);
   p = ns->contained;
-  gfc_free (ns);
+  free (ns);
 
   /* Recursively free any contained namespaces.  */
   while (p != NULL)
@@ -3239,53 +3504,90 @@ gfc_symbol_init_2 (void)
 void
 gfc_symbol_done_2 (void)
 {
-
   gfc_free_namespace (gfc_current_ns);
   gfc_current_ns = NULL;
   gfc_free_dt_list ();
+
+  enforce_single_undo_checkpoint ();
+  free_undo_change_set_data (*latest_undo_chgset);
 }
 
 
-/* Clear mark bits from symbol nodes associated with a symtree node.  */
+/* Count how many nodes a symtree has.  */
+
+static unsigned
+count_st_nodes (const gfc_symtree *st)
+{
+  unsigned nodes;
+  if (!st)
+    return 0;
+
+  nodes = count_st_nodes (st->left);
+  nodes++;
+  nodes += count_st_nodes (st->right);
+
+  return nodes;
+}
+
+
+/* Convert symtree tree into symtree vector.  */
+
+static unsigned
+fill_st_vector (gfc_symtree *st, gfc_symtree **st_vec, unsigned node_cntr)
+{
+  if (!st)
+    return node_cntr;
+
+  node_cntr = fill_st_vector (st->left, st_vec, node_cntr);
+  st_vec[node_cntr++] = st;
+  node_cntr = fill_st_vector (st->right, st_vec, node_cntr);
+
+  return node_cntr;
+}
+
+
+/* Traverse namespace.  As the functions might modify the symtree, we store the
+   symtree as a vector and operate on this vector.  Note: We assume that
+   sym_func or st_func never deletes nodes from the symtree - only adding is
+   allowed. Additionally, newly added nodes are not traversed.  */
 
 static void
-clear_sym_mark (gfc_symtree *st)
+do_traverse_symtree (gfc_symtree *st, void (*st_func) (gfc_symtree *),
+		     void (*sym_func) (gfc_symbol *))
 {
+  gfc_symtree **st_vec;
+  unsigned nodes, i, node_cntr;
 
-  st->n.sym->mark = 0;
+  gcc_assert ((st_func && !sym_func) || (!st_func && sym_func));
+  nodes = count_st_nodes (st);
+  st_vec = XALLOCAVEC (gfc_symtree *, nodes);
+  node_cntr = 0; 
+  fill_st_vector (st, st_vec, node_cntr);
+
+  if (sym_func)
+    {
+      /* Clear marks.  */
+      for (i = 0; i < nodes; i++)
+	st_vec[i]->n.sym->mark = 0;
+      for (i = 0; i < nodes; i++)
+	if (!st_vec[i]->n.sym->mark)
+	  {
+	    (*sym_func) (st_vec[i]->n.sym);
+	    st_vec[i]->n.sym->mark = 1;
+	  }
+     }
+   else
+      for (i = 0; i < nodes; i++)
+	(*st_func) (st_vec[i]);
 }
 
 
 /* Recursively traverse the symtree nodes.  */
 
 void
-gfc_traverse_symtree (gfc_symtree *st, void (*func) (gfc_symtree *))
+gfc_traverse_symtree (gfc_symtree *st, void (*st_func) (gfc_symtree *))
 {
-  if (!st)
-    return;
-
-  gfc_traverse_symtree (st->left, func);
-  (*func) (st);
-  gfc_traverse_symtree (st->right, func);
-}
-
-
-/* Recursive namespace traversal function.  */
-
-static void
-traverse_ns (gfc_symtree *st, void (*func) (gfc_symbol *))
-{
-
-  if (st == NULL)
-    return;
-
-  traverse_ns (st->left, func);
-
-  if (st->n.sym->mark == 0)
-    (*func) (st->n.sym);
-  st->n.sym->mark = 1;
-
-  traverse_ns (st->right, func);
+  do_traverse_symtree (st, st_func, NULL);
 }
 
 
@@ -3293,12 +3595,9 @@ traverse_ns (gfc_symtree *st, void (*func) (gfc_symbol *))
    care that each gfc_symbol node is called exactly once.  */
 
 void
-gfc_traverse_ns (gfc_namespace *ns, void (*func) (gfc_symbol *))
+gfc_traverse_ns (gfc_namespace *ns, void (*sym_func) (gfc_symbol *))
 {
-
-  gfc_traverse_symtree (ns->sym_root, clear_sym_mark);
-
-  traverse_ns (ns->sym_root, func);
+  do_traverse_symtree (ns->sym_root, NULL, sym_func);
 }
 
 
@@ -3357,7 +3656,7 @@ save_symbol (gfc_symbol *sym)
   /* Automatic objects are not saved.  */
   if (gfc_is_var_automatic (sym))
     return;
-  gfc_add_save (&sym->attr, sym->name, &sym->declared_at);
+  gfc_add_save (&sym->attr, SAVE_EXPLICIT, sym->name, &sym->declared_at);
 }
 
 
@@ -3370,16 +3669,14 @@ gfc_save_all (gfc_namespace *ns)
 }
 
 
-#ifdef GFC_DEBUG
 /* Make sure that no changes to symbols are pending.  */
 
 void
-gfc_symbol_state(void) {
-
-  if (changed_syms != NULL)
-    gfc_internal_error("Symbol changes still pending!");
+gfc_enforce_clean_symbol_state(void)
+{
+  enforce_single_undo_checkpoint ();
+  gcc_assert (latest_undo_chgset->syms.is_empty ());
 }
-#endif
 
 
 /************** Global symbol handling ************/
@@ -3501,13 +3798,24 @@ verify_bind_c_derived_type (gfc_symbol *derived_sym)
   
   curr_comp = derived_sym->components;
 
-  /* TODO: is this really an error?  */
+  /* Fortran 2003 allows an empty derived type.  C99 appears to disallow an
+     empty struct.  Section 15.2 in Fortran 2003 states:  "The following
+     subclauses define the conditions under which a Fortran entity is
+     interoperable.  If a Fortran entity is interoperable, an equivalent
+     entity may be defined by means of C and the Fortran entity is said
+     to be interoperable with the C entity.  There does not have to be such
+     an interoperating C entity."
+  */
   if (curr_comp == NULL)
     {
-      gfc_error ("Derived type '%s' at %L is empty",
-		 derived_sym->name, &(derived_sym->declared_at));
-      return FAILURE;
+      gfc_warning ("Derived type '%s' with BIND(C) attribute at %L is empty, "
+		   "and may be inaccessible by the C companion processor",
+		   derived_sym->name, &(derived_sym->declared_at));
+      derived_sym->ts.is_c_interop = 1;
+      derived_sym->attr.is_bind_c = 1;
+      return SUCCESS;
     }
+
 
   /* Initialize the derived type as being C interoperable.
      If we find an error in the components, this will be set false.  */
@@ -3564,7 +3872,7 @@ verify_bind_c_derived_type (gfc_symbol *derived_sym)
       else
 	{
 	  /* Grab the typespec for the given component and test the kind.  */ 
-	  is_c_interop = verify_c_interop (&(curr_comp->ts));
+	  is_c_interop = gfc_verify_c_interop (&(curr_comp->ts));
 	  
 	  if (is_c_interop != SUCCESS)
 	    {
@@ -3577,7 +3885,8 @@ verify_bind_c_derived_type (gfc_symbol *derived_sym)
 		 recompiles with different flags (e.g., -m32 and -m64 on
 		 x86_64 and using integer(4) to claim interop with a
 		 C_LONG).  */
-	      if (derived_sym->attr.is_bind_c == 1)
+	      if (derived_sym->attr.is_bind_c == 1
+		  && gfc_option.warn_c_binding_type)
 		/* If the derived type is bind(c), all fields must be
 		   interop.  */
 		gfc_warning ("Component '%s' in derived type '%s' at %L "
@@ -3585,7 +3894,7 @@ verify_bind_c_derived_type (gfc_symbol *derived_sym)
                              "derived type '%s' is BIND(C)",
                              curr_comp->name, derived_sym->name,
                              &(curr_comp->loc), derived_sym->name);
-	      else
+	      else if (gfc_option.warn_c_binding_type)
 		/* If derived type is param to bind(c) routine, or to one
 		   of the iso_c_binding procs, it must be interoperable, so
 		   all fields must interop too.	 */
@@ -3635,6 +3944,7 @@ gen_special_c_interop_ptr (int ptr_id, const char *ptr_name,
 {
   gfc_symtree *tmp_symtree;
   gfc_symbol *tmp_sym;
+  gfc_constructor *c;
 
   tmp_symtree = gfc_find_symtree (gfc_current_ns->sym_root, ptr_name);
 	 
@@ -3647,13 +3957,11 @@ gen_special_c_interop_ptr (int ptr_id, const char *ptr_name,
                           "create symbol for %s", ptr_name);
     }
 
-  /* Set up the symbol's important fields.  Save attr required so we can
-     initialize the ptr to NULL.  */
-  tmp_sym->attr.save = SAVE_EXPLICIT;
   tmp_sym->ts.is_c_interop = 1;
   tmp_sym->attr.is_c_interop = 1;
   tmp_sym->ts.is_iso_c = 1;
   tmp_sym->ts.type = BT_DERIVED;
+  tmp_sym->attr.flavor = FL_PARAMETER;
 
   /* The c_ptr and c_funptr derived types will provide the
      definition for c_null_ptr and c_null_funptr, respectively.  */
@@ -3668,15 +3976,15 @@ gen_special_c_interop_ptr (int ptr_id, const char *ptr_name,
          that has arg(s) of the missing type.  In this case, a
          regular version of the thing should have been put in the
          current ns.  */
+
       generate_isocbinding_symbol (module_name, ptr_id == ISOCBINDING_NULL_PTR 
                                    ? ISOCBINDING_PTR : ISOCBINDING_FUNPTR,
                                    (const char *) (ptr_id == ISOCBINDING_NULL_PTR 
-				   ? "_gfortran_iso_c_binding_c_ptr"
-				   : "_gfortran_iso_c_binding_c_funptr"));
-
+				   ? "c_ptr"
+				   : "c_funptr"));
       tmp_sym->ts.u.derived =
-        get_iso_c_binding_dt (ptr_id == ISOCBINDING_NULL_PTR
-                              ? ISOCBINDING_PTR : ISOCBINDING_FUNPTR);
+	get_iso_c_binding_dt (ptr_id == ISOCBINDING_NULL_PTR
+			      ? ISOCBINDING_PTR : ISOCBINDING_FUNPTR);
     }
 
   /* Module name is some mangled version of iso_c_binding.  */
@@ -3687,8 +3995,8 @@ gen_special_c_interop_ptr (int ptr_id, const char *ptr_name,
   
   tmp_sym->attr.use_assoc = 1;
   tmp_sym->attr.is_bind_c = 1;
-  /* Set the binding_label.  */
-  sprintf (tmp_sym->binding_label, "%s_%s", module_name, tmp_sym->name);
+  /* Since we never generate a call to this symbol, don't set the
+     binding_label.  */
   
   /* Set the c_address field of c_null_ptr and c_null_funptr to
      the value of NULL.	 */
@@ -3696,13 +4004,11 @@ gen_special_c_interop_ptr (int ptr_id, const char *ptr_name,
   tmp_sym->value->expr_type = EXPR_STRUCTURE;
   tmp_sym->value->ts.type = BT_DERIVED;
   tmp_sym->value->ts.u.derived = tmp_sym->ts.u.derived;
-  tmp_sym->value->value.constructor = gfc_get_constructor ();
-  tmp_sym->value->value.constructor->expr = gfc_get_expr ();
-  tmp_sym->value->value.constructor->expr->expr_type = EXPR_NULL;
-  tmp_sym->value->value.constructor->expr->ts.is_iso_c = 1;
-  /* Must declare c_null_ptr and c_null_funptr as having the
-     PARAMETER attribute so they can be used in init expressions.  */
-  tmp_sym->attr.flavor = FL_PARAMETER;
+  gfc_constructor_append_expr (&tmp_sym->value->value.constructor, NULL, NULL);
+  c = gfc_constructor_first (tmp_sym->value->value.constructor);
+  c->expr = gfc_get_expr ();
+  c->expr->expr_type = EXPR_NULL;
+  c->expr->ts.is_iso_c = 1;
 
   return SUCCESS;
 }
@@ -3753,9 +4059,9 @@ gen_cptr_param (gfc_formal_arglist **head,
   const char *c_ptr_type = NULL;
 
   if (iso_c_sym_id == ISOCBINDING_F_PROCPOINTER)
-    c_ptr_type = "_gfortran_iso_c_binding_c_funptr";
+    c_ptr_type = "c_funptr";
   else
-    c_ptr_type = "_gfortran_iso_c_binding_c_ptr";
+    c_ptr_type = "c_ptr";
 
   if(c_ptr_name == NULL)
     c_ptr_in = "gfc_cptr__";
@@ -3875,7 +4181,6 @@ gen_shape_param (gfc_formal_arglist **head,
   gfc_symtree *param_symtree = NULL;
   gfc_formal_arglist *formal_arg = NULL;
   const char *shape_param = "gfc_shape_array__";
-  int i;
 
   if (shape_param_name != NULL)
     shape_param = shape_param_name;
@@ -3901,17 +4206,12 @@ gen_shape_param (gfc_formal_arglist **head,
   /* Initialize the kind to default integer.  However, it will be overridden
      during resolution to match the kind of the SHAPE parameter given as
      the actual argument (to allow for any valid integer kind).  */
-  param_sym->ts.kind = gfc_default_integer_kind;   
+  param_sym->ts.kind = gfc_default_integer_kind;
   param_sym->as = gfc_get_array_spec ();
 
-  /* Clear out the dimension info for the array.  */
-  for (i = 0; i < GFC_MAX_DIMENSIONS; i++)
-    {
-      param_sym->as->lower[i] = NULL;
-      param_sym->as->upper[i] = NULL;
-    }
   param_sym->as->rank = 1;
-  param_sym->as->lower[0] = gfc_int_expr (1);
+  param_sym->as->lower[0] = gfc_get_int_expr (gfc_default_integer_kind,
+					      NULL, 1);
 
   /* The extent is unknown until we get it.  The length give us
      the rank the incoming pointer.  */
@@ -3938,8 +4238,7 @@ gen_shape_param (gfc_formal_arglist **head,
    reference to the list of formal arguments).  */
 
 static void
-add_proc_interface (gfc_symbol *sym, ifsrc source,
-                    gfc_formal_arglist *formal)
+add_proc_interface (gfc_symbol *sym, ifsrc source, gfc_formal_arglist *formal)
 {
 
   sym->formal = formal;
@@ -3953,62 +4252,6 @@ add_proc_interface (gfc_symbol *sym, ifsrc source,
    used when creating procedure declaration variables from a procedure
    declaration statement (see match_proc_decl()) to create the formal
    args based on the args of a given named interface.  */
-
-void
-gfc_copy_formal_args (gfc_symbol *dest, gfc_symbol *src)
-{
-  gfc_formal_arglist *head = NULL;
-  gfc_formal_arglist *tail = NULL;
-  gfc_formal_arglist *formal_arg = NULL;
-  gfc_formal_arglist *curr_arg = NULL;
-  gfc_formal_arglist *formal_prev = NULL;
-  /* Save current namespace so we can change it for formal args.  */
-  gfc_namespace *parent_ns = gfc_current_ns;
-
-  /* Create a new namespace, which will be the formal ns (namespace
-     of the formal args).  */
-  gfc_current_ns = gfc_get_namespace (parent_ns, 0);
-  gfc_current_ns->proc_name = dest;
-
-  for (curr_arg = src->formal; curr_arg; curr_arg = curr_arg->next)
-    {
-      formal_arg = gfc_get_formal_arglist ();
-      gfc_get_symbol (curr_arg->sym->name, gfc_current_ns, &(formal_arg->sym));
-
-      /* May need to copy more info for the symbol.  */
-      formal_arg->sym->attr = curr_arg->sym->attr;
-      formal_arg->sym->ts = curr_arg->sym->ts;
-      formal_arg->sym->as = gfc_copy_array_spec (curr_arg->sym->as);
-      gfc_copy_formal_args (formal_arg->sym, curr_arg->sym);
-
-      /* If this isn't the first arg, set up the next ptr.  For the
-        last arg built, the formal_arg->next will never get set to
-        anything other than NULL.  */
-      if (formal_prev != NULL)
-	formal_prev->next = formal_arg;
-      else
-	formal_arg->next = NULL;
-
-      formal_prev = formal_arg;
-
-      /* Add arg to list of formal args.  */
-      add_formal_arg (&head, &tail, formal_arg, formal_arg->sym);
-
-      /* Validate changes.  */
-      gfc_commit_symbol (formal_arg->sym);
-    }
-
-  /* Add the interface to the symbol.  */
-  add_proc_interface (dest, IFSRC_DECL, head);
-
-  /* Store the formal namespace information.  */
-  if (dest->formal != NULL)
-    /* The current ns should be that for the dest proc.  */
-    dest->formal_ns = gfc_current_ns;
-  /* Restore the current namespace to what it was on entry.  */
-  gfc_current_ns = parent_ns;
-}
-
 
 void
 gfc_copy_formal_args_intr (gfc_symbol *dest, gfc_intrinsic_sym *src)
@@ -4034,6 +4277,7 @@ gfc_copy_formal_args_intr (gfc_symbol *dest, gfc_intrinsic_sym *src)
       /* May need to copy more info for the symbol.  */
       formal_arg->sym->ts = curr_arg->ts;
       formal_arg->sym->attr.optional = curr_arg->optional;
+      formal_arg->sym->attr.value = curr_arg->value;
       formal_arg->sym->attr.intent = curr_arg->intent;
       formal_arg->sym->attr.flavor = FL_VARIABLE;
       formal_arg->sym->attr.dummy = 1;
@@ -4060,63 +4304,6 @@ gfc_copy_formal_args_intr (gfc_symbol *dest, gfc_intrinsic_sym *src)
 
   /* Add the interface to the symbol.  */
   add_proc_interface (dest, IFSRC_DECL, head);
-
-  /* Store the formal namespace information.  */
-  if (dest->formal != NULL)
-    /* The current ns should be that for the dest proc.  */
-    dest->formal_ns = gfc_current_ns;
-  /* Restore the current namespace to what it was on entry.  */
-  gfc_current_ns = parent_ns;
-}
-
-
-void
-gfc_copy_formal_args_ppc (gfc_component *dest, gfc_symbol *src)
-{
-  gfc_formal_arglist *head = NULL;
-  gfc_formal_arglist *tail = NULL;
-  gfc_formal_arglist *formal_arg = NULL;
-  gfc_formal_arglist *curr_arg = NULL;
-  gfc_formal_arglist *formal_prev = NULL;
-  /* Save current namespace so we can change it for formal args.  */
-  gfc_namespace *parent_ns = gfc_current_ns;
-
-  /* Create a new namespace, which will be the formal ns (namespace
-     of the formal args).  */
-  gfc_current_ns = gfc_get_namespace (parent_ns, 0);
-  /* TODO: gfc_current_ns->proc_name = dest;*/
-
-  for (curr_arg = src->formal; curr_arg; curr_arg = curr_arg->next)
-    {
-      formal_arg = gfc_get_formal_arglist ();
-      gfc_get_symbol (curr_arg->sym->name, gfc_current_ns, &(formal_arg->sym));
-
-      /* May need to copy more info for the symbol.  */
-      formal_arg->sym->attr = curr_arg->sym->attr;
-      formal_arg->sym->ts = curr_arg->sym->ts;
-      formal_arg->sym->as = gfc_copy_array_spec (curr_arg->sym->as);
-      gfc_copy_formal_args (formal_arg->sym, curr_arg->sym);
-
-      /* If this isn't the first arg, set up the next ptr.  For the
-        last arg built, the formal_arg->next will never get set to
-        anything other than NULL.  */
-      if (formal_prev != NULL)
-	formal_prev->next = formal_arg;
-      else
-	formal_arg->next = NULL;
-
-      formal_prev = formal_arg;
-
-      /* Add arg to list of formal args.  */
-      add_formal_arg (&head, &tail, formal_arg, formal_arg->sym);
-
-      /* Validate changes.  */
-      gfc_commit_symbol (formal_arg->sym);
-    }
-
-  /* Add the interface to the symbol.  */
-  dest->formal = head;
-  dest->attr.if_source = IFSRC_DECL;
 
   /* Store the formal namespace information.  */
   if (dest->formal != NULL)
@@ -4205,6 +4392,13 @@ std_for_isocbinding_symbol (int id)
         return d;
 #include "iso-c-binding.def"
 #undef NAMED_INTCST
+
+#define NAMED_FUNCTION(a,b,c,d) \
+      case a:\
+        return d;
+#include "iso-c-binding.def"
+#undef NAMED_FUNCTION
+
        default:
          return GFC_STD_F2003;
     }
@@ -4229,19 +4423,31 @@ generate_isocbinding_symbol (const char *mod_name, iso_c_binding_symbol s,
 					     : c_interop_kinds_table[s].name;
   gfc_symtree *tmp_symtree = NULL;
   gfc_symbol *tmp_sym = NULL;
-  gfc_dt_list **dt_list_ptr = NULL;
-  gfc_component *tmp_comp = NULL;
-  char comp_name[(GFC_MAX_SYMBOL_LEN * 2) + 1];
   int index;
 
   if (gfc_notification_std (std_for_isocbinding_symbol (s)) == ERROR)
     return;
+
   tmp_symtree = gfc_find_symtree (gfc_current_ns->sym_root, name);
 
-  /* Already exists in this scope so don't re-add it.
-     TODO: we should probably check that it's really the same symbol.  */
-  if (tmp_symtree != NULL)
-    return;
+  /* Already exists in this scope so don't re-add it. */
+  if (tmp_symtree != NULL && (tmp_sym = tmp_symtree->n.sym) != NULL
+      && (!tmp_sym->attr.generic
+	  || (tmp_sym = gfc_find_dt_in_generic (tmp_sym)) != NULL)
+      && tmp_sym->from_intmod == INTMOD_ISO_C_BINDING)
+    {
+      if (tmp_sym->attr.flavor == FL_DERIVED
+	  && !get_iso_c_binding_dt (tmp_sym->intmod_sym_id))
+	{
+	  gfc_dt_list *dt_list;
+	  dt_list = gfc_get_dt_list ();
+	  dt_list->derived = tmp_sym;
+	  dt_list->next = gfc_derived_types;
+  	  gfc_derived_types = dt_list;
+        }
+
+      return;
+    }
 
   /* Create the sym tree in the current ns.  */
   gfc_get_sym_tree (name, gfc_current_ns, &tmp_symtree, false);
@@ -4260,13 +4466,14 @@ generate_isocbinding_symbol (const char *mod_name, iso_c_binding_symbol s,
     {
 
 #define NAMED_INTCST(a,b,c,d) case a : 
-#define NAMED_REALCST(a,b,c) case a :
-#define NAMED_CMPXCST(a,b,c) case a :
+#define NAMED_REALCST(a,b,c,d) case a :
+#define NAMED_CMPXCST(a,b,c,d) case a :
 #define NAMED_LOGCST(a,b,c) case a :
 #define NAMED_CHARKNDCST(a,b,c) case a :
 #include "iso-c-binding.def"
 
-	tmp_sym->value = gfc_int_expr (c_interop_kinds_table[s].value);
+	tmp_sym->value = gfc_get_int_expr (gfc_default_integer_kind, NULL,
+				 	   c_interop_kinds_table[s].value);
 
 	/* Initialize an integer constant expression node.  */
 	tmp_sym->attr.flavor = FL_PARAMETER;
@@ -4296,20 +4503,16 @@ generate_isocbinding_symbol (const char *mod_name, iso_c_binding_symbol s,
 
 	/* Initialize an integer constant expression node for the
 	   length of the character.  */
-	tmp_sym->value = gfc_get_expr (); 
-	tmp_sym->value->expr_type = EXPR_CONSTANT;
-	tmp_sym->value->ts.type = BT_CHARACTER;
-	tmp_sym->value->ts.kind = gfc_default_character_kind;
-	tmp_sym->value->where = gfc_current_locus;
+	tmp_sym->value = gfc_get_character_expr (gfc_default_character_kind,
+						 &gfc_current_locus, NULL, 1);
 	tmp_sym->value->ts.is_c_interop = 1;
 	tmp_sym->value->ts.is_iso_c = 1;
 	tmp_sym->value->value.character.length = 1;
-	tmp_sym->value->value.character.string = gfc_get_wide_string (2);
 	tmp_sym->value->value.character.string[0]
 	  = (gfc_char_t) c_interop_kinds_table[s].value;
-	tmp_sym->value->value.character.string[1] = '\0';
 	tmp_sym->ts.u.cl = gfc_new_charlen (gfc_current_ns, NULL);
-	tmp_sym->ts.u.cl->length = gfc_int_expr (1);
+	tmp_sym->ts.u.cl->length = gfc_get_int_expr (gfc_default_integer_kind,
+						     NULL, 1);
 
 	/* May not need this in both attr and ts, but do need in
 	   attr for writing module file.  */
@@ -4337,64 +4540,112 @@ generate_isocbinding_symbol (const char *mod_name, iso_c_binding_symbol s,
 
       case ISOCBINDING_PTR:
       case ISOCBINDING_FUNPTR:
+	{
+	  gfc_interface *intr, *head;
+	  gfc_symbol *dt_sym;
+	  const char *hidden_name;
+	  gfc_dt_list **dt_list_ptr = NULL;
+	  gfc_component *tmp_comp = NULL;
+	  char comp_name[(GFC_MAX_SYMBOL_LEN * 2) + 1];
 
-	/* Initialize an integer constant expression node.  */
-	tmp_sym->attr.flavor = FL_DERIVED;
-	tmp_sym->ts.is_c_interop = 1;
-	tmp_sym->attr.is_c_interop = 1;
-	tmp_sym->attr.is_iso_c = 1;
-	tmp_sym->ts.is_iso_c = 1;
-	tmp_sym->ts.type = BT_DERIVED;
+	  hidden_name = gfc_get_string ("%c%s",
+			    (char) TOUPPER ((unsigned char) tmp_sym->name[0]),
+                            &tmp_sym->name[1]);
 
-	/* A derived type must have the bind attribute to be
-	   interoperable (J3/04-007, Section 15.2.3), even though
-	   the binding label is not used.  */
-	tmp_sym->attr.is_bind_c = 1;
+	  /* Generate real derived type.  */
+	  tmp_symtree = gfc_find_symtree (gfc_current_ns->sym_root,
+					  hidden_name);
 
-	tmp_sym->attr.referenced = 1;
+	  if (tmp_symtree != NULL)
+	    gcc_unreachable ();
+	  gfc_get_sym_tree (hidden_name, gfc_current_ns, &tmp_symtree, false);
+	  if (tmp_symtree)
+	    dt_sym = tmp_symtree->n.sym;
+	  else
+	    gcc_unreachable ();
 
-	tmp_sym->ts.u.derived = tmp_sym;
+	  /* Generate an artificial generic function.  */
+	  dt_sym->name = gfc_get_string (tmp_sym->name);
+	  head = tmp_sym->generic;
+	  intr = gfc_get_interface ();
+	  intr->sym = dt_sym;
+	  intr->where = gfc_current_locus;
+	  intr->next = head;
+	  tmp_sym->generic = intr;
 
-        /* Add the symbol created for the derived type to the current ns.  */
-        dt_list_ptr = &(gfc_derived_types);
-        while (*dt_list_ptr != NULL && (*dt_list_ptr)->next != NULL)
-          dt_list_ptr = &((*dt_list_ptr)->next);
+	  if (!tmp_sym->attr.generic
+	      && gfc_add_generic (&tmp_sym->attr, tmp_sym->name, NULL)
+		 == FAILURE)
+	    return;
 
-        /* There is already at least one derived type in the list, so append
-           the one we're currently building for c_ptr or c_funptr.  */
-        if (*dt_list_ptr != NULL)
-          dt_list_ptr = &((*dt_list_ptr)->next);
-        (*dt_list_ptr) = gfc_get_dt_list ();
-        (*dt_list_ptr)->derived = tmp_sym;
-        (*dt_list_ptr)->next = NULL;
+	  if (!tmp_sym->attr.function
+	      && gfc_add_function (&tmp_sym->attr, tmp_sym->name, NULL)
+		 == FAILURE)
+	    return;
 
-        /* Set up the component of the derived type, which will be
-           an integer with kind equal to c_ptr_size.  Mangle the name of
-           the field for the c_address to prevent the curious user from
-           trying to access it from Fortran.  */
-        sprintf (comp_name, "__%s_%s", tmp_sym->name, "c_address");
-        gfc_add_component (tmp_sym, comp_name, &tmp_comp);
-        if (tmp_comp == NULL)
+	  /* Say what module this symbol belongs to.  */
+	  dt_sym->module = gfc_get_string (mod_name);
+	  dt_sym->from_intmod = INTMOD_ISO_C_BINDING;
+	  dt_sym->intmod_sym_id = s;
+
+	  /* Initialize an integer constant expression node.  */
+	  dt_sym->attr.flavor = FL_DERIVED;
+	  dt_sym->ts.is_c_interop = 1;
+	  dt_sym->attr.is_c_interop = 1;
+	  dt_sym->attr.is_iso_c = 1;
+	  dt_sym->ts.is_iso_c = 1;
+	  dt_sym->ts.type = BT_DERIVED;
+
+	  /* A derived type must have the bind attribute to be
+	     interoperable (J3/04-007, Section 15.2.3), even though
+	     the binding label is not used.  */
+	  dt_sym->attr.is_bind_c = 1;
+
+	  dt_sym->attr.referenced = 1;
+	  dt_sym->ts.u.derived = dt_sym;
+
+	  /* Add the symbol created for the derived type to the current ns.  */
+	  dt_list_ptr = &(gfc_derived_types);
+	  while (*dt_list_ptr != NULL && (*dt_list_ptr)->next != NULL)
+	    dt_list_ptr = &((*dt_list_ptr)->next);
+
+	  /* There is already at least one derived type in the list, so append
+	     the one we're currently building for c_ptr or c_funptr.  */
+	  if (*dt_list_ptr != NULL)
+	    dt_list_ptr = &((*dt_list_ptr)->next);
+	  (*dt_list_ptr) = gfc_get_dt_list ();
+	  (*dt_list_ptr)->derived = dt_sym;
+	  (*dt_list_ptr)->next = NULL;
+
+	  /* Set up the component of the derived type, which will be
+	     an integer with kind equal to c_ptr_size.  Mangle the name of
+	     the field for the c_address to prevent the curious user from
+	     trying to access it from Fortran.  */
+	  sprintf (comp_name, "__%s_%s", dt_sym->name, "c_address");
+	  gfc_add_component (dt_sym, comp_name, &tmp_comp);
+	  if (tmp_comp == NULL)
           gfc_internal_error ("generate_isocbinding_symbol(): Unable to "
 			      "create component for c_address");
 
-        tmp_comp->ts.type = BT_INTEGER;
+	  tmp_comp->ts.type = BT_INTEGER;
 
-        /* Set this because the module will need to read/write this field.  */
-        tmp_comp->ts.f90_type = BT_INTEGER;
+	  /* Set this because the module will need to read/write this field.  */
+	  tmp_comp->ts.f90_type = BT_INTEGER;
 
-        /* The kinds for c_ptr and c_funptr are the same.  */
-        index = get_c_kind ("c_ptr", c_interop_kinds_table);
-        tmp_comp->ts.kind = c_interop_kinds_table[index].value;
+	  /* The kinds for c_ptr and c_funptr are the same.  */
+	  index = get_c_kind ("c_ptr", c_interop_kinds_table);
+	  tmp_comp->ts.kind = c_interop_kinds_table[index].value;
 
-        tmp_comp->attr.pointer = 0;
-        tmp_comp->attr.dimension = 0;
+	  tmp_comp->attr.pointer = 0;
+	  tmp_comp->attr.dimension = 0;
 
-        /* Mark the component as C interoperable.  */
-        tmp_comp->ts.is_c_interop = 1;
+	  /* Mark the component as C interoperable.  */
+	  tmp_comp->ts.is_c_interop = 1;
 
-        /* Make it use associated (iso_c_binding module).  */
-        tmp_sym->attr.use_assoc = 1;
+	  /* Make it use associated (iso_c_binding module).  */
+	  dt_sym->attr.use_assoc = 1;
+	}
+
 	break;
 
       case ISOCBINDING_NULL_PTR:
@@ -4412,8 +4663,9 @@ generate_isocbinding_symbol (const char *mod_name, iso_c_binding_symbol s,
 
         /* Use the procedure's name as it is in the iso_c_binding module for
            setting the binding label in case the user renamed the symbol.  */
-	sprintf (tmp_sym->binding_label, "%s_%s", mod_name,
-                 c_interop_kinds_table[s].name);
+	tmp_sym->binding_label = 
+	  gfc_get_string ("%s_%s", mod_name, 
+			  c_interop_kinds_table[s].name);
 	tmp_sym->attr.is_iso_c = 1;
 	if (s == ISOCBINDING_F_POINTER || s == ISOCBINDING_F_PROCPOINTER)
 	  tmp_sym->attr.subroutine = 1;
@@ -4444,21 +4696,20 @@ generate_isocbinding_symbol (const char *mod_name, iso_c_binding_symbol s,
                   tmp_sym->ts.u.derived =
                     get_iso_c_binding_dt (ISOCBINDING_FUNPTR);
 
-                if (tmp_sym->ts.u.derived == NULL)
-                  {
+		if (tmp_sym->ts.u.derived == NULL)
+		  {
                     /* Create the necessary derived type so we can continue
                        processing the file.  */
-                    generate_isocbinding_symbol
+		    generate_isocbinding_symbol
 		      (mod_name, s == ISOCBINDING_FUNLOC
-				 ? ISOCBINDING_FUNPTR : ISOCBINDING_PTR,
-		       (const char *)(s == ISOCBINDING_FUNLOC
-                                ? "_gfortran_iso_c_binding_c_funptr"
-				: "_gfortran_iso_c_binding_c_ptr"));
+				? ISOCBINDING_FUNPTR : ISOCBINDING_PTR,
+		      (const char *)(s == ISOCBINDING_FUNLOC
+				? "c_funptr" : "c_ptr"));
                     tmp_sym->ts.u.derived =
-                      get_iso_c_binding_dt (s == ISOCBINDING_FUNLOC
-                                            ? ISOCBINDING_FUNPTR
-                                            : ISOCBINDING_PTR);
-                  }
+		    get_iso_c_binding_dt (s == ISOCBINDING_FUNLOC
+					    ? ISOCBINDING_FUNPTR
+					    : ISOCBINDING_PTR);
+		  }
 
 		/* The function result is itself (no result clause).  */
 		tmp_sym->result = tmp_sym;
@@ -4509,7 +4760,7 @@ generate_isocbinding_symbol (const char *mod_name, iso_c_binding_symbol s,
 
 gfc_symbol *
 get_iso_c_sym (gfc_symbol *old_sym, char *new_name,
-               char *new_binding_label, int add_optional_arg)
+               const char *new_binding_label, int add_optional_arg)
 {
   gfc_symtree *new_symtree = NULL;
 
@@ -4527,7 +4778,7 @@ get_iso_c_sym (gfc_symbol *old_sym, char *new_name,
 			"symtree for '%s'", new_name);
 
   /* Now fill in the fields of the resolved symbol with the old sym.  */
-  strcpy (new_symtree->n.sym->binding_label, new_binding_label);
+  new_symtree->n.sym->binding_label = new_binding_label;
   new_symtree->n.sym->attr = old_sym->attr;
   new_symtree->n.sym->ts = old_sym->ts;
   new_symtree->n.sym->module = gfc_get_string (old_sym->module);
@@ -4568,7 +4819,7 @@ gfc_check_symbol_typed (gfc_symbol* sym, gfc_namespace* ns,
 	}
 
       if (gfc_notify_std (GFC_STD_GNU,
-			  "Extension: Symbol '%s' is used before"
+			  "Symbol '%s' is used before"
 			  " it is typed at %L", sym->name, &where) == FAILURE)
 	return FAILURE;
     }
@@ -4582,18 +4833,16 @@ gfc_check_symbol_typed (gfc_symbol* sym, gfc_namespace* ns,
    list and marked `error' until symbols are committed.  */
 
 gfc_typebound_proc*
-gfc_get_typebound_proc (void)
+gfc_get_typebound_proc (gfc_typebound_proc *tb0)
 {
   gfc_typebound_proc *result;
-  tentative_tbp *list_node;
 
   result = XCNEW (gfc_typebound_proc);
+  if (tb0)
+    *result = *tb0;
   result->error = 1;
 
-  list_node = XCNEW (tentative_tbp);
-  list_node->next = tentative_tbp_list;
-  list_node->proc = result;
-  tentative_tbp_list = list_node;
+  latest_undo_chgset->tbps.safe_push (result);
 
   return result;
 }
@@ -4604,12 +4853,20 @@ gfc_get_typebound_proc (void)
 gfc_symbol*
 gfc_get_derived_super_type (gfc_symbol* derived)
 {
+  gcc_assert (derived);
+
+  if (derived->attr.generic)
+    derived = gfc_find_dt_in_generic (derived);
+
   if (!derived->attr.extension)
     return NULL;
 
   gcc_assert (derived->components);
   gcc_assert (derived->components->ts.type == BT_DERIVED);
   gcc_assert (derived->components->ts.u.derived);
+
+  if (derived->components->ts.u.derived->attr.generic)
+    return gfc_find_dt_in_generic (derived->components->ts.u.derived);
 
   return derived->components->ts.u.derived;
 }
@@ -4650,12 +4907,15 @@ gfc_type_is_extension_of (gfc_symbol *t1, gfc_symbol *t2)
 bool
 gfc_type_compatible (gfc_typespec *ts1, gfc_typespec *ts2)
 {
-  gfc_component *cmp1, *cmp2;
-
   bool is_class1 = (ts1->type == BT_CLASS);
   bool is_class2 = (ts2->type == BT_CLASS);
   bool is_derived1 = (ts1->type == BT_DERIVED);
   bool is_derived2 = (ts2->type == BT_DERIVED);
+
+  if (is_class1
+      && ts1->u.derived->components
+      && ts1->u.derived->components->ts.u.derived->attr.unlimited_polymorphic)
+    return 1;
 
   if (!is_derived1 && !is_derived2 && !is_class1 && !is_class2)
     return (ts1->type == ts2->type);
@@ -4663,370 +4923,84 @@ gfc_type_compatible (gfc_typespec *ts1, gfc_typespec *ts2)
   if (is_derived1 && is_derived2)
     return gfc_compare_derived_types (ts1->u.derived, ts2->u.derived);
 
-  cmp1 = cmp2 = NULL;
-
-  if (is_class1)
-    {
-      cmp1 = gfc_find_component (ts1->u.derived, "$data", true, false);
-      if (cmp1 == NULL)
-	return 0;
-    }
-
-  if (is_class2)
-    {
-      cmp2 = gfc_find_component (ts2->u.derived, "$data", true, false);
-      if (cmp2 == NULL)
-	return 0;
-    }
-
   if (is_class1 && is_derived2)
-    return gfc_type_is_extension_of (cmp1->ts.u.derived, ts2->u.derived);
-
+    return gfc_type_is_extension_of (ts1->u.derived->components->ts.u.derived,
+				     ts2->u.derived);
   else if (is_class1 && is_class2)
-    return gfc_type_is_extension_of (cmp1->ts.u.derived, cmp2->ts.u.derived);
-
+    return gfc_type_is_extension_of (ts1->u.derived->components->ts.u.derived,
+				     ts2->u.derived->components->ts.u.derived);
   else
     return 0;
 }
 
 
-/* Build a polymorphic CLASS entity, using the symbol that comes from
-   build_sym. A CLASS entity is represented by an encapsulating type,
-   which contains the declared type as '$data' component, plus a pointer
-   component '$vptr' which determines the dynamic type.  */
+/* Find the parent-namespace of the current function.  If we're inside
+   BLOCK constructs, it may not be the current one.  */
 
-gfc_try
-gfc_build_class_symbol (gfc_typespec *ts, symbol_attribute *attr,
-			gfc_array_spec **as)
+gfc_namespace*
+gfc_find_proc_namespace (gfc_namespace* ns)
 {
-  char name[GFC_MAX_SYMBOL_LEN + 5];
-  gfc_symbol *fclass;
-  gfc_symbol *vtab;
-  gfc_component *c;
-
-  /* Determine the name of the encapsulating type.  */
-  if ((*as) && (*as)->rank && attr->allocatable)
-    sprintf (name, ".class.%s.%d.a", ts->u.derived->name, (*as)->rank);
-  else if ((*as) && (*as)->rank)
-    sprintf (name, ".class.%s.%d", ts->u.derived->name, (*as)->rank);
-  else if (attr->allocatable)
-    sprintf (name, ".class.%s.a", ts->u.derived->name);
-  else
-    sprintf (name, ".class.%s", ts->u.derived->name);
-
-  gfc_find_symbol (name, ts->u.derived->ns, 0, &fclass);
-  if (fclass == NULL)
+  while (ns->construct_entities)
     {
-      gfc_symtree *st;
-      /* If not there, create a new symbol.  */
-      fclass = gfc_new_symbol (name, ts->u.derived->ns);
-      st = gfc_new_symtree (&ts->u.derived->ns->sym_root, name);
-      st->n.sym = fclass;
-      gfc_set_sym_referenced (fclass);
-      fclass->refs++;
-      fclass->ts.type = BT_UNKNOWN;
-      fclass->attr.abstract = ts->u.derived->attr.abstract;
-      if (ts->u.derived->f2k_derived)
-	fclass->f2k_derived = gfc_get_namespace (NULL, 0);
-      if (gfc_add_flavor (&fclass->attr, FL_DERIVED,
-	  NULL, &gfc_current_locus) == FAILURE)
-	return FAILURE;
-
-      /* Add component '$data'.  */
-      if (gfc_add_component (fclass, "$data", &c) == FAILURE)
-	return FAILURE;
-      c->ts = *ts;
-      c->ts.type = BT_DERIVED;
-      c->attr.access = ACCESS_PRIVATE;
-      c->ts.u.derived = ts->u.derived;
-      c->attr.class_pointer = attr->pointer;
-      c->attr.pointer = attr->pointer || attr->dummy;
-      c->attr.allocatable = attr->allocatable;
-      c->attr.dimension = attr->dimension;
-      c->attr.abstract = ts->u.derived->attr.abstract;
-      c->as = (*as);
-      c->initializer = gfc_get_expr ();
-      c->initializer->expr_type = EXPR_NULL;
-
-      /* Add component '$vptr'.  */
-      if (gfc_add_component (fclass, "$vptr", &c) == FAILURE)
-	return FAILURE;
-      c->ts.type = BT_DERIVED;
-      vtab = gfc_find_derived_vtab (ts->u.derived);
-      gcc_assert (vtab);
-      c->ts.u.derived = vtab->ts.u.derived;
-      c->attr.pointer = 1;
-      c->initializer = gfc_get_expr ();
-      c->initializer->expr_type = EXPR_NULL;
+      ns = ns->parent;
+      gcc_assert (ns);
     }
 
-  /* Since the extension field is 8 bit wide, we can only have
-     up to 255 extension levels.  */
-  if (ts->u.derived->attr.extension == 255)
-    {
-      gfc_error ("Maximum extension level reached with type '%s' at %L",
-		 ts->u.derived->name, &ts->u.derived->declared_at);
-      return FAILURE;
-    }
-    
-  fclass->attr.extension = ts->u.derived->attr.extension + 1;
-  fclass->attr.is_class = 1;
-  ts->u.derived = fclass;
-  attr->allocatable = attr->pointer = attr->dimension = 0;
-  (*as) = NULL;  /* XXX */
-  return SUCCESS;
+  return ns;
 }
 
 
-/* Find the symbol for a derived type's vtab.  */
+/* Check if an associate-variable should be translated as an `implicit' pointer
+   internally (if it is associated to a variable and not an array with
+   descriptor).  */
+
+bool
+gfc_is_associate_pointer (gfc_symbol* sym)
+{
+  if (!sym->assoc)
+    return false;
+
+  if (sym->ts.type == BT_CLASS)
+    return true;
+
+  if (!sym->assoc->variable)
+    return false;
+
+  if (sym->attr.dimension && sym->as->type != AS_EXPLICIT)
+    return false;
+
+  return true;
+}
+
 
 gfc_symbol *
-gfc_find_derived_vtab (gfc_symbol *derived)
+gfc_find_dt_in_generic (gfc_symbol *sym)
 {
-  gfc_namespace *ns;
-  gfc_symbol *vtab = NULL, *vtype = NULL;
-  char name[2 * GFC_MAX_SYMBOL_LEN + 8];
+  gfc_interface *intr = NULL;
 
-  ns = gfc_current_ns;
+  if (!sym || sym->attr.flavor == FL_DERIVED)
+    return sym;
 
-  for (; ns; ns = ns->parent)
-    if (!ns->parent)
-      break;
-
-  if (ns)
-    {
-      sprintf (name, "vtab$%s", derived->name);
-      gfc_find_symbol (name, ns, 0, &vtab);
-
-      if (vtab == NULL)
-	{
-	  gfc_get_symbol (name, ns, &vtab);
-	  vtab->ts.type = BT_DERIVED;
-	  vtab->attr.flavor = FL_VARIABLE;
-	  vtab->attr.target = 1;
-	  vtab->attr.save = SAVE_EXPLICIT;
-	  vtab->attr.vtab = 1;
-	  vtab->attr.access = ACCESS_PRIVATE;
-	  vtab->refs++;
-	  gfc_set_sym_referenced (vtab);
-	  sprintf (name, "vtype$%s", derived->name);
-	  
-	  gfc_find_symbol (name, ns, 0, &vtype);
-	  if (vtype == NULL)
-	    {
-	      gfc_component *c;
-	      gfc_symbol *parent = NULL, *parent_vtab = NULL;
-
-	      gfc_get_symbol (name, ns, &vtype);
-	      if (gfc_add_flavor (&vtype->attr, FL_DERIVED,
-				  NULL, &gfc_current_locus) == FAILURE)
-		return NULL;
-	      vtype->refs++;
-	      gfc_set_sym_referenced (vtype);
-	      vtype->attr.access = ACCESS_PRIVATE;
-
-	      /* Add component '$hash'.  */
-	      if (gfc_add_component (vtype, "$hash", &c) == FAILURE)
-		return NULL;
-	      c->ts.type = BT_INTEGER;
-	      c->ts.kind = 4;
-	      c->attr.access = ACCESS_PRIVATE;
-	      c->initializer = gfc_int_expr (derived->hash_value);
-
-	      /* Add component '$size'.  */
-	      if (gfc_add_component (vtype, "$size", &c) == FAILURE)
-		return NULL;
-	      c->ts.type = BT_INTEGER;
-	      c->ts.kind = 4;
-	      c->attr.access = ACCESS_PRIVATE;
-	      /* Remember the derived type in ts.u.derived,
-		 so that the correct initializer can be set later on
-		 (in gfc_conv_structure).  */
-	      c->ts.u.derived = derived;
-	      c->initializer = gfc_int_expr (0);
-
-	      /* Add component $extends.  */
-	      if (gfc_add_component (vtype, "$extends", &c) == FAILURE)
-		return NULL;
-	      c->attr.pointer = 1;
-	      c->attr.access = ACCESS_PRIVATE;
-	      c->initializer = gfc_get_expr ();
-	      parent = gfc_get_derived_super_type (derived);
-	      if (parent)
-		{
-		  parent_vtab = gfc_find_derived_vtab (parent);
-		  c->ts.type = BT_DERIVED;
-		  c->ts.u.derived = parent_vtab->ts.u.derived;
-		  c->initializer->expr_type = EXPR_VARIABLE;
-		  gfc_find_sym_tree (parent_vtab->name, parent_vtab->ns, 0,
-				     &c->initializer->symtree);
-		}
-	      else
-		{
-		  c->ts.type = BT_DERIVED;
-		  c->ts.u.derived = vtype;
-		  c->initializer->expr_type = EXPR_NULL;
-		}
-	      gfc_commit_symbol (vtype);
-	    }
-	  vtab->ts.u.derived = vtype;
-
-	  vtab->value = gfc_default_initializer (&vtab->ts);
-	  gfc_commit_symbol (vtab);
-	}
-    }
-
-  return vtab;
+  if (sym->attr.generic)
+    for (intr = sym->generic; intr; intr = intr->next)
+      if (intr->sym->attr.flavor == FL_DERIVED)
+        break;
+  return intr ? intr->sym : NULL;
 }
 
 
-/* General worker function to find either a type-bound procedure or a
-   type-bound user operator.  */
+/* Get the dummy arguments from a procedure symbol. If it has been declared
+   via a PROCEDURE statement with a named interface, ts.interface will be set
+   and the arguments need to be taken from there.  */
 
-static gfc_symtree*
-find_typebound_proc_uop (gfc_symbol* derived, gfc_try* t,
-			 const char* name, bool noaccess, bool uop,
-			 locus* where)
+gfc_formal_arglist *
+gfc_sym_get_dummy_args (gfc_symbol *sym)
 {
-  gfc_symtree* res;
-  gfc_symtree* root;
+  gfc_formal_arglist *dummies;
 
-  /* Set correct symbol-root.  */
-  gcc_assert (derived->f2k_derived);
-  root = (uop ? derived->f2k_derived->tb_uop_root
-	      : derived->f2k_derived->tb_sym_root);
+  dummies = sym->formal;
+  if (dummies == NULL && sym->ts.interface != NULL)
+    dummies = sym->ts.interface->formal;
 
-  /* Set default to failure.  */
-  if (t)
-    *t = FAILURE;
-
-  /* Try to find it in the current type's namespace.  */
-  res = gfc_find_symtree (root, name);
-  if (res && res->n.tb && !res->n.tb->error)
-    {
-      /* We found one.  */
-      if (t)
-	*t = SUCCESS;
-
-      if (!noaccess && derived->attr.use_assoc
-	  && res->n.tb->access == ACCESS_PRIVATE)
-	{
-	  if (where)
-	    gfc_error ("'%s' of '%s' is PRIVATE at %L",
-		       name, derived->name, where);
-	  if (t)
-	    *t = FAILURE;
-	}
-
-      return res;
-    }
-
-  /* Otherwise, recurse on parent type if derived is an extension.  */
-  if (derived->attr.extension)
-    {
-      gfc_symbol* super_type;
-      super_type = gfc_get_derived_super_type (derived);
-      gcc_assert (super_type);
-
-      return find_typebound_proc_uop (super_type, t, name,
-				      noaccess, uop, where);
-    }
-
-  /* Nothing found.  */
-  return NULL;
-}
-
-
-/* Find a type-bound procedure or user operator by name for a derived-type
-   (looking recursively through the super-types).  */
-
-gfc_symtree*
-gfc_find_typebound_proc (gfc_symbol* derived, gfc_try* t,
-			 const char* name, bool noaccess, locus* where)
-{
-  return find_typebound_proc_uop (derived, t, name, noaccess, false, where);
-}
-
-gfc_symtree*
-gfc_find_typebound_user_op (gfc_symbol* derived, gfc_try* t,
-			    const char* name, bool noaccess, locus* where)
-{
-  return find_typebound_proc_uop (derived, t, name, noaccess, true, where);
-}
-
-
-/* Find a type-bound intrinsic operator looking recursively through the
-   super-type hierarchy.  */
-
-gfc_typebound_proc*
-gfc_find_typebound_intrinsic_op (gfc_symbol* derived, gfc_try* t,
-				 gfc_intrinsic_op op, bool noaccess,
-				 locus* where)
-{
-  gfc_typebound_proc* res;
-
-  /* Set default to failure.  */
-  if (t)
-    *t = FAILURE;
-
-  /* Try to find it in the current type's namespace.  */
-  if (derived->f2k_derived)
-    res = derived->f2k_derived->tb_op[op];
-  else  
-    res = NULL;
-
-  /* Check access.  */
-  if (res && !res->error)
-    {
-      /* We found one.  */
-      if (t)
-	*t = SUCCESS;
-
-      if (!noaccess && derived->attr.use_assoc
-	  && res->access == ACCESS_PRIVATE)
-	{
-	  if (where)
-	    gfc_error ("'%s' of '%s' is PRIVATE at %L",
-		       gfc_op2string (op), derived->name, where);
-	  if (t)
-	    *t = FAILURE;
-	}
-
-      return res;
-    }
-
-  /* Otherwise, recurse on parent type if derived is an extension.  */
-  if (derived->attr.extension)
-    {
-      gfc_symbol* super_type;
-      super_type = gfc_get_derived_super_type (derived);
-      gcc_assert (super_type);
-
-      return gfc_find_typebound_intrinsic_op (super_type, t, op,
-					      noaccess, where);
-    }
-
-  /* Nothing found.  */
-  return NULL;
-}
-
-
-/* Get a typebound-procedure symtree or create and insert it if not yet
-   present.  This is like a very simplified version of gfc_get_sym_tree for
-   tbp-symtrees rather than regular ones.  */
-
-gfc_symtree*
-gfc_get_tbp_symtree (gfc_symtree **root, const char *name)
-{
-  gfc_symtree *result;
-
-  result = gfc_find_symtree (*root, name);
-  if (!result)
-    {
-      result = gfc_new_symtree (root, name);
-      gcc_assert (result);
-      result->n.tb = NULL;
-    }
-
-  return result;
+  return dummies;
 }

@@ -1,5 +1,5 @@
 ;; DFA-based pipeline description for the XLR.
-;;   Copyright (C) 2008, 2009 Free Software Foundation, Inc.
+;;   Copyright (C) 2008-2013 Free Software Foundation, Inc.
 ;;
 ;; xlr.md   Machine Description for the RMI XLR Microprocessor
 ;; This file is part of GCC.
@@ -36,7 +36,7 @@
 ;; Integer arithmetic instructions.
 (define_insn_reservation "ir_xlr_alu" 1
   (and (eq_attr "cpu" "xlr") 
-       (eq_attr "type" "move,arith,shift,logical,signext,const,unknown,multi,nop,trap"))
+       (eq_attr "type" "move,arith,shift,logical,signext,const,unknown,multi,nop,trap,atomic,syncloop"))
   "xlr_main_pipe")
 
 ;; Integer arithmetic instructions.
@@ -90,5 +90,5 @@
 
 (define_insn_reservation "xlr_hilo" 2
   (and (eq_attr "cpu" "xlr") 
-       (eq_attr "type" "mfhilo,mthilo"))
+       (eq_attr "type" "mfhi,mflo,mthi,mtlo"))
   "xlr_imuldiv_nopipe")

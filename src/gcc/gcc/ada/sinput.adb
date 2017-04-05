@@ -6,7 +6,7 @@
 --                                                                          --
 --                                 B o d y                                  --
 --                                                                          --
---          Copyright (C) 1992-2009, Free Software Foundation, Inc.         --
+--          Copyright (C) 1992-2012, Free Software Foundation, Inc.         --
 --                                                                          --
 -- GNAT is free software;  you can  redistribute it  and/or modify it under --
 -- terms of the  GNU General Public License as published  by the Free Soft- --
@@ -36,11 +36,15 @@ with Atree;    use Atree;
 with Debug;    use Debug;
 with Opt;      use Opt;
 with Output;   use Output;
+with Scans;    use Scans;
 with Tree_IO;  use Tree_IO;
-with System;   use System;
 with Widechar; use Widechar;
 
+with GNAT.Byte_Order_Mark; use GNAT.Byte_Order_Mark;
+
+with System;         use System;
 with System.Memory;
+with System.WCh_Con; use System.WCh_Con;
 
 with Unchecked_Conversion;
 with Unchecked_Deallocation;
@@ -51,6 +55,7 @@ package body Sinput is
    --  Make control characters visible
 
    First_Time_Around : Boolean := True;
+   --  This needs a comment ???
 
    --  Routines to support conversion between types Lines_Table_Ptr,
    --  Logical_Lines_Table_Ptr and System.Address.
@@ -227,8 +232,7 @@ package body Sinput is
          Get_Name_String_And_Append
            (Reference_Name (Get_Source_File_Index (Ptr)));
          Add_Char_To_Name_Buffer (':');
-         Add_Nat_To_Name_Buffer
-           (Nat (Get_Logical_Line_Number (Ptr)));
+         Add_Nat_To_Name_Buffer (Nat (Get_Logical_Line_Number (Ptr)));
 
          Ptr := Instantiation_Location (Ptr);
          exit when Ptr = No_Location;
@@ -238,6 +242,55 @@ package body Sinput is
       Name_Buffer (Name_Len + 1) := NUL;
       return;
    end Build_Location_String;
+
+   function Build_Location_String (Loc : Source_Ptr) return String is
+   begin
+      Name_Len := 0;
+      Build_Location_String (Loc);
+      return Name_Buffer (1 .. Name_Len);
+   end Build_Location_String;
+
+   -------------------
+   -- Check_For_BOM --
+   -------------------
+
+   procedure Check_For_BOM is
+      BOM : BOM_Kind;
+      Len : Natural;
+      Tst : String (1 .. 5);
+
+   begin
+      for J in 1 .. 5 loop
+         Tst (J) := Source (Scan_Ptr + Source_Ptr (J) - 1);
+      end loop;
+
+      Read_BOM (Tst, Len, BOM, False);
+
+      case BOM is
+         when UTF8_All =>
+            Scan_Ptr := Scan_Ptr + Source_Ptr (Len);
+            Wide_Character_Encoding_Method := WCEM_UTF8;
+            Upper_Half_Encoding := True;
+
+         when UTF16_LE | UTF16_BE =>
+            Set_Standard_Error;
+            Write_Line ("UTF-16 encoding format not recognized");
+            Set_Standard_Output;
+            raise Unrecoverable_Error;
+
+         when UTF32_LE | UTF32_BE =>
+            Set_Standard_Error;
+            Write_Line ("UTF-32 encoding format not recognized");
+            Set_Standard_Output;
+            raise Unrecoverable_Error;
+
+         when Unknown =>
+            null;
+
+         when others =>
+            raise Program_Error;
+      end case;
+   end Check_For_BOM;
 
    -----------------------
    -- Get_Column_Number --
@@ -298,6 +351,19 @@ package body Sinput is
          return SFR.Logical_Lines_Table (L);
       end if;
    end Get_Logical_Line_Number;
+
+   ---------------------------------
+   -- Get_Logical_Line_Number_Img --
+   ---------------------------------
+
+   function Get_Logical_Line_Number_Img
+     (P : Source_Ptr) return String
+   is
+   begin
+      Name_Len := 0;
+      Add_Nat_To_Name_Buffer (Nat (Get_Logical_Line_Number (P)));
+      return Name_Buffer (1 .. Name_Len);
+   end Get_Logical_Line_Number_Img;
 
    ------------------------------
    -- Get_Physical_Line_Number --
@@ -411,7 +477,25 @@ package body Sinput is
       First_Time_Around  := True;
 
       Source_File.Init;
+
+      Instances.Init;
+      Instances.Append (No_Location);
+      pragma Assert (Instances.Last = No_Instance_Id);
    end Initialize;
+
+   -------------------
+   -- Instantiation --
+   -------------------
+
+   function Instantiation (S : SFI) return Source_Ptr is
+      SIE : Source_File_Record renames Source_File.Table (S);
+   begin
+      if SIE.Inlined_Body then
+         return SIE.Inlined_Call;
+      else
+         return Instances.Table (SIE.Instance);
+      end if;
+   end Instantiation;
 
    -------------------------
    -- Instantiation_Depth --
@@ -444,6 +528,17 @@ package body Sinput is
    begin
       return Instantiation (Get_Source_File_Index (S));
    end Instantiation_Location;
+
+   --------------------------
+   -- Iterate_On_Instances --
+   --------------------------
+
+   procedure Iterate_On_Instances is
+   begin
+      for J in 1 .. Instances.Last loop
+         Process (J, Instances.Table (J));
+      end loop;
+   end Iterate_On_Instances;
 
    ----------------------
    -- Last_Source_File --
@@ -786,14 +881,13 @@ package body Sinput is
                Tmp1 : Source_Buffer_Ptr;
 
             begin
-               if S.Instantiation /= No_Location then
+               if S.Instance /= No_Instance_Id then
                   null;
 
                else
                   --  Free the buffer, we use Free here, because we used malloc
                   --  or realloc directly to allocate the tables. That is
-                  --  because we were playing the big array trick. We need to
-                  --  suppress the warning for freeing from an empty pool!
+                  --  because we were playing the big array trick.
 
                   --  We have to recreate a proper pointer to the actual array
                   --  from the zero origin pointer stored in the source table.
@@ -801,9 +895,7 @@ package body Sinput is
                   Tmp1 :=
                     To_Source_Buffer_Ptr
                       (S.Source_Text (S.Source_First)'Address);
-                  pragma Warnings (Off);
                   Free_Ptr (Tmp1);
-                  pragma Warnings (On);
 
                   if S.Lines_Table /= null then
                      Memory.Free (To_Address (S.Lines_Table));
@@ -824,9 +916,10 @@ package body Sinput is
       Source_Cache_First := 1;
       Source_Cache_Last  := 0;
 
-      --  Read in source file table
+      --  Read in source file table and instance table
 
       Source_File.Tree_Read;
+      Instances.Tree_Read;
 
       --  The pointers we read in there for the source buffer and lines
       --  table pointers are junk. We now read in the actual data that
@@ -841,7 +934,7 @@ package body Sinput is
             --  we share the data for the generic template entry. Since the
             --  template always occurs first, we can safely refer to its data.
 
-            if S.Instantiation /= No_Location then
+            if S.Instance /= No_Instance_Id then
                declare
                   ST : Source_File_Record renames
                          Source_File.Table (S.Template);
@@ -941,6 +1034,7 @@ package body Sinput is
    procedure Tree_Write is
    begin
       Source_File.Tree_Write;
+      Instances.Tree_Write;
 
       --  The pointers we wrote out there for the source buffer and lines
       --  table pointers are junk, we now write out the actual data that
@@ -955,7 +1049,7 @@ package body Sinput is
             --  shared with the generic template. When the tree is read, the
             --  pointers must be set, but no extra data needs to be written.
 
-            if S.Instantiation /= No_Location then
+            if S.Instance /= No_Instance_Id then
                null;
 
             --  For the normal case, write out the data of the tables
@@ -1068,6 +1162,11 @@ package body Sinput is
       return Source_File.Table (S).Debug_Source_Name;
    end Debug_Source_Name;
 
+   function Instance (S : SFI) return Instance_Id is
+   begin
+      return Source_File.Table (S).Instance;
+   end Instance;
+
    function File_Name (S : SFI) return File_Name_Type is
    begin
       return Source_File.Table (S).File_Name;
@@ -1108,10 +1207,10 @@ package body Sinput is
       return Source_File.Table (S).Inlined_Body;
    end Inlined_Body;
 
-   function Instantiation (S : SFI) return Source_Ptr is
+   function Inlined_Call (S : SFI) return Source_Ptr is
    begin
-      return Source_File.Table (S).Instantiation;
-   end Instantiation;
+      return Source_File.Table (S).Inlined_Call;
+   end Inlined_Call;
 
    function Keyword_Casing (S : SFI) return Casing_Type is
    begin

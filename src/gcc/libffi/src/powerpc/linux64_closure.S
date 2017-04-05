@@ -32,16 +32,24 @@
 
 #ifdef __powerpc64__
 	FFI_HIDDEN (ffi_closure_LINUX64)
-	FFI_HIDDEN (.ffi_closure_LINUX64)
-	.globl  ffi_closure_LINUX64, .ffi_closure_LINUX64
+	.globl  ffi_closure_LINUX64
 	.section        ".opd","aw"
 	.align  3
 ffi_closure_LINUX64:
+#ifdef _CALL_LINUX
+	.quad   .L.ffi_closure_LINUX64,.TOC.@tocbase,0
+	.type   ffi_closure_LINUX64,@function
+	.text
+.L.ffi_closure_LINUX64:
+#else
+	FFI_HIDDEN (.ffi_closure_LINUX64)
+	.globl  .ffi_closure_LINUX64
 	.quad   .ffi_closure_LINUX64,.TOC.@tocbase,0
 	.size   ffi_closure_LINUX64,24
 	.type   .ffi_closure_LINUX64,@function
 	.text
 .ffi_closure_LINUX64:
+#endif
 .LFB1:
 	# save general regs into parm save area
 	std	%r3, 48(%r1)
@@ -91,7 +99,11 @@ ffi_closure_LINUX64:
 	addi %r6, %r1, 128
 
 	# make the call
+#ifdef _CALL_LINUX
+	bl ffi_closure_helper_LINUX64
+#else
 	bl .ffi_closure_helper_LINUX64
+#endif
 .Lret:
 
 	# now r3 contains the return type
@@ -120,7 +132,11 @@ ffi_closure_LINUX64:
 	blr
 	nop
 # case FFI_TYPE_INT
+#ifdef __LITTLE_ENDIAN__
+	lwa %r3, 112+0(%r1)
+#else
 	lwa %r3, 112+4(%r1)
+#endif
 	mtlr %r0
 	addi %r1, %r1, 240
 	blr
@@ -140,33 +156,57 @@ ffi_closure_LINUX64:
 	lfd %f2, 112+8(%r1)
 	b .Lfinish
 # case FFI_TYPE_UINT8
+#ifdef __LITTLE_ENDIAN__
+	lbz %r3, 112+0(%r1)
+#else
 	lbz %r3, 112+7(%r1)
+#endif
 	mtlr %r0
 	addi %r1, %r1, 240
 	blr
 # case FFI_TYPE_SINT8
+#ifdef __LITTLE_ENDIAN__
+	lbz %r3, 112+0(%r1)
+#else
 	lbz %r3, 112+7(%r1)
+#endif
 	extsb %r3,%r3
 	mtlr %r0
 	b .Lfinish
 # case FFI_TYPE_UINT16
+#ifdef __LITTLE_ENDIAN__
+	lhz %r3, 112+0(%r1)
+#else
 	lhz %r3, 112+6(%r1)
+#endif
 	mtlr %r0
 .Lfinish:
 	addi %r1, %r1, 240
 	blr
 # case FFI_TYPE_SINT16
+#ifdef __LITTLE_ENDIAN__
+	lha %r3, 112+0(%r1)
+#else
 	lha %r3, 112+6(%r1)
+#endif
 	mtlr %r0
 	addi %r1, %r1, 240
 	blr
 # case FFI_TYPE_UINT32
+#ifdef __LITTLE_ENDIAN__
+	lwz %r3, 112+0(%r1)
+#else
 	lwz %r3, 112+4(%r1)
+#endif
 	mtlr %r0
 	addi %r1, %r1, 240
 	blr
 # case FFI_TYPE_SINT32
+#ifdef __LITTLE_ENDIAN__
+	lwa %r3, 112+0(%r1)
+#else
 	lwa %r3, 112+4(%r1)
+#endif
 	mtlr %r0
 	addi %r1, %r1, 240
 	blr
@@ -194,7 +234,11 @@ ffi_closure_LINUX64:
 .LFE1:
 	.long	0
 	.byte	0,12,0,1,128,0,0,0
+#ifdef _CALL_LINUX
+	.size	ffi_closure_LINUX64,.-.L.ffi_closure_LINUX64
+#else
 	.size	.ffi_closure_LINUX64,.-.ffi_closure_LINUX64
+#endif
 
 	.section	.eh_frame,EH_FRAME_FLAGS,@progbits
 .Lframe1:

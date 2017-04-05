@@ -4,8 +4,6 @@
 
 #ifdef _BUILD_MCHP_
 
-#include "c-common.h"
-
 #define CCI_H "config/mchp-cci/cci.h"
 #include CCI_H
 
@@ -31,12 +29,12 @@ static void cci_define(void *pfile_v, const char *keyword, const char *target) {
 
   if (target)
     {
-      buffer = xmalloc(strlen(keyword) + strlen(target) + 6);
+      buffer = (char *)xmalloc(strlen(keyword) + strlen(target) + 6);
       sprintf(buffer,"%s=%s", keyword, target);
     }
   else
     {
-      buffer = xmalloc(strlen(keyword) + strlen("=") + 6);
+      buffer = (char *)xmalloc(strlen(keyword) + strlen("=") + 6);
       sprintf(buffer,"%s=", keyword);
     }
   if (buffer != NULL) 
@@ -56,7 +54,7 @@ static void cci_attribute(void *pfile_v,const char *keyword, const char *target,
   int i;
 
   if (n) {
-    for (c = target; *c; c++) {
+    for (c = (char *)target; *c; c++) {
       if ((*c == 'P') && (c[1] >= '0') && (c[1] <= '9')) {
         params_specified=1;
         break;
@@ -72,7 +70,7 @@ static void cci_attribute(void *pfile_v,const char *keyword, const char *target,
     }
   }
   if (varargs) size += strlen("=()(),...__VA_ARGS__");
-  buffer = xcalloc(size,sizeof(char));
+  buffer = (char *)xcalloc(size,sizeof(char));
   c = buffer;
   c += sprintf(c,"%s",keyword);
   if (n || varargs) {
@@ -206,8 +204,8 @@ void mchp_init_cci_builtins(void) {
 void mchp_init_cci_pragmas(void) {
 
 #define CCI(TARGET, CCI_KIND, CCI_KEYWORD, TGT_FN, N) \
-  if (TARGET && CCI_KIND == CCI_pragma) \
-    c_register_pragma(0, CCI_KEYWORD, TGT_FN);
+  if ((TARGET && CCI_KIND) == CCI_pragma) \
+    c_register_pragma(0, CCI_KEYWORD, (pragma_handler_1arg)TGT_FN);
 #include CCI_H
 }
 
@@ -510,9 +508,9 @@ mchp_handle_configuration_setting (const char *name,
                                 }
 #if defined(MCHP_ALLOW_INTEGER_CONFIGVALUE)
                             char* current = NULL;
-                            _Bool all_digits = TRUE;
+                            bool all_digits = TRUE;
                             all_digits = TRUE;
-                            current = value_name;
+                            current = (char *)value_name;
                             do
                                 {
                                     if (!ISDIGIT(*current))
@@ -532,7 +530,7 @@ mchp_handle_configuration_setting (const char *name,
                                             shift++;
                                             mask >>= 1;
                                         }
-                                    converted_value = strtol(value_name, NULL, 10);
+                                    converted_value = strtol((char *)value_name, NULL, 10);
                                     if (((setting->mask)>>shift & converted_value) != converted_value)
                                         warning (0, "Configuration value 0x%x masked to 0x%x for setting %qs",
                                                  converted_value, (setting->mask)>>shift, name);
@@ -541,7 +539,7 @@ mchp_handle_configuration_setting (const char *name,
                                     /* update the value of the word with the value
                                        indicated */
                                     spec->value = (spec->value & ~setting->mask)
-                                                  | (setting->mask) & (strtol(value_name, NULL, 10) << shift);
+                                                  | (setting->mask) & (strtol((char *)value_name, NULL, 10) << shift);
                                     return;
                                 }
 #endif /* MCHP_ALLOW_INTEGER_CONFIGVALUE */
@@ -565,6 +563,12 @@ mchp_handle_config_pragma (struct cpp_reader *pfile)
   enum cpp_ttype tok;
   tree tok_value;
   static int shown_no_config_warning = 0;
+  
+  if (flag_generate_lto)
+    {
+      warning (0, "#pragma config not supported with -flto option, this file will not participate in LTO");
+      flag_generate_lto = 0;
+    }
 
   /* If we're compiling for the default device, we don't process
      configuration words */
@@ -642,7 +646,7 @@ mchp_handle_config_pragma (struct cpp_reader *pfile)
          i.e., converting integers from the string. */
       tok = pragma_lex (&tok_value);
       if (tok == CPP_NAME)
-        value_name = IDENTIFIER_POINTER (tok_value);
+        value_name = (unsigned char *)IDENTIFIER_POINTER (tok_value);
       else if (tok == CPP_NUMBER)
         {
           if (host_integerp (tok_value, 1 /* positive only */ ))
@@ -651,9 +655,14 @@ mchp_handle_config_pragma (struct cpp_reader *pfile)
             HOST_WIDE_INT i;
             i = tree_low_cst (tok_value, 1 /* positive only */ );
             value_name = (unsigned char*)xcalloc(MAX_VALUE_NAME_LENGTH,1);
-            snprintf(value_name, MAX_VALUE_NAME_LENGTH, "%d", i);
+            snprintf((char *)value_name, MAX_VALUE_NAME_LENGTH, "%d", i);
             #undef MAX_VALUE_NAME_LENGTH
           }
+        }
+      else
+        {
+          error ("config-setting value must be a name or a constant integer");
+          break;
         }
       mchp_handle_configuration_setting (setting_name, value_name);
 
@@ -772,7 +781,7 @@ mchp_handle_configset_pragma (struct cpp_reader *pfile, const char* set)
          i.e., converting integers from the string. */
       tok = pragma_lex (&tok_value);
       if (tok == CPP_NAME)
-        value_name = IDENTIFIER_POINTER (tok_value);
+        value_name = (unsigned char *)IDENTIFIER_POINTER (tok_value);
       else if (tok == CPP_NUMBER)
         {
           if (host_integerp (tok_value, 1 /* positive only */ ))
@@ -781,9 +790,14 @@ mchp_handle_configset_pragma (struct cpp_reader *pfile, const char* set)
             HOST_WIDE_INT i;
             i = tree_low_cst (tok_value, 1 /* positive only */ );
             value_name = (unsigned char*)xcalloc(MAX_VALUE_NAME_LENGTH,1);
-            snprintf(value_name, MAX_VALUE_NAME_LENGTH, "%d", i);
+            snprintf((char *)value_name, MAX_VALUE_NAME_LENGTH, "%d", i);
             #undef MAX_VALUE_NAME_LENGTH
           }
+        }
+      else
+        {
+          error ("config-setting value must be a name or a constant integer");
+          break;
         }
       mchp_handle_configuration_setting (setting_name, value_name);
 

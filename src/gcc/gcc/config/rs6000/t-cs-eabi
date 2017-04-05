@@ -1,20 +1,22 @@
 # Multilibs for powerpc embedded ELF targets.
 
-MULTILIB_OPTIONS	= te500v1/te500v2/te600/te500mc \
+MULTILIB_OPTIONS	= te500v1/te500v2/te600/te500mc mlittle \
 			  msoft-float mno-powerpc-gfxopt
 
-MULTILIB_DIRNAMES	= te500v1 te500v2 te600 te500mc \
+MULTILIB_DIRNAMES	= te500v1 te500v2 te600 te500mc el \
 			  nof nogfxopt
 
 MULTILIB_EXCEPTIONS	= *te600*/*msoft-float* \
-			  *te500v1*/*msoft-float* \
-			  *te500v2*/*msoft-float* \
-			  *te500mc*/*msoft-float* \
 			  *te600*/*mno-powerpc-gfxopt* \
 			  *te500v1*/*mno-powerpc-gfxopt* \
 			  *te500v2*/*mno-powerpc-gfxopt* \
 			  *te500mc*/*mno-powerpc-gfxopt* \
-			  *msoft-float*/*mno-powerpc-gfxopt*
+			  *msoft-float*/*mno-powerpc-gfxopt* \
+			  mlittle* \
+			  *te500v1/mlittle* \
+			  *te600/mlittle* \
+			  *te500mc/mlittle* \
+			  *te500v2/mlittle/* \
 
 MULTILIB_EXTRA_OPTS	= mno-eabi mstrict-align
 

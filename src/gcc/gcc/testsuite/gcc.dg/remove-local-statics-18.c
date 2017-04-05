@@ -3,7 +3,7 @@
 
 /* { dg-do run } */
 /* { dg-output "" } */
-/* { dg-options "-O2 -fremove-local-statics" } */
+/* { dg-options "-O2" } */
 
 void abort(void);
 

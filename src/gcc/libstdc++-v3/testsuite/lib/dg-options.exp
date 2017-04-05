@@ -1,7 +1,6 @@
 # Handlers for additional dg-xxx keywords in tests.
 
-# Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010
-# Free Software Foundation, Inc.
+# Copyright (C) 2004-2013 Free Software Foundation, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -35,6 +34,24 @@ proc dg-require-debug-mode { args } {
     return
 }
 
+proc dg-require-profile-mode { args } {
+    if { ![ check_v3_target_profile_mode ] } {
+	upvar dg-do-what dg-do-what
+	set dg-do-what [list [lindex ${dg-do-what} 0] "N" "P"]
+	return
+    }
+    return
+}
+
+proc dg-require-normal-mode { args } {
+    if { ![ check_v3_target_normal_mode ] } {
+	upvar dg-do-what dg-do-what
+	set dg-do-what [list [lindex ${dg-do-what} 0] "N" "P"]
+	return
+    }
+    return
+}
+
 proc dg-require-parallel-mode { args } {
     if { ![ check_v3_target_parallel_mode ] } {
 	upvar dg-do-what dg-do-what
@@ -54,7 +71,7 @@ proc dg-require-fileio { args } {
 }
 
 proc dg-require-namedlocale { args } {
-    if { ![ check_v3_target_namedlocale ] } {
+    if { ![ check_v3_target_namedlocale [lindex $args 1] ] } {
 	upvar dg-do-what dg-do-what
 	set dg-do-what [list [lindex ${dg-do-what} 0] "N" "P"]
 	return
@@ -89,6 +106,15 @@ proc dg-require-cstdint { args } {
     return
 }
 
+proc dg-require-cmath { args } {
+    if { ![ check_v3_target_cmath ] } {
+	upvar dg-do-what dg-do-what
+	set dg-do-what [list [lindex ${dg-do-what} 0] "N" "P"]
+	return
+    }
+    return
+}
+
 proc dg-require-atomic-builtins { args } {
     if { ![ check_v3_target_atomic_builtins ] } {
 	upvar dg-do-what dg-do-what
@@ -107,8 +133,17 @@ proc dg-require-gthreads { args } {
     return
 }
 
-proc dg-require-nanosleep { args } {
-    if { ![ check_v3_target_nanosleep ] } {
+proc dg-require-gthreads-timed { args } {
+    if { ![ check_v3_target_gthreads_timed ] } {
+        upvar dg-do-what dg-do-what
+        set dg-do-what [list [lindex ${dg-do-what} 0] "N" "P"]
+        return
+    }
+    return
+}
+
+proc dg-require-sleep { args } {
+    if { ![ check_v3_target_sleep ] } {
         upvar dg-do-what dg-do-what
         set dg-do-what [list [lindex ${dg-do-what} 0] "N" "P"]
         return
@@ -145,6 +180,33 @@ proc dg-require-swprintf { args } {
 
 proc dg-require-binary-io { args } {
     if { ![ check_v3_target_binary_io ] } {
+        upvar dg-do-what dg-do-what
+        set dg-do-what [list [lindex ${dg-do-what} 0] "N" "P"]
+        return
+    }
+    return
+}
+
+proc dg-require-nprocs { args } {
+    if { ![ check_v3_target_nprocs ] } {
+        upvar dg-do-what dg-do-what
+        set dg-do-what [list [lindex ${dg-do-what} 0] "N" "P"]
+        return
+    }
+    return
+}
+
+proc dg-require-static-libstdcxx { args } {
+    if { ![ check_v3_target_static_libstdcxx ] } {
+        upvar dg-do-what dg-do-what
+        set dg-do-what [list [lindex ${dg-do-what} 0] "N" "P"]
+        return
+    }
+    return
+}
+
+proc dg-require-little-endian { args } {
+    if { ![ check_v3_target_little_endian ] } {
         upvar dg-do-what dg-do-what
         set dg-do-what [list [lindex ${dg-do-what} 0] "N" "P"]
         return
