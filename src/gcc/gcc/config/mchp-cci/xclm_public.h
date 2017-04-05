@@ -45,3 +45,10 @@
 #define MCHP_XCLM_NO_CPP_LICENSE         0x4
 #define MCHP_XCLM_VALID_CPP_FREE         0x5
 #define MCHP_XCLM_VALID_CPP_FULL         0x6
+
+/* diagnose problems */
+#define MCHP_XCLM_OPTION_ERROR		0x10	/* something bad in supplied options - refer to stderr for details */
+#define MCHP_XCLM_INTERNAL_ERROR	0x11	/* internal error - memory, filesystem, network, ? */
+#define MCHP_XCLM_LICENSE_ERROR		0x12	/* no license available, or license expired */
+
+#define MCHP_XCLM_NO_VALID_LICENSE	 0x1	/* -liccheck */

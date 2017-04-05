@@ -185,6 +185,7 @@ enum mips_address_type {
 };
 
 /* Macros to create an enumeration identifier for a function prototype.  */
+#define MIPS_FTYPE_NAME0(A) MIPS_##A##_FTYPE
 #define MIPS_FTYPE_NAME1(A, B) MIPS_##A##_FTYPE_##B
 #define MIPS_FTYPE_NAME2(A, B, C) MIPS_##A##_FTYPE_##B##_##C
 #define MIPS_FTYPE_NAME3(A, B, C, D) MIPS_##A##_FTYPE_##B##_##C##_##D
@@ -1343,10 +1344,18 @@ mips_insert_attributes (tree decl, tree *attributes)
       nocompression_flags |=
 	mips_get_compress_off_flags (DECL_ATTRIBUTES (decl));
 
+#if defined(TARGET_MCHP_PIC32MX)
+      if (((compression_flags & MASK_MIPS16) && (nocompression_flags & MASK_MIPS16)) ||
+          ((compression_flags & MASK_MICROMIPS) && (nocompression_flags & MASK_MICROMIPS)))
+    error ("%qE cannot have both %qs and %qs attributes",
+     DECL_NAME (decl), mips_get_compress_on_name (compression_flags),
+     mips_get_compress_off_name (nocompression_flags));
+#else
       if (compression_flags && nocompression_flags)
 	error ("%qE cannot have both %qs and %qs attributes",
 	       DECL_NAME (decl), mips_get_compress_on_name (compression_flags),
 	       mips_get_compress_off_name (nocompression_flags));
+#endif
 
       if (compression_flags & MASK_MIPS16
           && compression_flags & MASK_MICROMIPS)
@@ -8611,6 +8620,8 @@ mips_in_small_data_p (const_tree decl)
       space_attr = lookup_attribute ("space", DECL_ATTRIBUTES (decl));
       if (space_attr && (get_identifier("prog") == (TREE_VALUE(TREE_VALUE(space_attr)))))
         return false;
+      if (space_attr && (get_identifier("serial_mem") == (TREE_VALUE(TREE_VALUE(space_attr)))))
+        return false;
       if (lookup_attribute ("address", DECL_ATTRIBUTES (decl)))
         return false;
       if (lookup_attribute ("persistent", DECL_ATTRIBUTES (decl)))
@@ -12335,6 +12346,33 @@ mips_hard_regno_mode_ok_p (unsigned int regno, enum machine_mode mode)
   return false;
 }
 
+/* Return nonzero if register OLD_REG can be renamed to register NEW_REG.  */
+
+bool
+mips_hard_regno_rename_ok (unsigned int old_reg ATTRIBUTE_UNUSED,
+			   unsigned int new_reg)
+{
+  /* Interrupt functions can only use registers that have already been
+     saved by the prologue, even if they would normally be call-clobbered.  */
+  if (cfun->machine->interrupt_handler_p && !df_regs_ever_live_p (new_reg))
+    return false;
+
+  return true;
+}
+
+/* Return nonzero if register REGNO can be used as a scratch register
+   in peephole2.  */
+
+bool
+mips_hard_regno_scratch_ok (unsigned int regno)
+{
+  /* See mips_hard_regno_rename_ok.  */
+  if (cfun->machine->interrupt_handler_p && !df_regs_ever_live_p (regno))
+    return false;
+
+  return true;
+}
+
 /* Implement HARD_REGNO_NREGS.  */
 
 unsigned int
@@ -14793,11 +14831,11 @@ static const struct mips_builtin_description mips_builtins[] = {
   PIC32_BUILTIN (section_end, PIC32_BUILTIN_SECTION_END, MIPS_USI_FTYPE_CONSTSTRING),
   PIC32_BUILTIN (section_size, PIC32_BUILTIN_SECTION_SIZE, MIPS_USI_FTYPE_CONSTSTRING),
 
-  PIC32_BUILTIN (get_isr_state, PIC32_BUILTIN_GET_ISR_STATE, MIPS_USI_FTYPE_VOID),
+  PIC32_BUILTIN (get_isr_state, PIC32_BUILTIN_GET_ISR_STATE, MIPS_USI_FTYPE),
   PIC32_BUILTIN (set_isr_state, PIC32_BUILTIN_SET_ISR_STATE, MIPS_VOID_FTYPE_USI),
-  PIC32_BUILTIN (disable_interrupts, PIC32_BUILTIN_DISABLE_INTERRUPTS, MIPS_USI_FTYPE_VOID),
-  PIC32_BUILTIN (enable_interrupts, PIC32_BUILTIN_ENABLE_INTERRUPTS, MIPS_USI_FTYPE_VOID),
-  PIC32_BUILTIN (software_breakpoint, PIC32_BUILTIN_SOFTWARE_BREAKPOINT, MIPS_VOID_FTYPE_VOID)
+  PIC32_BUILTIN (disable_interrupts, PIC32_BUILTIN_DISABLE_INTERRUPTS, MIPS_USI_FTYPE),
+  PIC32_BUILTIN (enable_interrupts, PIC32_BUILTIN_ENABLE_INTERRUPTS, MIPS_USI_FTYPE),
+  PIC32_BUILTIN (software_breakpoint, PIC32_BUILTIN_SOFTWARE_BREAKPOINT, MIPS_VOID_FTYPE)
 
 };
 
@@ -14870,6 +14908,9 @@ mips_build_cvpointer_type (void)
 
 /* MIPS_FTYPE_ATYPESN takes N MIPS_FTYPES-like type codes and lists
    their associated MIPS_ATYPEs.  */
+#define MIPS_FTYPE_ATYPES0(A)   \
+    MIPS_ATYPE_##A
+
 #define MIPS_FTYPE_ATYPES1(A, B) \
   MIPS_ATYPE_##A, MIPS_ATYPE_##B
 
@@ -16099,7 +16140,6 @@ pic32_expand_section_builtins (enum insn_code icode, rtx target, enum mips_built
   tree arg0;
   char *section_name = 0;
   tree sub_arg0 = 0;
-  struct expand_operand ops[1];
 
   gcc_assert (1 + call_expr_nargs (exp) <= insn_data[icode].n_operands);
 
@@ -16166,7 +16206,7 @@ pic32_expand_section_builtins (enum insn_code icode, rtx target, enum mips_built
     return 0;
   emit_insn (pat);
 
-  return ops[0].value;
+  return target;
 }
 
 static rtx
@@ -21230,6 +21270,9 @@ mips_fn_other_hard_reg_usage (struct hard_reg_set_container *fn_used_regs)
 
 #undef TARGET_FN_OTHER_HARD_REG_USAGE
 #define TARGET_FN_OTHER_HARD_REG_USAGE mips_fn_other_hard_reg_usage
+
+#undef TARGET_HARD_REGNO_SCRATCH_OK
+#define TARGET_HARD_REGNO_SCRATCH_OK mips_hard_regno_scratch_ok
 
 struct gcc_target targetm = TARGET_INITIALIZER;
 

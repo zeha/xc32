@@ -37,6 +37,8 @@
 */
 
 extern bfd_boolean pic32_report_mem;
+extern bfd_boolean pic32_mafrlcsj;
+extern bfd_boolean pic32_mafrlcsj2;
 extern bfd_boolean pic32_memory_summary;
 extern char *memory_summary_arg;
 extern bfd_boolean pic32_debug;
@@ -59,6 +61,12 @@ extern const char * crypto_file;
 extern bfd_boolean pic32_has_processor_option;
 extern bfd_boolean pic32_has_hardfloat_option;
 extern bfd_boolean pic32_has_softfloat_option;
+extern bfd_boolean pic32_code_in_dinit;
+extern bfd_boolean pic32_has_code_in_dinit_option;
+extern bfd_boolean pic32_has_dinit_in_serial_mem_option;
+extern bfd_boolean pic32_dinit_in_serial_mem;
+extern bfd_boolean pic32_dinit_has_absolute_address;
+extern bfd_vma dinit_address;
 
 static void gldelf32pic32mx_list_options
    PARAMS ((FILE *));
@@ -73,6 +81,8 @@ const char * shortopts = "-Dp:"; /* note: leading "-" is important */
    different from the range used in lexsup.c  */
 enum elfpic32mx_options {
   REPORT_MEM_OPTION = 1000,
+  REPORT_MAFRLCSJ_OPTION,
+  REPORT_MAFRLCSJ2_OPTION,
   SMART_IO_OPTION,
   NO_SMART_IO_OPTION,
   DATA_INIT_OPTION,
@@ -82,7 +92,12 @@ enum elfpic32mx_options {
   MEMRESERVE_OPTION,
   HARDFLOAT_OPTION,
   MEMORY_SUMMARY,
-  SOFTFLOAT_OPTION
+  SOFTFLOAT_OPTION,
+  CODE_IN_DINIT_OPTION,
+  NO_CODE_IN_DINIT_OPTION,
+  DINIT_IN_SERIAL_MEM_OPTION,
+  NO_DINIT_IN_SERIAL_MEM_OPTION,
+  DINIT_ADDRESS_OPTION
 };
 
 static struct option longopts[] =
@@ -91,6 +106,8 @@ static struct option longopts[] =
   { "smart-io", no_argument, NULL, SMART_IO_OPTION },
   { "no-smart-io", no_argument, NULL, NO_SMART_IO_OPTION },
   { "report-mem", no_argument, NULL, REPORT_MEM_OPTION },
+  { "mafrlcsj", no_argument, NULL, REPORT_MAFRLCSJ_OPTION },
+  { "mafrlcsj2", no_argument, NULL, REPORT_MAFRLCSJ2_OPTION },
   { "memorysummary", required_argument, NULL, MEMORY_SUMMARY },
   { "data-init", no_argument, NULL, DATA_INIT_OPTION },
   { "no-data-init", no_argument, NULL, NO_DATA_INIT_OPTION },
@@ -99,6 +116,11 @@ static struct option longopts[] =
   { "mreserve", required_argument, NULL, MEMRESERVE_OPTION },
   { "hard-float", no_argument, NULL, HARDFLOAT_OPTION },
   { "soft-float", no_argument, NULL, SOFTFLOAT_OPTION },  
+  { "code-in-dinit", no_argument, NULL, CODE_IN_DINIT_OPTION },
+  { "no-code-in-dinit", no_argument, NULL, NO_CODE_IN_DINIT_OPTION },  
+  { "dinit-in-serial-mem", no_argument, NULL, DINIT_IN_SERIAL_MEM_OPTION },
+  { "no-dinit-in-serial-mem", no_argument, NULL, NO_DINIT_IN_SERIAL_MEM_OPTION },
+  { "dinit-address", required_argument, NULL, DINIT_ADDRESS_OPTION },
   { NULL,        no_argument,       NULL, 0                }
 };
 #endif

@@ -62,6 +62,18 @@ static bfd_boolean elf_read_notes (bfd *, file_ptr, bfd_size_type) ;
 static bfd_boolean elf_parse_notes (bfd *abfd, char *buf, size_t size,
 				    file_ptr offset);
 
+#if defined(TARGET_IS_PIC32MX)
+static asymbol ** slurp_symtab
+  PARAMS ((bfd *));
+void 
+process_data_sections_for_serial_mem_option
+  PARAMS ((bfd *));
+/* Number of symbols in `syms'.  */
+static long pic32_symcount = 0;
+/* The symbol table.  */
+static asymbol **pic32_syms;
+#endif
+
 /* Swap version information in and out.  The version information is
    currently size independent.  If that ever changes, this code will
    need to move into elfcode.h.  */
@@ -996,6 +1008,7 @@ _bfd_elf_make_section_from_shdr (bfd *abfd,
 //    newsect->flags &= ~SEC_DATA;
 //    PIC32_SET_NOLOAD_ATTR(newsect);
   }
+
  if (hdr->sh_flags & SHF_NOLOAD)  /* do this last */
     PIC32_SET_NOLOAD_ATTR(newsect);
 #endif
@@ -10008,3 +10021,61 @@ _bfd_elf_maybe_function_sym (const asymbol *sym, asection *sec,
     size = 1;
   return size;
 }
+
+#if defined(TARGET_IS_PIC32MX)
+static asymbol **
+slurp_symtab (abfd)
+     bfd *abfd;
+{
+  asymbol **sy = (asymbol **) NULL;
+  long storage;
+
+  if (!(bfd_get_file_flags (abfd) & HAS_SYMS))
+    {
+      pic32_symcount = 0;
+      return NULL;
+    }
+  storage = bfd_get_symtab_upper_bound (abfd);
+  //if (storage < 0)
+    //bfd_fatal (bfd_get_filename (abfd));
+  if (storage)
+    sy = (asymbol **) xmalloc (storage);
+
+  pic32_symcount = bfd_canonicalize_symtab (abfd, sy);
+  //if (symcount < 0)
+    //bfd_fatal (bfd_get_filename (abfd));
+  return sy;
+}
+
+void 
+process_data_sections_for_serial_mem_option (bfd *abfd)
+{
+  /* load symbols now */
+  pic32_syms = slurp_symtab (abfd);
+
+  char *ext_attr_prefix = "__ext_attr_";
+  asymbol **current = pic32_syms;
+  const char *sym_name;
+  long count;
+
+  for (count = 0; count < pic32_symcount; count++) {
+    if (*current) {
+      sym_name = bfd_asymbol_name(*current);
+      if (strstr(sym_name, ext_attr_prefix)) {
+        asection *s;
+        char *sec_name = (char *) &sym_name[strlen(ext_attr_prefix)];
+        bfd_vma attr = bfd_asymbol_value(*current);
+
+        for (s = abfd->sections; s != NULL; s = s->next)
+          if (strcmp(sec_name, s->name) == 0)
+            if ((attr & STYP_SERIAL_MEM) && (s->flags & SEC_DATA))
+              s->flags &= ~SEC_DATA;
+      }
+      current++;
+    }
+  }
+}
+
+
+#endif
+

@@ -843,6 +843,10 @@ elf_object_p (bfd *abfd)
 	}
     }
 
+#if defined(TARGET_IS_PIC32MX)
+      process_data_sections_for_serial_mem_option(abfd);
+#endif
+
   bfd_preserve_finish (abfd, &preserve);
   return target;
 

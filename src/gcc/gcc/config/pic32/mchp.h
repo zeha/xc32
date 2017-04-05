@@ -91,8 +91,11 @@ do {                     \
  %{mrelaxed-math : %{!mfp64 :-lrcfops}} \
  %{mfp64 : -lmfd -lm -le ; : -lm -le}  %{mdspr2*: -ldspr2 -ldsp } %{mprocessor=32MX*: -ldsp } %{mprocessor=32MM*: -ldsp } -lgcc \
  %{mperipheral-libs:-lmchp_peripheral %{mprocessor=*:-lmchp_peripheral_%*}} \
- %{mlegacy-libc:%{!mno-legacy-libc:%{!mxc32cpp-lib:-llega-c}}} %{mno-legacy-libc:%{!mxc32cpp-lib:-lc}} \
- %{!mlegacy-libc:%{!mxc32cpp-lib:-lc}} -lpic32 \
+ %{mno-legacy-libc:%{!mxc32cpp-lib:-lc}} \
+ %{no-legacy-libc:%{!mxc32cpp-lib:-lc}} \
+ %{mlegacy-libc:%{!mno-legacy-libc:%{!mxc32cpp-lib:%{!no-legacy-libc:-llega-c}}}} \
+ %{!mlegacy-libc:%{!mno-legacy-libc:%{!mxc32cpp-lib:%{!no-legacy-libc:-llega-c}}}} \
+ -lpic32 \
  --end-group"
 
 #undef LIBSTDCXX
@@ -109,19 +112,28 @@ do {                     \
 #define XC32CPPLIB_OPTION "-mxc32cpp-lib"
 
 # undef  STARTFILE_SPEC
-# define STARTFILE_SPEC "%{mmicromips: %s%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/crt0_micromips%O};\
-  : %s%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/crt0_mips32r2%O} } \
-  %{!mprocessor=* : crt0%O%s} \
+# define STARTFILE_SPEC "%{!pie:%{mmicromips: %s%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/crt0_micromips%O};\
+  : %s%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/crt0_mips32r2%O}}} \
+  %{pie:%{mmicromips: %s%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/crt0_micromips_pic%O};\
+  : %s%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/crt0_mips32r2_pic%O}}} \
+  %{!pie:%{!mprocessor=* : crt0%O%s}} \
+  %{pie:%{!mprocessor=*:crt0_pic%O%s}} \
   %{!A:%{!nostdlib:%{!mno-default-isr-vectors:%{mdebugger|mreserve=* : -l:software-debug-break.o} }}}\
-  %{!A:%{!nostdlib:%{!mno-default-isr-vectors:%{!mdebugger : %{!mreserve=*: \
+  %{!pie:%{!A:%{!nostdlib:%{!mno-default-isr-vectors:%{!mdebugger : %{!mreserve=*: \
     %{mmicromips : -l:debug-exception-return-mm.o; \
-    !mmicromips: -l:debug-exception-return.o}}} }}} \
+    !mmicromips: -l:debug-exception-return.o}}} }}}} \
+  %{pie:%{!A:%{!nostdlib:%{!mno-default-isr-vectors:%{!mdebugger : %{!mreserve=*: \
+    %{mmicromips : -l:debug-exception-return-pic-mm.o; \
+    !mmicromips: -l:debug-exception-return-pic.o}}} }}}} \
  "
 
 # undef STARTFILECXX_SPEC
-# define STARTFILECXX_SPEC "%{mmicromips: %s%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/cpprt0_micromips%O} ;\
-  : %s%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/cpprt0_mips32r2%O} } \
-  %{!mprocessor=* : cpprt0%O%s} \
+# define STARTFILECXX_SPEC "%{!pie:%{mmicromips: %s%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/cpprt0_micromips%O} ;\
+  : %s%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/cpprt0_mips32r2%O}} } \
+  %{pie:%{mmicromips: %s%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/cpprt0_micromips_pic%O} ;\
+  : %s%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/cpprt0_mips32r2_pic%O}} } \
+  %{!pie:%{!mprocessor=* : cpprt0%O%s}} \
+  %{pie:%{!mprocessor=* : cpprt0_pic%O%s}} \
   crti%O%s crtbegin%O%s "
 
 #undef ENDFILE_SPEC
@@ -132,7 +144,7 @@ do {                     \
 
 #undef LINK_COMMAND_SPEC
 /* Add the PIC32 default linker script with the -T option */
-/* When compiling with -mprocessor=32MX* or without the -mprocessor option, 
+/* When compiling with -mprocessor=32MX* or without the -mprocessor option,
    use the ./ldscripts/elf32pic32mx.x file. When compiling for a newer device,
    Use ./proc/<procname>/p<procname>.ld. */
 #define LINK_COMMAND_SPEC "\
@@ -159,15 +171,21 @@ do {                     \
     %{static:} %{L*} %(mfwrap) %(link_libgcc) %o\
     %{fopenmp|ftree-parallelize-loops=*:%:include(libgomp.spec)%(link_gomp)} %(mflib)\
     %{fprofile-arcs|fprofile-generate*|coverage:-lgcov}\
-    %{!A:%{!nostdlib:%{!nodefaultlibs:%{!nostartfiles:%{!mno-default-isr-vectors: -l:default_isr_vectors.o} }}}}\
-    %{!A:%{!nostdlib:%{!nodefaultlibs:%{!nostartfiles:%{!mno-default-isr-vectors: %{mprocessor=32*: \
+    %{!pie:%{!A:%{!nostdlib:%{!nodefaultlibs:%{!nostartfiles:%{!mno-default-isr-vectors: -l:default_isr_vectors.o} }}}}}\
+    %{pie:%{!A:%{!nostdlib:%{!nodefaultlibs:%{!nostartfiles:%{!mno-default-isr-vectors: -l:default_isr_vectors_pic.o} }}}}}\
+    %{!pie:%{!A:%{!nostdlib:%{!nodefaultlibs:%{!nostartfiles:%{!mno-default-isr-vectors: %{mprocessor=32*: \
       %{mmicromips : -l:pic32_software_reset-mm.o; \
-      !mmicromips  : -l:pic32_software_reset.o}}}}}}}\
+      !mmicromips  : -l:pic32_software_reset.o}}}}}}}}\
+    %{pie:%{!A:%{!nostdlib:%{!nodefaultlibs:%{!nostartfiles:%{!mno-default-isr-vectors: %{mprocessor=32*|mprocessor=MGC*: \
+      %{mmicromips : -l:pic32_software_reset_pic-mm.o; \
+      !mmicromips  : -l:pic32_software_reset_pic.o}}}}}}}}\
     %{mreserve=*:--mreserve=%* } \
-    %{T:%{T*};!T:-T %s%{mprocessor=32MX*:./ldscripts/elf32pic32mx.x; \
+    %{!pie:%{T:%{T*};!T:-T %s%{mprocessor=32MX*:./ldscripts/elf32pic32mx.x; \
      :%{mprocessor=32mx*:./ldscripts/elf32pic32mx.x; \
      :%{!mprocessor=*:./ldscripts/elf32pic32mx.x; \
-     :%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/p%*} %J%{mprocessor=*:.ld} }}}} \
+     :%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/p%*} %J%{mprocessor=*:.ld} }}}}} \
+    %{pie:%{T:%{T*};!T:-T %s%{!mprocessor=*:elf32pic32mx_pic.x; \
+     :%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/p%*} %J%{mprocessor=*:_pic.ld} }}} \
     %{!nostdlib:%{!nodefaultlibs:%(link_ssp) %(link_gcc_c_sequence)}}\
     %{!A:%{!nostdlib:%{!nostartfiles:%E} }} \
     %{mlegacy-libc:%{mxc32cpp-lib:%e-legacy-libc not compatible with C++ projects}} \
@@ -182,7 +200,7 @@ do {                     \
     -plugin-opt=%(lto_wrapper) \
     -plugin-opt=%(lto_gcc) \
     %{static|static-libgcc:-plugin-opt=-pass-through=%(lto_libgcc)}	\
-    %{static:-plugin-opt=-pass-through=-lc}	\
+    %{static:-plugin-opt=-pass-through=-llega-c}	\
     %{O*:-plugin-opt=-O%*} \
     %{w:-plugin-opt=-w} \
     %{f*:-plugin-opt=-f%*} \
@@ -197,10 +215,14 @@ do {                     \
     %{static:} %{L*} %(mfwrap) %(link_libgcc) %o\
     %{fopenmp|ftree-parallelize-loops=*:%:include(libgomp.spec)%(link_gomp)} %(mflib)\
     %{fprofile-arcs|fprofile-generate*|coverage:-lgcov}\
-    %{!A:%{!nostdlib:%{!nodefaultlibs:%{!nostartfiles:%{!mno-default-isr-vectors: -l:default_isr_vectors.o} }}}}\
-    %{!A:%{!nostdlib:%{!nodefaultlibs:%{!nostartfiles:%{!mno-default-isr-vectors: %{mprocessor=32*: \
+    %{!pie:%{!A:%{!nostdlib:%{!nodefaultlibs:%{!nostartfiles:%{!mno-default-isr-vectors: -l:default_isr_vectors.o} }}}}}\
+    %{pie:%{!A:%{!nostdlib:%{!nodefaultlibs:%{!nostartfiles:%{!mno-default-isr-vectors: -l:default_isr_vectors_pic.o} }}}}}\
+    %{!pie:%{!A:%{!nostdlib:%{!nodefaultlibs:%{!nostartfiles:%{!mno-default-isr-vectors: %{mprocessor=32*: \
       %{mmicromips : -l:pic32_software_reset-mm.o; \
-      !mmicromips  : -l:pic32_software_reset.o}}}}}}} \
+      !mmicromips  : -l:pic32_software_reset.o}}}}}}}} \
+    %{pie:%{!A:%{!nostdlib:%{!nodefaultlibs:%{!nostartfiles:%{!mno-default-isr-vectors: %{mprocessor=32*|mprocessor=MGC*: \
+      %{mmicromips : -l:pic32_software_reset_pic-mm.o; \
+      !mmicromips  : -l:pic32_software_reset_pic.o}}}}}}}} \
     %{mreserve=*:--mreserve=%*} \
     %{T*} \
     %{!nostdlib:%{!nodefaultlibs:%(link_ssp) %(link_gcc_c_sequence)}}\
@@ -219,9 +241,14 @@ do {                     \
  %D -L %s%{mprocessor=*:./proc/%*; :./proc/32MXGENERIC} %{mdebugger:%{!mreserve=data*:--defsym _DEBUGGER=1}}"
 
 #ifndef TARGET_EXTRA_PRE_INCLUDES
-extern void pic32_system_include_paths(const char *root, const char *system,
+extern void pic32_system_pre_include_paths(const char *root, const char *system,
                                        int nostdinc);
-#define TARGET_EXTRA_PRE_INCLUDES pic32_system_include_paths
+#define TARGET_EXTRA_PRE_INCLUDES pic32_system_pre_include_paths
+#endif
+
+#ifndef TARGET_FINAL_INCLUDES
+extern void pic32_final_include_paths(struct cpp_dir*,struct cpp_dir*);
+#define TARGET_FINAL_INCLUDES pic32_final_include_paths
 #endif
 
 #ifdef DIR_SEPARATOR
@@ -290,6 +317,7 @@ extern void pic32_system_include_paths(const char *root, const char *system,
 %(subtarget_asm_optimizing_spec) \
 %(subtarget_asm_debugging_spec) \
 %{mxgot:-xgot} \
+%{!mno-abicalls:%{fPIC|fpic|fPIE|fpie:-KPIC}} \
 %{mtune=*} %{v} \
 %{!mpdr:-mno-pdr} \
 %{mprocessor=*:-p%*} \
@@ -331,6 +359,9 @@ extern void pic32_system_include_paths(const char *root, const char *system,
    %{mhard-float : %{!mfp32 : -mfp64} } \
    %{mfp64 : -mhard-float } \
    %{!mfp64 : %{!mno-float : -msoft-float}} \
+   %{legacy-libc:%{!mno-legacy-libc:-mlegacy-libc}} \
+   %{no-legacy-libc:%{!mlegacy-libc:-mno-legacy-libc}} \
+   %{mgen-pie-static : -fPIC -G0 -pie -static -relaxed-math -mno-smart-io} \
      "
 
 /* CC1_SPEC is the set of arguments to pass to the compiler proper.  This
@@ -359,8 +390,6 @@ extern void pic32_system_include_paths(const char *root, const char *system,
  %{mlong-calls:-msmart-io=0} \
  %{msmart-io:%{msmart-io=*:%emay not use both -msmart-io and -msmart-io=LEVEL}} \
  %{mno-smart-io:%{msmart-io=*:%emay not use both -mno-smart-io and -msmart-io=LEVEL}} \
- %{mlegacy-libc:%{!mno-legacy-libc:-fno-short-double -msmart-io=0}} \
- %{legacy-libc:%{!mno-legacy-libc:-fno-short-double -msmart-io=0}} \
  %{mno-smart-io:-msmart-io=0} \
  %{msmart-io:-msmart-io=1} \
  %{save-temps: -fverbose-asm} \
@@ -377,8 +406,9 @@ extern void pic32_system_include_paths(const char *root, const char *system,
  %{!fasynchronous-unwind-tables : -fno-asynchronous-unwind-tables } \
  %{fdwarf2-cfi-asm : -fno-dwarf2-cfi-asm } \
  %{!mconfig-data-dir=* : -mconfig-data-dir= %J%s%{ mprocessor=* :./proc/%*; :./proc/32MXGENERIC}} \
- %{!ftoplevel-reorder : -fno-toplevel-reorder } \
  %{flto: %{!fno-fat-lto-objects: -ffat-lto-objects}} \
+ %{legacy-libc:%{!mno-legacy-libc:-mlegacy-libc}} \
+ %{no-legacy-libc:%{!mlegacy-libc:-mno-legacy-libc}} \
  %(mchp_cci_cc1_spec) \
  %(subtarget_cc1_spec) \
 "
@@ -751,6 +781,19 @@ extern void pic32_system_include_paths(const char *root, const char *system,
              ("__PIC32_PIN_COUNT",                          \
               pincount);                                    \
         }                                                   \
+        else if (strncmp (mchp_processor_string, "BT", 2) == 0)  { \
+        char *proc, *p;                                     \
+        gcc_assert(strlen(mchp_processor_string) < 10);     \
+        for (p = (char *)mchp_processor_string ; *p ; p++)  \
+          *p = TOUPPER (*p);                                \
+        builtin_define ("__BT");                           \
+        builtin_define ("__BT__");                         \
+        proc = (char*)alloca (strlen (mchp_processor_string) + 6); \
+        gcc_assert (proc!=NULL);                            \
+        sprintf (proc, "__%s__", mchp_processor_string);    \
+        gcc_assert (strlen(proc)>0);                        \
+        builtin_define (proc);                              \
+        }                                                   \
         else if (strncmp (mchp_processor_string, "MGC", 3) == 0)  { \
         char *proc, *p;                                     \
         gcc_assert(strlen(mchp_processor_string) < 10);     \
@@ -779,7 +822,7 @@ extern void pic32_system_include_paths(const char *root, const char *system,
         gcc_assert (strlen(proc)>0);                        \
         builtin_define (proc);                              \
         }                                                   \
-        else if (strncmp (mchp_processor_string, "32MM", 3) == 0)  { \
+        else if (strncmp (mchp_processor_string, "32MM", 4) == 0)  { \
         char *proc, *p;                                     \
         gcc_assert(strlen(mchp_processor_string) < 10);     \
         for (p = (char *)mchp_processor_string ; *p ; p++)  \
@@ -791,12 +834,24 @@ extern void pic32_system_include_paths(const char *root, const char *system,
         gcc_assert (strlen(proc)>0);                        \
         builtin_define (proc);                              \
         }                                                   \
-        else if (strncmp (mchp_processor_string, "32MK", 3) == 0)  { \
+        else if (strncmp (mchp_processor_string, "32MK", 4) == 0)  { \
         char *proc, *p;                                     \
         gcc_assert(strlen(mchp_processor_string) < 10);     \
         for (p = (char *)mchp_processor_string ; *p ; p++)  \
           *p = TOUPPER (*p);                                \
         builtin_define_std ("PIC32MK");                     \
+        proc = (char*)alloca (strlen (mchp_processor_string) + 6); \
+        gcc_assert (proc!=NULL);                            \
+        sprintf (proc, "__%s__", mchp_processor_string);    \
+        gcc_assert (strlen(proc)>0);                        \
+        builtin_define (proc);                              \
+        }                                                   \
+        else if (strncmp (mchp_processor_string, "32WK", 4) == 0)  { \
+        char *proc, *p;                                     \
+        gcc_assert(strlen(mchp_processor_string) < 10);     \
+        for (p = (char *)mchp_processor_string ; *p ; p++)  \
+          *p = TOUPPER (*p);                                \
+        builtin_define_std ("PIC32WK");                     \
         proc = (char*)alloca (strlen (mchp_processor_string) + 6); \
         gcc_assert (proc!=NULL);                            \
         sprintf (proc, "__%s__", mchp_processor_string);    \
@@ -911,7 +966,7 @@ extern void pic32_system_include_paths(const char *root, const char *system,
                                                             \
       mchp_init_cci(pfile);    \
   } while (0);
- 
+
 /*
 ** Easy access check for function beginning
 **/
@@ -990,6 +1045,7 @@ extern void pic32_system_include_paths(const char *root, const char *system,
 #define MCHP_PROG_FLAG       MCHP_EXTENDED_FLAG "pm"        MCHP_EXTENDED_FLAG
 #define MCHP_DATA_FLAG       MCHP_EXTENDED_FLAG "dm"        MCHP_EXTENDED_FLAG
 #define MCHP_CONST_FLAG      MCHP_EXTENDED_FLAG "rd"        MCHP_EXTENDED_FLAG
+#define MCHP_SERIALMEM_FLAG  MCHP_EXTENDED_FLAG "sm"        MCHP_EXTENDED_FLAG
 #define MCHP_RAMFUNC_FLAG    MCHP_EXTENDED_FLAG "rf"        MCHP_EXTENDED_FLAG
 #define MCHP_PRST_FLAG       MCHP_EXTENDED_FLAG "persist"   MCHP_EXTENDED_FLAG
 #define MCHP_BSS_FLAG        MCHP_EXTENDED_FLAG "bss"       MCHP_EXTENDED_FLAG
@@ -1171,7 +1227,7 @@ extern void pic32_system_include_paths(const char *root, const char *system,
 #undef MIPS_SUBTARGET_MIPS16_ENABLED
 #define MIPS_SUBTARGET_MIPS16_ENABLED(decl) \
   mchp_subtarget_mips16_enabled(decl)
-  
+
 #undef MIPS_SUBTARGET_MICROMIPS_ENABLED
 #define MIPS_SUBTARGET_MICROMIPS_ENABLED(decl) \
   mchp_subtarget_micromips_enabled(decl)
@@ -1246,7 +1302,7 @@ do {                                    \
   }                                     \
 } while(0)
 #else
-#define MCHP_CONVERT_BACKSLASH(string) 
+#define MCHP_CONVERT_BACKSLASH(string)
 #endif
 
 /*  Open the pic32 device-specific resource file and append the -mhard-float and -mfp64 options
@@ -1337,5 +1393,3 @@ do {                                    \
     }
 
 #endif /* MCHP_H */
-
-
