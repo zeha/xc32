@@ -387,6 +387,10 @@ mlegacy-libc
 Target Var Var(TARGET_LEGACY_LIBC) Init(1)
 -legacy-libc	Use legacy lib/include directory
 
+mnewlib-libc
+Target Var Var(TARGET_NEWLIB_LIBC)
+-newlib-libc	Use Newlib lib/include directory
+
 mrelaxed-math
 Target Var Var(TARGET_RELAXED_MATH)
 -relaxed-math	Use alternative floating-point support routines
@@ -460,6 +464,9 @@ Target RejectNegative Alias(mcode-readable=, no)
 mcode-xonly
 Target RejectNegative Alias(mcode-readable=, pcrel)
 
+mvolatile-in-delay-slot
+Target Report Var(TARGET_ALLOW_VOLATILE_LOADS_IN_DELAY_SLOTS) Undocumented Init(0)
+
 mmemorysummary=
 Target Joined Var(TARGET_MEMORY_SUMMARY) Undocumented
 
@@ -484,8 +491,22 @@ Target RejectNegative Undocumented
 no-legacy-libc
 Target RejectNegative Undocumented
 
+newlib-libc
+Target RejectNegative Undocumented
+
+no-newlib-libc
+Target RejectNegative Undocumented
+
 mafrlcsj
 Target RejectNegative Var(mchp_mafrlcsj) Undocumented
 
 mgen-pie-static
 Target RejectNegative Undocumented
+
+mskip-license-check
+Target Var(TARGET_SKIP_LICENSE_CHECK) Init(0) Undocumented
+For use by MPLAB X IDE only - Forces a free license
+
+mhi-addr-opt
+Target Var Var(TARGET_MCHP_HI_ADDR_OPT)
+-mhi-addr-opt	Use HI address part optimization

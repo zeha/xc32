@@ -86,15 +86,16 @@ do {                     \
  */
 #undef  LIB_SPEC
 #define LIB_SPEC "--start-group -lpic32 %{!mno-mpdebug-lib:-ldebug} \
- %{mxc32cpp-lib:%{!mno-xc32cpp-lib:-lxcpp -lsupc++}} -lpic32 \
+ %{mxc32cpp-lib:%{!mno-xc32cpp-lib: %{!mnewlib-libc:-lxcpp} -lsupc++}} -lpic32 \
  %{mrelaxed-math : %{mfp64:%emay not use both -mrelaxed-math and -mhard-float}} \
  %{mrelaxed-math : %{!mfp64 :-lrcfops}} \
- %{mfp64 : -lmfd -lm -le ; : -lm -le}  %{mdspr2*: -ldspr2 -ldsp } %{mprocessor=32MX*: -ldsp } %{mprocessor=32MM*: -ldsp } -lgcc \
  %{mperipheral-libs:-lmchp_peripheral %{mprocessor=*:-lmchp_peripheral_%*}} \
- %{mno-legacy-libc:%{!mxc32cpp-lib:-lc}} \
- %{no-legacy-libc:%{!mxc32cpp-lib:-lc}} \
- %{mlegacy-libc:%{!mno-legacy-libc:%{!mxc32cpp-lib:%{!no-legacy-libc:-llega-c}}}} \
- %{!mlegacy-libc:%{!mno-legacy-libc:%{!mxc32cpp-lib:%{!no-legacy-libc:-llega-c}}}} \
+ %{mnewlib-libc : %{!mno-newlib-libc:%{!no-newlib-libc:-lc-newlib -lm-newlib -lg-newlib}}} \
+ %{mno-legacy-libc :%{!mnewlib-libc:%{!mxc32cpp-lib:-lc}}} \
+ %{no-legacy-libc  :%{!mnewlib-libc:%{!mxc32cpp-lib:-lc}}} \
+ %{mlegacy-libc : %{!mno-legacy-libc:%{!mnewlib-libc:%{!mxc32cpp-lib:%{!no-legacy-libc:-llega-c}}}}} \
+ %{!mlegacy-libc: %{!mno-legacy-libc:%{!mnewlib-libc:%{!mxc32cpp-lib:%{!no-legacy-libc:-llega-c}}}}} \
+ %{mfp64 : -lmfd -lm -le ; : -lm -le}  %{mdspr2*: -ldspr2 -ldsp } %{mprocessor=32MX*: -ldsp } %{mprocessor=32MM*: -ldsp } -lgcc \
  -lpic32 \
  --end-group"
 
@@ -105,7 +106,7 @@ do {                     \
 
 /* For C++, use the libxcpp library */
 #undef MATH_LIBRARY
-#define MATH_LIBRARY  "xcpp"
+#define MATH_LIBRARY ""
 #undef MATH_LIBRARY_PROFILE
 #define MATH_LIBRARY_PROFILE MATH_LIBRARY
 
@@ -268,6 +269,11 @@ extern void pic32_final_include_paths(struct cpp_dir*,struct cpp_dir*);
                                      "lega-c"
 #endif
 
+#ifndef MPLABC32_NEWLIB_COMMON_INCLUDE_PATH
+#define MPLABC32_NEWLIB_COMMON_INCLUDE_PATH DIR_SEPARATOR_STR \
+                                     "newlib"
+#endif
+
 /* These are MIPS-specific specs that we do not utilize.  Undefine them
  * and define them as an empty string.
  */
@@ -361,7 +367,12 @@ extern void pic32_final_include_paths(struct cpp_dir*,struct cpp_dir*);
    %{!mfp64 : %{!mno-float : -msoft-float}} \
    %{legacy-libc:%{!mno-legacy-libc:-mlegacy-libc}} \
    %{no-legacy-libc:%{!mlegacy-libc:-mno-legacy-libc}} \
+   %{newlib-libc:%{!mno-newlib-libc:-mnewlib-libc}} \
+   %{no-newlib-libc:%{!mnewlib-libc:-mno-newlib-libc}} \
    %{mgen-pie-static : -fPIC -G0 -pie -static -relaxed-math -mno-smart-io} \
+   %{mnewlib-libc|newlib-libc : %{mlegacy-libc|legacy-libc:%emay not use both -mlegacy-libc and -mnewlib-libc}} \
+   %{mnewlib-libc : -mno-smart-io -mno-legacy-libc %{!fshort-double:-fno-short-double}} \
+   %{newlib-libc : -mno-smart-io -mno-legacy-libc -fno-short-double} \
      "
 
 /* CC1_SPEC is the set of arguments to pass to the compiler proper.  This
@@ -404,11 +415,12 @@ extern void pic32_final_include_paths(struct cpp_dir*,struct cpp_dir*);
  %{fnofallback : -mno-fallback } \
  %{-nofallback : -mno-fallback } \
  %{!fasynchronous-unwind-tables : -fno-asynchronous-unwind-tables } \
- %{fdwarf2-cfi-asm : -fno-dwarf2-cfi-asm } \
+ %{!fdwarf2-cfi-asm : -fno-dwarf2-cfi-asm } \
  %{!mconfig-data-dir=* : -mconfig-data-dir= %J%s%{ mprocessor=* :./proc/%*; :./proc/32MXGENERIC}} \
  %{flto: %{!fno-fat-lto-objects: -ffat-lto-objects}} \
  %{legacy-libc:%{!mno-legacy-libc:-mlegacy-libc}} \
  %{no-legacy-libc:%{!mlegacy-libc:-mno-legacy-libc}} \
+ %{O2|Os|O3:%{!mno-hi-addr-opt:-mhi-addr-opt}} \
  %(mchp_cci_cc1_spec) \
  %(subtarget_cc1_spec) \
 "
@@ -417,6 +429,7 @@ extern void pic32_final_include_paths(struct cpp_dir*,struct cpp_dir*);
  %{!fenforce-eh-specs:-fno-enforce-eh-specs} \
  %{mxc32cpp-lib:%{!mno-xc32cpp-lib:%{!std=*:-std=c++11} -msmart-io=0 }} \
  %(subtarget_cc1plus_spec) \
+ %{O2|Os|O3:%{!mno-hi-addr-opt:-mhi-addr-opt}} \
 "
 
 /* Preprocessor specs.  */
@@ -781,13 +794,13 @@ extern void pic32_final_include_paths(struct cpp_dir*,struct cpp_dir*);
              ("__PIC32_PIN_COUNT",                          \
               pincount);                                    \
         }                                                   \
-        else if (strncmp (mchp_processor_string, "BT", 2) == 0)  { \
+        else if (strncmp (mchp_processor_string, "BT55", 2) == 0)  { \
         char *proc, *p;                                     \
         gcc_assert(strlen(mchp_processor_string) < 10);     \
         for (p = (char *)mchp_processor_string ; *p ; p++)  \
           *p = TOUPPER (*p);                                \
-        builtin_define ("__BT");                           \
-        builtin_define ("__BT__");                         \
+        builtin_define ("__BT55");                          \
+        builtin_define ("__BT55__");                        \
         proc = (char*)alloca (strlen (mchp_processor_string) + 6); \
         gcc_assert (proc!=NULL);                            \
         sprintf (proc, "__%s__", mchp_processor_string);    \
@@ -807,14 +820,16 @@ extern void pic32_final_include_paths(struct cpp_dir*,struct cpp_dir*);
         gcc_assert (strlen(proc)>0);                        \
         builtin_define (proc);                              \
         }                                                   \
-        else if (strncmp (mchp_processor_string, "MEC", 3) == 0)  { \
+        else if (strncmp (mchp_processor_string, "MEC14", 5) == 0)  { \
         char *proc, *p;                                     \
         gcc_assert(strlen(mchp_processor_string) < 10);     \
         for (p = (char *)mchp_processor_string ; *p ; p++)  \
           *p = TOUPPER (*p);                                \
         builtin_define ("__MEC");                           \
+        builtin_define ("__MEC14");                         \
         builtin_define ("__IPSWICH");                       \
         builtin_define ("__MEC__");                         \
+        builtin_define ("__MEC14__");                       \
         builtin_define ("__IPSWICH__");                     \
         proc = (char*)alloca (strlen (mchp_processor_string) + 6); \
         gcc_assert (proc!=NULL);                            \
@@ -852,6 +867,17 @@ extern void pic32_final_include_paths(struct cpp_dir*,struct cpp_dir*);
         for (p = (char *)mchp_processor_string ; *p ; p++)  \
           *p = TOUPPER (*p);                                \
         builtin_define_std ("PIC32WK");                     \
+        proc = (char*)alloca (strlen (mchp_processor_string) + 6); \
+        gcc_assert (proc!=NULL);                            \
+        sprintf (proc, "__%s__", mchp_processor_string);    \
+        gcc_assert (strlen(proc)>0);                        \
+        builtin_define (proc);                              \
+        }                                                   \
+        else {                                              \
+        char *proc, *p;                                     \
+        gcc_assert(strlen(mchp_processor_string) < 10);     \
+        for (p = (char *)mchp_processor_string ; *p ; p++)  \
+          *p = TOUPPER (*p);                                \
         proc = (char*)alloca (strlen (mchp_processor_string) + 6); \
         gcc_assert (proc!=NULL);                            \
         sprintf (proc, "__%s__", mchp_processor_string);    \
@@ -1063,6 +1089,7 @@ extern void pic32_final_include_paths(struct cpp_dir*,struct cpp_dir*);
 #define MCHP_KEEP_FLAG       MCHP_EXTENDED_FLAG "keep"      MCHP_EXTENDED_FLAG
 #define MCHP_COHERENT_FLAG   MCHP_EXTENDED_FLAG "coherent"  MCHP_EXTENDED_FLAG
 #define MCHP_REGION_FLAG     MCHP_EXTENDED_FLAG "region"    MCHP_EXTENDED_FLAG
+#define MCHP_CO_SHARED_FLAG  MCHP_EXTENDED_FLAG "shared"    MCHP_EXTENDED_FLAG
 
 #define MCHP_IS_NAME_P(NAME,IS) (strncmp(NAME, IS, sizeof(IS)-1) == 0)
 #define MCHP_HAS_NAME_P(NAME,HAS) (strstr(NAME, HAS))
@@ -1188,6 +1215,8 @@ extern void pic32_final_include_paths(struct cpp_dir*,struct cpp_dir*);
     { "crypto",           0, 0,  false, false, false, mchp_crypto_attribute, false },	      \
     { "unique_section",   0, 0,  true,  false, false, mchp_unique_section_attribute, false }, \
     { "region",           1, 1,  false, false, false, mchp_region_attribute, false },         \
+    { "function_replacement_prologue",  0, 0,  true, false,  false,  mchp_frp_attribute, false },        \
+    { "shared",           0, 0,  false, false, false, mchp_shared_attribute, false },         \
     /* prevent FPU usage in ISRs */                                                           \
     { "no_fpu",           0, 0,  false, true,  true,  NULL, false },
 

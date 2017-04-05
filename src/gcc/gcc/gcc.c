@@ -3203,9 +3203,13 @@ display_help (void)
   fputs (_("\
   -relaxed-math            Use alternative floating-point support routines\n"), stdout);
   fputs (_("\
-  -legacy-libc             Use legacy lib C routines\n"), stdout);
+  -legacy-libc             Use default legacy lib C routines\n"), stdout);
   fputs (_("\
   -no-legacy-libc          Use HTC lib C routines\n"), stdout);
+  fputs (_("\
+  -newlib-libc             Use Newlib lib C routines\n"), stdout);
+  fputs (_("\
+  -no-newlib-libc          Use the default C routines\n"), stdout);
   fputs (_("\
   -mgen-pie-static         Generate static linked position independent code\n"), stdout);
 #endif
@@ -7033,7 +7037,6 @@ main (int argc, char **argv)
           {
             printf("Part support version: %d.%2d (%c)\n",rib->version.major,
                          rib->version.minor,rib->resource_version_increment);
-           close_rib();
           }
         else
           {
@@ -7107,6 +7110,19 @@ main (int argc, char **argv)
       fputs (_("This is free software; see the source for copying conditions.  There is NO\n\
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"),
 	     stdout);
+
+#ifdef _BUILD_MCHP_
+        if (rib)
+          {
+            if (ISDIGIT(rib->resource_version_increment))
+              {
+                fputs (_("\n*** NOTICE: This is a non-commercial compiler version. Please contact your FAE or microchip.com/MPLABXC to obtain an official, released compiler.\n\n"), stdout);
+              }
+            close_rib();
+            rib = NULL;
+          }
+#endif
+
       if (! verbose_flag)
 	return 0;
 
@@ -7152,6 +7168,39 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
       else
 	fnotice (stderr, "gcc driver version %s %sexecuting gcc version %s\n",
 		 version_string, pkgversion_string, compiler_version);
+
+#if defined(TARGET_MCHP_PIC32MX) || defined(_BUILD_C32_)
+
+#define RESOURCEFILENAME "xc32_device.info"
+      {
+        /* Find the resource number/letter from the resource file to determine
+         * whether the installation is a beta/pre-release or a public release.
+         */
+        struct resource_introduction_block *rib;
+        const char *bindir_path = NULL;
+        char *res_filepath = NULL;
+        int max_pathlength = 0;
+
+        bindir_path = make_relative_prefix(argv[0],"/bin","/bin");
+        max_pathlength = strlen((const char*)bindir_path) + 1 +
+                                   strlen((const char*)RESOURCEFILENAME) + 1;
+        res_filepath = (char*)alloca(max_pathlength);
+        strncpy (res_filepath, bindir_path, max_pathlength);
+        strncat (res_filepath, RESOURCEFILENAME, max_pathlength);
+        rib = read_rib(res_filepath);
+        if (rib)
+          {
+            if (ISDIGIT(rib->resource_version_increment))
+              {
+                fputs (_("\n*** NOTICE: This is a non-commercial compiler version. Please contact your FAE or microchip.com/MPLABXC to obtain an official, released compiler.\n\n"), stdout);
+              }
+            close_rib();
+            rib = NULL;
+          }
+        }
+#elif defined(_BUILD_MCHP_)
+#warning Add reading of compiler's resource file
+#endif
 
       if (n_infiles == 0)
 	return (0);

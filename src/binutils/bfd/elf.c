@@ -54,6 +54,10 @@ SECTION
 #include "pic32-utils.h"
 #endif
 
+///\ coresident pic32
+extern bfd_boolean      pic32_coresident_app;
+
+
 static int elf_sort_sections (const void *, const void *);
 static bfd_boolean assign_file_positions_except_relocs (bfd *, struct bfd_link_info *);
 static bfd_boolean prep_headers (bfd *);
@@ -837,6 +841,7 @@ _bfd_elf_make_section_from_shdr (bfd *abfd,
   asection *newsect;
   flagword flags;
   const struct elf_backend_data *bed;
+  static asymbol **syms; /* lghica co-resident */
 
   if (hdr->bfd_section != NULL)
     return TRUE;
@@ -1726,10 +1731,10 @@ bfd_section_from_shdr (bfd *abfd, unsigned int shindex)
 
     case SHT_SYMTAB:		/* A symbol table */
       if (elf_onesymtab (abfd) == shindex)
-	return TRUE;
+          return TRUE;
 
       if (hdr->sh_entsize != bed->s->sizeof_sym)
-	return FALSE;
+          return FALSE;
       if (hdr->sh_info * hdr->sh_entsize > hdr->sh_size)
 	{
 	  if (hdr->sh_size != 0)
@@ -1746,6 +1751,7 @@ bfd_section_from_shdr (bfd *abfd, unsigned int shindex)
       elf_elfsections (abfd)[shindex] = hdr = &elf_tdata (abfd)->symtab_hdr;
       abfd->flags |= HAS_SYMS;
 
+            
       /* Sometimes a shared object will map in the symbol table.  If
 	 SHF_ALLOC is set, and this is a shared object, then we also
 	 treat this section as a BFD section.  We can not base the
@@ -5021,7 +5027,12 @@ assign_file_positions_for_non_load_sections (bfd *abfd,
 	BFD_ASSERT (hdr->sh_offset == hdr->bfd_section->filepos);
       else if ((hdr->sh_flags & SHF_ALLOC) != 0)
 	{
-	  if (hdr->sh_size != 0)
+        if ((hdr->sh_size != 0)
+#if 1   ///\coresident breaks the allocation rules from linker script when building
+        ///\            slave apps -> no warning
+            && !pic32_coresident_app
+#endif
+            )
 	    (*_bfd_error_handler)
 	      (_("%B: warning: allocated section `%s' not in segment"),
 	       abfd,
@@ -7027,6 +7038,15 @@ Unable to find equivalent output section for symbol '%s' from section '%s'"),
 	{
 	  int bind = STB_LOCAL;
 
+#if 1 /* lghica co-resident */
+        if ((flags & BSF_LOCAL) && (flags & BSF_SHARED))
+            bind = STB_LOPROC;
+        else if ((flags & BSF_WEAK) && (flags & BSF_SHARED))
+            bind = STB_HIPROC;
+        else if ((flags & BSF_GLOBAL) && (flags & BSF_SHARED))
+            bind = STB_MIDPROC;
+        else
+#endif
 	  if (flags & BSF_LOCAL)
 	    bind = STB_LOCAL;
 	  else if (flags & BSF_GNU_UNIQUE)

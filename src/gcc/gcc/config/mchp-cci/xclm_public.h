@@ -51,4 +51,10 @@
 #define MCHP_XCLM_INTERNAL_ERROR	0x11	/* internal error - memory, filesystem, network, ? */
 #define MCHP_XCLM_LICENSE_ERROR		0x12	/* no license available, or license expired */
 
-#define MCHP_XCLM_NO_VALID_LICENSE	 0x1	/* -liccheck */
+
+/* -liccheck */
+#define MCHP_XCLM_NO_VALID_LICENSE	 0x1
+#define MCHP_XCLM_SUBSCRIP_RENEWED	 0x2
+#define MCHP_XCLM_LICENSE_EXPIRED	 0x3
+#define MCHP_XCLM_LICENSE_RENEWED	 0x4
+#define MCHP_XCLM_DONGLE_LICENSE	 0x5

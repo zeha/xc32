@@ -13,11 +13,12 @@ CRTSTUFF_T_CFLAGS = -G 0 -D_BUILD_C32_ -minterlink-compressed
 LIBGCC = stmp-multilib
 INSTALL_LIBGCC = install-multilib
 
-MULTILIB_OPTIONS = Os/O3 mips16/mmicromips mno-float/mfp64 fPIC
-MULTILIB_DIRNAMES = size speed mips16 micromips no-float fpu64 fPIC
+MULTILIB_OPTIONS = Os/O3 mips16/mmicromips mno-float/mfp64 fno-short-double fPIC
+MULTILIB_DIRNAMES = size speed mips16 micromips no-float fpu64 longdouble fPIC
 MULTILIB_MATCHES = EL=mel EB=meb mips16=mips16e fPIC=fpic fPIC=fpie fPIC=fPIE
 MULTILIB_EXCLUSIONS = mcode-readable=no/!mips16
 MULTILIB_EXCLUSIONS += *mno-float/*mfp64*
+MULTILIB_EXCLUSIONS += *mno-float/*fno-short-double*
 MULTILIB_EXCLUSIONS += *mips16/*mfp64*
 MULTILIB_EXCEPTIONS = *mpic32mxlibs*/*mmicromips* 
 MULTILIB_EXCEPTIONS += *mpic32mmlibs*/*mips16* 
@@ -78,3 +79,11 @@ cci-backend.o: $(srcdir)/config/mchp-cci/cci-backend.c \
 	$(COMPILER) -c $(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) \
 	  $(srcdir)/config/mchp-cci/cci-backend.c
 
+mchp-hi-addr-analysis.o : $(srcdir)/config/pic32/mchp-hi-addr-analysis.c $(CONFIG_H) $(SYSTEM_H) coretypes.h $(TM_H) $(RTL_H) \
+   $(REGS_H) hard-reg-set.h $(FLAGS_H) insn-config.h \
+   $(RECOG_H) $(EXPR_H) $(BASIC_BLOCK_H) $(FUNCTION_H) toplev.h $(DIAGNOSTIC_CORE_H) \
+   $(TM_P_H) $(PARAMS_H) cselib.h $(EXCEPT_H) $(TREE_H) \
+   intl.h $(OBSTACK_H) $(TREE_PASS_H) $(DF_H) $(DBGCNT_H) $(TARGET_H) \
+   $(DF_H) $(CFGLOOP_H)
+	$(COMPILER) -c $(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) \
+	  $(srcdir)/config/pic32/mchp-hi-addr-analysis.c
