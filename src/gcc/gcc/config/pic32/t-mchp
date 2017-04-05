@@ -18,9 +18,13 @@ MULTILIB_DIRNAMES = size speed mips16 micromips no-float
 MULTILIB_MATCHES = EL=mel EB=meb mips16=mips16e
 MULTILIB_EXCLUSIONS = mcode-readable=no/!mips16
 MULTILIB_EXCEPTIONS = *mpic32mxlibs*/*mmicromips* 
+MULTILIB_EXCEPTIONS += *mpic32mmlibs*/*mips16* 
+MULTILIB_EXCEPTIONS += *mpic32mmlibs*/*mmicromips* 
 MULTILIB_EXCEPTIONS += *mpic32mzlibs*/*mips16* 
 MULTILIB_EXCEPTIONS += *mprocessor=32MX*/*mmicromips* 
 MULTILIB_EXCEPTIONS += *mprocessor=32MZ*/*mips16*
+MULTILIB_EXCEPTIONS += *mprocessor=32MM*/*mmicromips* 
+MULTILIB_EXCEPTIONS += *mprocessor=32MM*/*mips16*
 MULTILIB_EXCEPTIONS += !mprocessor=*/*msmall-isa*
 
 EXTRA_MULTILIB_PARTS = crtbegin.o crtend.o

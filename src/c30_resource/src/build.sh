@@ -11,10 +11,14 @@ CMD_RVERSION=${2:-0x7a};
   chmod a+w c30/*.res
   if [ -d ../../XC16_ps_staging ]; then
     cd c30
-    for f in *.res; do
-      if [ "`diff -q ../../../XC16_ps_staging/resource/$f $f`" != "" ]; then
-         echo "*** $f in XC16_ps_staging differs; copying from staging area"
-         cp -f ../../../XC16_ps_staging/resource/$f .
+    for f in ../../../XC16_ps_staging/resource/*.res; do
+      g=`basename $f`
+      if [ ! -f $g ]; then
+         echo "*** $f differs; copying from staging area"
+         cp -f $f $g
+      elif [ "`diff -q $f $g`" != "" ]; then
+         echo "*** $f differs; copying from staging area"
+         cp -f $f $g
       fi
     done
   fi

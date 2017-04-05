@@ -2567,7 +2567,7 @@ case 18:
 YY_RULE_SETUP
 #line 45 "grammar.l"
 { /* octal */ 
-                      yylval.ival = strtol(yytext,0,0);
+                      yylval.ival = strtoul(yytext,0,0);
                       return INT_LIT;
                     }
 	YY_BREAK
@@ -2575,7 +2575,7 @@ case 19:
 YY_RULE_SETUP
 #line 50 "grammar.l"
 { /* decimal */ 
-                      yylval.ival = strtol(yytext,0,0);
+                      yylval.ival = strtoul(yytext,0,0);
                       return INT_LIT;
                     }
 	YY_BREAK
@@ -2583,7 +2583,7 @@ case 20:
 YY_RULE_SETUP
 #line 55 "grammar.l"
 { /* hex */ 
-                      yylval.ival = strtol(yytext,0,0);
+                      yylval.ival = strtoul(yytext,0,0);
                       return INT_LIT;
                     }
 	YY_BREAK
@@ -2591,7 +2591,7 @@ case 21:
 YY_RULE_SETUP
 #line 60 "grammar.l"
 { /* binary */ 
-                      yylval.ival = strtol(yytext,0,0);
+                      yylval.ival = strtoul(yytext,0,0);
                       return INT_LIT;
                     }
 	YY_BREAK

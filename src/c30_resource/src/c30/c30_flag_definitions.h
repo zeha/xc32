@@ -17,6 +17,17 @@
 /*
 ** Family-specific flags - bits 0 - 7
 */
+
+/*
+ *  (CAW)
+ *
+ *  Clearly we have run out of bits... so P33C (and others?) is not valid
+ *    DDT export script will call a P33C a P33E device so that we can proceed
+ *  We should evaluate whether or not these family masks have further value,
+ *    perhaps all future devices will be a 33E or 24E and the device_id flags
+ *    will convey the distinctions
+ */
+
 #define P30F     1 << 0
 #define P30FSMPS 1 << 1
 #define P33F     1 << 2
@@ -70,10 +81,15 @@
 #define PARTITIONED   1 << 26
 
 /* IS_MEM_ID flags */
-#define MEM_FLASH     1 << 8
-#define MEM_RAM       1 << 9
-#define MEM_EEPROM    1 << 10
-#define MEM_DATAFLASH 1 << 11
+#define MEM_FLASH           1 << 8
+#define MEM_RAM             1 << 9
+#define MEM_EEPROM          1 << 10
+#define MEM_DATAFLASH       1 << 11
+#define MEM_PARTITIONED     1 << 12 /* if set - 
+                                         entry belongs to partitioned memory */
+#define MEM_IS_AIVT_ENABLED 1 << 13 /* identifies fuse location + bit to check
+                                         validity of floating AIVT */
+#define MEM_AIVT_LOCATION   1 << 14 /* identifies fuse location for AIVT */
 
 /*
 ** Values that identify record types - bits 28-31

@@ -43,22 +43,22 @@
                       return VERSION_LIT;
                     }
 (0[0-7]*)           { /* octal */ 
-                      yylval.ival = strtol(yytext,0,0);
+                      yylval.ival = strtoul(yytext,0,0);
                       return INT_LIT;
                     }
 
 ([1-9][0-9]*)       { /* decimal */ 
-                      yylval.ival = strtol(yytext,0,0);
+                      yylval.ival = strtoul(yytext,0,0);
                       return INT_LIT;
                     }
 
 (0[xX][0-9a-fA-F]*) { /* hex */ 
-                      yylval.ival = strtol(yytext,0,0);
+                      yylval.ival = strtoul(yytext,0,0);
                       return INT_LIT;
                     }
 
 (0[bB][01]+)        { /* binary */ 
-                      yylval.ival = strtol(yytext,0,0);
+                      yylval.ival = strtoul(yytext,0,0);
                       return INT_LIT;
                     }
 

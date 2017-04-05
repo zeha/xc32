@@ -13,6 +13,7 @@
 #define P32MX              (1<<0)
 #define P32MZ              (1<<1)
 #define P32SK              (1<<2)
+#define P32MM              (1<<3)
 
 #define FAMILY_MASK        (0x000000FFu)
 #define RECORD_TYPE_MASK   (0xF0000000u)

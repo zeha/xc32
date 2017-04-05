@@ -56,6 +56,9 @@ extern tree mchp_ramfunc_attribute(tree *decl, tree identifier ATTRIBUTE_UNUSED,
 extern tree mchp_naked_attribute(tree *decl, tree identifier ATTRIBUTE_UNUSED,
                             tree args ATTRIBUTE_UNUSED, int flags ATTRIBUTE_UNUSED,
                             bool *no_add_attrs ATTRIBUTE_UNUSED);
+extern tree mchp_nomicromips_attribute(tree *decl, tree identifier ATTRIBUTE_UNUSED,
+                            tree args ATTRIBUTE_UNUSED, int flags ATTRIBUTE_UNUSED,
+                            bool *no_add_attrs ATTRIBUTE_UNUSED);
 extern tree mchp_space_attribute(tree *decl, tree identifier,
                             tree args, int flags ATTRIBUTE_UNUSED,
                             bool *no_add_attrs);
@@ -113,6 +116,7 @@ extern void mchp_override_options_after_change(void);
 extern void mchp_prepare_function_start (tree fndecl);
 extern bool mchp_subtarget_mips16_enabled (const_tree decl);
 extern bool mchp_subtarget_micromips_enabled (const_tree decl);
+extern bool mchp_subtarget_mips32_enabled ();
 extern void mchp_subtarget_encode_section_info (tree decl, rtx rtl, int first_seen ATTRIBUTE_UNUSED);
 
 extern void mchp_apply_pragmas(tree decl);

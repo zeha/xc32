@@ -145,9 +145,9 @@ void yyerror(char *e) {
 typedef union YYSTYPE
 #line 25 "grammar.y"
 {
-  int   ival;
+  unsigned int   ival;
   char *sval;
-  char  cval;
+  unsigned char  cval;
   struct resource_version version;
   struct resource_data *data;
 }

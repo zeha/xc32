@@ -38,7 +38,7 @@ const char bug_report_url[] = "<URL:http://www.microchip.com/support>";
 
 /* const char version_string[] = BASEVER DATESTAMP DEVPHASE REVISION; */
 #ifdef _BUILD_C32_
-const char version_string[] = BASEVER " " "MPLAB XC32 Compiler v1.33"; /* XC32 */
+const char version_string[] = BASEVER " " "MPLAB XC32 Compiler v1.34"; /* XC32 */
 
 #elif defined(_BUILD_C30_)
 #define version2(X) #X

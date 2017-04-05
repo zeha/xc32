@@ -739,9 +739,11 @@ static const struct attribute_spec mips_attribute_table[] =
   { "mips16", 	   0, 0, true,  false, false, NULL },
   { "nomips16",    0, 0, true,  false, false, NULL },
   { "micromips",   0, 0, true,  false, false, NULL },
-  { "nomicromips", 0, 0, true,  false, false, NULL },
 #ifdef MIPS_SUBTARGET_ATTRIBUTE_TABLE
   MIPS_SUBTARGET_ATTRIBUTE_TABLE
+#endif
+#ifndef MIPS_DISABLE_NOMICROMIPS_ATTRIBUTE
+  { "nomicromips", 0, 0, true,  false, false, NULL },
 #endif
 #ifndef MIPS_DISABLE_INTERRUPT_ATTRIBUTE
   /* Allow functions to be specified as interrupt handlers */
@@ -1481,7 +1483,6 @@ mips_micromips_decl_p (const_tree decl)
 #else
   return lookup_attribute ("micromips", DECL_ATTRIBUTES (decl)) != NULL;
 #endif
-
 }
 
 #if !defined(TARGET_MCHP_PIC32MX)
@@ -1490,7 +1491,18 @@ static
 bool
 mips_nomicromips_decl_p (const_tree decl)
 {
+#if defined (MIPS_SUBTARGET_MIPS32_ENABLED)
+  if (lookup_attribute ("nomicromips", DECL_ATTRIBUTES (decl)) != NULL)
+    {
+      return MIPS_SUBTARGET_MIPS32_ENABLED();
+    }
+  else
+    {
+      return false;
+    }
+#else
   return lookup_attribute ("nomicromips", DECL_ATTRIBUTES (decl)) != NULL;
+#endif
 }
 
 /* Return true if function DECL is a microMIPS function.  Return the ambient
@@ -1598,6 +1610,8 @@ mips_insert_attributes (tree decl, tree *attributes)
 	error ("%qs cannot have both %<mips16%> and %<micromips%> attributes",
 	       IDENTIFIER_POINTER (DECL_NAME (decl)));
     }
+
+
 #ifdef MIPS_SUBTARGET_INSERT_ATTRIBUTES
   MIPS_SUBTARGET_INSERT_ATTRIBUTES(decl,attributes);
 #endif

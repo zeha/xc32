@@ -1636,4 +1636,12 @@ fuse-caller-save
 Common Report Var(flag_use_caller_save) Optimization
 Use caller save register across calls if possible
 
+-nofallback
+Common RejectNegative 
+Alias for MPLAB XC -mno-fallback option
+
+fnofallback
+Common RejectNegative Undocumented
+Alias for MPLAB XC -mno-fallback option
+
 ; This comment is to ensure we retain the blank line above.

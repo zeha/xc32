@@ -70,9 +70,9 @@ Use trap instructions to check for integer divide by zero
 ;Target Report RejectNegative Var(TARGET_MDMX)
 ;Allow the use of MDMX instructions
 
-;mdouble-float
-;Target Report RejectNegative InverseMask(SINGLE_FLOAT, DOUBLE_FLOAT) Undocumented
-;Allow hardware floating-point instructions to cover both 32-bit and 64-bit operations
+mdouble-float
+Target Report RejectNegative InverseMask(SINGLE_FLOAT, DOUBLE_FLOAT) Undocumented
+Allow hardware floating-point instructions to cover both 32-bit and 64-bit operations
 
 mdsp
 Target Report Mask(DSP) Undocumented
@@ -180,9 +180,9 @@ mplt
 Target Report Var(TARGET_PLT)
 When generating -mabicalls code, allow executables to use PLTs and copy relocations
 
-;mhard-float
-;Target Report RejectNegative InverseMask(SOFT_FLOAT_ABI, HARD_FLOAT_ABI) Undocumented
-;Allow the use of hardware floating-point ABI and instructions
+mhard-float
+Target Report RejectNegative InverseMask(SOFT_FLOAT_ABI, HARD_FLOAT_ABI) Undocumented
+Allow the use of hardware floating-point ABI and instructions
 
 mext=
 Target Joined Var(mchp_import)
@@ -280,9 +280,9 @@ Generate normal-mode code
 ;Target Report RejectNegative InverseMask(MIPS3D) Undocumented
 ;Do not use MIPS-3D instructions
 
-;mpaired-single
-;Target Report Mask(PAIRED_SINGLE_FLOAT) Undocumented
-;Use paired-single floating-point instructions
+mpaired-single
+Target Report Mask(PAIRED_SINGLE_FLOAT) Undocumented
+Use paired-single floating-point instructions
 
 mr10k-cache-barrier=
 Target Joined RejectNegative Undocumented
@@ -296,9 +296,9 @@ mshared
 Target Report Var(TARGET_SHARED) Init(1)
 When generating -mabicalls code, make the code suitable for use in shared libraries
 
-;msingle-float
-;Target Report RejectNegative Mask(SINGLE_FLOAT) Undocumented
-;Restrict the use of hardware floating-point instructions to 32-bit operations
+msingle-float
+Target Report RejectNegative Mask(SINGLE_FLOAT) Undocumented
+Restrict the use of hardware floating-point instructions to 32-bit operations
 
 ;msmartmips
 ;Target Report Mask(SMARTMIPS) Undocumented
@@ -439,7 +439,14 @@ mpic32mzlibs
 Target RejectNegative Var Var(TARGET_PIC32MZ_LIBS) Undocumented
 -mpic32mzlibs		Use the PIC32MZ multilib variant
 
+mpic32mmlibs
+Target RejectNegative Var Var(TARGET_PIC32MM_LIBS) Undocumented
+-mpic32mmlibs		Use the PIC32MM multilib variant
+
 mresource=
 Target RejectNegtive Joined Var(mchp_resource_file) VarExists Undocumented 
 Identify compiler resource file
 
+mno-fallback
+Target Report RejectNegative Var Var(TARGET_NO_FALLBACKLICENSE)
+--nofallback		Require a MPLAB XC32 Standard or Pro license and do not fall back to a lesser license

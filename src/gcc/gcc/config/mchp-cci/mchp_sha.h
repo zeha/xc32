@@ -23,14 +23,16 @@ alng with GCC; see the file COPYING3.  If not see
 #define MCHP_SHA_H
 
 /* SHA-256 digest of xclm executables for Win, Linux and OS X */
-#if defined(__MINGW32__)
-#define MCHP_XCLM_SHA256_DIGEST   "9ee3489491c426025cf8d302494f899a2a049c3f45a235be00a2d63e90df9cb7"
-#elif defined(__linux__)
-#define MCHP_XCLM_SHA256_DIGEST   "4fae1d53570ebffe637d8c5f77789ecbe690f67af65d0e3af8474bfee479239e"
-#elif defined(__MACH__)
-#define MCHP_XCLM_SHA256_DIGEST   "595a7a77c69ee1a9b784af8908fe665bd5bcfbdf81abad8079e48c9c4ef8934e" 
-#else 
-#error "Unknown host"
+#if !defined(MCHP_XCLM_SHA256_DIGEST)
+# if defined(__MINGW32__)
+#  define MCHP_XCLM_SHA256_DIGEST   "9ee3489491c426025cf8d302494f899a2a049c3f45a235be00a2d63e90df9cb7"
+# elif defined(__linux__)
+#  define MCHP_XCLM_SHA256_DIGEST   "4fae1d53570ebffe637d8c5f77789ecbe690f67af65d0e3af8474bfee479239e"
+# elif defined(__MACH__)
+#  define MCHP_XCLM_SHA256_DIGEST   "595a7a77c69ee1a9b784af8908fe665bd5bcfbdf81abad8079e48c9c4ef8934e"
+# else 
+#  error "Unknown host"
+# endif
 #endif
 
 /* Function to calculate the SHA256 digest of given file

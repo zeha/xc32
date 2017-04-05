@@ -95,7 +95,7 @@ do {                     \
 #define LIB_SPEC "--start-group -lpic32 %{!mno-mpdebug-lib:-ldebug} \
  %{mxc32cpp-lib:%{!mno-xc32cpp-lib:-lxcpp -lsupc++}} -lpic32 \
  %{mrelaxed-math : -lrcfops} \
- -lm -le %{!mprocessor=32MX*: -ldspr2 } %{mprocessor=32MX*: -ldsp } -lgcc \
+ -lm -le %{mprocessor=32MZ*: -ldspr2 } %{mprocessor=32MX*: -ldsp } %{mprocessor=32MM*: -ldsp } -lgcc \
  %{mperipheral-libs:-lmchp_peripheral %{mprocessor=*:-lmchp_peripheral_%*}} \
  %{mlegacy-libc:%{!mno-legacy-libc:%{!mxc32cpp-lib:-llega-c}}} %{mno-legacy-libc:%{!mxc32cpp-lib:-lc}} \
  %{!mlegacy-libc:%{!mxc32cpp-lib:-lc}} -lpic32 \
@@ -136,7 +136,6 @@ do {                     \
 # undef  STARTFILE_SPEC
 # define STARTFILE_SPEC " crt0%O%s \
  "
-
 # undef STARTFILECXX_SPEC
 # define STARTFILECXX_SPEC " cpprt0%O%s \
   crti%O%s crtbegin%O%s "
@@ -357,11 +356,15 @@ extern void pic32_system_include_paths(const char *root, const char *system,
    %{mprocessor=32mx* : %{msmall-isa:-mips16} %{!msmall-isa: %{mips16: -msmall-isa}} -mpic32mxlibs} \
    %{mprocessor=32MZ* : %{msmall-isa:-mmicromips} %{!msmall-isa: %{mmicromips: -msmall-isa}} -mpic32mzlibs} \
    %{mprocessor=32mz* : %{msmall-isa:-mmicromips} %{!msmall-isa: %{mmicromips: -msmall-isa}} -mpic32mzlibs} \
-   %{mprocessor=MGS* : %{msmall-isa:-mmicromips} %{!msmall-isa: %{mmicromips: -msmall-isa}} -mpic32mzlibs} \
+   %{mprocessor=MGC* : %{msmall-isa:-mips16} %{!msmall-isa: %{mips16: -msmall-isa}} -mpic32mxlibs } \
+   %{mprocessor=mgc* : %{msmall-isa:-mips16} %{!msmall-isa: %{mips16: -msmall-isa}} -mpic32mxlibs} \
    %{mprocessor=IPSWICH : %{msmall-isa:-mmicromips} %{!msmall-isa: %{mmicromips: -msmall-isa}} -mpic32mzlibs} \
    %{mprocessor=MEC* : %{msmall-isa:-mmicromips} %{!msmall-isa: %{mmicromips: -msmall-isa}} -mpic32mzlibs} \
+   %{mprocessor=32MM*: -mmicromips -mpic32mmlibs} \
+   %{mprocessor=32mm*: -mmicromips -mpic32mmlibs} \
    %{mpic32mxlibs : %{msmall-isa: -mips16}} \
    %{mpic32mzlibs : %{msmall-isa: -mmicromips}} \
+   %{mpic32mmlibs : -mmicromips} \
    %{D__DEBUG : -mdebugger} \
    %{mprocessor=32*|mprocessor=MGS* : ;:-mno-default-isr-vectors}\
      "
@@ -382,7 +385,8 @@ extern void pic32_system_include_paths(const char *root, const char *system,
  %{mprocessor=32mx* : %{msmall-isa:-mips16} %{!msmall-isa: %{mips16: -msmall-isa}} -mpic32mxlibs} \
  %{mprocessor=32MZ* : %{msmall-isa:-mmicromips} %{!msmall-isa: %{mmicromips: -msmall-isa}} -mpic32mzlibs} \
  %{mprocessor=32mz* : %{msmall-isa:-mmicromips} %{!msmall-isa: %{mmicromips: -msmall-isa}} -mpic32mzlibs} \
- %{mprocessor=MGS* : %{msmall-isa:-mmicromips} %{!msmall-isa: %{mmicromips: -msmall-isa}} -mpic32mzlibs} \
+ %{mprocessor=MGC* : %{msmall-isa:-mips16} %{!msmall-isa: %{mips16: -msmall-isa}} -mpic32mxlibs } \
+ %{mprocessor=mgc* : %{msmall-isa:-mips16} %{!msmall-isa: %{mips16: -msmall-isa}} -mpic32mxlibs} \
  %{mprocessor=IPSWICH : %{msmall-isa:-mmicromips} %{!msmall-isa: %{mmicromips: -msmall-isa}} -mpic32mzlibs} \
  %{mprocessor=MEC* : %{msmall-isa:-mmicromips} %{!msmall-isa: %{mmicromips: -msmall-isa}} -mpic32mzlibs} \
  %{-mpic32mxlibs : %{msmall-isa: -mips16}} \
@@ -406,7 +410,9 @@ extern void pic32_system_include_paths(const char *root, const char *system,
  %{O2|Os|O3:%{!mtune:-mtune=4kec}} \
  %{D__DEBUG : -mdebugger} \
  %{fframe-base-loclist : %{!fno-var-tracking : -fvar-tracking}} \
- %{-mit=profile : -fno-inline} \
+ %{mit=profile : -fno-inline} \
+ %{fnofallback : -mno-fallback }\
+ %{-nofallback : -mno-fallback } \
  %(mchp_cci_cc1_spec) \
  %(subtarget_cc1_spec) \
 "
@@ -792,12 +798,13 @@ extern const char *mchp_config_data_dir;
              ("__PIC32_PIN_COUNT",                          \
               pincount);                                    \
         }                                                   \
-        else if (strncmp (mchp_processor_string, "MGS", 3) == 0)  { \
+        else if (strncmp (mchp_processor_string, "MGC", 3) == 0)  { \
         char *proc, *p;                                     \
         gcc_assert(strlen(mchp_processor_string) < 10);     \
         for (p = mchp_processor_string ; *p ; p++)          \
           *p = TOUPPER (*p);                                \
-        builtin_define_std ("MGS");                         \
+        builtin_define ("__MGC");                           \
+        builtin_define ("__MGC__");                         \
         proc = (char*)alloca (strlen (mchp_processor_string) + 6); \
         gcc_assert (proc!=NULL);                            \
         sprintf (proc, "__%s__", mchp_processor_string);    \
@@ -809,8 +816,34 @@ extern const char *mchp_config_data_dir;
         gcc_assert(strlen(mchp_processor_string) < 10);     \
         for (p = mchp_processor_string ; *p ; p++)          \
           *p = TOUPPER (*p);                                \
-        builtin_define_std ("MEC");                         \
-        builtin_define_std ("IPSWICH");                     \
+        builtin_define ("__MEC");                           \
+        builtin_define ("__IPSWICH");                       \
+        builtin_define ("__MEC__");                         \
+        builtin_define ("__IPSWICH__");                     \
+        proc = (char*)alloca (strlen (mchp_processor_string) + 6); \
+        gcc_assert (proc!=NULL);                            \
+        sprintf (proc, "__%s__", mchp_processor_string);    \
+        gcc_assert (strlen(proc)>0);                        \
+        builtin_define (proc);                              \
+        }                                                   \
+        else if (strncmp (mchp_processor_string, "32MM", 3) == 0)  { \
+        char *proc, *p;                                     \
+        gcc_assert(strlen(mchp_processor_string) < 10);     \
+        for (p = mchp_processor_string ; *p ; p++)          \
+          *p = TOUPPER (*p);                                \
+        builtin_define_std ("PIC32MM");                     \
+        proc = (char*)alloca (strlen (mchp_processor_string) + 6); \
+        gcc_assert (proc!=NULL);                            \
+        sprintf (proc, "__%s__", mchp_processor_string);    \
+        gcc_assert (strlen(proc)>0);                        \
+        builtin_define (proc);                              \
+        }                                                   \
+        else if (strncmp (mchp_processor_string, "32MK", 3) == 0)  { \
+        char *proc, *p;                                     \
+        gcc_assert(strlen(mchp_processor_string) < 10);     \
+        for (p = mchp_processor_string ; *p ; p++)          \
+          *p = TOUPPER (*p);                                \
+        builtin_define_std ("PIC32MK");                     \
         proc = (char*)alloca (strlen (mchp_processor_string) + 6); \
         gcc_assert (proc!=NULL);                            \
         sprintf (proc, "__%s__", mchp_processor_string);    \
@@ -821,6 +854,7 @@ extern const char *mchp_config_data_dir;
     else                                                    \
       {                                                     \
         builtin_define ("__32MXGENERIC__");                 \
+        builtin_define ("__32MXGENERIC");                   \
       }                                                     \
     if (1)                                                  \
       {                                                     \
@@ -1140,26 +1174,30 @@ static const int TARGET_MDMX = 0;
 #undef MIPS_SUBTARGET_COMPUTE_FRAME_INFO
 #define MIPS_SUBTARGET_COMPUTE_FRAME_INFO() mchp_compute_frame_info()
 
+#undef MIPS_DISABLE_INTERRUPT_ATTRIBUTE
+#define MIPS_DISABLE_INTERRUPT_ATTRIBUTE
+#undef MIPS_DISABLE_NOMICROMIPS_ATTRIBUTE
+#define MIPS_DISABLE_NOMICROMIPS_ATTRIBUTE
+
 #undef MIPS_SUBTARGET_ATTRIBUTE_TABLE
 #define MIPS_SUBTARGET_ATTRIBUTE_TABLE                                          \
     /* { name, min_len, max_len, decl_req, type_req, fn_type_req, handler } */  \
     /* Microchip: allow functions to be specified as interrupt handlers */      \
-    { "interrupt",        0, 1,  false, true,  true, mchp_interrupt_attribute }, \
+    { "interrupt",        0, 1,   false, true,  true,  mchp_interrupt_attribute }, \
     { "vector",           1, 256, true,  false, false, mchp_vector_attribute },   \
-    { "at_vector",        1, 1,  true,  false, false, mchp_at_vector_attribute }, \
+    { "at_vector",        1, 1,   true,  false, false, mchp_at_vector_attribute }, \
+    { "nomicromips",      0, 0,   true,  false, false, mchp_nomicromips_attribute }, \
     /* also allow functions to be created without prologue/epilogue code */     \
-    { "naked",            0, 0,  true,  false, false, mchp_naked_attribute },   \
-    { "address",          1, 1,  false, false, false, mchp_address_attribute }, \
-    { "space",            1, 1,  false, false, false, mchp_space_attribute },   \
-    { "persistent",       0, 0,  false, false, false, mchp_persistent_attribute }, \
-    { "ramfunc",          0, 0,  false, true,  true,  mchp_ramfunc_attribute }, \
-    { "unsupported",      0, 1,  false, false, false, mchp_unsupported_attribute }, \
-    { "target_error",     1, 1,  false, false, false, mchp_target_error_attribute }, \
-    { "keep",             0, 0,  false, false, false, mchp_keep_attribute },         \
-    { "coherent",         0, 0,  false, false, false, mchp_coherent_attribute },     \
-    { "crypto",           0, 0,  false, false, false, mchp_crypto_attribute },
-#undef MIPS_DISABLE_INTERRUPT_ATTRIBUTE
-#define MIPS_DISABLE_INTERRUPT_ATTRIBUTE
+    { "naked",            0, 0,   true,  false, false, mchp_naked_attribute },   \
+    { "address",          1, 1,   false, false, false, mchp_address_attribute }, \
+    { "space",            1, 1,   false, false, false, mchp_space_attribute },   \
+    { "persistent",       0, 0,   false, false, false, mchp_persistent_attribute }, \
+    { "ramfunc",          0, 0,   false, true,  true,  mchp_ramfunc_attribute }, \
+    { "unsupported",      0, 1,   false, false, false, mchp_unsupported_attribute }, \
+    { "target_error",     1, 1,   false, false, false, mchp_target_error_attribute }, \
+    { "keep",             0, 0,   false, false, false, mchp_keep_attribute },         \
+    { "coherent",         0, 0,   false, false, false, mchp_coherent_attribute },     \
+    { "crypto",           0, 0,   false, false, false, mchp_crypto_attribute },
 
 extern enum mips_function_type_tag current_function_type;
 
@@ -1204,6 +1242,10 @@ extern enum mips_function_type_tag current_function_type;
 #undef MIPS_SUBTARGET_MICROMIPS_ENABLED
 #define MIPS_SUBTARGET_MICROMIPS_ENABLED(decl) \
   mchp_subtarget_micromips_enabled(decl)
+
+#undef MIPS_SUBTARGET_MIPS32_ENABLED
+#define MIPS_SUBTARGET_MIPS32_ENABLED() \
+  mchp_subtarget_mips32_enabled()
 
 #undef MIPS_SUBTARGET_ENCODE_SECTION_INFO
 #define MIPS_SUBTARGET_ENCODE_SECTION_INFO(decl,rtl,first) \

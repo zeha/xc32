@@ -417,10 +417,26 @@ allocate_data_memory() {
   build_alloc_section_list(mask);
 
   if (pic32_is_l1cache_machine(global_PROCESSOR))
-    region = region_lookup ("kseg0_data_mem");
+  {
+    /* Try to use kseg0_data_mem, but fall back to kseg1_data_mem. */
+    if (lang_memory_region_exist("kseg0_data_mem"))
+      region = region_lookup ("kseg0_data_mem");
+    else if (lang_memory_region_exist("kseg1_data_mem"))
+      region = region_lookup ("kseg1_data_mem");
+    else
+      region = region_lookup ("kseg0_data_mem");
+  }
   else
-    region = region_lookup ("kseg1_data_mem");
-
+  {
+    /* Try to use kseg1_data_mem, but fall back to kseg0_data_mem. */
+    if (lang_memory_region_exist("kseg1_data_mem"))
+      region = region_lookup ("kseg1_data_mem");
+    else if (lang_memory_region_exist("kseg0_data_mem"))
+      region = region_lookup ("kseg0_data_mem");
+    else
+      region = region_lookup ("kseg1_data_mem");
+  }
+  
   build_free_block_list(region, mask);
 
   if (pic32_debug) {

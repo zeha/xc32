@@ -39,7 +39,11 @@ extern void pic32_processor_option(char *);
 static void
 gldelf32pic32mx_list_options (FILE * file)
 {
-  fprintf (file, _("  -D,--debug           Produce linker debugging messages\n"));
+/*  -D or --debug is intended for internal use. It is not for use by end customers.
+    So, don't output the option in the help screen.
+*/
+
+//  fprintf (file, _("  -D,--debug           Produce linker debugging messages\n"));
   fprintf (file, _("  --report-mem         Report memory usage to console\n"));
   fprintf (file, _("  --smart-io           Merge I/O library functions (default)\n"));
   fprintf (file, _("  --no-smart-io        Don't merge I/O library functions\n"));
@@ -282,6 +286,9 @@ gldelf32pic32mx_parse_args (int argc, char ** argv)
       break;
     case REPORT_MEM_OPTION:
       pic32_report_mem = TRUE;
+      break;
+    case DASHBOARD_XML_OPTION:
+      pic32_generate_dashboard_xml = TRUE;
       break;
     case DATA_INIT_OPTION:
       if (pic32_has_data_init_option && (!pic32_data_init))

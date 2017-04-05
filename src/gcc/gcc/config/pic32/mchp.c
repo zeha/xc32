@@ -5,7 +5,7 @@
    Contributed by J. Grosbach, james.grosbach@microchip.com, and
    T. Kuhrt, tracy.kuhrt@microchip.com
    Changes by J. Kajita, jason.kajita@microchip.com,
-   G. Loegel, george.loegel@microchip.com and
+   G. Loegel, george.loegel@microchip.com, and
    S. Bekal, swaroopkumar.bekal@microchip.com
 
 This file is part of GCC.
@@ -639,6 +639,11 @@ unsigned int validate_device_mask (char *id, char **matched_id, const char* mchp
     {
        error ("The selected %qs device does not support the microMIPS ISA mode (-mmicromips)", mchp_processor_string);
     }
+  if ((pic32_device_mask & HAS_MICROMIPS) && !(pic32_device_mask & HAS_MIPS32R2) && pic32_loaded_device_mask)
+    {
+      /* This device supports _only_ the microMIPS ISA. Force MicroMIPS mode. */
+        target_flags |= MASK_MICROMIPS;
+    }
     
   if (TARGET_SMALL_ISA && (pic32_device_mask & HAS_MICROMIPS) && pic32_loaded_device_mask)
     {
@@ -695,11 +700,11 @@ mchp_subtarget_override_options(void)
 #if !defined(MCHP_SKIP_RESOURCE_FILE)
   int mask;
   
-  /* DSP and microMIPS cannot coexist  */
+  /* DSP and mips16 cannot coexist  */
   if (TARGET_DSP && TARGET_MIPS16)
     error ("unsupported combination: %s", "-mips16 -mdsp");
   
-  /* DSPr2 and microMIPS cannot coexist  */
+  /* DSPr2 and mips16 cannot coexist  */
   if (TARGET_DSPR2 && TARGET_MIPS16)
     error ("unsupported combination: %s", "-mips16 -mdspr2");
   
@@ -732,11 +737,6 @@ mchp_subtarget_override_options1 (void)
       mchp_io_size_val = 0;
     }
 
-  /* Don't emit DWARF3/4 unless specifically selected. */
-#if 1
-  if (dwarf_strict < 0)
-    dwarf_strict = 1;
-#endif
 }
 
 #ifdef MCHP_USE_LICENSE_CONF
@@ -1055,6 +1055,7 @@ pic32_get_license (int require_cpp)
           }
       }
   }
+
 #endif /* SKIP_LICENSE_MANAGER */
   return mchp_pic32_license_valid;
 }
@@ -1155,10 +1156,11 @@ void mchp_override_options_after_change(void) {
             /* Disable -mips16 and -mips16e */
             NULLIFY(mips_base_mips16, "mips16 mode") = 0;
           }
-        if (mips_base_micromips != 0 && (strncmp (mchp_processor_string, "32MM", 4) != 0))
+        /* Don't disable microMIPS for devices that don't support MIPS32R2 */
+        if (mips_base_micromips != 0 && mchp_subtarget_mips32_enabled())
           {
-            /* Disable -mmicromips */
-            NULLIFY(mips_base_micromips, "micromips mode") = 0;
+            /* If this device also supports mips32, disable -mmicromips */
+              NULLIFY(mips_base_micromips, "micromips mode") = 0;
           }
       }
     if (nullify_lto)
@@ -1225,6 +1227,15 @@ pic32_optimization_options (int level ATTRIBUTE_UNUSED, int size ATTRIBUTE_UNUSE
   if (size)
     {
       flag_inline_functions = 0;
+    }
+
+  /* Temporary workaround. Remove this condition after we upgrade to GCC 4.8 */
+  if (!flag_inline_small_functions || 
+      !flag_inline_functions ||
+      flag_no_inline)
+    {
+      flag_if_conversion = 0;
+      flag_if_conversion2 = 0;
     }
 
   {
@@ -1355,10 +1366,10 @@ mchp_subtarget_override_options2 (void)
             NULLIFY(mips_base_mips16, "mips16 mode") = 0;
           }
 
-        if (mips_base_micromips != 0 && (strncmp (mchp_processor_string, "32MM", 4) != 0))
+        if (mips_base_micromips != 0 && mchp_subtarget_mips32_enabled()) 
           {
-            /* Disable -mmicromips */
-            NULLIFY(mips_base_micromips, "micromips mode") = 0;
+            /* If this device also supports mips32, disable -mmicromips */
+              NULLIFY(mips_base_micromips, "micromips mode") = 0;
           }
       }
     if (message_displayed && TARGET_LICENSE_WARNING)
@@ -1374,6 +1385,11 @@ mchp_subtarget_override_options2 (void)
       {
         inform (0, "Disable the option or visit http://www.microchip.com/MPLABXCcompilers "
                 "to purchase a new MPLAB XC compiler license.");
+
+        /* If the --nofallback option was specified, abort compilation. */
+        if (TARGET_NO_FALLBACKLICENSE)
+          error ("Unable to find a valid license, aborting");
+
         message_purchase_display = 0;
       }
 
@@ -1382,7 +1398,14 @@ mchp_subtarget_override_options2 (void)
         TARGET_MCHP_SMARTIO = 0;
         mchp_io_size_val = 0;
       }
+
+    /* Require a Standard or Pro license */
+    if (TARGET_NO_FALLBACKLICENSE && (mchp_pic32_license_valid == PIC32_FREE_LICENSE))
+      error ("Unable to find a valid license, aborting");
   }
+
+
+  
 #undef PIC32_EXPIRED_LICENSE
 #undef PIC32_ACADEMIC_LICENSE
 #undef PIC32_VALID_STANDARD_LICENSE
@@ -1880,7 +1903,8 @@ mchp_output_vector_dispatch_table (void)
         fprintf (asm_out_file, "\t.section\t.vector_%d,code,keep\n",
                  dispatch_entry->vector_number);
         fprintf (asm_out_file, "\t.set\tnomips16\n");
-        if (mips_base_micromips && (pic32_device_mask & HAS_MICROMIPS))
+        if ((pic32_device_mask & HAS_MICROMIPS) &&
+            (mips_base_micromips))
           {
             fprintf (asm_out_file, "\t.set\tmicromips\n");
           }
@@ -1891,6 +1915,7 @@ mchp_output_vector_dispatch_table (void)
                  
         fprintf (asm_out_file, "__vector_dispatch_%d:\n",
                  dispatch_entry->vector_number);
+
         if ((dispatch_entry->longcall) || 
             (mips_base_micromips && (dispatch_entry->isr_isa_mode != pic32_isa_micromips)) ||
             (!mips_base_micromips && (dispatch_entry->isr_isa_mode == pic32_isa_micromips)) ||
@@ -1903,7 +1928,10 @@ mchp_output_vector_dispatch_table (void)
           {
             fprintf (asm_out_file, "\tj\t%s\n", dispatch_entry->target);
           }
+
+        /* Branch delay slot */
         fprintf (asm_out_file, "\tnop\n");
+
         fprintf (asm_out_file, "\t.set reorder\n");
         fprintf (asm_out_file, "\t.end\t__vector_dispatch_%d\n",
                  dispatch_entry->vector_number);
@@ -1992,6 +2020,13 @@ mchp_target_insert_attributes (tree decl, tree *attr_ptr)
                                                       build_string (strlen (scn_name), scn_name)),
                                      *attr_ptr);
             }
+        }
+
+      /* If the device supports only the microMIPS ISA, add the micromips attribute to all functions. */
+      if ((!(pic32_device_mask & HAS_MIPS32R2) && (pic32_device_mask & HAS_MICROMIPS)) ||
+           (mips_base_micromips && !nomicromips_p))
+        {
+          *attr_ptr = tree_cons (get_identifier ("micromips"), NULL, *attr_ptr);
         }
     }
 }
@@ -2138,14 +2173,15 @@ mchp_interrupt_attribute (tree *node ATTRIBUTE_UNUSED,
        return NULL_TREE;
     }
 
-  if (strcasecmp ("IPL7", IDENTIFIER_POINTER (TREE_VALUE (args))) == 0)
+  if ((strncasecmp ("IPL", IDENTIFIER_POINTER (TREE_VALUE (args)), 3) == 0) && (strlen(IDENTIFIER_POINTER (TREE_VALUE (args)))==4))
     {
-      warning (0, "Interrupt priority IPL7 is deprecated. Specify as 'IPL7{AUTO|SOFT|SRS}' instead.");
+      warning (0, "Interrupt priority IPL%c is deprecated. Specify as 'IPL%c{AUTO|SOFT|SRS}' instead.", 
+               IDENTIFIER_POINTER (TREE_VALUE (args))[3],
+               IDENTIFIER_POINTER (TREE_VALUE (args))[3]);
     }
 
   return NULL_TREE;
 }
-
 
 /*
 ** Return nonzero if IDENTIFIER is a valid attribute.
@@ -2317,6 +2353,25 @@ tree mchp_naked_attribute(tree *decl, tree identifier ATTRIBUTE_UNUSED,
           attrib_noclone = chainon(DECL_ATTRIBUTES(*decl), attrib_noclone);
           decl_attributes(decl, attrib_noclone, 0);
         }
+    }
+
+  return NULL_TREE;
+}
+
+/*
+** Return nonzero if IDENTIFIER is a valid attribute.
+*/
+tree mchp_nomicromips_attribute(tree *decl, tree identifier ATTRIBUTE_UNUSED,
+                            tree args ATTRIBUTE_UNUSED, int flags ATTRIBUTE_UNUSED,
+                            bool *no_add_attrs ATTRIBUTE_UNUSED)
+{
+  /* Naked attribute implies noinline and noclone */
+  if (!mchp_subtarget_mips32_enabled(*decl))
+    {
+      error ("The %qs target device does not support the %qs attribute on %qs", 
+             mchp_processor_string, 
+             "nomicromips", 
+             IDENTIFIER_POINTER (DECL_NAME (*decl)));
     }
 
   return NULL_TREE;
@@ -2661,6 +2716,12 @@ mchp_expand_epilogue_restoreregs (HOST_WIDE_INT step1 ATTRIBUTE_UNUSED,
                        && (0 == mchp_isr_backcompat))
                       || (current_function_type == AUTO_CONTEXT_SAVE)
                       || (current_function_type == DEFAULT_CONTEXT_SAVE));
+  
+  if (pic32_num_register_sets > 2)
+    {
+      mchp_save_srsctl    = 1;
+      mchp_isr_backcompat = 0;
+    }
 
   frame = &cfun->machine->frame;
   cfun->machine->frame.savedgpr = 0;
@@ -2716,8 +2777,7 @@ mchp_expand_epilogue_restoreregs (HOST_WIDE_INT step1 ATTRIBUTE_UNUSED,
               mips_for_each_saved_acc (frame->total_size - step2, mips_restore_reg);
               mips_for_each_saved_gpr_and_fpr (frame->total_size - step2,
                                                mips_restore_reg);
-              if (!cfun->machine->keep_interrupts_masked_p
-                  && (cfun->machine->interrupt_priority < 7))
+              if (cfun->machine->interrupt_priority < 7)
                 {
                   /* Load the original EPC.  */
                   gcc_assert (mchp_offset_epc != 0);
@@ -2734,8 +2794,7 @@ mchp_expand_epilogue_restoreregs (HOST_WIDE_INT step1 ATTRIBUTE_UNUSED,
               mips_emit_move (gen_rtx_REG (word_mode, K1_REG_NUM), mem);
               offset -= UNITS_PER_WORD;
 
-              if (!cfun->machine->keep_interrupts_masked_p
-                  && (cfun->machine->interrupt_priority < 7))
+              if (cfun->machine->interrupt_priority < 7)
                 {
                   /* Restore the original EPC.  */
                   emit_insn (gen_cop0_move (gen_rtx_REG (SImode, COP0_EPC_REG_NUM),
@@ -2822,15 +2881,14 @@ mchp_expand_epilogue_restoreregs (HOST_WIDE_INT step1 ATTRIBUTE_UNUSED,
                       mips_emit_move (gen_rtx_REG (word_mode, K1_REG_NUM), mem);
                       offset -= UNITS_PER_WORD;
                     }
-                  if (!cfun->machine->keep_interrupts_masked_p)
-                    {
-                      /* Load the original EPC to K0.  */
-                      gcc_assert (mchp_offset_epc != 0);
-                      mem = gen_frame_mem (word_mode,
-                                           plus_constant (stack_pointer_rtx, mchp_offset_epc));
-                      mips_emit_move (gen_rtx_REG (word_mode, K0_REG_NUM), mem);
-                      offset -= UNITS_PER_WORD;
-                    }
+                  
+                  /* Load the original EPC to K0.  */
+                  gcc_assert (mchp_offset_epc != 0);
+                  mem = gen_frame_mem (word_mode,
+                                       plus_constant (stack_pointer_rtx, mchp_offset_epc));
+                  mips_emit_move (gen_rtx_REG (word_mode, K0_REG_NUM), mem);
+                  offset -= UNITS_PER_WORD;
+                    
                   if (mchp_save_srsctl)
                     {
                       /* Restore previously loaded SRSCTL.  */
@@ -2843,12 +2901,9 @@ mchp_expand_epilogue_restoreregs (HOST_WIDE_INT step1 ATTRIBUTE_UNUSED,
                                        plus_constant (stack_pointer_rtx, mchp_offset_status));
                   mips_emit_move (gen_rtx_REG (word_mode, K1_REG_NUM), mem);
                   offset -= UNITS_PER_WORD;
-                  if (!cfun->machine->keep_interrupts_masked_p)
-                    {
-                      /* Restore the original EPC.  */
-                      emit_insn (gen_cop0_move (gen_rtx_REG (SImode, COP0_EPC_REG_NUM),
-                                                gen_rtx_REG (SImode, K0_REG_NUM)));
-                    }
+                  /* Restore the original EPC.  */
+                  emit_insn (gen_cop0_move (gen_rtx_REG (SImode, COP0_EPC_REG_NUM),
+                                            gen_rtx_REG (SImode, K0_REG_NUM)));
                 }
               else /* (interrupt_priority == 7) */
                 {
@@ -2918,8 +2973,7 @@ mchp_expand_epilogue_restoreregs (HOST_WIDE_INT step1 ATTRIBUTE_UNUSED,
                                                mips_restore_reg);
               emit_label (skip_save_label);
 
-              if (!cfun->machine->keep_interrupts_masked_p
-                  && (cfun->machine->interrupt_priority < 7))
+              if (cfun->machine->interrupt_priority < 7)
                 {
                   /* Load the original EPC.  */
                   gcc_assert (mchp_offset_epc != 0);
@@ -2936,8 +2990,7 @@ mchp_expand_epilogue_restoreregs (HOST_WIDE_INT step1 ATTRIBUTE_UNUSED,
               mips_emit_move (gen_rtx_REG (word_mode, K1_REG_NUM), mem);
               offset -= UNITS_PER_WORD;
 
-              if (!cfun->machine->keep_interrupts_masked_p
-                  && (cfun->machine->interrupt_priority < 7))
+              if (cfun->machine->interrupt_priority < 7)
                 {
                   /* Restore the original EPC.  */
                   emit_insn (gen_cop0_move (gen_rtx_REG (SImode, COP0_EPC_REG_NUM),
@@ -3028,8 +3081,7 @@ mchp_expand_epilogue_restoreregs (HOST_WIDE_INT step1 ATTRIBUTE_UNUSED,
                                                mips_restore_reg);
               emit_label (skip_save_label);
 
-              if (!cfun->machine->keep_interrupts_masked_p
-                  && (cfun->machine->interrupt_priority < 7))
+              if (cfun->machine->interrupt_priority < 7)
                 {
                   /* Load the original EPC.  */
                   gcc_assert (mchp_offset_epc != 0);
@@ -3046,8 +3098,7 @@ mchp_expand_epilogue_restoreregs (HOST_WIDE_INT step1 ATTRIBUTE_UNUSED,
               mips_emit_move (gen_rtx_REG (word_mode, K1_REG_NUM), mem);
               offset -= UNITS_PER_WORD;
 
-              if (!cfun->machine->keep_interrupts_masked_p
-                  && (cfun->machine->interrupt_priority < 7))
+              if (cfun->machine->interrupt_priority < 7)
                 {
                   /* Restore the original EPC.  */
                   emit_insn (gen_cop0_move (gen_rtx_REG (SImode, COP0_EPC_REG_NUM),
@@ -3274,7 +3325,7 @@ mchp_compute_frame_info (void)
                   cfun->machine->current_function_type = current_function_type = SOFTWARE_CONTEXT_SAVE;
                   if ((0 == mchp_invalid_ipl_warning) && (pic32_num_register_sets == 8))
                     {
-                      warning (0, "IPLnSOFT context saving used on a selected %qs device with 8 Shadow Register Sets, consider IPLnSRS\n", 
+                      warning (0, "IPLnSOFT context saving used on a selected %qs device with 7 Shadow Register Sets, consider using IPLnSRS after initializing PRISS\n", 
                                mchp_processor_string);
                       mchp_invalid_ipl_warning++;
                     }
@@ -3353,6 +3404,12 @@ mchp_compute_frame_info (void)
   /* add in space for the interrupt context information */
   if (has_interrupt_context)
     {
+    
+      if (pic32_num_register_sets > 2)
+        {
+          mchp_isr_backcompat = 0;
+        }
+    
       gcc_assert (cfun->machine->current_function_type != UNKNOWN_CONTEXT_SAVE);
       df_set_regs_ever_live (K0_REGNUM, true);
       fixed_regs[K0_REGNUM] = call_really_used_regs[K0_REGNUM] =
@@ -3637,6 +3694,12 @@ mchp_expand_prologue_saveregs (HOST_WIDE_INT size, HOST_WIDE_INT step1)
                               || (current_function_type == AUTO_CONTEXT_SAVE)
                               || (current_function_type == DEFAULT_CONTEXT_SAVE));
 
+          if (pic32_num_register_sets > 2)
+            {
+              mchp_save_srsctl    = 1;
+              mchp_isr_backcompat = 0;
+            }
+
           /* If this interrupt is using a shadow register set, we need to
           get the stack pointer from the previous register set. We want the
           first four instructions of the interrupt handler to be the same for
@@ -3669,7 +3732,7 @@ mchp_expand_prologue_saveregs (HOST_WIDE_INT size, HOST_WIDE_INT step1)
               gcc_assert (offset > 0);
 
               /* Don't save EPC if we know we won't get a nested interrupt. */
-              if ((interrupt_priority < 7) && !cfun->machine->keep_interrupts_masked_p)
+              if (interrupt_priority < 7)
                 {
                   /* Push EPC into its stack slot.  */
                   gcc_assert (offset > 0);
@@ -3709,11 +3772,25 @@ mchp_expand_prologue_saveregs (HOST_WIDE_INT size, HOST_WIDE_INT step1)
                 {
                   gcc_assert (interrupt_priority >= 0);
                   gcc_assert (interrupt_priority <= 7);
-                  /* Clear UM, ERL, EXL, IPL in STATUS */
-                  emit_insn (gen_insvsi (gen_rtx_REG (SImode, K1_REG_NUM),
-                                         GEN_INT (15),
-                                         GEN_INT (SR_EXL),
-                                         gen_rtx_REG (SImode, GP_REG_FIRST)));
+                  
+                  if (cfun->machine->keep_interrupts_masked_p)
+                    {
+                      /* Disable interrupts by clearing the KSU, ERL, EXL,
+                         and IE bits.  */
+                      emit_insn (gen_insvsi (gen_rtx_REG (SImode, K1_REG_NUM),
+                                             GEN_INT (16),
+                                             GEN_INT (SR_IE),
+                                             gen_rtx_REG (SImode, GP_REG_FIRST)));
+                    }
+                  else
+                    {
+                      /* Clear UM, ERL, EXL, IPL in STATUS (K1) */
+                      emit_insn (gen_insvsi (gen_rtx_REG (SImode, K1_REG_NUM),
+                                             GEN_INT (15),
+                                             GEN_INT (SR_EXL),
+                                             gen_rtx_REG (SImode, GP_REG_FIRST)));
+                    }
+                                         
                   /* Set the IPL */
                   emit_insn (gen_iorsi3 (gen_rtx_REG (SImode, K1_REG_NUM),
                                          gen_rtx_REG (SImode, K1_REG_NUM),GEN_INT((unsigned)interrupt_priority << SR_IPL)));
@@ -3760,8 +3837,7 @@ mchp_expand_prologue_saveregs (HOST_WIDE_INT size, HOST_WIDE_INT step1)
               /* Start at the uppermost location for saving.  */
               offset = frame->cop0_sp_offset - size;
               gcc_assert (offset > 0);
-              if ((interrupt_priority < 7)
-                  &&  !cfun->machine->keep_interrupts_masked_p)
+              if (interrupt_priority < 7)
                 {
                   /* Push EPC into its stack slot.  */
                   gcc_assert (offset > 0);
@@ -3780,8 +3856,7 @@ mchp_expand_prologue_saveregs (HOST_WIDE_INT size, HOST_WIDE_INT step1)
               mips_save_restore_reg (word_mode, K1_REG_NUM, mchp_offset_status, mips_save_reg);
               offset -= UNITS_PER_WORD;
 
-              if ((interrupt_priority < 7)
-                  &&  !cfun->machine->keep_interrupts_masked_p)
+              if ((interrupt_priority < 7))
                 {
                   /* Push SRSCTL into its stack slot.  */
                   /*
@@ -3796,11 +3871,23 @@ mchp_expand_prologue_saveregs (HOST_WIDE_INT size, HOST_WIDE_INT step1)
                 {
                   gcc_assert (interrupt_priority >= 0);
                   gcc_assert (interrupt_priority <= 7);
-                  /* Clear UM, ERL, EXL, IPL in STATUS (K1) */
-                  emit_insn (gen_insvsi (gen_rtx_REG (SImode, K1_REG_NUM),
-                                         GEN_INT (15),
-                                         GEN_INT (SR_EXL),
-                                         gen_rtx_REG (SImode, GP_REG_FIRST)));
+                  if (cfun->machine->keep_interrupts_masked_p)
+                    {
+                      /* Disable interrupts by clearing the KSU, ERL, EXL,
+                         and IE bits.  */
+                      emit_insn (gen_insvsi (gen_rtx_REG (SImode, K1_REG_NUM),
+                                             GEN_INT (16),
+                                             GEN_INT (SR_IE),
+                                             gen_rtx_REG (SImode, GP_REG_FIRST)));
+                    }
+                  else
+                    {
+                      /* Clear UM, ERL, EXL, IPL in STATUS (K1) */
+                      emit_insn (gen_insvsi (gen_rtx_REG (SImode, K1_REG_NUM),
+                                             GEN_INT (15),
+                                             GEN_INT (SR_EXL),
+                                             gen_rtx_REG (SImode, GP_REG_FIRST)));
+                    }
                   /* Set the IPL */
                   emit_insn (gen_iorsi3 (gen_rtx_REG (SImode, K1_REG_NUM),
                                          gen_rtx_REG (SImode, K1_REG_NUM),GEN_INT((unsigned)interrupt_priority << SR_IPL)));
@@ -3851,7 +3938,7 @@ mchp_expand_prologue_saveregs (HOST_WIDE_INT size, HOST_WIDE_INT step1)
               offset = frame->cop0_sp_offset - size;
 
               /* Don't save EPC if we know we won't get a nested interrupt. */
-              if ((interrupt_priority < 7) && !cfun->machine->keep_interrupts_masked_p)
+              if (interrupt_priority < 7)
                 {
                   /* Push EPC into its stack slot.  */
                   mchp_offset_epc = offset;
@@ -3867,10 +3954,16 @@ mchp_expand_prologue_saveregs (HOST_WIDE_INT size, HOST_WIDE_INT step1)
                                         gen_rtx_REG (SImode,
                                                      COP0_STATUS_REG_NUM)));
 
-              /* Push SRSCTL into its stack slot.  */
-              mchp_offset_srsctl = offset;
-              mips_save_restore_reg (word_mode, K0_REG_NUM, mchp_offset_srsctl, mips_save_reg);
+              /* Calculate offsets of status and srsctl so that that match the offsets
+                 for SOFTWARE_CONTEXT_SAVE */
+              mchp_offset_status = offset;
               offset -= UNITS_PER_WORD;
+              mchp_offset_srsctl = offset;
+              offset -= UNITS_PER_WORD;
+
+              /* Push SRSCTL into its stack slot.  */
+              mips_save_restore_reg (word_mode, K0_REG_NUM, mchp_offset_srsctl, mips_save_reg);
+
 
               /* TODO: Do we need to do this if interrupts are masked? */
               if (interrupt_priority < 0)
@@ -3883,38 +3976,48 @@ mchp_expand_prologue_saveregs (HOST_WIDE_INT size, HOST_WIDE_INT step1)
 
 
               /* Push STATUS into its stack slot.  */
-              mchp_offset_status = offset;
+
               mem = gen_frame_mem (word_mode,
                                    plus_constant (stack_pointer_rtx,
                                                   mchp_offset_status));
               mips_emit_move (mem, gen_rtx_REG (word_mode, K1_REG_NUM));
-              offset -= UNITS_PER_WORD;
+
 
               if (interrupt_priority < 0)
                 {
-
-                  if (!cfun->machine->keep_interrupts_masked_p)
-                    {
-                      /* Right justify the CAUSE RIPL in k0.  */
-                      emit_insn (gen_lshrsi3 (gen_rtx_REG (SImode, K0_REG_NUM),
-                                              gen_rtx_REG (SImode, K0_REG_NUM),
-                                              GEN_INT (CAUSE_IPL)));
-                      /* Insert the RIPL into our copy of SR (k1) as the new IPL.  */
-                      emit_insn (gen_insvsi (gen_rtx_REG (SImode, K1_REG_NUM),
-                                             GEN_INT (6),
-                                             GEN_INT (SR_IPL),
-                                             gen_rtx_REG (SImode, K0_REG_NUM)));
-                    }
+                  /* Right justify the CAUSE RIPL in k0.  */
+                  emit_insn (gen_lshrsi3 (gen_rtx_REG (SImode, K0_REG_NUM),
+                                          gen_rtx_REG (SImode, K0_REG_NUM),
+                                          GEN_INT (CAUSE_IPL)));
+                  /* Insert the RIPL into our copy of SR (k1) as the new IPL.  */
+                  emit_insn (gen_insvsi (gen_rtx_REG (SImode, K1_REG_NUM),
+                                         GEN_INT (6),
+                                         GEN_INT (SR_IPL),
+                                         gen_rtx_REG (SImode, K0_REG_NUM)));
                 }
 
               if (interrupt_priority >= 0)
                 {
                   gcc_assert (interrupt_priority <= 7);
-                  /* Clear UM, ERL, EXL, IPL in STATUS */
-                  emit_insn (gen_insvsi (gen_rtx_REG (SImode, K1_REG_NUM),
-                                         GEN_INT (15),
-                                         GEN_INT (SR_EXL),
-                                         gen_rtx_REG (SImode, GP_REG_FIRST)));
+                  
+                  if (cfun->machine->keep_interrupts_masked_p)
+                    {
+                      /* Disable interrupts by clearing the KSU, ERL, EXL,
+                         and IE bits.  */
+                      emit_insn (gen_insvsi (gen_rtx_REG (SImode, K1_REG_NUM),
+                                             GEN_INT (16),
+                                             GEN_INT (SR_IE),
+                                             gen_rtx_REG (SImode, GP_REG_FIRST)));
+                    }
+                  else
+                    {
+                      /* Clear UM, ERL, EXL, IPL in STATUS (K1) */
+                      emit_insn (gen_insvsi (gen_rtx_REG (SImode, K1_REG_NUM),
+                                             GEN_INT (15),
+                                             GEN_INT (SR_EXL),
+                                             gen_rtx_REG (SImode, GP_REG_FIRST)));
+                    }
+                                         
                   /* Set the IPL */
                   emit_insn (gen_iorsi3 (gen_rtx_REG (SImode, K1_REG_NUM),
                                          gen_rtx_REG (SImode, K1_REG_NUM),GEN_INT((unsigned)interrupt_priority << SR_IPL)));
@@ -4019,7 +4122,7 @@ mchp_expand_prologue_saveregs (HOST_WIDE_INT size, HOST_WIDE_INT step1)
               offset = frame->cop0_sp_offset - size;
 
               /* Don't save EPC if we know we won't get a nested interrupt. */
-              if ((interrupt_priority < 7) && !cfun->machine->keep_interrupts_masked_p)
+              if (interrupt_priority < 7)
                 {
                   /* Push EPC into its stack slot.  */
                   mchp_offset_epc = offset;
@@ -4057,18 +4160,27 @@ mchp_expand_prologue_saveregs (HOST_WIDE_INT size, HOST_WIDE_INT step1)
               offset -= UNITS_PER_WORD;
 
               /* Right justify the CAUSE RIPL in k0.  */
-              if (!cfun->machine->keep_interrupts_masked_p)
+              emit_insn (gen_lshrsi3 (gen_rtx_REG (SImode, K0_REG_NUM),
+                                      gen_rtx_REG (SImode, K0_REG_NUM),
+                                      GEN_INT (CAUSE_IPL)));
+
+              /* Insert the RIPL into our copy of SR (k1) as the new IPL.  */
+              emit_insn (gen_insvsi (gen_rtx_REG (SImode, K1_REG_NUM),
+                                     GEN_INT (6),
+                                     GEN_INT (SR_IPL),
+                                     gen_rtx_REG (SImode, K0_REG_NUM)));
+
+              if (cfun->machine->keep_interrupts_masked_p)
                 {
-                  emit_insn (gen_lshrsi3 (gen_rtx_REG (SImode, K0_REG_NUM),
-                                          gen_rtx_REG (SImode, K0_REG_NUM),
-                                          GEN_INT (CAUSE_IPL)));
-
-                  /* Insert the RIPL into our copy of SR (k1) as the new IPL.  */
+                  /* Disable interrupts by clearing the KSU, ERL, EXL,
+                     and IE bits.  */
                   emit_insn (gen_insvsi (gen_rtx_REG (SImode, K1_REG_NUM),
-                                         GEN_INT (6),
-                                         GEN_INT (SR_IPL),
-                                         gen_rtx_REG (SImode, K0_REG_NUM)));
-
+                                         GEN_INT (5),
+                                         GEN_INT (SR_IE),
+                                         gen_rtx_REG (SImode, GP_REG_FIRST)));
+                }
+              else /* !cfun->machine->keep_interrupts_masked_p */
+                {
                   /* Enable interrupts by clearing the KSU ERL and EXL bits.
                      IE is already the correct value, so we don't have to do
                      anything explicit.  */
@@ -4077,15 +4189,6 @@ mchp_expand_prologue_saveregs (HOST_WIDE_INT size, HOST_WIDE_INT step1)
                                          GEN_INT (SR_EXL),
                                          gen_rtx_REG (SImode, GP_REG_FIRST)));
                   /* We will move K1 to STATUS later in the generic MIPS code */
-                }
-              else /* cfun->machine->keep_interrupts_masked_p */
-                {
-                  /* Disable interrupts by clearing the KSU, ERL, EXL,
-                     and IE bits.  */
-                  emit_insn (gen_insvsi (gen_rtx_REG (SImode, K1_REG_NUM),
-                                         GEN_INT (5),
-                                         GEN_INT (SR_IE),
-                                         gen_rtx_REG (SImode, GP_REG_FIRST)));
                 }
 
               /* We will move K1 to STATUS later in the generic MIPS code */
@@ -4187,8 +4290,8 @@ bool mchp_subtarget_mips16_enabled (const_tree decl)
                          " attribute on %qs, attribute ignored",
                          IDENTIFIER_POINTER (DECL_NAME (decl)));
           else if (!(pic32_device_mask & HAS_MIPS16))
-            warning (0, "The %qs target processor does not support the %<mips16%>"
-                         " attribute on %qs, attribute ignored",
+            error ("The %qs target device does not support the %<mips16%>"
+                         " attribute on %qs",
                          mchp_processor_string,
                          IDENTIFIER_POINTER (DECL_NAME (decl)));
 
@@ -4215,7 +4318,8 @@ bool mchp_subtarget_micromips_enabled (const_tree decl)
   bool disable_micromips;
 
   disable_micromips = (mchp_pic32_license_valid < 2) || !(pic32_device_mask & HAS_MICROMIPS);
-  if (strncmp (mchp_processor_string, "32MM", 4) == 0)
+  /* If the device does not support MIPS32R2, don't disable microMIPS */
+  if (!(pic32_device_mask & HAS_MIPS32R2))
     {
       disable_micromips = false;
     }
@@ -4235,8 +4339,8 @@ bool mchp_subtarget_micromips_enabled (const_tree decl)
                          " attribute on %qs, attribute ignored",
                          IDENTIFIER_POINTER (DECL_NAME (decl)));
           else if (!(pic32_device_mask & HAS_MICROMIPS))
-            warning (0, "The %qs target processor does not support the %<micromips%>"
-                         " attribute on %qs, attribute ignored",
+            error ("The %qs target device does not support the %<micromips%>"
+                         " attribute on %qs",
                          mchp_processor_string,
                          IDENTIFIER_POINTER (DECL_NAME (decl)));
 
@@ -4253,6 +4357,15 @@ bool mchp_subtarget_micromips_enabled (const_tree decl)
     {
       return true;
     }
+}
+
+bool mchp_subtarget_mips32_enabled ()
+{
+  if (pic32_loaded_device_mask && !(pic32_device_mask & HAS_MIPS32R2))
+    {
+      return false;
+    }
+  return true;
 }
 
 #if defined(C32_SMARTIO_RULES) || 1

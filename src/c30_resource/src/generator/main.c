@@ -234,7 +234,7 @@ int main(int argc, char **argv){
 
   if (errcnt) {
     fprintf(stderr,"\nTotal allocation: %d\n",total_alloc);
-    fprintf(stderr,"\nExiting due to errors\n");
+    fprintf(stderr,"\nERROR: Exiting due to errors\n");
     exit(1);
   }
 
@@ -249,6 +249,7 @@ int main(int argc, char **argv){
       /* Check if the record is a device */
 #ifdef PIC32
       if ( (strncmp(r->fields[0]->v.s,"32",2)  == 0) ||
+           (strncmp(r->fields[0]->v.s,"MGC",3)  == 0) ||
            (strncmp(r->fields[0]->v.s,"MEC",3) == 0) ||
            (strncmp(r->fields[0]->v.s,"IPS",3) == 0)) {
 #else
@@ -466,8 +467,8 @@ int main(int argc, char **argv){
     
     if (xml) {
 #ifdef PIC32
-      int families[] = {P32MX, P32MZ, 0};
-      char *family_names[] = { "PIC32MX","PIC32MZ", };
+      int families[] = {P32MX, P32MZ, P32MM, 0};
+      char *family_names[] = { "PIC32MX","PIC32MZ","PIC32MM", };
 
       int f;
 
@@ -614,7 +615,7 @@ int main(int argc, char **argv){
 
 #ifdef PIC32
       int families[] = {
-        P32MX | P32MZ,
+        P32MX | P32MZ | P32MM, 
         0
       };
 

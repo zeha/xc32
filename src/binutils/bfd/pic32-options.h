@@ -37,6 +37,7 @@
 */
 
 extern bfd_boolean pic32_report_mem;
+extern bfd_boolean pic32_generate_dashboard_xml;
 extern bfd_boolean pic32_debug;
 extern bfd_boolean pic32_smart_io;
 extern bfd_boolean pic32_has_smart_io_option;
@@ -75,7 +76,8 @@ enum elfpic32mx_options {
   NO_DATA_INIT_OPTION,
   FILL_OPTION,
   CRYPTO_OPTION,
-  MEMRESERVE_OPTION
+  MEMRESERVE_OPTION,
+  DASHBOARD_XML_OPTION 
 };
 
 static struct option longopts[] =
@@ -84,6 +86,7 @@ static struct option longopts[] =
   { "smart-io", no_argument, NULL, SMART_IO_OPTION },
   { "no-smart-io", no_argument, NULL, NO_SMART_IO_OPTION },
   { "report-mem", no_argument, NULL, REPORT_MEM_OPTION },
+  { "ide-dashboard", no_argument, NULL, DASHBOARD_XML_OPTION },
   { "data-init", no_argument, NULL, DATA_INIT_OPTION },
   { "no-data-init", no_argument, NULL, NO_DATA_INIT_OPTION },
   { "fill", required_argument, NULL, FILL_OPTION },

@@ -267,6 +267,9 @@ static void pic32_create_unused_program_sections
 void pic32_report_crypto_sections
   PARAMS((void));
 
+void pic32_output_ide_dashboard_xml
+  PARAMS((void));
+
 int fill_section_count = 0;
 int dinit_size = 0;
 #endif
@@ -431,6 +434,8 @@ struct magic_sections_tag magic_pm =
   0, 0, 0
 };
 
+static bfd_size_type total_prog_memory = 0;
+static bfd_size_type total_data_memory = 0;
 static bfd_size_type actual_prog_memory_used = 0;
 static bfd_size_type data_memory_used = 0;
 static bfd_size_type region_data_memory_used = 0;
@@ -815,7 +820,6 @@ bfd_pic32_report_memory_usage (fp)
      FILE *fp;
 {
   bfd_size_type region_prog_memory_used;
-  bfd_size_type total_prog_memory, total_data_memory;
   lang_memory_region_type *region;
   unsigned int region_index, region_count;
   struct pic32_section *s;
@@ -983,6 +987,46 @@ void pic32_report_crypto_sections()
        }
     fclose(crypto);
     free(crypto_file);
+}
+
+void pic32_output_ide_dashboard_xml() 
+{
+  const char *file_name = "memory.xml";
+  FILE *fp;
+
+  fp = fopen (file_name, "w");
+   
+  if (!fp){
+     fprintf(stderr,"Error: %s file cannot be opened.\n", file_name );
+     xexit(1);
+   }
+ 
+  fprintf( fp, "<?xml version=\"1.0\" encoding=\"UTF-8\"?> \n");
+  fprintf( fp, "<project>                                  \n");
+  fprintf( fp, "  <executable name=\"%s\">                 \n",
+                                                          output_filename ); 
+  fprintf( fp, "    <memory name=\"program\">                 \n");
+  fprintf( fp, "      <units>bytes</units>                 \n");
+  fprintf( fp, "      <length>%ld</length>                 \n",
+                                          (unsigned long)total_prog_memory);
+  fprintf( fp, "      <used>%ld</used>                     \n",
+                                    (unsigned long)actual_prog_memory_used);
+  fprintf( fp, "      <free>%ld</free>                     \n",
+              (unsigned long)(total_prog_memory - actual_prog_memory_used));
+  fprintf( fp, "    </memory>                              \n");
+  fprintf( fp, "    <memory name=\"data\">              \n");
+  fprintf( fp, "      <units>bytes</units>                 \n");
+  fprintf( fp, "      <length>%ld</length>                 \n",
+                                          (unsigned long)total_data_memory);
+  fprintf( fp, "      <used>%ld</used>                     \n",
+                                          (unsigned long)data_memory_used );
+  fprintf( fp, "      <free>%ld</free>                     \n",
+                     (unsigned long)(total_data_memory - data_memory_used));
+  fprintf( fp, "    </memory>                              \n");
+  fprintf( fp, "  </executable>                            \n");
+  fprintf( fp, "</project>                                 \n");
+  
+  fclose(fp);
 }
 
 static void
@@ -2041,6 +2085,9 @@ pic32_finish(void)
   if (pic32_has_crypto_option)
     pic32_report_crypto_sections();
 
+  /* Output memory descriptor file for IDE */
+  if (pic32_generate_dashboard_xml)
+   pic32_output_ide_dashboard_xml();  
 
   finish_default();
 } /* static void pic32_finish ()*/
@@ -2774,9 +2821,25 @@ bfd_pic32_finish(void)
   end_data_mem = stack_limit;
 
   if (pic32_is_l1cache_machine(global_PROCESSOR))
-    region = region_lookup("kseg0_data_mem");
+  {
+    /* Try to use kseg0_data_mem, but fall back to kseg1_data_mem. */
+    if (lang_memory_region_exist("kseg0_data_mem"))
+      region = region_lookup ("kseg0_data_mem");
+    else if (lang_memory_region_exist("kseg1_data_mem"))
+      region = region_lookup ("kseg1_data_mem");
+    else
+      region = region_lookup ("kseg0_data_mem");
+  }
   else
-    region = region_lookup("kseg1_data_mem");
+  {
+    /* Try to use kseg1_data_mem, but fall back to kseg0_data_mem. */
+    if (lang_memory_region_exist("kseg1_data_mem"))
+      region = region_lookup ("kseg1_data_mem");
+    else if (lang_memory_region_exist("kseg0_data_mem"))
+      region = region_lookup ("kseg0_data_mem");
+    else
+      region = region_lookup ("kseg1_data_mem");
+  }
 
   if (region) {
     end_data_mem = region->origin + region->length;

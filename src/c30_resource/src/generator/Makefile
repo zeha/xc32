@@ -7,9 +7,10 @@ INCLUDE= -I. -I../c30 -I../xc32
 CFLAGS= -g $(INCLUDE) $(PIC32)
 
 rg:	$(OBJS) reader
-	gcc -o $@ $(OBJS)
+	$(CC) -o $@ $(OBJS) $(CFLAGS) $(EXTRA_CFLAGS)
 
 reader: $(READER_OBJS)
+	$(CC) -o $@ $(OBJS) $(CFLAGS) $(EXTRA_CFLAGS)
 
 grammar.tab.c: grammar.y grammar.h
 	bison -v -t -d `basename $<`

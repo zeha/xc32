@@ -23,9 +23,9 @@ void yyerror(char *e) {
 %}
 
 %union {
-  int   ival;
+  unsigned int   ival;
   char *sval;
-  char  cval;
+  unsigned char  cval;
   struct resource_version version;
   struct resource_data *data;
 }

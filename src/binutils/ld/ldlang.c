@@ -1348,6 +1348,28 @@ static lang_memory_region_type *lang_memory_region_list;
 static lang_memory_region_type **lang_memory_region_list_tail
   = &lang_memory_region_list;
 
+#if defined(TARGET_IS_PIC32MX)
+/* Does the memory region exist? */
+bfd_boolean
+lang_memory_region_exist (const char *const name)
+{
+  lang_memory_region_name *n;
+  lang_memory_region_type *r;
+
+  /* NAME is NULL for LMA memspecs if no region was specified.  */
+  if (name == NULL)
+    return FALSE;
+    
+  for (r = lang_memory_region_list; r != NULL; r = r->next)
+    for (n = &r->name_list; n != NULL; n = n->next)
+      if (strcmp (n->name, name) == 0)
+        {
+          return TRUE;
+        }
+  return FALSE;
+}
+#endif
+
 lang_memory_region_type *
 lang_memory_region_lookup (const char *const name, bfd_boolean create)
 {
@@ -8296,21 +8318,3 @@ lang_ld_feature (char *str)
       p = q;
     }
 }
-
-#ifdef TARGET_IS_PIC32MX
-bfd_boolean lang_memory_region_exist(const char *region_name)
-{
-  lang_memory_region_name * n;
-  lang_memory_region_type * r;
-
-  for (r = lang_memory_region_list; r != NULL; r = r->next)
-    for (n = &r->name_list; n != NULL; n = n->next)
-      {
-        if (strcmp (n->name, region_name) == 0)
-          return TRUE;
-      }
-
-  return FALSE;
-}
-#endif
-
