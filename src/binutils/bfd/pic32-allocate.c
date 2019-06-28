@@ -2230,7 +2230,8 @@ locate_coherent_sections (unsigned int mask,
                     s->sec->alignment_power = 4;
                     coherent_section_count++;
                     result |= locate_coherent_group_section(s, region, mask);
-                    if (s->sec->vma == 0)
+                    ///\ fix XC32-707 report error only for non-empty sections
+                    if ((s->sec->vma == 0) && (s->sec->size != 0))
                     {
                         report_allocation_error(s);
                     }

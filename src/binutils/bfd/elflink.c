@@ -1427,9 +1427,9 @@ _bfd_elf_merge_symbol (bfd *abfd,
   /* Differentiate strong and weak symbols.  */
 //    if (pic32_coresident_app)
     ///\ tmp - let all syms weak - needed for coresident context
-        newweak = 1;//bind == STB_WEAK;
+//        newweak = 1;//bind == STB_WEAK;
 //    else
-//        newweak = bind == STB_WEAK;
+        newweak = bind == STB_WEAK;
 
   oldweak = (h->root.type == bfd_link_hash_defweak
 	     || h->root.type == bfd_link_hash_undefweak);
