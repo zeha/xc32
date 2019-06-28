@@ -1204,7 +1204,7 @@ if [ "x$SKIPLIBS" == "x" ] ; then
         # Build cross compiler libraries
         echo `date` " Making and installing cross-compiler pic32-libs libraries to $WORKING_DIR/$NATIVEIMAGE..." >> $LOGFILE
         xc32_eval "make DESTROOT="$WORKING_DIR/$NATIVE_NOLM_IMAGE" clean -j2" "ERROR: making libraries for cross build"
-        xc32_eval "make DESTROOT="$WORKING_DIR/$NATIVE_NOLM_IMAGE" all -j2" "ERROR: making libraries for cross build"
+        xc32_eval "make DESTROOT="$WORKING_DIR/$NATIVE_NOLM_IMAGE" all $NUMBER_OF_JOBS" "ERROR: making libraries for cross build"
 
         # Install cross compiler libraries
         xc32_eval "make DESTROOT="$WORKING_DIR/$NATIVE_NOLM_IMAGE" install -j2" "ERROR: making pic32-libs for $NATIVE_NOLM_IMAGE cross build"

@@ -711,7 +711,8 @@ mips_after_parse (void)
       link_info.emit_hash = TRUE;
       link_info.emit_gnu_hash = FALSE;
     }
-  link_info.allow_multiple_definition = TRUE;
+  if (pic32_coresident_app)
+    link_info.allow_multiple_definition = TRUE;
   after_parse_default ();
 }
 

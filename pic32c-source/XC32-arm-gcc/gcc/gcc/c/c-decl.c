@@ -687,6 +687,7 @@ c_print_identifier (FILE *file, tree node, int indent)
   if (C_IS_RESERVED_WORD (node) && C_RID_CODE (node) != RID_CXX_COMPAT_WARN)
     {
       tree rid = ridpointers[C_RID_CODE (node)];
+      gcc_assert (rid && "MCHP: See bug XC32-869");
       indent_to (file, indent + 4);
       fprintf (file, "rid " HOST_PTR_PRINTF " \"%s\"",
 	       (void *) rid, IDENTIFIER_POINTER (rid));

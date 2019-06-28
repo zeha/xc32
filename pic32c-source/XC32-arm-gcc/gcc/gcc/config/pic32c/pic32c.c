@@ -882,9 +882,14 @@ pic32c_tcm_attribute (tree *decl, tree identifier ATTRIBUTE_UNUSED, tree args,
       return NULL_TREE;
     }
 
-  if (!TARGET_MCHP_ITCM) {
+  if ((TREE_CODE (*decl) == FUNCTION_DECL) && !(TARGET_MCHP_ITCM || TARGET_MCHP_TCM)) {
     warning (OPT_Wattributes, "Ignoring tcm attribute. "
-				"Pass -mitcm and -mdtcm to enable TCM usage.");
+              "Pass -mitcm or -mtcm as appropriate for your target device to enable TCM usage.");
+    return NULL_TREE;
+  }
+  else if (!(TARGET_MCHP_DTCM || TARGET_MCHP_TCM)) {
+    warning (OPT_Wattributes, "Ignoring tcm attribute. "
+              "Pass -mditcm or -mtcm as appropriate for your target device to enable TCM usage.");
     return NULL_TREE;
   }
 
@@ -893,19 +898,19 @@ pic32c_tcm_attribute (tree *decl, tree identifier ATTRIBUTE_UNUSED, tree args,
     {
       tree attrib_noinline, attrib_noclone;
       if (lookup_attribute ("noinline", DECL_ATTRIBUTES (*decl)) == NULL)
-	{
-	  attrib_noinline
-	    = build_tree_list (get_identifier ("noinline"), NULL_TREE);
-	  attrib_noinline = chainon (DECL_ATTRIBUTES (*decl), attrib_noinline);
-	  decl_attributes (decl, attrib_noinline, 0);
-	}
+      {
+        attrib_noinline
+          = build_tree_list (get_identifier ("noinline"), NULL_TREE);
+        attrib_noinline = chainon (DECL_ATTRIBUTES (*decl), attrib_noinline);
+        decl_attributes (decl, attrib_noinline, 0);
+      }
       if (lookup_attribute ("noclone", DECL_ATTRIBUTES (*decl)) == NULL)
-	{
-	  attrib_noclone
-	    = build_tree_list (get_identifier ("noclone"), NULL_TREE);
-	  attrib_noclone = chainon (DECL_ATTRIBUTES (*decl), attrib_noclone);
-	  decl_attributes (decl, attrib_noclone, 0);
-	}
+      {
+        attrib_noclone
+          = build_tree_list (get_identifier ("noclone"), NULL_TREE);
+        attrib_noclone = chainon (DECL_ATTRIBUTES (*decl), attrib_noclone);
+        decl_attributes (decl, attrib_noclone, 0);
+      }
     }
 
   return NULL_TREE;
@@ -1192,7 +1197,7 @@ pic32c_subtarget_expand_builtin (unsigned int fcode, tree exp, rtx target)
       return target;
 
     case PIC32C_BUILTIN_SOFTWARE_BREAKPOINT:
-      if (TARGET_THUMB2)
+      if (TARGET_THUMB1 || TARGET_THUMB2)
 	{
 	  emit_insn (gen_blockage ());
 	  emit_insn (gen_pic32c_bkpt ());
@@ -1201,7 +1206,7 @@ pic32c_subtarget_expand_builtin (unsigned int fcode, tree exp, rtx target)
       else
 	{
 	  warning (0,
-		   "__builtin_software_breakpoint() supported only for Thumb2");
+		   "__builtin_software_breakpoint() supported only for Thumb1 or Thumb2");
 	}
       return target;
 
@@ -1385,6 +1390,29 @@ mchp_ramfunc_type_p (tree decl)
 /***********************************************************************
  * Section name processing.
  ***********************************************************************/
+
+/*
+ * Write a symbol name to a file, removing any special MCHP flags
+ * encoded in the name.
+ */
+void
+mchp_write_encoded_name (FILE *file, const char *symbol_name)
+{
+  const char *p = symbol_name;
+
+  asm_fprintf(file, "%U");
+
+  while ((*p != '\0') && (*p != MCHP_EXTENDED_FLAG[0]))
+    ++p;
+
+  fprintf(file, "%.*s", (int)(p - symbol_name), symbol_name);
+
+  if (*p == '\0')
+    return;
+
+  const char *real_name = mchp_strip_name_encoding(p);
+  fprintf(file, "%s", real_name);
+}
 
 const char *
 mchp_strip_name_encoding (const char *symbol_name)
@@ -1794,7 +1822,9 @@ section_flags_from_decl (tree decl)
       break;
 
     default:
-      break;
+      // Issue XC32-752: if 'decl' is not really a DECL, there would be no flags to be
+      // extracted from it and calling validate_identifier_flags() would result in an ICE
+      return 0;
     }
 
   if ((prefix[0] != 0) == 0)

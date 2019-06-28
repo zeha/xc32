@@ -513,6 +513,6 @@ mskip-license-check
 Target Var(TARGET_SKIP_LICENSE_CHECK) Init(0) Undocumented
 For use by MPLAB X IDE only - Forces a free license
 
-mhi-addr-opt
-Target Var Var(TARGET_MCHP_HI_ADDR_OPT)
--mhi-addr-opt	Use HI address part optimization
+mno-hi-addr-opt
+Target RejectNegative Var(TARGET_MCHP_DISABLE_HI_ADDR_OPT)
+-mno-hi-addr-opt	Disable HI address part optimization

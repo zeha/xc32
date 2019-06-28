@@ -71,17 +71,25 @@ Target RejectNegative Alias(msmart-io=, 1)
 mno-smart-io
 Target RejectNegative Alias(msmart-io=, 0)
 
+mtcm=
+Target Report RejectNegative Joined Var(TARGET_MCHP_TCM) Undocumented
+-mtcm=VALUE	Enable tcm and set tcm size to VALUE for CMCC-style TCM
+
 mitcm=
 Target Report RejectNegative Joined Var(TARGET_MCHP_ITCM)
--mitcm=VALUE	Enable tcm and set itcm size to VALUE
+-mitcm=VALUE	Enable itcm and set itcm size to VALUE for devices with separate itcm & dtcm sizes
 
 mdtcm=
 Target Report RejectNegative Joined Var(TARGET_MCHP_DTCM)
--mdtcm=VALUE	Enable tcm and set dtcm size to VALUE
+-mdtcm=VALUE	Enable dtcm and set dtcm size to VALUE for devices with separate itcm & dtcm sizes
 
 mstack-in-tcm
 Target Report Var(mchp_stack_in_tcm)
 -mstack-in-tcm Move stack from ram to dtcm 
+
+mvectors-in-tcm
+Target Report Var(mchp_vectors_in_tcm) Init(1) Undocumented
+-m(no-)vectors-in-tcm	(Do not) Move vectors to tcm/itcm region 
 
 msoft-float
 Target Alias(mfloat-abi=, soft)

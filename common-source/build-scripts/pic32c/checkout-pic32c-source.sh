@@ -115,7 +115,7 @@ usage ()
 }
 
 if [ -z "$bamboo_XC32_XCLM_BRANCH" ]; then
-  XCLM_BRANCH=trunk
+  XCLM_BRANCH=master
 else
   XCLM_BRANCH=$bamboo_XC32_XCLM_BRANCH
 fi 
@@ -132,23 +132,23 @@ fi
 
 # order of repos must correspond to order of directories in all_fossil_directories
 all_fossil_repos=(
- xclm_release
- )
+)
 # order of directories must correspond to order of repos in all_fossil_repos
 all_fossil_directories=(
- xclm_release
 )
 
 # Same, but for Git.
 all_git_repos=(
- pic32c-gcc
- pic32c-libs
- pic32c-headers_generator
+ xc32/pic32c-gcc
+ xc32/pic32c-libs
+ xc32/pic32c-headers_generator
+ xclm/xclm-release
 )
 all_git_directories=(
  XC32-arm-gcc
  pic32c-libs
  pic32c-headers_generator
+ xclm_release
 )
 
 TAG="x"
@@ -195,7 +195,7 @@ fi
 
 # Set the base URL for Git clones. The default assumes the user has an
 # SSH key that can authenticate to the server without any input.
-: ${XC32_GIT_URL:=ssh://git@bitbucket.microchip.com:7999/xc32}
+: ${XC32_GIT_URL:=ssh://git@bitbucket.microchip.com:7999}
 # Strip the trailing /, if any.
 XC32_GIT_URL="${XC32_GIT_URL%/}"
 status_update "Using XC32_GIT_URL=${XC32_GIT_URL}"
@@ -330,21 +330,28 @@ for (( i=0; i<$(( ${#all_git_directories[*]} )); i++ ))
 do
   gitrepo="${all_git_repos[$i]}"
   gitdir="${all_git_directories[$i]}"
-  echo "Checking out source from ${gitrepo} to ${gitdir}" >> ${LOGFILE}
+  gitname="${gitrepo#*/}"
+
+  commitid="${CHECKOUT_COMMIT}"
+  if [[ "${gitname}" == xclm-release ]]; then
+      commitid="${XCLM_BRANCH}"
+  fi
+
+  echo "Checking out source from ${gitname} to ${gitdir}" >> ${LOGFILE}
   if [[ ! -d "${gitdir}" ]]; then
-      echo "Cloning Git repository ${gitrepo}" >> ${LOGFILE}
+      echo "Cloning Git repository ${gitname}" >> ${LOGFILE}
       (
         PS4=""; exec 2>> ${LOGFILE}; set -x
         git clone -q "${XC32_GIT_URL}/${gitrepo}.git" "${gitdir}"
       )
   fi
-  (
-    PS4=""; exec 2>> ${LOGFILE}; set -x
-    git -C "${gitdir}" pull --quiet origin
-    if [[ "${gitrepo}" != pic32c-headers_generator ]]; then
-      git -C "${gitdir}" checkout "${CHECKOUT_COMMIT}"
-    fi
-  )
+  if [[ "${gitname}" != pic32c-headers_generator ]]; then
+      (
+          PS4=""; exec 2>> ${LOGFILE}; set -x
+          git -C "${gitdir}" pull --quiet origin
+          git -C "${gitdir}" checkout "${commitid}"
+      )
+  fi
 done
 set +eu
 

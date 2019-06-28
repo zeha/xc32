@@ -139,36 +139,39 @@ static void set_value(unsigned int *loc, unsigned int value) {
 void mchp_init_cci(void *pfile_v) {
   struct cpp_reader *pfile = (struct cpp_reader *)pfile_v;
 
-#define CCI(TARGET, CCI_KIND, CCI_KEYWORD, TGT_KEYWORD, N) \
-  if (TARGET && CCI_KIND == CCI_define) \
+#define CCI
+#define CCI_DEFINE(TARGET, CCI_KEYWORD, TGT_KEYWORD, N) \
+  if (TARGET) \
     cci_define(pfile_v, CCI_KEYWORD, TGT_KEYWORD);
 #include CCI_H
-#ifdef CCI
-#error CCI is still defined...
-#endif
 
-#define CCI(TARGET, CCI_KIND, CCI_KEYWORD, TGT_KEYWORD, N) \
-  if (TARGET && CCI_KIND == CCI_attribute) \
+#define CCI
+#define CCI_ATTRIBUTE(TARGET, CCI_KEYWORD, TGT_KEYWORD, N) \
+  if (TARGET) \
     cci_attribute(pfile_v, CCI_KEYWORD, TGT_KEYWORD, 0, 0);
 #include CCI_H
 
-#define CCI(TARGET, CCI_KIND, CCI_KEYWORD, TGT_KEYWORD, N) \
-  if (TARGET && CCI_KIND == CCI_attribute_n) \
+#define CCI
+#define CCI_ATTRIBUTE_N(TARGET, CCI_KEYWORD, TGT_KEYWORD, N) \
+  if (TARGET) \
     cci_attribute(pfile_v, CCI_KEYWORD, TGT_KEYWORD, 0, N);
 #include CCI_H
 
-#define CCI(TARGET, CCI_KIND, CCI_KEYWORD, TGT_KEYWORD, N) \
-  if (TARGET && CCI_KIND == CCI_attribute_v) \
+#define CCI
+#define CCI_ATTRIBUTE_V(TARGET, CCI_KEYWORD, TGT_KEYWORD, N) \
+  if (TARGET) \
     cci_attribute(pfile_v, CCI_KEYWORD, TGT_KEYWORD, 1, 0);
 #include CCI_H
 
-#define CCI(TARGET, CCI_KIND, CCI_KEYWORD, TGT_KEYWORD, N) \
-  if (TARGET && CCI_KIND == CCI_attribute_nv) \
+#define CCI
+#define CCI_ATTRIBUTE_NV(TARGET, CCI_KEYWORD, TGT_KEYWORD, N) \
+  if (TARGET) \
     cci_attribute(pfile_v, CCI_KEYWORD, TGT_KEYWORD, 1, N);
 #include CCI_H
 
-#define CCI(TARGET, CCI_KIND, CCI_KEYWORD, TGT_KEYWORD, N) \
-  if (TARGET && CCI_KIND == CCI_set_value) \
+#define CCI
+#define CCI_SET_VALUE(TARGET, CCI_KEYWORD, TGT_KEYWORD, N) \
+  if (TARGET) \
     set_value(TGT_KEYWORD,N);
 #include CCI_H
 
@@ -176,8 +179,9 @@ void mchp_init_cci(void *pfile_v) {
 
 void mchp_init_cci_builtins(void) {
 
-#define CCI(TARGET, CCI_KIND, CCI_KEYWORD, TGT_FN, N) \
-  if (TARGET && CCI_KIND == CCI_pragma) \
+#define CCI
+#define CCI_PRAGMA(TARGET, CCI_KEYWORD, TGT_FN, N) \
+  if (TARGET) \
     c_register_pragma(0, CCI_KEYWORD, TGT_FN);
 #include CCI_H
 
@@ -223,8 +227,9 @@ void mchp_init_cci_builtins(void) {
 
 void mchp_init_cci_pragmas(void) {
 
-#define CCI(TARGET, CCI_KIND, CCI_KEYWORD, TGT_FN, N) \
-  if ((TARGET && CCI_KIND) == CCI_pragma) \
+#define CCI
+#define CCI_PRAGMA(TARGET, CCI_KEYWORD, TGT_FN, N) \
+  if (TARGET) \
     c_register_pragma(0, CCI_KEYWORD, (pragma_handler_1arg)TGT_FN);
 #include CCI_H
 }
@@ -566,7 +571,7 @@ mchp_handle_configuration_setting (const char *name,
                                             shift++;
                                             mask >>= 1;
                                         }
-                                    converted_value = strtol((char *)value_name, NULL, 10);
+                                    converted_value = strtoul((char *)value_name, NULL, 10);
                                     if (((setting->mask)>>shift & converted_value) != converted_value)
                                         warning (0, "Configuration value 0x%x masked to 0x%x for setting %qs",
                                                  converted_value, (setting->mask)>>shift, name);
@@ -575,7 +580,7 @@ mchp_handle_configuration_setting (const char *name,
                                     /* update the value of the word with the value
                                        indicated */
                                     spec->value = (spec->value & ~setting->mask)
-                                                  | (setting->mask) & (strtol((char *)value_name, NULL, 10) << shift);
+                                                  | (setting->mask) & (strtoul((char *)value_name, NULL, 10) << shift);
                                     return;
                                 }
 #endif /* MCHP_ALLOW_INTEGER_CONFIGVALUE */
@@ -685,13 +690,13 @@ mchp_handle_config_pragma (struct cpp_reader *pfile)
         value_name = (unsigned char *)IDENTIFIER_POINTER (tok_value);
       else if (tok == CPP_NUMBER)
         {
-          if (host_integerp (tok_value, 1 /* positive only */ ))
+          if (host_integerp (tok_value, 0))
           {
             #define MAX_VALUE_NAME_LENGTH 22
-            HOST_WIDE_INT i;
-            i = tree_low_cst (tok_value, 1 /* positive only */ );
+            unsigned HOST_WIDE_INT i;
+            i = tree_low_cst (tok_value, 0);
             value_name = (unsigned char*)xcalloc(MAX_VALUE_NAME_LENGTH,1);
-            snprintf((char *)value_name, MAX_VALUE_NAME_LENGTH, "%d", i);
+            snprintf((char *)value_name, MAX_VALUE_NAME_LENGTH, "%u", i);
             #undef MAX_VALUE_NAME_LENGTH
           }
         }
@@ -820,13 +825,13 @@ mchp_handle_configset_pragma (struct cpp_reader *pfile, const char* set)
         value_name = (unsigned char *)IDENTIFIER_POINTER (tok_value);
       else if (tok == CPP_NUMBER)
         {
-          if (host_integerp (tok_value, 1 /* positive only */ ))
+          if (host_integerp (tok_value, 0)) 
           {
             #define MAX_VALUE_NAME_LENGTH 22
-            HOST_WIDE_INT i;
-            i = tree_low_cst (tok_value, 1 /* positive only */ );
+            unsigned HOST_WIDE_INT i;
+            i = tree_low_cst (tok_value, 0);
             value_name = (unsigned char*)xcalloc(MAX_VALUE_NAME_LENGTH,1);
-            snprintf((char *)value_name, MAX_VALUE_NAME_LENGTH, "%d", i);
+            snprintf((char *)value_name, MAX_VALUE_NAME_LENGTH, "%u", i);
             #undef MAX_VALUE_NAME_LENGTH
           }
         }

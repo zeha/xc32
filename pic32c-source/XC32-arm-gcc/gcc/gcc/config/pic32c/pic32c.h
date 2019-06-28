@@ -118,13 +118,7 @@ extern tree build_smartio_format (tree, tree);
 */
 #undef ASM_OUTPUT_LABELREF
 #define ASM_OUTPUT_LABELREF(FILE, NAME)                                        \
-  do                                                                           \
-    {                                                                          \
-      const char *real_name;                                                   \
-      real_name = mchp_strip_name_encoding ((NAME));                           \
-      asm_fprintf (FILE, "%U%s", real_name);                                   \
-    }                                                                          \
-  while (0)
+  mchp_write_encoded_name ((FILE), (NAME))
 
 #undef SUBTARGET_OVERRIDE_OPTIONS
 #define SUBTARGET_OVERRIDE_OPTIONS PIC32C_SUBTARGET_OVERRIDE_OPTIONS

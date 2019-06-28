@@ -289,27 +289,21 @@ hi_addr_analyze (void)
          }
       }
     }
-    
     free_sym_hash_table (&sym_hash);
+}
 
+static bool
+gate_hi_addr (void)
+{
+  return (!TARGET_MCHP_DISABLE_HI_ADDR_OPT && optimize > 1);
 }
 
 static unsigned int
 execute_hi_addr_analysis (void)
 {
-    if (TARGET_MCHP_HI_ADDR_OPT)
-    {
-        if (optimize <= 1 && !optimize_size && TARGET_LICENSE_WARNING)
-        {
-            warning (0,"PRO Compiler option -mhi-addr-opt ignored");
-        }
-        else
-        {
-            hi_addr_analyze();
-        }
-    }
+  hi_addr_analyze ();
 
-    return 0;
+  return 0;
 }
 
 struct rtl_opt_pass pass_rtl_mchp_hi_addr_analysis =
@@ -318,7 +312,7 @@ struct rtl_opt_pass pass_rtl_mchp_hi_addr_analysis =
   RTL_PASS,
   "mchp_hi_addr_analysis",                    /* name */
   OPTGROUP_NONE,                        /* optinfo_flags */
-  NULL,                                 /* gate */
+  gate_hi_addr,                         /* gate */
   execute_hi_addr_analysis,             /* execute */
   NULL,                                 /* sub */
   NULL,                                 /* next */

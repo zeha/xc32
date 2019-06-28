@@ -54,7 +54,7 @@ clean-lm:
 	rm -f mchp.o
 
 # Force license manager enablement
-force_lm = $(if $(XC32_ENABLE_LM),$(subst -DSKIP_LICENCE_MANAGER,,$(1)),$(1))
+force_lm = $(if $(XC32_ENABLE_LM),$(subst -DSKIP_LICENCE_MANAGER,,$(1)) $(XC32_LM_FLAGS),$(1))
 
 # Microchip PIC32-specific format checking and pragmas
 mchp.o: $(srcdir)/config/pic32/mchp.c $(srcdir)/config/pic32/mchp.h \

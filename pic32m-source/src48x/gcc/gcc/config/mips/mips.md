@@ -7222,7 +7222,9 @@
     snprintf(buffer, buffer_size, \"lui\t%%0, %%%%hi(.startof.%s)\;addiu\t%%0, %%0, %%%%lo(.startof.%s)\",
             section_name, section_name);
     return buffer;
-  }")
+  }"
+  [(set_attr "type" "multi")
+   (set_attr "insn_count" "2")])
 
 (define_insn "pic32_section_begin_16el"
   [(set (match_operand 0 "register_operand" "=d")
@@ -7248,7 +7250,9 @@
     snprintf(buffer, buffer_size, \"li\t%%0, %%%%hi(.startof.%s)\;sll\t%%0, %%0, 16\;addiu\t%%0, %%%%lo(.startof.%s)\",
             section_name, section_name);
     return buffer;
-  }")
+  }"
+  [(set_attr "type" "multi")
+   (set_attr "insn_count" "3")])
 
 (define_insn "pic32_section_end"
   [(set (match_operand:SI 0 "register_operand" "=d")
@@ -7276,7 +7280,9 @@
     snprintf(buffer, buffer_size, \"lui\t%%0, %%%%hi(.endof.%s)\;addiu\t%%0, %%0, %%%%lo(.endof.%s)\",
             section_name, section_name);
     return buffer;
-  }")
+  }"
+  [(set_attr "type" "multi")
+   (set_attr "insn_count" "2")])
 
 (define_insn "pic32_section_end_16el"
   [(set (match_operand 0 "register_operand" "=d")
@@ -7302,7 +7308,9 @@
     snprintf(buffer, buffer_size, \"li\t%%0, %%%%hi(.endof.%s)\;sll\t%%0, %%0, 16\;addiu\t%%0, %%%%lo(.endof.%s)\",
             section_name, section_name);
     return buffer;
-  }")
+  }"
+  [(set_attr "type" "multi")
+   (set_attr "insn_count" "3")])
 
 (define_insn "pic32_section_size"
   [(set (match_operand:SI 0 "register_operand" "=d")
@@ -7330,7 +7338,9 @@
     snprintf(buffer, buffer_size, \"lui\t%%0, %%%%hi(.sizeof.%s)\;addiu\t%%0, %%0, %%%%lo(.sizeof.%s)\",
             section_name, section_name);
     return buffer;
-  }")
+  }"
+  [(set_attr "type" "multi")
+   (set_attr "insn_count" "2")])
 
 (define_insn "pic32_section_size_16el"
   [(set (match_operand 0 "register_operand" "=d")
@@ -7356,7 +7366,9 @@
     snprintf(buffer, buffer_size, \"li\t%%0, %%%%hi(.sizeof.%s)\;sll\t%%0, %%0, 16\;addiu\t%%0, %%%%lo(.sizeof.%s)\",
             section_name, section_name);
     return buffer;
-  }")
+  }"
+  [(set_attr "type" "multi")
+   (set_attr "insn_count" "3")])
 
 (define_insn "get_isr_state_mips16"
   [

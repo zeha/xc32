@@ -1388,6 +1388,8 @@ get_flag_spec (const format_flag_spec *spec, int flag, const char *predicates)
    invalid char.
    An invalid char is one that is asserted to not be used by the
    smart-io level. Currently, this means floating point formats at level >= 2.
+   If any of format_chars are unsuitable for use in an identifier, then
+   a negative value is returned.
    */
 static int
 smartio_invalid_format (const char * format_chars)
@@ -1406,8 +1408,16 @@ smartio_invalid_format (const char * format_chars)
   const char * invalid_chars = smartio_invalid_chars[TARGET_MCHP_SMARTIO_LEVEL];
   const char *c;
 
+  /* Explicit check for invalid identifier name characters,
+     which cannot appear in a suffix. */
+  for (c = format_chars; *c != 0; ++c)
+    if (!(ISIDST (*c)))
+      return -1;
+
+  /* Otherwise, check for disallowed characters and return the first
+     invalid one. */
   for (c = invalid_chars; *c != 0; ++c)
-    if (strchr (format_chars, *c) != 0) 
+    if (strchr (format_chars, *c) != 0)
       break;
   return *c;
 }
@@ -2576,16 +2586,20 @@ check_format_info_main (format_check_results *res,
 	if ((s & 0x1) && conv_specs[i].std == STD_C89
 	    && conv_specs[i].format_chars)
 	  {
-            sprintf (p, "%s", conv_specs[i].format_chars);
-            p += strlen (conv_specs[i].format_chars);
-
-            if (smartio_invalid_format (conv_specs[i].format_chars))
+            int invalid = smartio_invalid_format (conv_specs[i].format_chars);
+            if (invalid) 
               {
-		warning_at (format_string_loc, OPT_Wformat_,
-			    "conversion specifier(s) %s are not supported with "
-			    "smart-io level %d",
-			    conv_specs[i].format_chars,
-			    TARGET_MCHP_SMARTIO_LEVEL);
+                if (invalid > 0)
+		  warning_at (
+		    format_string_loc, OPT_Wformat_,
+		    "conversion specifier(s) %s are not supported with "
+		    "smart-io level %d",
+		    conv_specs[i].format_chars, TARGET_MCHP_SMARTIO_LEVEL);
+              }
+            else
+              {
+		sprintf (p, "%s", conv_specs[i].format_chars);
+		p += strlen (conv_specs[i].format_chars);
 	      }
           }
 

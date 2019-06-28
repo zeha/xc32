@@ -27,7 +27,7 @@ OLDPATH=$PATH
 LOGFILE=`pwd`/xc32-build-all.log
 BUILDSUBDIR=`pwd`/builddir
 
-export MCHP_VERSION="2.05"
+export MCHP_VERSION="2.15"
 export MCHP_RESOURCE="A"
 
 if [ $# -gt 3 ] ; then
@@ -227,7 +227,7 @@ SAVE_HOST_MINGW_TOOL=$HOST_MINGW_TOOL
 
 TAG="x"
 BRANCH="x"
-JOBS=2
+JOBS=4
 DEVEL=
 DEBUG=
 FULL_ONLY=no
@@ -249,7 +249,7 @@ for ac_arg; do
           skip_steps=`echo $ac_arg | sed -e "s/--skip_steps=//g" -e "s/,/ /g"`
           ;;
       --skip-steps=*)
-          skip_steps=`echo $ac_arg | sed -e "s/--skip_steps=//g" -e "s/,/ /g"`
+          skip_steps=`echo $ac_arg | sed -e "s/--skip-steps=//g" -e "s/,/ /g"`
           ;;
       --branch=*)
           if [ "x$TAG" != "xx" ] ; then

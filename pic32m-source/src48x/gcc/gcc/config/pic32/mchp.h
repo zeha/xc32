@@ -113,12 +113,7 @@ do {                     \
 #define XC32CPPLIB_OPTION "-mxc32cpp-lib"
 
 # undef  STARTFILE_SPEC
-# define STARTFILE_SPEC "%{!mdfp=*:%{!pie:%{mmicromips: %s%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/crt0_micromips%O};\
-  : %s%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/crt0_mips32r2%O}}} \
-  %{pie:%{mmicromips: %s%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/crt0_micromips_pic%O};\
-  : %s%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/crt0_mips32r2_pic%O}}} } \
-  %{!pie:%{!mprocessor=* : crt0%O%s}} \
-  %{pie:%{!mprocessor=*:crt0_pic%O%s}} \
+# define STARTFILE_SPEC " \
   %{!A:%{!nostdlib:%{!mno-default-isr-vectors:%{mdebugger|mreserve=* : -l:software-debug-break.o} }}} \
   %{!pie:%{!A:%{!nostdlib:%{!mno-default-isr-vectors:%{!mdebugger : %{!mreserve=*: \
     %{mmicromips : -l:debug-exception-return-mm.o; \
@@ -130,12 +125,7 @@ do {                     \
 
 
 # undef STARTFILECXX_SPEC
-# define STARTFILECXX_SPEC "%{!mdfp=*: %{!pie:%{mmicromips: %s%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/cpprt0_micromips%O} ;\
-  : %s%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/cpprt0_mips32r2%O}} } \
-  %{pie:%{mmicromips: %s%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/cpprt0_micromips_pic%O} ;\
-  : %s%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/cpprt0_mips32r2_pic%O}} } \
-  %{!pie:%{!mprocessor=* : cpprt0%O%s}} \
-  %{pie:%{!mprocessor=* : cpprt0_pic%O%s}} }\
+# define STARTFILECXX_SPEC "-DCPP_INIT=1 \
   crti%O%s crtbegin%O%s "
 
 #undef ENDFILE_SPEC
@@ -349,37 +339,37 @@ extern void pic32_final_include_paths(struct cpp_dir*,struct cpp_dir*);
 #undef BASE_DRIVER_SELF_SPECS
 #define BASE_DRIVER_SELF_SPECS \
   "%{!mno-dsp: \
-     %{march=24ke*|march=34kc*|march=34kf*|march=34kx*|march=1004k*: -mdsp} \
-     %{march=74k*|march=m14ke*: %{!mno-dspr2: -mdspr2 -mdsp}}} \
+     %{march=24ke*|march=34kc*|march=34kf*|march=34kx*|march=1004k*: -mdsp } \
+     %{march=74k*|march=m14ke*: %{!mno-dspr2: -mdspr2 -mdsp }}} \
    %{mprocessor=32MX* : %{msmall-isa:-mips16} %{!msmall-isa: %{mips16: -msmall-isa}} -mpic32mxlibs } \
-   %{mprocessor=32mx* : %{msmall-isa:-mips16} %{!msmall-isa: %{mips16: -msmall-isa}} -mpic32mxlibs} \
-   %{mprocessor=32MZ* : %{msmall-isa:-mmicromips} %{!msmall-isa: %{mmicromips: -msmall-isa}} -mpic32mzlibs} \
-   %{mprocessor=32mz* : %{msmall-isa:-mmicromips} %{!msmall-isa: %{mmicromips: -msmall-isa}} -mpic32mzlibs} \
+   %{mprocessor=32mx* : %{msmall-isa:-mips16} %{!msmall-isa: %{mips16: -msmall-isa}} -mpic32mxlibs } \
+   %{mprocessor=32MZ* : %{msmall-isa:-mmicromips} %{!msmall-isa: %{mmicromips: -msmall-isa}} -mpic32mzlibs } \
+   %{mprocessor=32mz* : %{msmall-isa:-mmicromips} %{!msmall-isa: %{mmicromips: -msmall-isa}} -mpic32mzlibs } \
    %{mprocessor=MGC* : %{msmall-isa:-mips16} %{!msmall-isa: %{mips16: -msmall-isa}} -mpic32mxlibs } \
-   %{mprocessor=mgc* : %{msmall-isa:-mips16} %{!msmall-isa: %{mips16: -msmall-isa}} -mpic32mxlibs} \
-   %{mprocessor=IPSWICH : %{msmall-isa:-mmicromips} %{!msmall-isa: %{mmicromips: -msmall-isa}} -mpic32mzlibs} \
-   %{mprocessor=MEC* : %{msmall-isa:-mmicromips} %{!msmall-isa: %{mmicromips: -msmall-isa}} -mpic32mzlibs} \
-   %{mprocessor=32MM*: -mmicromips -mpic32mmlibs} \
-   %{mprocessor=32mm*: -mmicromips -mpic32mmlibs} \
-   %{mpic32mxlibs : %{msmall-isa: -mips16}} \
-   %{mpic32mzlibs : %{msmall-isa: -mmicromips}} \
-   %{mpic32mmlibs : -mmicromips} \
-   %{D__DEBUG : -mdebugger} \
-   %{mprocessor=32*|mprocessor=MG* : ;:-mno-default-isr-vectors} \
-   %{mhard-float : %{!mfp32 : -mfp64} } \
+   %{mprocessor=mgc* : %{msmall-isa:-mips16} %{!msmall-isa: %{mips16: -msmall-isa}} -mpic32mxlibs } \
+   %{mprocessor=IPSWICH : %{msmall-isa:-mmicromips} %{!msmall-isa: %{mmicromips: -msmall-isa}} -mpic32mzlibs } \
+   %{mprocessor=MEC* : %{msmall-isa:-mmicromips } %{!msmall-isa: %{mmicromips: -msmall-isa}} -mpic32mzlibs } \
+   %{mprocessor=32MM*: -mmicromips -mpic32mmlibs } \
+   %{mprocessor=32mm*: -mmicromips -mpic32mmlibs } \
+   %{mpic32mxlibs : %{msmall-isa: -mips16 }} \
+   %{mpic32mzlibs : %{msmall-isa: -mmicromips }} \
+   %{mpic32mmlibs : -mmicromips } \
+   %{D__DEBUG : -mdebugger } \
+   %{mprocessor=32*|mprocessor=MG* : ;:-mno-default-isr-vectors } \
+   %{mhard-float : %{!mfp32 : -mfp64 } } \
    %{mfp64 : -mhard-float } \
-   %{!mfp64 : %{!mno-float : -msoft-float}} \
-   %{legacy-libc:%{!mno-legacy-libc:-mlegacy-libc}} \
-   %{no-legacy-libc:%{!mlegacy-libc:-mno-legacy-libc}} \
-   %{newlib-libc:%{!mno-newlib-libc:-mnewlib-libc}} \
-   %{no-newlib-libc:%{!mnewlib-libc:-mno-newlib-libc}} \
-   %{mgen-pie-static : -fPIC -G0 -pie -static -relaxed-math -mno-smart-io} \
-   %{mnewlib-libc|newlib-libc : %{mlegacy-libc|legacy-libc:%emay not use both -mlegacy-libc and -mnewlib-libc}} \
-   %{mnewlib-libc : -mno-smart-io -mno-legacy-libc %{!fshort-double:-fno-short-double}} \
-   %{newlib-libc : -mno-smart-io -mno-legacy-libc -fno-short-double} \
-   %{mprocessor=*: %{!nostartfiles:%{mdfp=*: %* %J%{!pie:/xc32/startup/crt0.S} %J%{pie:/xc32/startup/crt0_pic.S}}}}\
-   %{mprocessor=*: %{mdfp=*: %* %J%{mprocessor=*:/xc32/%*%J/p%*%J.S}}}\
-   %{mprocessor=*: %{!A:%{!nostdlib:%{!nodefaultlibs:%{!nostartfiles:%{!mno-default-isr-vectors:%{mdfp=*: %* %J%{mprocessor=*:/xc32/%*%J/p%*%J_div.S} }}}}}} }\
+   %{!mfp64 : %{!mno-float : -msoft-float }} \
+   %{legacy-libc:%{!mno-legacy-libc:-mlegacy-libc }} \
+   %{no-legacy-libc:%{!mlegacy-libc:-mno-legacy-libc }} \
+   %{newlib-libc:%{!mno-newlib-libc:-mnewlib-libc }} \
+   %{no-newlib-libc:%{!mnewlib-libc:-mno-newlib-libc }} \
+   %{mgen-pie-static : -fPIC -G0 -pie -static -relaxed-math -mno-smart-io } \
+   %{mnewlib-libc|newlib-libc : %{mlegacy-libc|legacy-libc:%emay not use both -mlegacy-libc and -mnewlib-libc }} \
+   %{mnewlib-libc : -mno-smart-io -mno-legacy-libc %{!fshort-double:-fno-short-double }} \
+   %{newlib-libc : -mno-smart-io -mno-legacy-libc -fno-short-double } \
+   %{mprocessor=*: %{!c:%{!S:%{!E:%{!nostartfiles:%{mdfp=*: %* %J%{!pie:/xc32/startup/crt0.S } %J%{pie:/xc32/startup/crt0_pic.S } ; : %J%{!pie: %s./crt0.S } %J%{pie: %s./crt0_pic.S }}}}}}}\
+   %{mprocessor=*: %{!c:%{!S:%{!E:%{mdfp=*: %* %J%{mprocessor=*:/xc32/%*%J/p%*%J.S } ;: %J%{mprocessor=*: %s./proc/%*%J/p%*%J.S } }}}}}\
+   %{mprocessor=*: %{!c:%{!S:%{!E:%{!A:%{!nostdlib:%{!nodefaultlibs:%{!nostartfiles:%{!mno-default-isr-vectors:%{mdfp=*: %* %J%{mprocessor=*:/xc32/%*%J/p%*%J_div.S } ;: %J%{mprocessor=*: %s./proc/%*%J/p%*%J_div.S } }}}}}}}}} }\
   "
 
 /* CC1_SPEC is the set of arguments to pass to the compiler proper.  This
@@ -430,7 +420,6 @@ extern void pic32_final_include_paths(struct cpp_dir*,struct cpp_dir*);
  %{flto: %{!fno-fat-lto-objects: -ffat-lto-objects}} \
  %{legacy-libc:%{!mno-legacy-libc:-mlegacy-libc}} \
  %{no-legacy-libc:%{!mlegacy-libc:-mno-legacy-libc}} \
- %{O2|Os|O3:%{!mno-hi-addr-opt:-mhi-addr-opt}} \
  %{mdfp=*: -mresource=%* %J/xc32} \
  %(mchp_cci_cc1_spec) \
  %(subtarget_cc1_spec) \
@@ -440,7 +429,6 @@ extern void pic32_final_include_paths(struct cpp_dir*,struct cpp_dir*);
  %{!fenforce-eh-specs:-fno-enforce-eh-specs} \
  %{mxc32cpp-lib:%{!mno-xc32cpp-lib:%{!std=*:-std=c++11} -msmart-io=0 }} \
  %(subtarget_cc1plus_spec) \
- %{O2|Os|O3:%{!mno-hi-addr-opt:-mhi-addr-opt}} \
 "
 
 /* Preprocessor specs.  */

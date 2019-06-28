@@ -32,6 +32,9 @@ extern void pic32c_subtarget_override_options(void);
 extern section *mchp_select_section
                   (tree decl, int reloc, unsigned HOST_WIDE_INT align ATTRIBUTE_UNUSED);
 
+extern void mchp_write_encoded_name(FILE *, const char *);
+
+// TODO: May not need to be exposed.
 extern const char *mchp_strip_name_encoding 
                   (const char *symbol_name);
 

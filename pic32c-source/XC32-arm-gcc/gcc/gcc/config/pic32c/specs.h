@@ -68,7 +68,8 @@
   SUBSUBTARGET_EXTRA_SPECS
 
 #undef SUBTARGET_EXTRA_ASM_SPEC
-#define SUBTARGET_EXTRA_ASM_SPEC ""
+#define SUBTARGET_EXTRA_ASM_SPEC \
+    "%{mabi=apcs-gnu|mabi=atpcs: -meabi=gnu;: -meabi=5}"
 
 #undef SUBTARGET_ASM_FLOAT_SPEC
 #define SUBTARGET_ASM_FLOAT_SPEC \

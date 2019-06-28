@@ -116,7 +116,7 @@ usage ()
 }
 
 if [ -z "$bamboo_XC32_XCLM_BRANCH" ]; then
-  XCLM_BRANCH=trunk
+  XCLM_BRANCH=master
 else
   XCLM_BRANCH=$bamboo_XC32_XCLM_BRANCH
 fi 
@@ -145,7 +145,6 @@ all_fossil_repos=(
  c30_resource
  fpmath
  fdlibm
- xclm_release
  Coverity
  )
 # order of directories must correspond to order of repos in all_fossil_repos
@@ -154,18 +153,18 @@ all_fossil_directories=(
  c30_resource
  fpmath
  fdlibm
- xclm_release
  Coverity
 )
 
 # Same, but for Git.
 all_git_repos=(
-  pic32m-gcc
-  pic32m-libs
-  pic32m-newlib
-  pic32m-cpp-libs
-  pic32m-docs
-  pic32m-examples
+  xc32/pic32m-gcc
+  xc32/pic32m-libs
+  xc32/pic32m-newlib
+  xc32/pic32m-cpp-libs
+  xc32/pic32m-docs
+  xc32/pic32m-examples
+  xclm/xclm-release
 )
 all_git_directories=(
   src48x
@@ -174,6 +173,7 @@ all_git_directories=(
   XCpp-libs
   docs
   examples
+  xclm_release
 )
 
 TAG="x"
@@ -219,7 +219,7 @@ fi
 
 # Set the base URL for Git clones. The default assumes the user has an
 # SSH key that can authenticate to the server without any input.
-: ${XC32_GIT_URL:=ssh://git@bitbucket.microchip.com:7999/xc32}
+: ${XC32_GIT_URL:=ssh://git@bitbucket.microchip.com:7999}
 # Strip the trailing /, if any.
 XC32_GIT_URL="${XC32_GIT_URL%/}"
 status_update "Using XC32_GIT_URL=${XC32_GIT_URL}"
@@ -354,9 +354,16 @@ for (( i=0; i<$(( ${#all_git_directories[*]} )); i++ ))
 do
   gitrepo="${all_git_repos[$i]}"
   gitdir="${all_git_directories[$i]}"
-  echo "Checking out source from ${gitrepo} to ${gitdir}" >> ${LOGFILE}
+  gitname="${gitrepo#*/}"
+
+  commitid="${CHECKOUT_COMMIT}"
+  if [[ "${gitname}" == xclm-release ]]; then
+      commitid="${XCLM_BRANCH}"
+  fi
+
+  echo "Checking out source from ${gitname} to ${gitdir}" >> ${LOGFILE}
   if [[ ! -d "${gitdir}" ]]; then
-      echo "Cloning Git repository ${gitrepo}" >> ${LOGFILE}
+      echo "Cloning Git repository ${gitname}" >> ${LOGFILE}
       (
         PS4=""; exec 2>> ${LOGFILE}; set -x
         git clone -q "${XC32_GIT_URL}/${gitrepo}.git" "${gitdir}"
@@ -365,7 +372,7 @@ do
   (
     PS4=""; exec 2>> ${LOGFILE}; set -x
     git -C "${gitdir}" pull --quiet origin
-    git -C "${gitdir}" checkout "${CHECKOUT_COMMIT}"
+    git -C "${gitdir}" checkout "${commitid}"
   )
 done
 set +eu

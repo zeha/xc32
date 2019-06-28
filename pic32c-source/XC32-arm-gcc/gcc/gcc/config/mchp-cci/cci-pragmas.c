@@ -424,7 +424,7 @@ mchp_handle_configuration_setting (const char *name,
                                             shift++;
                                             mask >>= 1;
                                         }
-                                    converted_value = strtol((char *)value_name, NULL, 10);
+                                    converted_value = strtoul((char *)value_name, NULL, 10);
                                     if (((setting->mask)>>shift & converted_value) != converted_value)
                                         warning (0, "Configuration value 0x%x masked to 0x%x for setting %qs",
                                                  converted_value, (setting->mask)>>shift, name);
@@ -530,7 +530,7 @@ mchp_handle_config_pragma (struct cpp_reader *pfile)
             HOST_WIDE_INT i;
             i = tree_to_uhwi (tok_value);
             value_name = (unsigned char*)xcalloc(MAX_VALUE_NAME_LENGTH,1);
-            snprintf((char *)value_name, MAX_VALUE_NAME_LENGTH, "%d", i);
+            snprintf((char *)value_name, MAX_VALUE_NAME_LENGTH, "%u", i);
             #undef MAX_VALUE_NAME_LENGTH
           }
         }

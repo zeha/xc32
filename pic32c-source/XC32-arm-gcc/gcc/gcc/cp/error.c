@@ -962,7 +962,7 @@ dump_simple_decl (cxx_pretty_printer *pp, tree t, tree type, int flags)
       if (VAR_P (t)
 	  && DECL_DECLARED_CONSTEXPR_P (t))
             {
-              if (DECL_DECLARED_CONCEPT_P (t))
+              if (DECL_LANG_SPECIFIC (t) && DECL_DECLARED_CONCEPT_P (t))
                 pp_cxx_ws_string (pp, "concept");
               else
 		pp_cxx_ws_string (pp, "constexpr");

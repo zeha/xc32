@@ -8373,7 +8373,7 @@
 
 (define_insn "pic32c_bkpt"
   [(unspec_volatile [(return)] VUNSPEC_SOFTWARE_BREAKPOINT)]
-  "TARGET_THUMB2"
+  "TARGET_THUMB1 || TARGET_THUMB2"
   "bkpt"
   [(set_attr "type"     "trap")])
 

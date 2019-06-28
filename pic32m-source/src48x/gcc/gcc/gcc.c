@@ -6359,6 +6359,48 @@ set_input (const char *filename)
      we will need to do a stat on the gcc_input_filename.  The
      INPUT_STAT_SET signals that the stat is needed.  */
   input_stat_set = 0;
+
+#ifdef _BUILD_MCHP_
+  /* We may temporarily alter 'save_temps_prefix' and 'save_temps_length',
+     in which case we'll save the original values in these variables
+     NOTE: 'save_temps_prefix' is allocated once per execution and not
+     freed so we also won't bother freeing the last temp string
+     (all the other ones will be freed - see below) */
+  static char *org_save_temps_prefix = 0;
+  static size_t org_save_temps_length = 0;
+
+  /* If save_temps_prefix moded by a prev set_input() */
+  if (org_save_temps_prefix)
+    {
+      /* Restore save_temps_prefix/save_temps_length */
+      free (save_temps_prefix);
+      save_temps_prefix = org_save_temps_prefix;
+      save_temps_length = org_save_temps_length;
+      org_save_temps_prefix = NULL;
+    }
+  /* If -save-temps=obj and -o were specified and dealing with a .S input file;
+     NOTE: the restriction on .S files can be removed to get, for example,
+     main.i/.s/.o files instead of elf_name.i/.s/.o which IMO is desirable */
+  if (save_temps_length && input_suffix[0] == 'S' && input_suffix[1] == '\0')
+    {
+      /* Modify 'save_temps_prefix' to contain the input basename instead
+         of the output basename but save the original string/length */
+      org_save_temps_prefix = save_temps_prefix;
+      org_save_temps_length = save_temps_length;
+
+      /* memrchr() was used initially here but it isn't available on MinGW;
+         also, the prefix_length could be computed once & cached, but... */
+      char *sep = (char *) strrchr (save_temps_prefix, DIR_SEPARATOR);
+      const int prefix_length = sep ? (sep - save_temps_prefix + 1) : 0;
+
+      save_temps_length = prefix_length + basename_length;
+      save_temps_prefix = XNEWVEC (char, save_temps_length + 1);
+
+      memcpy (save_temps_prefix, org_save_temps_prefix, prefix_length);
+      memcpy (save_temps_prefix + prefix_length, input_basename, basename_length);
+      save_temps_prefix[save_temps_length] = '\0';
+    }
+#endif /* _BUILD_MCHP_ */
 }
 
 /* On fatal signals, delete all the temporary files.  */
