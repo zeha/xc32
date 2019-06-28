@@ -15,4 +15,4 @@ void test(const char *str)
 
 /* { dg-final { scan-assembler-times "fputs" 1 } } */
 /* { dg-final { scan-assembler-times "fwrite" 1 } } */
-/* { dg-final { scan-assembler-not "fprintf" } } */
+/* { dg-final { scan-assembler-not "bl\s*fprintf" } } */

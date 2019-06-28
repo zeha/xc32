@@ -985,8 +985,8 @@ struct format_check_context
   format_check_results *res;
   function_format_info *info;
   tree params;
-  bool warn;    /* smart-io: indicate whether warnings should be issued */
-  bool annot;   /* smart-io: indicate whether conversion spec info should be added */
+  bool warn;    /* _BUILD_MCHP_: check for/issue format warnings */
+  bool annot;   /* _BUILD_MCHP_: annotate format string for smart-io */
 };
 
 /* Return the format name (as specified in the original table) for the format
@@ -1085,6 +1085,7 @@ check_function_format (tree attrs, int nargs, tree *argarray, bool warn, bool an
 
           check_format_info (&info, params, warn, annot);
 
+#ifdef _BUILD_MCHP_
           /* smart-io: have to copy back in case we changed the root of the
              param. */
           for (i = 0; i < nargs; i++)
@@ -1092,6 +1093,7 @@ check_function_format (tree attrs, int nargs, tree *argarray, bool warn, bool an
               argarray[i] = TREE_VALUE (params);
               params = TREE_CHAIN (params);
             }
+#endif /* _BUILD_MCHP_ */
 
           if (warn && warn_suggest_attribute_format && info.first_arg_num == 0
               && (format_types[info.format_type].flags
@@ -1380,6 +1382,37 @@ get_flag_spec (const format_flag_spec *spec, int flag, const char *predicates)
 }
 
 
+#ifdef _BUILD_MCHP_
+/* smart-io: check if the given string of format characters contains an
+   invalid char for the smart-io level, returning the value of the first
+   invalid char.
+   An invalid char is one that is asserted to not be used by the
+   smart-io level. Currently, this means floating point formats at level >= 2.
+   */
+static int
+smartio_invalid_format (const char * format_chars)
+{
+  /* The following table encodes conversion characters which are
+     asserted to not be used by smart-io level. */
+  static const char *smartio_invalid_chars[] = 
+    {
+      "",      /* 0 (unused) */
+      "",      /* 1 (no assumptions) */
+      "eEfFgG" /* 2 (no floating point) */
+    };
+
+  gcc_assert (TARGET_MCHP_SMARTIO_LEVEL <= 2);
+
+  const char * invalid_chars = smartio_invalid_chars[TARGET_MCHP_SMARTIO_LEVEL];
+  const char *c;
+
+  for (c = invalid_chars; *c != 0; ++c)
+    if (strchr (format_chars, *c) != 0) 
+      break;
+  return *c;
+}
+#endif /* _BUILD_MCHP_ */
+
 /* Check the argument list of a call to printf, scanf, etc.
    INFO points to the function_format_info structure.
    PARAMS is the list of argument values.  */
@@ -1419,14 +1452,49 @@ check_format_info (function_format_info *info, tree params, bool warn, bool anno
   format_ctx.res = &res;
   format_ctx.info = info;
   format_ctx.params = params;
+
+  /* _BUILD_MCHP_: control whether we are checking for warnings and/or
+     annotating smart-io functions. */
   format_ctx.warn = warn;
   format_ctx.annot = annot;
 
   check_function_arguments_recurse (check_format_arg, &format_ctx,
 				    &format_tree, arg_num);
 
+#ifdef _BUILD_MCHP_
+  if (format_tree == TREE_VALUE (format_param))
+    {
+      /* If we failed due to an un-checkable format, assume the worst
+         based on smart-io level. We add all conversion specs which contain *no*
+         characters from the smartio_invalid_chars set for the level. */
+      if (TARGET_MCHP_SMARTIO_LEVEL > 1 && res.number_non_literal)
+        {
+          gcc_assert (TARGET_MCHP_SMARTIO_LEVEL <= 2);
+
+          const format_char_info *fci = format_types[info->format_type].conversion_specs;
+          char spec_str[MAX_PRINT_CHAR_LEN];
+          char *p = spec_str;
+
+          /* Add all format_chars for supported standards which exclude all 
+             of invalid_chars. */
+          for (; fci->format_chars != NULL; ++fci)
+            {
+              if (fci->std == STD_C89 &&
+                  !smartio_invalid_format (fci->format_chars))
+                {
+                  sprintf (p, "%s", fci->format_chars);
+                  p += strlen (fci->format_chars);
+                }
+            }
+
+          tree spec_lit = build_string_literal ((p - spec_str) + 1, spec_str);
+          format_tree = build_smartio_format (format_tree, spec_lit);
+        }
+    }
+
   /* smart-io: copy in case format_tree was replaced. */
   TREE_VALUE (format_param) = format_tree;
+#endif /* _BUILD_MCHP_ */
 
   /* The rest of the work is only necessary if we need warnings. */
   if (!warn)
@@ -1560,6 +1628,7 @@ check_format_arg (void *ctx, tree *format_tree_p,
       arg1 = TREE_OPERAND (format_tree, 1);
       STRIP_NOPS (arg0);
       STRIP_NOPS (arg1);
+
       if (TREE_CODE (arg1) == INTEGER_CST)
 	format_tree = arg0;
       else
@@ -1732,9 +1801,11 @@ check_format_info_main (format_check_results *res,
   const format_char_info *conv_specs = fki->conversion_specs;
   location_t format_string_loc = res->format_string_loc;
 
-  /* Bit vector for all conversion specifiers seen by their index
+#ifdef _BUILD_MCHP_
+  /* smart-io: Bit vector for all conversion specifiers seen by their index
      in conv_specs. */
   unsigned int conv_set = 0;
+#endif /* _BUILD_MCHP_ */
 
   /* -1 if no conversions taking an operand have been found; 0 if one has
      and it didn't use $; 1 if $ formats are in use.  */
@@ -2172,11 +2243,13 @@ check_format_info_main (format_check_results *res,
             }
 	  continue;
 	}
+#ifdef _BUILD_MCHP_
       else 
         {
           /* Record the index of the conversion spec in the set. */
           conv_set |= (1 << fcx);
         }
+#endif /* _BUILD_MCHP_ */
       if (warn)
         {
           if (pedantic)
@@ -2487,6 +2560,7 @@ check_format_info_main (format_check_results *res,
      conversion spec as the (generally ignored) first argument. */
   /* SIO_TODO: limit this to smartio enabled forms only, or avoid copy back
      if unnecessary by passing info through results struct? */
+#ifdef _BUILD_MCHP_
 #ifndef NO_SMART_IO
   if (annot && conv_set)
     {
@@ -2499,10 +2573,20 @@ check_format_info_main (format_check_results *res,
       /* Collect all specs into a single string literal, ignoring those
          unsupported by smartio (i.e. C89 only). */
       for (s = conv_set, i = 0; s != 0; s = s >> 1, i++)
-        if ((s & 0x1) && conv_specs[i].std == STD_C89 && conv_specs[i].format_chars)
-          {
+	if ((s & 0x1) && conv_specs[i].std == STD_C89
+	    && conv_specs[i].format_chars)
+	  {
             sprintf (p, "%s", conv_specs[i].format_chars);
             p += strlen (conv_specs[i].format_chars);
+
+            if (smartio_invalid_format (conv_specs[i].format_chars))
+              {
+		warning_at (format_string_loc, OPT_Wformat_,
+			    "conversion specifier(s) %s are not supported with "
+			    "smart-io level %d",
+			    conv_specs[i].format_chars,
+			    TARGET_MCHP_SMARTIO_LEVEL);
+	      }
           }
 
       if (p != spec_str)
@@ -2512,6 +2596,7 @@ check_format_info_main (format_check_results *res,
         } 
     }
 #endif
+#endif /* _BUILD_MCHP_ */
 
   return format_tree;
 }

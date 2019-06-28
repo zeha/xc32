@@ -70,6 +70,9 @@ extern tree mchp_space_attribute(tree *decl, tree identifier,
 extern tree mchp_region_attribute(tree *decl, tree identifier,
                             tree args, int flags ATTRIBUTE_UNUSED,
                             bool *no_add_attrs);
+extern tree mchp_noload_attribute(tree *decl, tree identifier,
+                            tree args, int flags ATTRIBUTE_UNUSED,
+                            bool *no_add_attrs);
 extern void pic32_update_external_memory_info(const char* region_name, 
                             unsigned int region_origin, int region_size);                            
 extern tree mchp_unsupported_attribute(tree *decl, tree identifier,

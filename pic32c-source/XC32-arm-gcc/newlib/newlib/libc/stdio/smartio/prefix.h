@@ -67,7 +67,7 @@
 # if defined(__SMARTIO_e__) || defined(__SMARTIO_E__)
 #   define SIO_EFMT 
 # endif
-# if defined(__SMARTIO_f__) 
+# if defined(__SMARTIO_f__) || defined(__SMARTIO_F__)
 #   define SIO_FFMT 
 # endif
 # if defined(__SMARTIO_g__) || defined(__SMARTIO_G__)

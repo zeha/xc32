@@ -69,6 +69,8 @@ extern tree pic32c_space_attribute (tree *decl, tree identifier, tree args,
 
 extern tree pic32c_tcm_attribute (tree *, tree, tree , int , bool *);
 
+extern tree pic32c_noload_attribute (tree *, tree, tree , int , bool *);
+
 extern bool pic32c_attribute_takes_identifier_p (const_tree attr_id);
 
 extern tree pic32c_keep_attribute(tree *decl, tree identifier ATTRIBUTE_UNUSED,

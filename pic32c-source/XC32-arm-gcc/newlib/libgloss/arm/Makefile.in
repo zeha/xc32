@@ -100,7 +100,10 @@ INCLUDES += `if [ -d ${objroot}/newlib ]; then echo -I$(srcroot)/newlib/libc/mac
 # build a test program for each target board. Just trying to get
 # it to link is a good test, so we ignore all the errors for now.
 #
-all: ${CRT0} ${LINUX_CRT0} ${LINUX_BSP} ${REDBOOT_CRT0} ${REDBOOT_OBJS} ${RDPMON_CRT0} ${RDPMON_BSP} ${RDIMON_CRT0} ${RDIMON_BSP}
+# _BUILD_MCHP_: remove linux/redboot targets, they are not neccessary and
+# have build issues for thumb-only targets.
+#all: ${CRT0} ${LINUX_CRT0} ${LINUX_BSP} ${REDBOOT_CRT0} ${REDBOOT_OBJS} ${RDPMON_CRT0} ${RDPMON_BSP} ${RDIMON_CRT0} ${RDIMON_BSP}
+all: ${CRT0} ${RDPMON_CRT0} ${RDPMON_BSP} ${RDIMON_CRT0} ${RDIMON_BSP}
 	@rootpre=`pwd`/; export rootpre; \
 	srcrootpre=`cd $(srcdir); pwd`/; export srcrootpre; \
 	for dir in .. ${SUBDIRS}; do \
@@ -194,13 +197,14 @@ install-nano:
 install-crt0:
 	${INSTALL_DATA} ${CRT0} $(DESTDIR)${tooldir}/lib${MULTISUBDIR}/$$x
 
+# _BUILD_MCHP_: also disable these targets which may be called from nano builds.
 install-linux:
-	set -e; for x in ${LINUX_CRT0} ${LINUX_BSP}; do ${INSTALL_DATA} $$x $(DESTDIR)${tooldir}/lib${MULTISUBDIR}/$$x; done
-	set -e; for x in ${LINUX_SCRIPTS}; do ${INSTALL_DATA} ${srcdir}/${objtype}$$x $(DESTDIR)${tooldir}/lib${MULTISUBDIR}/$$x; done
+#	set -e; for x in ${LINUX_CRT0} ${LINUX_BSP}; do ${INSTALL_DATA} $$x $(DESTDIR)${tooldir}/lib${MULTISUBDIR}/$$x; done
+#	set -e; for x in ${LINUX_SCRIPTS}; do ${INSTALL_DATA} ${srcdir}/${objtype}$$x $(DESTDIR)${tooldir}/lib${MULTISUBDIR}/$$x; done
 
 install-redboot:
-	set -e; for x in ${REDBOOT_CRT0} ${REDBOOT_OBJS}; do ${INSTALL_DATA} $$x $(DESTDIR)${tooldir}/lib${MULTISUBDIR}/$$x; done
-	set -e; for x in ${REDBOOT_SCRIPTS}; do ${INSTALL_DATA} ${srcdir}/${objtype}$$x $(DESTDIR)${tooldir}/lib${MULTISUBDIR}/$$x; done
+#	set -e; for x in ${REDBOOT_CRT0} ${REDBOOT_OBJS}; do ${INSTALL_DATA} $$x $(DESTDIR)${tooldir}/lib${MULTISUBDIR}/$$x; done
+#	set -e; for x in ${REDBOOT_SCRIPTS}; do ${INSTALL_DATA} ${srcdir}/${objtype}$$x $(DESTDIR)${tooldir}/lib${MULTISUBDIR}/$$x; done
 
 install-rdpmon:
 	set -e; for x in ${RDPMON_CRT0} ${RDPMON_BSP}; do ${INSTALL_DATA} $$x $(DESTDIR)${tooldir}/lib${MULTISUBDIR}/$$x; done

@@ -4628,8 +4628,15 @@ do_self_spec (const char *spec)
 	      /* Specs should only generate options, not input
 		 files.  */
 	      if (strcmp (decoded_options[j].arg, "-") != 0)
-		fatal_error ("switch %qs does not start with %<-%>",
+#if defined(_BUILD_C32_) || defined(TARGET_MCHP_PIC32MX)
+              /* PIC32M: allow .S input files in specs
+                pass NULL as language arg in order to let the driver
+                identify the asm lang */
+              add_infile (decoded_options[j].arg, NULL);
+#else
+              fatal_error ("switch %qs does not start with %<-%>",
 			     decoded_options[j].arg);
+#endif
 	      else
 		fatal_error ("spec-generated switch is just %<-%>");
 	      break;

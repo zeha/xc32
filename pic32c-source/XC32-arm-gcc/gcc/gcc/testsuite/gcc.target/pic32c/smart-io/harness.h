@@ -71,14 +71,14 @@
 #define CALL_sn(...) CALL_(__VA_ARGS__)
 
 #define CALL_v(name,fmt,...) \
-  void _cat(wrap,_,name) (_eval(ARGT,PREFIX) int dummy, ...) \
+  void _cat(_cat(wrap,_,__LINE__),_,name) (_eval(ARGT,PREFIX) int dummy, ...) \
   { \
     va_list _va; \
     va_start (_va,dummy); \
     name (_eval(ARGS,PREFIX) fmt, _va); \
   } \
   do { \
-    _cat(wrap,_,name)(_eval(ARGS,PREFIX) 0, __VA_ARGS__); \
+    _cat(_cat(wrap,_,__LINE__),_,name)(_eval(ARGS,PREFIX) 0, __VA_ARGS__); \
   } while (0)
 #define CALL_vf(...) CALL_v(__VA_ARGS__)
 #define CALL_vs(...) CALL_v(__VA_ARGS__)

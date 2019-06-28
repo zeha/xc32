@@ -61,21 +61,22 @@ mprint-mchp-search-dirs
 Target RejectNegative Var(TARGET_PRINT_MCHP_SEARCH_DIRS) Init(0) Undocumented
 -mprint-mchp-search-dirs	Print to stdout a list of include-file search directories
 
-
-msmart-io
-Target Var Var(TARGET_MCHP_SMARTIO) Init(1)
--msmart-io      Enable smart-IO library call forwarding level 1
-
 msmart-io=
-Target Var RejectNegative Joined UInteger Var(mchp_io_size_val) Init(1)
+Target Var RejectNegative Joined UInteger Var(TARGET_MCHP_SMARTIO) Init(1)
 -msmart-io=LEVEL	Enable smart-IO library call forwarding level LEVEL [0,2]
 
+msmart-io
+Target RejectNegative Alias(msmart-io=, 1)
+
+mno-smart-io
+Target RejectNegative Alias(msmart-io=, 0)
+
 mitcm=
-Target Report RejectNegative Joined
+Target Report RejectNegative Joined Var(TARGET_MCHP_ITCM)
 -mitcm=VALUE	Enable tcm and set itcm size to VALUE
 
 mdtcm=
-Target Report RejectNegative Joined
+Target Report RejectNegative Joined Var(TARGET_MCHP_DTCM)
 -mdtcm=VALUE	Enable tcm and set dtcm size to VALUE
 
 mstack-in-tcm
@@ -105,5 +106,16 @@ Target RejectNegative VAR(TARGET_SEMIHOSTING) Init(0) Undocumented
 mdbg=
 Target Joined RejectNegative Var(mchp_deferred_debug) Defer Condition(_BUILD_MCHP_DEVEL_)
 -mdbg=[all|flag1,flag2,...]          Enable internal debug flags
+
+mafrlcsj
+Target RejectNegative Var(mchp_mafrlcsj) Undocumented
+
+mdfp=
+Target Report RejectNegative Joined Var(mchp_pic32c_dfp_path) Init(0)
+-mdfp=DFP_PATH	Specify the PIC32C DFP path
+
+minclude-legacy-headers
+Target RejectNegative
+-minclude-legacy-headers	Include legacy device headers, not MCC ones which are default for XC32.
 
 ;

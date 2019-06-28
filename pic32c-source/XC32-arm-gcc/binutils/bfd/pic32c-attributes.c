@@ -264,7 +264,8 @@ pic32_is_valid_attributes (unsigned int mask, unsigned char flag_debug)
   int invalid_combo = 0;
   unsigned int idx,num,type,key;
   unsigned int type_mask,attr_mask;
-
+    
+    
   if (flag_debug || pic32_debug) {
     printf ("--> pic32_is_valid_attributes::begin\n");
     printf ("    pic32_is_valid_attributes::mask = %x\n",mask);
@@ -280,7 +281,10 @@ pic32_is_valid_attributes (unsigned int mask, unsigned char flag_debug)
 #define MASK1(a,b,c,d,e,f,g,h)                                  \
    type_mask = (1<<a)|(1<<b)|(1<<c)|(1<<d)|(1<<e)|(1<<f)        \
                |(1<<g) | (1<<h);
-
+    
+///\ 0x1 - code ; 0x8000 - ramfunc
+#define RAMFUNC_TYPE        0x8001
+    
 #define MAX_TYPES 32
 #include "pic32c-attributes.h"
 
@@ -291,7 +295,10 @@ pic32_is_valid_attributes (unsigned int mask, unsigned char flag_debug)
    for (num=0,idx=0; idx<MAX_TYPES; idx++) {
      if ((type) & (1<<idx)) num++;
    }
-   if (num < 2) valid_type |= 1;
+    
+    //\ extended to accept ramfunc & code
+   if ((num < 2) || (mask == RAMFUNC_TYPE))
+       valid_type |= 1;
 
    /* if no type specified, the default is data */
    if (num == 0) {
@@ -317,7 +324,7 @@ pic32_is_valid_attributes (unsigned int mask, unsigned char flag_debug)
     /* lghica co-resident MASK2 -> m,n  MASK3 ->l,m*/
     
 #define MASK2(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o)                           \
-   if (type == (1<<a)) {                                               \
+   if (type & (1<<a)) {                                               \
      attr_mask = (1<<b)|(1<<c)|(1<<d)|(1<<e)|(1<<f)                    \
                  |(1<<g)|(1<<h)|(1<<i)|(1<<j)|(1<<k)|(1<<l)            \
                  |(1<<m)|(1<<n)|(1<<o);                                \

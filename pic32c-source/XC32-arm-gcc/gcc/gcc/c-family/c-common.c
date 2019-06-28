@@ -9698,6 +9698,8 @@ handle_designated_init_attribute (tree *node, tree name, tree, int,
 /* Check for valid arguments being passed to a function with FNTYPE.
    There are NARGS arguments in the array ARGARRAY.  LOC should be used for
    diagnostics.  */
+/* _BUILD_MCHP_: when annot is true, smart-io annotations will be added when
+   applicable. */
 void
 check_function_arguments (location_t loc, const_tree fntype, int nargs,
 			  tree *argarray, bool annot)

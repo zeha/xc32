@@ -82,12 +82,10 @@ along with GCC; see the file COPYING3.  If not see
 /* Option definitions */
 
 /* Check if smart-io is enabled */
-#define TARGET_MCHP_SMARTIO_ENABLED                                            \
-  (TARGET_MCHP_SMARTIO && (mchp_io_size_val > 0))
+#define TARGET_MCHP_SMARTIO_ENABLED (TARGET_MCHP_SMARTIO != 0)
 
 /* Get the smart-io level (0 if disabled) */
-#define TARGET_MCHP_SMARTIO_LEVEL                                              \
-  ((!TARGET_MCHP_SMARTIO) ? 0 : mchp_io_size_val)
+#define TARGET_MCHP_SMARTIO_LEVEL (TARGET_MCHP_SMARTIO)
 
 /* Definitions for smart-io implementation. */
 
@@ -216,6 +214,11 @@ extern void pic32c_final_include_paths (struct cpp_dir *, struct cpp_dir *);
   pic32c_subtarget_encode_section_info (decl, rtl, first)
 
 /* PIC32C predefined macros */
+/* For the LANGUAGE macros, it is worth noting that the condition to
+   check for assembler makes use of a global defined in
+   c-family/c-pragma.h. The expansion of this occurs in
+   config/arm/arm-c.c and rather than change that file, the code is
+   added here. */
 #undef SUBTARGET_CPU_CPP_BUILTINS
 #define SUBTARGET_CPU_CPP_BUILTINS()                                           \
   do                                                                           \
@@ -227,6 +230,22 @@ extern void pic32c_final_include_paths (struct cpp_dir *, struct cpp_dir *);
       builtin_define ("__XC32__");                                             \
       builtin_define ("__XC");                                                 \
       builtin_define ("__XC__");                                               \
+      if (cpp_get_options (parse_in)->lang == CLK_ASM)                         \
+        {                                                                      \
+          builtin_define_std ("LANGUAGE_ASSEMBLY");                            \
+          builtin_define ("_LANGUAGE_ASSEMBLY");                               \
+        }                                                                      \
+      else if (c_dialect_cxx ())                                               \
+        {                                                                      \
+          builtin_define ("_LANGUAGE_C_PLUS_PLUS");                            \
+          builtin_define ("__LANGUAGE_C_PLUS_PLUS");                           \
+          builtin_define ("__LANGUAGE_C_PLUS_PLUS__");                         \
+        }                                                                      \
+      else                                                                     \
+        {                                                                      \
+          builtin_define_std ("LANGUAGE_C");                                   \
+          builtin_define ("_LANGUAGE_C");                                      \
+        }                                                                      \
       if (mchp_stack_in_tcm)                                                   \
 	{                                                                      \
 	  builtin_define ("__XC32_STACK_IN_TCM__");                            \
@@ -382,6 +401,7 @@ extern unsigned int g_ARM_BUILTIN_MAX;
     {"tcm", 0, 0, false, false, false, pic32c_tcm_attribute, false},           \
     {"unique_section", 0, 0, true, false, false,                               \
       pic32c_unique_section_attribute, false},                                 \
+    {"noload", 0, 0, false, false, false, pic32c_noload_attribute, false},     \
     {"unsupported", 0, 1, false, false, false, pic32c_unsupported_attribute,   \
       false},
 
@@ -403,9 +423,9 @@ extern unsigned int g_ARM_BUILTIN_MAX;
 
 /* Default spec definitions */
 
-/* Base options for arch/fpu */
+/* Base options for arch/fpu - should correspond to SUBTARGET_CPU_DEFAULT. */
 #define PIC32C_BASE_ARCH "march=armv6s-m"
-#define PIC32C_BASE_FPU "mfpu=fpv4-sp-d16"
+#define PIC32C_BASE_FLOAT_ABI "mfloat-abi=soft"
 
 /* Override default arch rather than provide explicit march default -
    avoiding conflicts with mcpu given in spec files.
@@ -414,22 +434,26 @@ extern unsigned int g_ARM_BUILTIN_MAX;
 #undef SUBTARGET_CPU_DEFAULT
 #define SUBTARGET_CPU_DEFAULT cortexm0plus
 
-/* Common spec snippets for default arch, fpu and abi settings. */
+/* Common spec snippets for default arch, fpu and abi settings.
+   As these snippets are also used for the assembler, we must ensure that
+   any arch/cpu/fpu/abi settings are explicitly provided, hence idioms like
+   %{mcpu=*: -mcpu=%*}, since the collect options will be used to match,
+   but are not by default also passed to the assembler. */
 #define PIC32C_INST_SET_SPEC                                                   \
+  "%{mcpu=*: -mcpu=%*; : %{march=*: -march=%*; : -" PIC32C_BASE_ARCH "}}"      \
   " -mthumb "
 
-#define PIC32C_FPU_SPEC                                                        \
-  "%{mcpu=cortex-m7: -mcpu=cortex-m7 -mfpu=fpv5-d16 ;: -" PIC32C_BASE_FPU "}"
-
+/* Default FPU specs.
+   float-abi defaults to soft, corresponding to MULTILIB_DEFAULTS. */
 #define PIC32C_FLOAT_SPEC                                                      \
-  "%{mfpu=* : -mfpu=%* ;: %{mfloat-abi=hard: -mfloat-abi=hard " PIC32C_FPU_SPEC \
-  "} %{mfloat-abi=softfp: -mfloat-abi=softfp " PIC32C_FPU_SPEC "} }"
+  "%{mfloat-abi=*: -mfloat-abi=%*; : -" PIC32C_BASE_FLOAT_ABI "} "             \
+  "%{mfpu=*: -mfpu=%*} "
 
 /* Indicate default (i.e. common) options for multilib. */
 #undef MULTILIB_DEFAULTS
 #define MULTILIB_DEFAULTS                                                      \
   {                                                                            \
-    "mthumb", PIC32C_BASE_ARCH, "mlittle-endian", "mfloat-abi=soft"            \
+    "mthumb", PIC32C_BASE_ARCH, "mlittle-endian", PIC32C_BASE_FLOAT_ABI        \
   }
 
 #undef CPLUSPLUS_CPP_SPEC
@@ -452,13 +476,11 @@ extern unsigned int g_ARM_BUILTIN_MAX;
 #undef SUBTARGET_CC1_SAVE_TEMPS_SPEC
 #define SUBTARGET_CC1_SAVE_TEMPS_SPEC "%{save-temps: -fverbose-asm}"
 
+/* This used to handle the distinct msmart-io=level/m[no]-smart-io options.
+   The two forms are now aliased, but this is kept for compatibility with
+   existing device spec files which may define this spec. */
 #undef SUBTARGET_CC1_SMARTIO_SPEC
-#define SUBTARGET_CC1_SMARTIO_SPEC                                             \
-    "%{msmart-io:%{msmart-io=*:%emay not use both -msmart-io and "             \
-    "-msmart-io=LEVEL}}"                                                       \
-    "%{mno-smart-io:%{msmart-io=*:%emay not use both -mno-smart-io and "       \
-    "-msmart-io=LEVEL}}"                                                       \
-    "%{mno-smart-io: -msmart-io=0} %{msmart-io: -msmart-io=1}"
+#define SUBTARGET_CC1_SMARTIO_SPEC ""
 
 #undef SUBTARGET_CC1_CONFIG_DATA_SPEC
 #define SUBTARGET_CC1_CONFIG_DATA_SPEC ""
@@ -466,15 +488,18 @@ extern unsigned int g_ARM_BUILTIN_MAX;
 #undef SUBTARGET_ASM_ARCH_SPEC
 #define SUBTARGET_ASM_ARCH_SPEC PIC32C_INST_SET_SPEC
 
+/* We require -mfpu=fpa as a default here to ensure that as does not
+   default to VFP format for arch=armv6s-m. */
 #undef ASM_FLOAT_SPEC
-#define ASM_FLOAT_SPEC PIC32C_FLOAT_SPEC
+#define ASM_FLOAT_SPEC                                                         \
+  "%{mapcs-float: -mfloat}"                                                    \
+  "%{!mfpu=*: -mfpu=fpa}"
 
-/* Have to guard the entire spec under msemihost because the rdimon spec
-   overrides the standard lib_gcc_c_sequence spec, which we've replaced with
-   pic32c_lib_spec. */
+/* Under -msemihost we link in the rdimon library (from newlib) before
+   libpic32c as this overrides stubs in the latter. */
 #undef SUBTARGET_PIC32C_LIB_SPEC
 #define SUBTARGET_PIC32C_LIB_SPEC                                              \
-  "%{!msemihost: --start-group -lpic32c %G %L --end-group}"
+  " --start-group %{msemihost: %G -lrdimon} -lpic32c %G %L --end-group "
 
 /* FIXME: heap_size is a workaround for linker requiring a heap but
    not providing a default.
@@ -500,11 +525,9 @@ extern unsigned int g_ARM_BUILTIN_MAX;
 #undef SUBTARGET_DRIVER_SELF_SPECS
 #define SUBTARGET_DRIVER_SELF_SPECS                                            \
   "%{specs=* : -specs=%* ;: "                                                  \
-  "%{!flto: -fno-lto}" PIC32C_INST_SET_SPEC PIC32C_FLOAT_SPEC                  \
+  "%{!flto: -fno-lto}"                                                         \
   "%{mitcm=*: -Wl,-DITCM_LENGTH=%*,-itcm=%* -DENABLE_TCM -DITCM_LENGTH=%*}"    \
   "%{mdtcm=*: -Wl,-DDTCM_LENGTH=%*,-dtcm=%* -DENABLE_TCM -DDTCM_LENGTH=%*}"    \
-  "%{msemihost: -isystem %R/lib/%M --specs=rdimon.specs}"                      \
   "%{mstack-in-tcm: -Wl,-stack-in-tcm -DENABLE_TCM}}"
 
 #endif /* __PIC32C_H */
-

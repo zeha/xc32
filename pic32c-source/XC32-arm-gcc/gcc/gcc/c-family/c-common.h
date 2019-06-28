@@ -782,14 +782,18 @@ extern const char *fname_as_string (int);
 extern tree fname_decl (location_t, unsigned, tree);
 
 extern int check_user_alignment (const_tree, bool);
-extern void check_function_arguments (location_t loc, const_tree, int, tree *, bool);
+
+/* _BUILD_MCHP_: add last parameter to control smart-io annotations */
+extern void check_function_arguments (location_t loc, const_tree, int, tree *, bool = 0);
 extern void check_function_arguments_recurse (void (*)
 					      (void *, tree *,
 					       unsigned HOST_WIDE_INT),
 					      void *, tree *,
 					      unsigned HOST_WIDE_INT);
 extern bool check_builtin_function_arguments (tree, int, tree *);
-extern void check_function_format (tree, int, tree *, bool, bool);
+
+/* _BUILD_MCHP_: add last parameter to control smart-io annotations */
+extern void check_function_format (tree, int, tree *, bool, bool = 0);
 
 extern tree handle_format_attribute (tree *, tree, tree, int, bool *);
 extern tree handle_format_arg_attribute (tree *, tree, tree, int, bool *);

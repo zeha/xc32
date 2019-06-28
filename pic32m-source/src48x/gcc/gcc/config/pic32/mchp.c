@@ -490,10 +490,10 @@ static HOST_WIDE_INT mchp_offset_fcsr = 0;
 
 static HOST_WIDE_INT mchp_invalid_ipl_warning = 0;
 #ifdef SKIP_LICENSE_MANAGER
-#if defined(MCHP_XCLM_VALID_CPP_FULL)
-HOST_WIDE_INT mchp_pic32_license_valid = MCHP_XCLM_VALID_CPP_FULL;
+#if defined(MCHP_XCLM_VALID_PRO_LICENSE)
+HOST_WIDE_INT mchp_pic32_license_valid = MCHP_XCLM_VALID_PRO_LICENSE;
 #else
-HOST_WIDE_INT mchp_pic32_license_valid = 0x6;
+HOST_WIDE_INT mchp_pic32_license_valid = 0x2;
 #endif
 #else
 HOST_WIDE_INT mchp_pic32_license_valid = -1;
@@ -541,6 +541,7 @@ static void mchp_pop_section_name(void);
 #endif
 static tree get_mchp_space_attribute (tree decl);
 static tree get_mchp_region_attribute (tree decl);
+static tree get_mchp_noload_attribute (tree decl);
 
 extern unsigned int mips_get_compress_mode (tree decl);
 extern void mips_set_compression_mode (unsigned int compression_mode);
@@ -578,6 +579,15 @@ static const char* mchp_get_resource_file_path(void)
 #if 0
   char* path = make_relative_prefix(save_argv[0], "/bin/bin", "/bin");
 #endif
+
+/* It goes like this:
+save_decoded_options (PROGNAME) will be something like:
+<install dir>/bin/bin/gcc/pic32mx/4.8.3/cc1
+BIN_PREFIX is /pic32mx/bin/gcc/pic32mx/4.8.3
+          /a/b/c/d/e
+PREFIX is /bin
+=> path = <install dir>/bin/bin/gcc/pic32mx/4.8.3/../../../../../bin
+*/
   char* path = make_relative_prefix(save_decoded_options[0].arg,
                                   "/pic32mx/bin/gcc/pic32mx/"
                                   str(BUILDING_GCC_MAJOR) "."
@@ -976,7 +986,7 @@ get_license_manager_path (void)
 #endif
 
 static int
-pic32_get_license (int require_cpp)
+pic32_get_license ()
 {
   /*
    *  On systems where we have a licence manager, call it
@@ -987,24 +997,19 @@ pic32_get_license (int require_cpp)
 #ifndef MCHP_XCLM_EXPIRED_DEMO
 #define MCHP_XCLM_EXPIRED_DEMO 0x10
 #endif
-#if defined(MCHP_XCLM_VALID_CPP_FREE)
-#define PIC32_EXPIRED_LICENSE MCHP_XCLM_EXPIRED_DEMO
-#define PIC32_FREE_LICENSE MCHP_XCLM_FREE_LICENSE
-#define PIC32_VALID_STANDARD_LICENSE MCHP_XCLM_VALID_STANDARD_LICENSE
-#define PIC32_VALID_PRO_LICENSE MCHP_XCLM_VALID_PRO_LICENSE
-#define PIC32_NO_CPP_LICENSE MCHP_XCLM_NO_CPP_LICENSE
-#define PIC32_VALID_CPP_FREE MCHP_XCLM_VALID_CPP_FREE
-#define PIC32_VALID_CPP_FULL MCHP_XCLM_VALID_CPP_FULL
-#else
-#define PIC32_EXPIRED_LICENSE MCHP_XCLM_EXPIRED_DEMO
-#define PIC32_FREE_LICENSE 0
-#define PIC32_VALID_STANDARD_LICENSE 1
-#define PIC32_VALID_PRO_LICENSE 2
-#define PIC32_NO_CPP_LICENSE 4
-#define PIC32_VALID_CPP_FREE 5
-#define PIC32_VALID_CPP_FULL 6
 
+#if defined(MCHP_XCLM_VALID_STANDARD_LICENSE)
+#define PIC32_EXPIRED_LICENSE        MCHP_XCLM_EXPIRED_DEMO
+#define PIC32_FREE_LICENSE           MCHP_XCLM_FREE_LICENSE
+#define PIC32_VALID_STANDARD_LICENSE MCHP_XCLM_VALID_STANDARD_LICENSE
+#define PIC32_VALID_PRO_LICENSE      MCHP_XCLM_VALID_PRO_LICENSE
+#else
+#define PIC32_EXPIRED_LICENSE        MCHP_XCLM_EXPIRED_DEMO
+#define PIC32_FREE_LICENSE           0
+#define PIC32_VALID_STANDARD_LICENSE 1
+#define PIC32_VALID_PRO_LICENSE      2
 #endif
+
 #ifndef SKIP_LICENSE_MANAGER
   {
     char *exec;
@@ -1013,8 +1018,7 @@ pic32_get_license (int require_cpp)
 #else
     char kopt[] = "-checkout";
 #endif
-    char productc[]   = "swxc32";
-    char productcpp[] = "swxcpp32";
+    char productc[] = "swxc32";
     char version[9] = "";
     char date[] = __DATE__;
 
@@ -1063,10 +1067,7 @@ pic32_get_license (int require_cpp)
 
     /* Arguments to pass to xclm */
     args[1] = kopt;
-    if (require_cpp)
-      args[2] = productcpp;
-    else
-      args[2] = productc;
+    args[2] = productc;
     args[3] = version;
 #if XCLM_FULL_CHECKOUT
     args[4] = date;
@@ -1146,16 +1147,12 @@ pic32_get_license (int require_cpp)
             else if (WIFEXITED(status))
               {
                 mchp_pic32_license_valid = WEXITSTATUS(status);
-                if (mchp_pic32_license_valid == PIC32_NO_CPP_LICENSE)
-                  {
-                     mchp_pic32_license_valid = PIC32_VALID_CPP_FREE;
-                  }
               }
           }
       }
   }
   if (mchp_mafrlcsj) {
-    mchp_pic32_license_valid = PIC32_VALID_CPP_FULL;
+    mchp_pic32_license_valid = PIC32_VALID_PRO_LICENSE;
   }
   #undef xstr
   #undef str
@@ -1179,7 +1176,6 @@ static const char *invalid_license = "due to an invalid XC32 license";
     } \
     X
 
-static int require_cpp = 0;
 static int nullify_O2 = 0;
 static int nullify_Os = 0;
 static int nullify_O3 = 0;
@@ -1285,10 +1281,7 @@ static void mchp_print_license_warning (void)
         invalid_license = "because the XC32 evaluation period has expired";
         break;
       case PIC32_FREE_LICENSE:
-        invalid_license = "because the free XC32 C compiler does not support this feature.";
-        break;
-      case PIC32_VALID_CPP_FREE:
-        invalid_license = "because the free XC32 C++ compiler does not support this feature.";
+        invalid_license = "because the free XC32 compiler does not support this feature.";
         break;
       case PIC32_VALID_STANDARD_LICENSE:
         invalid_license = "because this feature requires the MPLAB XC32 PRO compiler";
@@ -1314,7 +1307,6 @@ void
 mchp_subtarget_override_options2 (void)
 {
   extern struct cl_decoded_option *save_decoded_options;
-  require_cpp    = 0;
 
     if (mchp_it_transport && *mchp_it_transport) {
       if (strcasecmp(mchp_it_transport,"profile") == 0) {
@@ -1337,29 +1329,21 @@ mchp_subtarget_override_options2 (void)
     flag_optimize_sibling_calls = 0;
   }
 
-  require_cpp = (strstr (save_decoded_options[0].arg, "cc1plus")!=NULL);
   if (TARGET_SKIP_LICENSE_CHECK) {
-    mchp_pic32_license_valid = PIC32_VALID_CPP_FREE;
+    mchp_pic32_license_valid = PIC32_FREE_LICENSE;
   }
   else {
-    mchp_pic32_license_valid = pic32_get_license (require_cpp);
+    mchp_pic32_license_valid = pic32_get_license ();
   }
-    if (require_cpp && !((mchp_pic32_license_valid == PIC32_VALID_CPP_FREE) ||
-                         (mchp_pic32_license_valid == PIC32_VALID_CPP_FULL)))
-      {
-        error  ("MPLAB XC32 C++ license not activated");
-        inform (input_location, "Visit http://www.microchip.com/MPLABXCcompilers to acquire a "
-               "free C++ license");
-       }
-    if ((mchp_pic32_license_valid == PIC32_VALID_PRO_LICENSE) ||
-        (mchp_pic32_license_valid == PIC32_VALID_CPP_FULL))
-      {
-        nullify_lto = nullify_mips16 = nullify_O2 =  nullify_O3 = nullify_Os = 0;
-      }
-    else if (mchp_pic32_license_valid == PIC32_VALID_STANDARD_LICENSE)
-      {
-        nullify_O2 = 0;
-      }
+
+  if (mchp_pic32_license_valid == PIC32_VALID_PRO_LICENSE)
+    {
+      nullify_lto = nullify_mips16 = nullify_O2 =  nullify_O3 = nullify_Os = 0;
+    }
+  else if (mchp_pic32_license_valid == PIC32_VALID_STANDARD_LICENSE)
+    {
+      nullify_O2 = 0;
+    }
   /*
    *  On systems where we have a licence manager, call it
    */
@@ -1438,7 +1422,7 @@ mchp_subtarget_override_options2 (void)
 
      /*Require a Standard or Pro license */
     if (TARGET_NO_FALLBACKLICENSE && 
-        ((mchp_pic32_license_valid == PIC32_FREE_LICENSE) || (mchp_pic32_license_valid == PIC32_VALID_CPP_FREE)))
+        (mchp_pic32_license_valid == PIC32_FREE_LICENSE))
       error ("Unable to find a valid license, aborting");
   }
 #undef PIC32_EXPIRED_LICENSE
@@ -3017,6 +3001,56 @@ tree mchp_crypto_attribute(tree *node, tree identifier ATTRIBUTE_UNUSED,
 
 }
 
+tree
+mchp_noload_attribute (tree *decl, tree identifier ATTRIBUTE_UNUSED,
+			 tree args, int flags ATTRIBUTE_UNUSED,
+			 bool *no_add_attrs)
+{
+  const char *attached_to = 0;
+
+  if (DECL_P (*decl))
+    attached_to = IDENTIFIER_POINTER (DECL_NAME (*decl));
+
+  if (ignore_attribute ("noload", attached_to, *decl))
+    {
+      *no_add_attrs = 1;
+      return NULL_TREE;
+    }
+
+  /* If the persistent attribute is specified, noload is implied, and
+     we can simply handle this as any other persistent data (i.e. 
+     placed into noload section .pbss. */
+  if (mchp_persistent_p (*decl))
+    {
+      return NULL_TREE;
+    }
+
+  if (TREE_CODE (*decl) != FUNCTION_DECL && DECL_INITIAL (*decl))
+    {
+      location_t loc = DECL_SOURCE_LOCATION (*decl);
+
+      /* This odd warning is for consistency with xc16. It's been moved
+         to attribute checking to avoid repeatedly issuing it in build_prefix. */
+      if (attached_to)
+	warning_at (loc, 0, "%D Noload variable '%s' will not be initialized",
+		    *decl, attached_to);
+      else
+	warning_at (loc, 0, "%D Noload variable will not be initialized",
+		    *decl);
+    }
+
+
+  /* Like 'keep' we require unique sections for noload at present. The
+     alternative (which seems preferable) would be to create noload variants
+     of all sections and map accordingly.
+     Like 'keep', we do not imply the unqiue_section attribute or any checks
+     directly. */
+  DECL_COMMON (*decl) = 0;
+  DECL_UNIQUE_SECTION (*decl) = 1;
+
+  return NULL_TREE;
+}
+
 /* Don't emit a function prologue. */
 bool
 mchp_suppress_prologue (void)
@@ -3771,6 +3805,9 @@ mchp_compute_frame_info (void)
   if (prevfun != cfun)
     {
        mchp_invalid_ipl_warning = 0;
+       /* Also reset the static arrays elements that may've been changed during
+        * the previous execution of this function to their default values */
+       fixed_regs[V1_REGNUM] = fixed_regs[V0_REGNUM] = 0;
     }
   prevfun = cfun;
 
@@ -4204,6 +4241,25 @@ static tree
 get_mchp_space_attribute (tree decl)
 {
   return lookup_attribute ("space", DECL_ATTRIBUTES (decl));
+}
+
+static bool
+mchp_noload_p (tree decl)
+{
+  /* Persistent overrides noload - these will be placed
+     into pbss. */
+  if (mchp_persistent_p (decl))
+    return false;
+  return (lookup_attribute ("noload", DECL_ATTRIBUTES (decl)) != NULL_TREE);
+}
+
+static bool
+mchp_space_prog_p (tree decl)
+{
+  tree space_attr = NULL;
+  if (!(space_attr = get_mchp_space_attribute (decl)))
+    return false;
+  return (get_identifier("prog") == (TREE_VALUE(TREE_VALUE(space_attr))));
 }
 
 bool
@@ -6030,6 +6086,7 @@ static int mchp_build_prefix(tree decl, int fnear, char *prefix)
   tree address_attr = 0;
   tree space_attr = 0;
   tree region_attr = 0;
+  bool noload_attr = FALSE;
   bool is_ramfunc = FALSE;
   int const_rodata = 0;
 
@@ -6047,6 +6104,7 @@ static int mchp_build_prefix(tree decl, int fnear, char *prefix)
   space_attr = get_mchp_space_attribute (decl);
   region_attr = get_mchp_region_attribute (decl);
   is_ramfunc = mchp_ramfunc_type_p (decl);
+  noload_attr = mchp_noload_p (decl);
 
   if (space_attr)
     {
@@ -6133,6 +6191,11 @@ static int mchp_build_prefix(tree decl, int fnear, char *prefix)
       else f += sprintf(f, MCHP_ADDR_FLAG);
     }
       
+  if (noload_attr)
+    {
+      f += sprintf (f, MCHP_NOLOAD_FLAG);
+    }
+
   if ((flags & SECTION_KEEP) || mchp_keep_p(decl)) {
       DECL_COMMON (decl) = 0;
       f += sprintf(f, MCHP_KEEP_FLAG);
@@ -6505,11 +6568,15 @@ static const char *default_section_name(tree decl, SECTION_FLAGS_INT flags)
             {
               pszSectionName = SECTION_NAME_SERIALMEM;
             }
+          else if (mchp_space_prog_p(decl) && mchp_keep_p(decl))
+            {
+              pszSectionName = SECTION_NAME_CONST;
+            }
           else if (mchp_persistent_p(decl))
             {
               if (!pszSectionName || strcmp(pszSectionName, SECTION_NAME_PERSIST) != 0)
-                pszSectionName = SECTION_NAME_PBSS;
-            }
+		pszSectionName = SECTION_NAME_PBSS;
+	    }
           else if (mips_in_small_data_p(decl))
             {
               if (pszSectionName == NULL)
@@ -6531,8 +6598,9 @@ static const char *default_section_name(tree decl, SECTION_FLAGS_INT flags)
             }
           if (pszSectionName)
             {
-              if (flag_data_sections || (DECL_UNIQUE_SECTION (decl) && !mchp_persistent_p(decl)))
-                {
+	      if (flag_data_sections
+		  || (DECL_UNIQUE_SECTION (decl) && !mchp_persistent_p (decl)))
+		{
                   f += sprintf (result, "%s.%s", pszSectionName,
                                 IDENTIFIER_POINTER(DECL_NAME(decl)));
                 }

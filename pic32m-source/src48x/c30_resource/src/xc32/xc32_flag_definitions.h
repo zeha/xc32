@@ -15,7 +15,7 @@
 #define P32MZ              (1<<1)
 #define P32PR              (1<<1)
 #define PUSB49             (1<<1)
-#define PUSB70             (1<<1)
+#define PUSB7              (1<<1)
 
 #define P32MK              (1<<2)
 #define P32MM              (1<<3)

@@ -29,39 +29,42 @@
     "%(cpp)"
 
 #undef CC1_SPEC
-#define CC1_SPEC            \
-    "%(cc1_inst_set)"       \
-    "%(cc1_device)"         \
-    "%(cc1_fpu_device)"     \
-    "%(cc1_debug)"          \
-    "%(cc1_save_temps)"     \
-    "%(cc1_smartio)"        \
-    "%(cc1_config_data)"    \
-    "%(pic32_cmsis_include)"
+#define CC1_SPEC             \
+    "%(cc1_inst_set)"        \
+    "%(cc1_device)"          \
+    "%(cc1_fpu_device)"      \
+    "%(cc1_debug)"           \
+    "%(cc1_save_temps)"      \
+    "%(cc1_smartio)"         \
+    "%(cc1_config_data)"     \
+    "%(pic32_cmsis_include)" \
+    "%(mcc_include)"
 
 #undef CC1PLUS_SPEC
-#define CC1PLUS_SPEC        \
-    "%(pic32_cmsis_include)"
+#define CC1PLUS_SPEC         \
+    "%(pic32_cmsis_include)" \
+    "%(mcc_include)"
 
 #undef SUBTARGET_EXTRA_SPECS
-#define SUBTARGET_EXTRA_SPECS \
-  { "cc1_inst_set", SUBTARGET_CC1_INST_SET_SPEC }, \
-  { "cc1_device", SUBTARGET_CC1_DEVICE_SPEC }, \
-  { "cc1_fpu_device", SUBTARGET_CC1_FPU_DEVICE_SPEC }, \
-  { "cc1_debug", SUBTARGET_CC1_DEBUG_SPEC }, \
-  { "cc1_save_temps", SUBTARGET_CC1_SAVE_TEMPS_SPEC }, \
-  { "cc1_smartio", SUBTARGET_CC1_SMARTIO_SPEC }, \
-  { "cc1_config_data", SUBTARGET_CC1_CONFIG_DATA_SPEC }, \
-  { "pic32c_lib", SUBTARGET_PIC32C_LIB_SPEC }, \
-  { "endianness", SUBTARGET_ENDIANNESS_SPEC }, \
-  { "asm_arch", SUBTARGET_ASM_ARCH_SPEC }, \
-  { "asm_float", ASM_FLOAT_SPEC }, \
-  { "linker_script", SUBTARGET_LINKER_SCRIPT_SPEC }, \
-  { "linker_smartio", SUBTARGET_LINKER_SMARTIO_SPEC }, \
-  { "subtarget_extra_asm_spec",	SUBTARGET_EXTRA_ASM_SPEC }, \
-  { "subtarget_asm_float_spec", SUBTARGET_ASM_FLOAT_SPEC }, \
-  { "subtarget_extra_link_spec", SUBTARGET_EXTRA_LINK_SPEC }, \
-  { "pic32_cmsis_include",      PIC32_CMSIS_INCLUDE_SPEC},  \
+#define SUBTARGET_EXTRA_SPECS                                                  \
+  { "cc1_inst_set", SUBTARGET_CC1_INST_SET_SPEC },                             \
+  { "cc1_device", SUBTARGET_CC1_DEVICE_SPEC },                                 \
+  { "cc1_fpu_device", SUBTARGET_CC1_FPU_DEVICE_SPEC },                         \
+  { "cc1_debug", SUBTARGET_CC1_DEBUG_SPEC },                                   \
+  { "cc1_save_temps", SUBTARGET_CC1_SAVE_TEMPS_SPEC },                         \
+  { "cc1_smartio", SUBTARGET_CC1_SMARTIO_SPEC },                               \
+  { "cc1_config_data", SUBTARGET_CC1_CONFIG_DATA_SPEC },                       \
+  { "pic32c_lib", SUBTARGET_PIC32C_LIB_SPEC },                                 \
+  { "endianness", SUBTARGET_ENDIANNESS_SPEC },                                 \
+  { "asm_arch", SUBTARGET_ASM_ARCH_SPEC },                                     \
+  { "asm_float", ASM_FLOAT_SPEC },                                             \
+  { "linker_script", SUBTARGET_LINKER_SCRIPT_SPEC },                           \
+  { "linker_smartio", SUBTARGET_LINKER_SMARTIO_SPEC },                         \
+  { "subtarget_extra_asm_spec",	SUBTARGET_EXTRA_ASM_SPEC },                    \
+  { "subtarget_asm_float_spec", SUBTARGET_ASM_FLOAT_SPEC },                    \
+  { "subtarget_extra_link_spec", SUBTARGET_EXTRA_LINK_SPEC },                  \
+  { "pic32_cmsis_include",      PIC32_CMSIS_INCLUDE_SPEC},                     \
+  { "mcc_include",      MCC_INCLUDE_SPEC},                                     \
   SUBSUBTARGET_EXTRA_SPECS
 
 #undef SUBTARGET_EXTRA_ASM_SPEC
@@ -142,16 +145,21 @@
 #endif
 
 #define PIC32_CMSIS_INCLUDE_SPEC " -isystem %R/include/CMSIS/Core/Include "
+#define MCC_INCLUDE_SPEC \
+  " %{!minclude-legacy-headers: -D__XC32_INCLUDE_MCC  -isystem %R/include_mcc \
+      ;: -D__XC32_INCLUDE_LEGACY } "
 
 #undef SUBTARGET_CPP_SPEC
 #define SUBTARGET_CPP_SPEC                                                     \
   "%(pic32_cmsis_include)"                                                     \
+  "%(mcc_include)"                                                             \
   " -D__USES_INITFINI__"
 
 #undef CPLUSPLUS_CPP_SPEC
 #define CPLUSPLUS_CPP_SPEC                                                     \
   "%(cpp)"                                                                     \
-  "%(pic32_cmsis_include)"
+  "%(pic32_cmsis_include)"                                                     \
+  "%(mcc_include)"
 
 /* Add -lm */
 #undef LIB_SPEC

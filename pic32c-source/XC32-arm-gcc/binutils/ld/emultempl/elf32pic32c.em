@@ -352,9 +352,6 @@ static bfd_size_type bfd_pic32_report_sections
 static bfd_size_type bfd_pic32_collect_section_size
    (struct pic32_section *, const lang_memory_region_type *);
 
-struct bfd_link_hash_entry *bfd_mchp_is_defined_global_symbol
-   (const char *const);
-
 static bfd_boolean bfd_pic32_undefine_one_symbol_bfd
    (struct bfd_link_hash_entry *, PTR);
 
@@ -1176,18 +1173,27 @@ smartio_merge_symbols (void)
 
 	  /* remap all calls to the covering symbol and discard unused syms. */
 	  struct bfd_link_hash_entry *h
-	    = bfd_mchp_is_defined_global_symbol (buf);
+	    = bfd_pic32_is_defined_global_symbol (buf);
 	  ASSERT(h);
 
 	  if (hlist->h->type == bfd_link_hash_undefined
 	      || hlist->h->type == bfd_link_hash_undefweak)
 	    {
-	      DEBUG_SMARTIO ("-- merging %s into symbol %s\n",
-			     hlist->h->root.string, buf);
-	      hlist->h->u.def.value = h->u.def.value;
-	      hlist->h->u.def.section = h->u.def.section;
-	      hlist->h->type = bfd_link_hash_undefweak; /* make it go away */
-	    }
+              DEBUG_SMARTIO ("-- merging %s into symbol %s\n",
+                             hlist->h->root.string, buf);
+
+              struct elf_link_hash_entry *to = (struct elf_link_hash_entry *) h;
+              struct elf_link_hash_entry *from
+                = (struct elf_link_hash_entry *) hlist->h;
+
+              from->root.type = bfd_link_hash_defweak;
+              from->root.u.def.value = to->root.u.def.value;
+              from->root.u.def.section = to->root.u.def.section;
+
+              /* fix up references in elf link entry */
+              to->ref_regular = to->ref_regular_nonweak = 1;
+              from->ref_regular = from->ref_regular_nonweak = 0;
+            }
 
 	  hlist = hlist->next;
         }
@@ -3161,7 +3167,7 @@ bfd_pic32_finish(void)
   if ( (unsigned int) (stack_limit - stack_base) < (unsigned int) pic32c_stack_size)
     {
       einfo("%P%X Error: Not enough memory for stack"
-            " (0x%x bytes needed, 0x%x bytes available)\n",
+            " (%u bytes needed, %u bytes available)\n",
             (unsigned int)(pic32c_stack_size + pic32c_stackguard_size),
             (unsigned int) ((stack_limit - stack_base) + pic32c_stackguard_size));
     }
@@ -3611,11 +3617,14 @@ gldpic32c_finish (void)
 
   bfd_pic32_finish();
 
-  if (config.map_file != NULL) {
-    bfd_pic32_report_memory_usage (config.map_file);
+  /* No memory usage report when during PRO comparison */
+  if (!(pic32_mafrlcsj || pic32_mafrlcsj2)) {
+    if (config.map_file != NULL) {
+      bfd_pic32_report_memory_usage (config.map_file);
+    }
+    if (pic32_report_mem)
+      bfd_pic32_report_memory_usage (stdout);
   }
-  if (pic32_report_mem)
-    bfd_pic32_report_memory_usage (stdout);
 
   if (pic32_has_crypto_option)
     pic32_report_crypto_sections();
@@ -3792,7 +3801,7 @@ bfd_pic32_report_memory_usage (fp)
   region_prog_memory_used = 0;
   region_data_memory_used = 0;
   total_data_memory = total_prog_memory = 0;
-  
+
   fflush (fp);
 
   fprintf (fp, "\nMicrochip PIC32 Memory-Usage Report");
@@ -3805,7 +3814,7 @@ bfd_pic32_report_memory_usage (fp)
   magic_pm.count = sizeof(magic_pmdescriptions)/sizeof(magic_pmdescriptions[0]);
   magic_pm.start = magic_pm.index = 0;
   for (region_index = 0; region_index < region_count; region_index++)
-  {  
+  {
      if (!lang_memory_region_exist(pmregions_to_report[region_index].name))
        continue;
      region = region_lookup(pmregions_to_report[region_index].name);
@@ -3848,7 +3857,7 @@ bfd_pic32_report_memory_usage (fp)
   {
      if (!lang_memory_region_exist(dmregions_to_report[region_index].name))
        continue;
-         
+
      region = region_lookup(dmregions_to_report[region_index].name);
      /* print data header */
      fprintf( fp, "\n\n%s\n", dmregions_to_report[region_index].title);
@@ -3905,24 +3914,24 @@ bfd_pic32_report_memory_usage (fp)
     }
 
   fprintf( fp, "\n        --------------------------------------------------------------------------\n");
-  
+
 
   /* 
      Report user-defined memory sections...
      They require some extra effort to organize by
      external memory region 
    */
-   
+
   if (has_user_defined_memory) {
     struct pic32_section *r, *rnext;
     const char *region_name;
-    
+
     /* Loop through any user-defined regions */
     for (r = memory_region_list; r != NULL; r = rnext) {
         rnext = r->next;
 
       if (r->sec == 0) continue;
-    
+
       region_name = r->sec->name + strlen(memory_region_prefix);
       fprintf( fp, "\nExternal Memory %s"
                "  [Origin = 0x%lx, Length = 0x%lx]\n\n",
@@ -3983,139 +3992,84 @@ void pic32_report_crypto_sections()
 #endif
 }
 
-void bfd_pic32_memory_summary(char *arg) 
+static void
+bfd_pic32_report_memory_regions (FILE *memory_summary_file,
+                                 const char memory_name[],
+                                 const char *region_names[])
 {
-  FILE *memory_summary_file;
-  
-  bfd_size_type region_prog_memory_used;
-  lang_memory_region_type *region;
-  unsigned int region_index, region_count;
+  unsigned long total_size = 0;
+  unsigned long used_size = 0;
+
   struct pic32_section *s;
-  struct region_report_tag {
-    char *name;
-    char *title;
-    char *total;
-  };
-  struct region_report_tag pmregions_to_report[] =
-    {{"kseg0_program_mem",
-      "kseg0 Program-Memory Usage",
-      "      Total kseg0_program_mem used"},
-     {"kseg0_boot_mem",
-      "kseg0 Boot-Memory Usage",
-      "         Total kseg0_boot_mem used"},
-     {"exception_mem",
-      "Exception-Memory Usage ",
-      "          Total exception_mem used"},
-     {"kseg1_boot_mem",
-      "kseg1 Boot-Memory Usage",
-      "         Total kseg1_boot_mem used"}};
+  lang_memory_region_type *region;
 
-  struct region_report_tag dmregions_to_report[] =
-    {{"kseg0_data_mem",
-      "kseg0 Data-Memory Usage",
-      "         Total kseg0_data_mem used"},
-      {"kseg1_data_mem",
-      "kseg1 Data-Memory Usage",
-      "         Total kseg1_data_mem used"}
-    };
+  for (; *region_names; ++region_names)
+  {
+    if (!lang_memory_region_exist (*region_names))
+      continue;
 
+    region = region_lookup (*region_names);
 
-  memory_summary_file = fopen (arg, "w");
-   
-  if (memory_summary_file == NULL){
-     fprintf(stderr,"Warning: Could not open %s.\n", arg );
-     return;
-   }
-  else {
-     /*Calculate and output memory summary file*/
+    if (region->length == ~(bfd_size_type) 0)
+      continue;
 
-     /* clear the counters */
-     actual_prog_memory_used = 0;
-     data_memory_used = 0;
-     region_prog_memory_used = 0;
-     region_data_memory_used = 0;
-     total_data_memory = total_prog_memory = 0;
-  
-     /* build an ordered list of output sections */
-     pic32_init_section_list(&pic32_section_list);
-     bfd_map_over_sections(link_info.output_bfd, &pic32_build_section_list, NULL);
+    for (s = pic32_section_list; s != NULL; s = s->next)
+      if (s->sec)
+      {
+        used_size += bfd_pic32_collect_section_size (s, region);
+      }
 
-     region_count = sizeof(pmregions_to_report)/sizeof(pmregions_to_report[0]);
-     magic_pm.count = sizeof(magic_pmdescriptions)/sizeof(magic_pmdescriptions[0]);
-     magic_pm.start = magic_pm.index = 0;
-     for (region_index = 0; region_index < region_count; region_index++)
-     {  
-        if (!lang_memory_region_exist(pmregions_to_report[region_index].name))
-          continue;
-
-        region = region_lookup(pmregions_to_report[region_index].name);
-
-        /* collect code sections */
-        for (s = pic32_section_list; s != NULL; s = s->next)
-          if (s->sec)
-          {
-            region_prog_memory_used += bfd_pic32_collect_section_size (s, region);
-          }
- 
-        total_prog_memory += region->length;
-        actual_prog_memory_used += region_prog_memory_used;
-        region_prog_memory_used = 0;
-     }
- 
- 
-     /* DATA MEMORY */
- 
-     region_count = sizeof(dmregions_to_report)/sizeof(dmregions_to_report[0]);
-     magic_dm.count = sizeof(magic_dmdescriptions)/sizeof(magic_dmdescriptions[0]);
-     magic_dm.start = magic_dm.index = 0;
-     for (region_index = 0; region_index < region_count; region_index++)
-     {
-        if (!lang_memory_region_exist(dmregions_to_report[region_index].name))
-          continue;
-          
-        region = region_lookup(dmregions_to_report[region_index].name);
- 
-        /* collect data sections */
-        for (s = pic32_section_list; s != NULL; s = s->next)
-          if (s->sec)
-          {
-            region_data_memory_used += bfd_pic32_collect_section_size (s, region);
-          }
- 
-        total_data_memory += region->length;
-        data_memory_used += region_data_memory_used;
-        region_data_memory_used = 0;
-     }
-
-     /*Do not change the output xml format as it might throw the IDE off*/
-
-     fprintf( memory_summary_file, "<?xml version=\"1.0\" encoding=\"UTF-8\"?> \n");
-     fprintf( memory_summary_file, "<project>                                  \n");
-     fprintf( memory_summary_file, "  <executable name=\"%s\">                 \n",
-                                                          output_filename ); 
-     fprintf( memory_summary_file, "    <memory name=\"program\">                 \n");
-     fprintf( memory_summary_file, "      <units>bytes</units>                 \n");
-     fprintf( memory_summary_file, "      <length>%ld</length>                 \n",
-                                          (unsigned long)total_prog_memory);
-     fprintf( memory_summary_file, "      <used>%ld</used>                     \n",
-                                    (unsigned long)actual_prog_memory_used);
-     fprintf( memory_summary_file, "      <free>%ld</free>                     \n",
-              (unsigned long)(total_prog_memory - actual_prog_memory_used));
-     fprintf( memory_summary_file, "    </memory>                              \n");
-     fprintf( memory_summary_file, "    <memory name=\"data\">              \n");
-     fprintf( memory_summary_file, "      <units>bytes</units>                 \n");
-     fprintf( memory_summary_file, "      <length>%ld</length>                 \n",
-                                          (unsigned long)total_data_memory);
-     fprintf( memory_summary_file, "      <used>%ld</used>                     \n",
-                                          (unsigned long)data_memory_used );
-     fprintf( memory_summary_file, "      <free>%ld</free>                     \n",
-                     (unsigned long)(total_data_memory - data_memory_used));
-     fprintf( memory_summary_file, "    </memory>                              \n");
-     fprintf( memory_summary_file, "  </executable>                            \n");
-     fprintf( memory_summary_file, "</project>                                 \n");
-  
-     fclose(memory_summary_file);
+    total_size += region->length;
   }
+
+  // TCM memory is not included if it's not enabled / zero size
+  if (strcmp (memory_name, "tcm") || total_size)
+  {
+    // NB: the free size is redundant (easily derived from the other two)
+    fprintf (memory_summary_file, "    <memory name=\"%s\">\n"
+                                  "      <units>bytes</units>\n"
+                                  "      <length>%lu</length>\n"
+                                  "      <used>%lu</used>\n"
+                                  "      <free>%lu</free>\n"
+                                  "    </memory>\n",
+      memory_name, total_size, used_size, total_size - used_size);
+  }
+}
+
+void bfd_pic32_memory_summary(char *arg)
+{
+  const char *pm_region_names[] = { "rom", 0 };
+  const char *dm_region_names[] = { "ram", 0 };
+  const char *tcm_region_names[] = { "tcm", "itcm", "dtcm", 0 };
+
+  FILE *memory_summary_file = fopen (arg, "w");
+  if (memory_summary_file == NULL) {
+    fprintf (stderr, "Warning: Could not open %s.\n", arg );
+    return;
+  }
+
+  /* build an ordered list of output sections */
+  pic32_init_section_list (&pic32_section_list);
+  bfd_map_over_sections (link_info.output_bfd, &pic32_build_section_list, NULL);
+
+  /*Do not change the output xml format as it might throw the IDE off*/
+  fprintf (memory_summary_file, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+                                "<project>\n"
+                                "  <executable name=\"%s\">\n", output_filename ); 
+
+  /*Calculate and output memory summary file*/
+  bfd_pic32_report_memory_regions (memory_summary_file, "program", pm_region_names);
+  bfd_pic32_report_memory_regions (memory_summary_file, "data", dm_region_names);
+
+  /*For now, generate the TCM info only when doing the PRO comparison (i.e. not
+    for the regular builds because it messes the memory display in the IDE */
+  if (pic32_mafrlcsj || pic32_mafrlcsj2) {
+    bfd_pic32_report_memory_regions (memory_summary_file, "tcm", tcm_region_names);
+  }
+
+  fprintf (memory_summary_file, "  </executable>\n"
+                                "</project>\n");
+  fclose (memory_summary_file);
 }
 
 
@@ -4223,26 +4177,6 @@ report_percent_used (used, max, fp)
    }
 }
 // end of code for reporting memory usage
-
-/*
-** Return a pointer to bfd_link_hash_entry
-** if a global symbol is defined;
-** else return zero.
-*/
-struct bfd_link_hash_entry *
-bfd_mchp_is_defined_global_symbol (name)
-     const char *const name;
-{
-    struct bfd_link_hash_entry *h;
-    h = bfd_link_hash_lookup (link_info.hash, name, FALSE, FALSE, TRUE);
-    if ((h != (struct bfd_link_hash_entry *) NULL) &&
-        (h->type == bfd_link_hash_defined)) {
-      return h;
-    }
-    else
-      return (struct bfd_link_hash_entry *) NULL;
-}
-
 
 /*
 ** Undefine one symbol by BFD

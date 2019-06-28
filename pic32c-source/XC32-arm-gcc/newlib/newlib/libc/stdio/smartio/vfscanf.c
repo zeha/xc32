@@ -600,7 +600,6 @@ _DEFUN(__SVFSCANF_R, (rptr, fp, fmt0, ap),
 # ifdef _WANT_IO_C99_FORMATS
 	case 'a':
 	case 'A':
-	case 'F':
 # endif
 #if _SIO_eE
         _SIO_CASE('e','E'):
@@ -610,6 +609,9 @@ _DEFUN(__SVFSCANF_R, (rptr, fp, fmt0, ap),
 #endif
 #if _SIO_fF
         case 'f':
+# ifdef _WANT_IO_C99_FORMATS
+	case 'F':
+# endif
 #endif
 	  c = CT_FLOAT;
 	  break;

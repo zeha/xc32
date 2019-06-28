@@ -1,0 +1,50 @@
+# Compiled source #
+###################
+*.com
+*.class
+*.dll
+*.exe
+*.o
+*.so
+*.a
+*.eo
+*.i
+*.ii
+*.lo
+*.la
+
+# Packages #
+############
+# it's better to unpack these files and commit the raw source
+# git has its own built in compression methods
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# Logs and databases #
+######################
+*.log
+*.sql
+*.sqlite
+
+# OS generated files #
+######################
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# XC32 generated files #
+########################
+gcc/gcc/config/pic32c/gen-pic32c-mmcu-specs
+gcc/gcc/config/pic32c/device-specs
+*/autom4te.cache
+*.info

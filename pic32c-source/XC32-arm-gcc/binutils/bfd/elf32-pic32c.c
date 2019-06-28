@@ -25,7 +25,7 @@
 #include "pic32c-utils.h"
 #include "elf/pic32c.h"
 
-#define DEFAULT_STACK_SIZE  0x1000
+#define DEFAULT_STACK_SIZE  0x100
 
 
 /* Variables set by pic32 linker options */

@@ -118,7 +118,6 @@ along with GCC; see the file COPYING3.  If not see
 
 /* Static Variables to modify the optimizatrion option levels */
 
-static int require_cpp = 0;
 static int nullify_O2 = 0;
 static int nullify_Os = 0;
 static int nullify_O3 = 0;
@@ -160,11 +159,11 @@ static const char *invalid_license = "due to an invalid XC32 license";
 
 
 #ifdef SKIP_LICENSE_MANAGER
-#if defined(MCHP_XCLM_VALID_CPP_FULL)
-HOST_WIDE_INT mchp_pic32_license_valid = MCHP_XCLM_VALID_CPP_FULL;
+#if defined(MCHP_XCLM_VALID_PRO_LICENSE)
+HOST_WIDE_INT mchp_pic32_license_valid = MCHP_XCLM_VALID_PRO_LICENSE;
 #else
-HOST_WIDE_INT mchp_pic32_license_valid = 0x6;
-#endif /* MCHP_XCLM_VALID_CPP_FULL */
+HOST_WIDE_INT mchp_pic32_license_valid = 0x2;
+#endif /* MCHP_XCLM_VALID_PRO_LICENSE */
 #else
 HOST_WIDE_INT mchp_pic32_license_valid = -1;
 #endif /* SKIP_LICENSE_MANAGER*/
@@ -317,49 +316,38 @@ get_license_manager_path (void)
 
 
 static int
-pic32_get_license (int require_cpp)
+pic32_get_license ()
 {
   /*
    *  On systems where we have a licence manager, call it
    */
 
 /* Misc. Return Codes */
-
 #ifndef MCHP_XCLM_EXPIRED_DEMO
 #define MCHP_XCLM_EXPIRED_DEMO 0x10
 #endif /* MCHP_XCLM_EXPIRED_DEMO*/
 
-#if defined(MCHP_XCLM_VALID_CPP_FREE)
-#define PIC32_EXPIRED_LICENSE MCHP_XCLM_EXPIRED_DEMO
-#define PIC32_FREE_LICENSE MCHP_XCLM_FREE_LICENSE
+#if defined(MCHP_XCLM_VALID_STANDARD_LICENSE)
+#define PIC32_EXPIRED_LICENSE        MCHP_XCLM_EXPIRED_DEMO
+#define PIC32_FREE_LICENSE           MCHP_XCLM_FREE_LICENSE
 #define PIC32_VALID_STANDARD_LICENSE MCHP_XCLM_VALID_STANDARD_LICENSE
-#define PIC32_VALID_PRO_LICENSE MCHP_XCLM_VALID_PRO_LICENSE
-#define PIC32_NO_CPP_LICENSE MCHP_XCLM_NO_CPP_LICENSE
-#define PIC32_VALID_CPP_FREE MCHP_XCLM_VALID_CPP_FREE
-#define PIC32_VALID_CPP_FULL MCHP_XCLM_VALID_CPP_FULL
+#define PIC32_VALID_PRO_LICENSE      MCHP_XCLM_VALID_PRO_LICENSE
 #else
-#define PIC32_EXPIRED_LICENSE MCHP_XCLM_EXPIRED_DEMO
-#define PIC32_FREE_LICENSE 0
+#define PIC32_EXPIRED_LICENSE        MCHP_XCLM_EXPIRED_DEMO
+#define PIC32_FREE_LICENSE           0
 #define PIC32_VALID_STANDARD_LICENSE 1
-#define PIC32_VALID_PRO_LICENSE 2
-#define PIC32_NO_CPP_LICENSE 4
-#define PIC32_VALID_CPP_FREE 5
-#define PIC32_VALID_CPP_FULL 6
-#endif /* MCHP_XCLM_VALID_CPP_FREE */
-
+#define PIC32_VALID_PRO_LICENSE      2
+#endif
 
 #ifndef SKIP_LICENSE_MANAGER
   {
     char *exec;
-
 #if XCLM_FULL_CHECKOUT
     char kopt[] = "-fcfc";
 #else
     char kopt[] = "-checkout";
 #endif /* XCLM_FULL_CHECKOUT */
-
-    char productc[]   = "swxc32";
-    char productcpp[] = "swxcpp32";
+    char productc[] = "swxc32";
     char version[9] = "";
     char date[] = __DATE__;
 
@@ -408,10 +396,7 @@ pic32_get_license (int require_cpp)
 
     /* Arguments to pass to xclm */
     args[1] = kopt;
-    if (require_cpp)
-      args[2] = productcpp;
-    else
-      args[2] = productc;
+    args[2] = productc;
     args[3] = version;
     
 #if XCLM_FULL_CHECKOUT
@@ -448,17 +433,31 @@ pic32_get_license (int require_cpp)
 #undef xstr
 #undef str
 #undef MCHP_XCLM_SHA256_DIGEST_QUOTED
-
+#undef MCHP_XCLM64_SHA256_DIGEST_QUOTED
+#undef MCHP_FXCLM_SHA256_DIGEST_QUOTED
 #define xstr(s) str(s)
 #define str(s) #s
 
-#define MCHP_XCLM_SHA256_DIGEST_QUOTED xstr(MCHP_XCLM_SHA256_DIGEST)
+#define MCHP_XCLM_SHA256_DIGEST_QUOTED   xstr(MCHP_XCLM_SHA256_DIGEST)
+#define MCHP_XCLM64_SHA256_DIGEST_QUOTED xstr(MCHP_XCLM64_SHA256_DIGEST)
+#define MCHP_FXCLM_SHA256_DIGEST_QUOTED  xstr(MCHP_FXCLM_SHA256_DIGEST)
 
     /* Verify SHA sum and call xclm to determine the license */
     if (found_xclm && mchp_pic32_license_valid==-1 && !TARGET_SKIP_LICENSE_CHECK)
       {
         /* Verify that xclm executable is untampered */
         xclm_tampered = mchp_sha256_validate(exec, (const unsigned char*)MCHP_XCLM_SHA256_DIGEST_QUOTED);
+#ifdef __linux__
+        /*On linux, try to validate against 64-bit and fake xclm SHA if 32-bit xclm SHA does not match*/
+        if (xclm_tampered != 0)
+          { 
+            xclm_tampered = mchp_sha256_validate(exec, (const unsigned char*)MCHP_XCLM64_SHA256_DIGEST_QUOTED);
+          }
+        if (xclm_tampered != 0)
+          { 
+            xclm_tampered = mchp_sha256_validate(exec, (const unsigned char*)MCHP_FXCLM_SHA256_DIGEST_QUOTED);
+          }
+#endif 
         if (xclm_tampered != 0)
           {
             /* Set free edition if the license manager SHA digest does not
@@ -485,19 +484,18 @@ pic32_get_license (int require_cpp)
             else if (WIFEXITED(status))
               {
                 mchp_pic32_license_valid = WEXITSTATUS(status);
-                if (mchp_pic32_license_valid == PIC32_NO_CPP_LICENSE)
-                  {
-                     mchp_pic32_license_valid = PIC32_VALID_CPP_FREE;
-                  }
               }
           }
       }
   }
-  
+  if (mchp_mafrlcsj) {
+    mchp_pic32_license_valid = PIC32_VALID_PRO_LICENSE;
+  }
 #undef xstr
 #undef str
 #undef MCHP_XCLM_SHA256_DIGEST_QUOTED
-
+#undef MCHP_XCLM64_SHA256_DIGEST_QUOTED
+#undef MCHP_FXCLM_SHA256_DIGEST_QUOTED
 #endif /* SKIP_LICENSE_MANAGER */
 
   return mchp_pic32_license_valid;
@@ -585,10 +583,7 @@ static void mchp_print_license_warning (void)
         invalid_license = "because the XC32 evaluation period has expired";
         break;
       case PIC32_FREE_LICENSE:
-        invalid_license = "because the free XC32 C compiler does not support this feature.";
-        break;
-      case PIC32_VALID_CPP_FREE:
-        invalid_license = "because the free XC32 C++ compiler does not support this feature.";
+        invalid_license = "because the free XC32 compiler does not support this feature.";
         break;
       case PIC32_VALID_STANDARD_LICENSE:
         invalid_license = "because this feature requires the MPLAB XC32 PRO compiler";
@@ -611,9 +606,14 @@ static void mchp_print_license_warning (void)
 
 void pic32c_subtarget_override_options(void)
 {
- 
   extern struct cl_decoded_option *save_decoded_options;
-  require_cpp    = 0;
+
+  if (TARGET_MCHP_SMARTIO_LEVEL > 2)
+    {
+      warning (0, "smart-io level %d invalid, defaulting to level %d",
+	       TARGET_MCHP_SMARTIO_LEVEL, 2);
+      TARGET_MCHP_SMARTIO_LEVEL = 2;
+    }
 
 #ifndef SKIP_LICENSE_MANAGER
   nullify_O2     = 1;
@@ -626,26 +626,16 @@ void pic32c_subtarget_override_options(void)
     TARGET_LICENSE_WARNING = 0;
   }
 
-  require_cpp = (strstr (save_decoded_options[0].arg, "cc1plus")!=NULL);
   if (TARGET_SKIP_LICENSE_CHECK)
   {
-    mchp_pic32_license_valid = PIC32_VALID_CPP_FREE;
+    mchp_pic32_license_valid = PIC32_FREE_LICENSE;
   }
   else 
   {
-    mchp_pic32_license_valid = pic32_get_license (require_cpp);
+    mchp_pic32_license_valid = pic32_get_license ();
   }
 
-  if (require_cpp && !((mchp_pic32_license_valid == PIC32_VALID_CPP_FREE) ||
-                       (mchp_pic32_license_valid == PIC32_VALID_CPP_FULL)))
-  {
-    error  ("MPLAB XC32 C++ license not activated");
-    inform (input_location, "Visit http://www.microchip.com/MPLABXCcompilers to acquire a "
-         "free C++ license");
-  }
-       
-  if ((mchp_pic32_license_valid == PIC32_VALID_PRO_LICENSE) ||
-      (mchp_pic32_license_valid == PIC32_VALID_CPP_FULL))
+  if (mchp_pic32_license_valid == PIC32_VALID_PRO_LICENSE)
   {
     nullify_lto = nullify_O2 =  nullify_O3 = nullify_Os = 0;
   }
@@ -723,12 +713,11 @@ void pic32c_subtarget_override_options(void)
 
     /*Require a Standard or Pro license */
     if (TARGET_NO_FALLBACKLICENSE && 
-        ((mchp_pic32_license_valid == PIC32_FREE_LICENSE) || (mchp_pic32_license_valid == PIC32_VALID_CPP_FREE)))
+        (mchp_pic32_license_valid == PIC32_FREE_LICENSE))
       error ("Unable to find a valid license, aborting");
   }
  
 #undef PIC32_EXPIRED_LICENSE
-#undef PIC32_ACADEMIC_LICENSE
 #undef PIC32_VALID_STANDARD_LICENSE
 #undef PIC32_VALID_PRO_LICENSE
 

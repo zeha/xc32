@@ -1795,6 +1795,7 @@ disassemble_bytes (struct disassemble_info * inf,
 		  /* Check to see if the current reloc is associated with
 		     the instruction that we are about to disassemble.  */
 		  if (distance_to_rel == 0
+#ifndef TARGET_IS_PIC32C
 		      /* FIXME: This is wrong.  We are trying to catch
 			 relocs that are addressed part way through the
 			 current instruction, as might happen with a packed
@@ -1807,7 +1808,9 @@ disassemble_bytes (struct disassemble_info * inf,
 			 of an instruction at a given address without trying
 			 to display its disassembly. */
 		      || (distance_to_rel > 0
-			  && distance_to_rel < (bfd_signed_vma) (previous_octets/ opb)))
+			  && distance_to_rel < (bfd_signed_vma) (previous_octets/ opb))
+#endif
+                     )
 		    {
 		      inf->flags |= INSN_HAS_RELOC;
 		      aux->reloc = **relppp;

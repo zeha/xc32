@@ -107,16 +107,13 @@ function assert_success ()
 usage ()
 {
  # Shows the usage screen
- echo "USAGE: $0 [-t <tag> | -b <branch> | -?]"
+ echo "USAGE: $0 [-t <tag> | -b <branch> | -c <commit> | -?]"
  echo " -b <branch> Specify the branch for which you would like to build"
  echo " -t <tag>    Specify the tag for which you would like to build"
+ echo " -c <commit> Specify the checkout commit for Git repositories"
  echo " -?          Show this usage message"
  exit 1
 }
-
-if [ $# -gt 2 ] ; then
-    usage
-fi
 
 if [ -z "$bamboo_XC32_XCLM_BRANCH" ]; then
   XCLM_BRANCH=trunk
@@ -142,43 +139,50 @@ XC_LOCAL_REPO=$FOSSIL_CLONES/XC32-gcc-48.fsl
 XC_LIBS_LOCAL_REPO=$FOSSIL_CLONES/XC-libs.fsl
 XCPP_LIBS_LOCAL_REPO=$FOSSIL_CLONES/XCpp-libs.fsl
 
-# order of repos must correspond to order of directories in all_source_directories
+# order of repos must correspond to order of directories in all_fossil_directories
 all_fossil_repos=(
- pic32-libs
- XC32-docs
- XC32-examples
  XC-libs
- XCpp-libs
- XC32-gcc-48
  c30_resource
  fpmath
  fdlibm
  xclm_release
  Coverity
- pic32-newlib
  )
 # order of directories must correspond to order of repos in all_fossil_repos
-all_source_directories=(
- pic32-libs
- docs
- examples
+all_fossil_directories=(
  XC-libs
- XCpp-libs
- src48x
  c30_resource
  fpmath
  fdlibm
  xclm_release
  Coverity
- pic32-newlib
+)
+
+# Same, but for Git.
+all_git_repos=(
+  pic32m-gcc
+  pic32m-libs
+  pic32m-newlib
+  pic32m-cpp-libs
+  pic32m-docs
+  pic32m-examples
+)
+all_git_directories=(
+  src48x
+  pic32-libs
+  pic32-newlib
+  XCpp-libs
+  docs
+  examples
 )
 
 TAG="x"
 BRANCH="x"
 FULL_ONLY=no
+CHECKOUT_COMMIT=master
 
 # Process the arguments
-while getopts t:b: opt
+while getopts t:b:c: opt
 do
  case "$opt" in
    t)
@@ -191,6 +195,9 @@ do
    BRANCH="$TVAL"
    BUILD=pic32-$TVAL-$DATE
    CVSB=$TVAL
+   ;;
+   c)
+   CHECKOUT_COMMIT="${OPTARG}"
    ;;
   \?) usage ;;
  esac
@@ -209,6 +216,13 @@ if [ -f $FOSSIL_CLONES ] ; then
 else
   status_update "Using FOSSIL_CLONES=$FOSSIL_CLONES"
 fi
+
+# Set the base URL for Git clones. The default assumes the user has an
+# SSH key that can authenticate to the server without any input.
+: ${XC32_GIT_URL:=ssh://git@bitbucket.microchip.com:7999/xc32}
+# Strip the trailing /, if any.
+XC32_GIT_URL="${XC32_GIT_URL%/}"
+status_update "Using XC32_GIT_URL=${XC32_GIT_URL}"
 
 #
 # Verify that we can reach the remote server before attempting to sync the repositories
@@ -313,17 +327,17 @@ echo "Using XCLM branch $XCLM_BRANCH"
 #
 
 status_update "Checking out the pic32m source code"
-count_dirs=${#all_source_directories[*]}
+count_dirs=${#all_fossil_directories[*]}
 
 for (( i=0; i<=$(( $count_dirs -1 )); i++ ))
 do
-  echo "Checking out source from ${all_fossil_repos[$i]} to ${all_source_directories[$i]}..." >> $LOGFILE
-  if [ -e ${all_source_directories[$i]} ] ; then
-    rm -rf ${all_source_directories[$i]}
+  echo "Checking out source from ${all_fossil_repos[$i]} to ${all_fossil_directories[$i]}..." >> $LOGFILE
+  if [ -e ${all_fossil_directories[$i]} ] ; then
+    rm -rf ${all_fossil_directories[$i]}
   fi
-  mkdir ${all_source_directories[$i]}
-  assert_success $? "ERROR: mkdir ${all_source_directories[$i]}"
-  pushd ${all_source_directories[$i]} > /dev/null
+  mkdir ${all_fossil_directories[$i]}
+  assert_success $? "ERROR: mkdir ${all_fossil_directories[$i]}"
+  pushd ${all_fossil_directories[$i]} > /dev/null
   if [[ "${all_fossil_repos[$i]}" == "xclm_release" ]] ; then
     fossil open $FOSSIL_CLONES/${all_fossil_repos[$i]}.fsl $XCLM_BRANCH > /dev/null
   elif [[ "${all_fossil_repos[$i]}" == "Coverity" ]] ; then
@@ -334,6 +348,27 @@ do
   assert_success $? "ERROR: fossil open $FOSSIL_CLONES/${all_fossil_repos[$i]}"
   popd > /dev/null
 done
+
+set -eu
+for (( i=0; i<$(( ${#all_git_directories[*]} )); i++ ))
+do
+  gitrepo="${all_git_repos[$i]}"
+  gitdir="${all_git_directories[$i]}"
+  echo "Checking out source from ${gitrepo} to ${gitdir}" >> ${LOGFILE}
+  if [[ ! -d "${gitdir}" ]]; then
+      echo "Cloning Git repository ${gitrepo}" >> ${LOGFILE}
+      (
+        PS4=""; exec 2>> ${LOGFILE}; set -x
+        git clone -q "${XC32_GIT_URL}/${gitrepo}.git" "${gitdir}"
+      )
+  fi
+  (
+    PS4=""; exec 2>> ${LOGFILE}; set -x
+    git -C "${gitdir}" pull --quiet origin
+    git -C "${gitdir}" checkout "${CHECKOUT_COMMIT}"
+  )
+done
+set +eu
 
 cd $SOURCE_DIR
 pushd xclm_release

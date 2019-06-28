@@ -15,4 +15,4 @@ void test(char *str)
 
 /* We'd like to scan for strcpy, but would need options to guarantee that
    strcpy won't be inlined. So settle for not having sprintf. */
-/* { dg-final { scan-assembler-not "snprintf" } } */
+/* { dg-final { scan-assembler-not "bl\s*snprintf" } } */

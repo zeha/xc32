@@ -1043,9 +1043,11 @@ reswitch:	switch (ch) {
 # ifdef _WANT_IO_C99_FORMATS
 		case 'a':
 		case 'A':
-		case 'F':
 # endif
 #if _SIO_fF
+# ifdef _WANT_IO_C99_FORMATS
+		case 'F':
+# endif
 		case 'f':
 #endif
 #if _SIO_gG

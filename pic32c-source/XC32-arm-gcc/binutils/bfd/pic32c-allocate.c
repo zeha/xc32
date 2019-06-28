@@ -187,14 +187,15 @@ void reserve_space_for_vectors()
 
 static void generate_flash_vectors_symbol(char * const name)
 {
-    ///\ get .vectors
+    // add a symbol for .vectors if it was in the ld script
     asection   *vectors_section =
                 bfd_get_section_by_name(link_info.output_bfd, ".vectors");
-    
-    _bfd_generic_link_add_one_symbol (&link_info, link_info.output_bfd, name,
-                                      BSF_GLOBAL, bfd_abs_section_ptr,
-                                      vectors_section->lma,
-                                      name, 1, 0, 0);
+    if (vectors_section != NULL) {
+	_bfd_generic_link_add_one_symbol (&link_info, link_info.output_bfd, name,
+					  BSF_GLOBAL, bfd_abs_section_ptr,
+					  vectors_section->lma,
+					  name, 1, 0, 0);
+    }
 }
 
 static void generate_vectors_symbols()
@@ -580,7 +581,7 @@ allocate_data_memory() {
   struct memory_region_struct *region = NULL;
   struct memory_region_struct *dtcm_region = NULL;
   struct pic32_section *s;
-  unsigned int mask = data|bss|persist|stack|heap;
+  unsigned int mask = data|bss|persist|stack|heap|ramfunc;
   int result = 0;
 
   // build a list of data sections to be allocated - includes tcm and non-tcm

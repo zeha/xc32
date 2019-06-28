@@ -327,13 +327,17 @@ if [ "x$skip_checkout" == "xno" ] ; then
 status_update "Checking out code"
   # Checkout all of the source files from the repositories
   if [ "x$BRANCH" != "xx" ] ; then
-    xc32_checkout_script "$script_path/checkout-common-source.sh" "-b $BRANCH"
-    xc32_checkout_script "$script_path/pic32m/checkout-pic32m-source.sh" "-b $BRANCH"
-    xc32_checkout_script "$script_path/pic32c/checkout-pic32c-source.sh" "-b $BRANCH"
+    CHECKOUT_COMMIT="${BRANCH}"
+    if [[ "${BRANCH}" == trunk ]]; then
+      CHECKOUT_COMMIT="master";
+    fi
+    xc32_checkout_script "$script_path/checkout-common-source.sh" "-b $BRANCH -c ${CHECKOUT_COMMIT}"
+    xc32_checkout_script "$script_path/pic32m/checkout-pic32m-source.sh" "-b $BRANCH -c ${CHECKOUT_COMMIT}"
+    xc32_checkout_script "$script_path/pic32c/checkout-pic32c-source.sh" "-b $BRANCH -c ${CHECKOUT_COMMIT}"
   elif [ "x$TAG" != "xx" ] ; then
-    xc32_checkout_script "$script_path/checkout-common-source.sh" "-t $TAG"
-    xc32_checkout_script "$script_path/pic32m/checkout-pic32m-source.sh" "-t $TAG"
-    xc32_checkout_script "$script_path/pic32c/checkout-pic32c-source.sh" "-t $TAG"
+    xc32_checkout_script "$script_path/checkout-common-source.sh" "-t $TAG -c ${TAG}"
+    xc32_checkout_script "$script_path/pic32m/checkout-pic32m-source.sh" "-t $TAG -c ${TAG}"
+    xc32_checkout_script "$script_path/pic32c/checkout-pic32c-source.sh" "-t $TAG -c ${TAG}"
   else
     xc32_checkout_script "$script_path/checkout-common-source.sh"
     xc32_checkout_script "$script_path/pic32m/checkout-pic32m-source.sh"
@@ -388,8 +392,8 @@ then
 #  fi
 
 else
-  build_xc32_sh "$BUILDSUBDIR/install-Linux" "TARGET=linux"
-  build_xc32_sh "$BUILDSUBDIR/install-Linux-nolm" "TARGET=linux"
+  build_xc32_sh "$BUILDSUBDIR/install-Linux" "TARGET=linux EXTRAOPS='-m32 -march=i386'"
+  build_xc32_sh "$BUILDSUBDIR/install-Linux-nolm" "TARGET=linux EXTRAOPS='-m32 -march=i386'"
   build_xc32_sh "$BUILDSUBDIR/install-mingw" "TARGET=mingw"
 fi
 
@@ -413,10 +417,10 @@ fi
 
 
 # Add pic32c devices to deviceSupport.xml and .LanguageToolSuite
-if [ -e $BUILDSUBDIR/pic32c-source/XC32-arm-gcc/gcc/gcc/config/pic32c/pic32c-mcus.def ] ; then
+if [ -e $BUILDSUBDIR/pic32c-source/pic32c-headers_generator/xml2h/mchp/xc/pic32c/specs_gen/include/pic32c-mcus.def ] ; then
   pushd $BUILDSUBDIR
-  find . -name "deviceSupport.xml" -exec python2.7 $script_path/pic32c/patch_deviceSupport.py $BUILDSUBDIR/pic32c-source/XC32-arm-gcc/gcc/gcc/config/pic32c/pic32c-mcus.def \{\} \;
-  find . -name ".LanguageToolSuite" -exec python2.7 $script_path/pic32c/patch_LanguageToolSuite.py $BUILDSUBDIR/pic32c-source/XC32-arm-gcc/gcc/gcc/config/pic32c/pic32c-mcus.def \{\} \;
+  find . -name "deviceSupport.xml" -exec python2.7 $script_path/pic32c/patch_deviceSupport.py $BUILDSUBDIR/pic32c-source/pic32c-headers_generator/xml2h/mchp/xc/pic32c/specs_gen/include/pic32c-mcus.def \{\} \;
+  find . -name ".LanguageToolSuite" -exec python2.7 $script_path/pic32c/patch_LanguageToolSuite.py $BUILDSUBDIR/pic32c-source/pic32c-headers_generator/xml2h/mchp/xc/pic32c/specs_gen/include/pic32c-mcus.def \{\} \;
   popd
 fi
 

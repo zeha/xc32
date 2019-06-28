@@ -348,6 +348,19 @@ mkdir -p $BUILDDIR_MINGW
 fi
 rm -rf $PACKAGEDIR && mkdir -p $PACKAGEDIR
 
+# To enforce a 32-bit binary
+if [[ "${uname_string}" == linux ]]; then
+    saveenv
+    saveenvvar CC_FOR_BUILD "gcc -m32 -march=i386"
+    saveenvvar CXX_FOR_BUILD "g++ -m32 -march=i386"
+    saveenvvar CPP_FOR_BUILD "cpp -m32 -march=i386"
+    saveenvvar CC "gcc -m32 -march=i386"
+    saveenvvar CPP "cpp -m32 -march=i386"
+    saveenvvar CPPCXX "cpp -m32 -march=i386"
+    saveenvvar CXX "g++ -m32 -march=i386"
+    saveenvvar LD "g++ -m32 -march=i386"
+fi
+
 cd $SRCDIR
 
 if [ "x$skip_native" != "xyes" ] ; then
@@ -558,6 +571,7 @@ $SRCDIR/$NEWLIB/configure  \
     --pdfdir=$INSTALLDIR_NATIVE_DOC/pdf \
     --enable-newlib-io-long-long \
     --enable-newlib-register-fini \
+    --enable-newlib-io-c99-formats \
     --disable-newlib-supplied-syscalls \
     --disable-nls >$LOGTASKFILE 2>&1
 fi
@@ -868,7 +882,7 @@ if [ "x$SHASUM256" != "x" ]; then
   if [ ${#XCLM_SHASUM} != 64 ]; then
       assert_success -1 "ERROR: Failed to calculate SHASUM256 digest for $NATIVEIMAGE/bin/xclm"
   fi
-  if [ "x$NATIVEIMAGE" == "x$LINUX32IMAGE" ]; then
+  if [ "x$uname_string" == "xlinux" ]; then
     if [ ! -e $INSTALLDIR_NATIVE/xclm64/install/client/bin/xclm ] ; then
       assert_success -1 "ERROR: Missing $INSTALLDIR_NATIVE/xclm64/install/client/bin/xclm"
     fi
@@ -1023,6 +1037,10 @@ build_gdb()
 	popd
 }
 
+# Remove the 32-bit binary environment changes.
+if [[ "${uname_string}" == linux ]]; then
+    restoreenv
+fi
 
 #Always enable python support in GDB for PPA build.
 if [ "x$is_ppa_release" == "xyes" ]; then

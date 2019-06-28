@@ -22,9 +22,16 @@
 #endif
 
 #if defined(__ARM_EABI__) && defined(__thumb__) && !defined(__thumb2__)
+
+/* For ARCH_5TE with PREFER_THUMB, we need to set THUMB1_ONLY to 
+   avoid illegal instructions in thumb mode. */
+#ifdef PREFER_THUMB
+#define THUMB1_ONLY
+#endif
+
 /* For Thumb1 we need to force the architecture to be sure that we get the
    correct attributes on the object file; otherwise the assembler will get
-   confused and mark the object as being v6T2.  */
+   confused and mark the object as being v6T2. */
 #if defined(__ARM_ARCH_4T__)
 	.arch armv4t
 #elif defined(__ARM_ARCH_5T__) || defined(__ARM_ARCH_5TE__)
@@ -121,7 +128,7 @@
 #elif defined(__thumb2__)
 	/*  We are in thumb mode for startup on armv7 architectures. */
 	AngelSWIAsm	AngelSWI
-#else
+#elif !defined(THUMB1_ONLY)
 	/*  We are always in ARM mode for startup on pre armv7 archs. */
 	AngelSWIAsm	AngelSWI_ARM
 #endif
@@ -254,7 +261,7 @@
 	/* Zero the memory in the .bss section.  */
 	movs 	a2, #0			/* Second arg: fill value */
 	mov	fp, a2			/* Null frame pointer */
-	mov	r7, a2			/* Null frame pointer for Thumb */
+	movs    r7, #0			/* Null frame pointer for Thumb */
 	
 	ldr	a1, .LC1		/* First arg: start of memory block */
 	ldr	a3, .LC2	

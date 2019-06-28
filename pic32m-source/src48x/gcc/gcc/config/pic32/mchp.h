@@ -113,13 +113,13 @@ do {                     \
 #define XC32CPPLIB_OPTION "-mxc32cpp-lib"
 
 # undef  STARTFILE_SPEC
-# define STARTFILE_SPEC "%{!pie:%{mmicromips: %s%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/crt0_micromips%O};\
+# define STARTFILE_SPEC "%{!mdfp=*:%{!pie:%{mmicromips: %s%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/crt0_micromips%O};\
   : %s%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/crt0_mips32r2%O}}} \
   %{pie:%{mmicromips: %s%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/crt0_micromips_pic%O};\
-  : %s%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/crt0_mips32r2_pic%O}}} \
+  : %s%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/crt0_mips32r2_pic%O}}} } \
   %{!pie:%{!mprocessor=* : crt0%O%s}} \
   %{pie:%{!mprocessor=*:crt0_pic%O%s}} \
-  %{!A:%{!nostdlib:%{!mno-default-isr-vectors:%{mdebugger|mreserve=* : -l:software-debug-break.o} }}}\
+  %{!A:%{!nostdlib:%{!mno-default-isr-vectors:%{mdebugger|mreserve=* : -l:software-debug-break.o} }}} \
   %{!pie:%{!A:%{!nostdlib:%{!mno-default-isr-vectors:%{!mdebugger : %{!mreserve=*: \
     %{mmicromips : -l:debug-exception-return-mm.o; \
     !mmicromips: -l:debug-exception-return.o}}} }}}} \
@@ -128,13 +128,14 @@ do {                     \
     !mmicromips: -l:debug-exception-return-pic.o}}} }}}} \
  "
 
+
 # undef STARTFILECXX_SPEC
-# define STARTFILECXX_SPEC "%{!pie:%{mmicromips: %s%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/cpprt0_micromips%O} ;\
+# define STARTFILECXX_SPEC "%{!mdfp=*: %{!pie:%{mmicromips: %s%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/cpprt0_micromips%O} ;\
   : %s%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/cpprt0_mips32r2%O}} } \
   %{pie:%{mmicromips: %s%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/cpprt0_micromips_pic%O} ;\
   : %s%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/cpprt0_mips32r2_pic%O}} } \
   %{!pie:%{!mprocessor=* : cpprt0%O%s}} \
-  %{pie:%{!mprocessor=* : cpprt0_pic%O%s}} \
+  %{pie:%{!mprocessor=* : cpprt0_pic%O%s}} }\
   crti%O%s crtbegin%O%s "
 
 #undef ENDFILE_SPEC
@@ -172,8 +173,8 @@ do {                     \
     %{static:} %{L*} %(mfwrap) %(link_libgcc) %o\
     %{fopenmp|ftree-parallelize-loops=*:%:include(libgomp.spec)%(link_gomp)} %(mflib)\
     %{fprofile-arcs|fprofile-generate*|coverage:-lgcov}\
-    %{!pie:%{!A:%{!nostdlib:%{!nodefaultlibs:%{!nostartfiles:%{!mno-default-isr-vectors: -l:default_isr_vectors.o} }}}}}\
-    %{pie:%{!A:%{!nostdlib:%{!nodefaultlibs:%{!nostartfiles:%{!mno-default-isr-vectors: -l:default_isr_vectors_pic.o} }}}}}\
+    %{!pie:%{!A:%{!nostdlib:%{!nodefaultlibs:%{!nostartfiles:%{!mno-default-isr-vectors:%{!mdfp=*: -l:default_isr_vectors.o} }}}}}}\
+    %{pie:%{!A:%{!nostdlib:%{!nodefaultlibs:%{!nostartfiles:%{!mno-default-isr-vectors:%{!mdfp=*: -l:default_isr_vectors_pic.o} }}}}}}\
     %{!pie:%{!A:%{!nostdlib:%{!nodefaultlibs:%{!nostartfiles:%{!mno-default-isr-vectors: %{mprocessor=32*: \
       %{mmicromips : -l:pic32_software_reset-mm.o; \
       !mmicromips  : -l:pic32_software_reset.o}}}}}}}}\
@@ -181,12 +182,15 @@ do {                     \
       %{mmicromips : -l:pic32_software_reset_pic-mm.o; \
       !mmicromips  : -l:pic32_software_reset_pic.o}}}}}}}}\
     %{mreserve=*:--mreserve=%* } \
+    %{mdfp=*: %{mprocessor=*: -D__XC32_WITH_DFP=1}} \
     %{!pie:%{T:%{T*};!T:-T %s%{mprocessor=32MX*:./ldscripts/elf32pic32mx.x; \
      :%{mprocessor=32mx*:./ldscripts/elf32pic32mx.x; \
      :%{!mprocessor=*:./ldscripts/elf32pic32mx.x; \
-     :%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/p%*} %J%{mprocessor=*:.ld} }}}}} \
+     :%{mdfp=* :%*%J%{mprocessor=*:/xc32/%*} %J%{mprocessor=*:/p%*} %J%{mprocessor=*:.ld}; \
+       :%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/p%*} %J%{mprocessor=*:.ld} }}}}}} \
     %{pie:%{T:%{T*};!T:-T %s%{!mprocessor=*:elf32pic32mx_pic.x; \
-     :%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/p%*} %J%{mprocessor=*:_pic.ld} }}} \
+     :%{mdfp=* :%*%J%{mprocessor=*:/xc32/%*} %J%{mprocessor=*:/p%*} %J%{mprocessor=*:_pic.ld}; \
+       :%{mprocessor=*:./proc/%*} %J%{mprocessor=*:/p%*} %J%{mprocessor=*:_pic.ld} }}}} \
     %{!nostdlib:%{!nodefaultlibs:%(link_ssp) %(link_gcc_c_sequence)}}\
     %{!A:%{!nostdlib:%{!nostartfiles:%E} }} \
     %{mlegacy-libc:%{mxc32cpp-lib:%e-legacy-libc not compatible with C++ projects}} \
@@ -373,7 +377,10 @@ extern void pic32_final_include_paths(struct cpp_dir*,struct cpp_dir*);
    %{mnewlib-libc|newlib-libc : %{mlegacy-libc|legacy-libc:%emay not use both -mlegacy-libc and -mnewlib-libc}} \
    %{mnewlib-libc : -mno-smart-io -mno-legacy-libc %{!fshort-double:-fno-short-double}} \
    %{newlib-libc : -mno-smart-io -mno-legacy-libc -fno-short-double} \
-     "
+   %{mprocessor=*: %{!nostartfiles:%{mdfp=*: %* %J%{!pie:/xc32/startup/crt0.S} %J%{pie:/xc32/startup/crt0_pic.S}}}}\
+   %{mprocessor=*: %{mdfp=*: %* %J%{mprocessor=*:/xc32/%*%J/p%*%J.S}}}\
+   %{mprocessor=*: %{!A:%{!nostdlib:%{!nodefaultlibs:%{!nostartfiles:%{!mno-default-isr-vectors:%{mdfp=*: %* %J%{mprocessor=*:/xc32/%*%J/p%*%J_div.S} }}}}}} }\
+  "
 
 /* CC1_SPEC is the set of arguments to pass to the compiler proper.  This
  * was copied from the one in mips.h, but that one had some problems and
@@ -416,11 +423,15 @@ extern void pic32_final_include_paths(struct cpp_dir*,struct cpp_dir*);
  %{-nofallback : -mno-fallback } \
  %{!fasynchronous-unwind-tables : -fno-asynchronous-unwind-tables } \
  %{!fdwarf2-cfi-asm : -fno-dwarf2-cfi-asm } \
- %{!mconfig-data-dir=* : -mconfig-data-dir= %J%s%{ mprocessor=* :./proc/%*; :./proc/32MXGENERIC}} \
+ %{!mconfig-data-dir=* : %{!mprocessor=*: -mconfig-data-dir= %J%s./proc/32MXGENERIC; : \
+  %{!mdfp=* : -mconfig-data-dir= %J%s%{mprocessor=* :./proc/%*}}}}\
+ %{!mconfig-data-dir=* : %{mprocessor=*: %{mdfp=* : -mconfig-data-dir=%* %J%{mprocessor=*:/xc32/%*}}}}\
+ %{mdfp=*:-isystem %* %J/include}\
  %{flto: %{!fno-fat-lto-objects: -ffat-lto-objects}} \
  %{legacy-libc:%{!mno-legacy-libc:-mlegacy-libc}} \
  %{no-legacy-libc:%{!mlegacy-libc:-mno-legacy-libc}} \
  %{O2|Os|O3:%{!mno-hi-addr-opt:-mhi-addr-opt}} \
+ %{mdfp=*: -mresource=%* %J/xc32} \
  %(mchp_cci_cc1_spec) \
  %(subtarget_cc1_spec) \
 "
@@ -437,7 +448,9 @@ extern void pic32_final_include_paths(struct cpp_dir*,struct cpp_dir*);
 /* SUBTARGET_CPP_SPEC is passed to the preprocessor.  It may be
    overridden by subtargets.  */
 #ifndef SUBTARGET_CPP_SPEC
-#define SUBTARGET_CPP_SPEC ""
+#define SUBTARGET_CPP_SPEC "\
+    %{mdfp=*:-isystem %* %J/include}\
+"
 #endif
 
 #undef CPP_SPEC
@@ -1218,6 +1231,7 @@ extern void pic32_final_include_paths(struct cpp_dir*,struct cpp_dir*);
     { "region",           1, 1,  false, false, false, mchp_region_attribute, false },         \
     { "function_replacement_prologue",  0, 0,  true, false,  false,  mchp_frp_attribute, false },        \
     { "shared",           0, 0,  false, false, false, mchp_shared_attribute, false },         \
+    { "noload",           0, 0,  false, false, false, mchp_noload_attribute, false },         \
     /* prevent FPU usage in ISRs */                                                           \
     { "no_fpu",           0, 0,  false, true,  true,  NULL, false },
 

@@ -51,6 +51,11 @@ along with GCC; see the file COPYING3.  If not see
 #include "spellcheck.h"
 #include "gcc-rich-location.h"
 
+#ifdef _BUILD_MCHP_
+#include "dumpfile.h"
+#include "tree-pretty-print.h"
+#endif
+
 /* Possible cases of implicit bad conversions.  Used to select
    diagnostic messages in convert_for_assignment.  */
 enum impl_conv {
@@ -3051,7 +3056,8 @@ build_function_call_vec (location_t loc, vec<location_t> arg_loc,
       if (!check_builtin_function_arguments (fundecl, nargs, argarray))
         return error_mark_node;
 
-      /* smart-io: enable annotation of candidate builtins */
+#ifdef _BUILD_MCHP_
+      /* MCHP smart-io: enable annotation of candidate builtins */
       switch (DECL_FUNCTION_CODE (fundecl))
         {
         case BUILT_IN_FPRINTF:
@@ -3080,6 +3086,7 @@ build_function_call_vec (location_t loc, vec<location_t> arg_loc,
             }
           break;
        }
+#endif /* _BUILD_MCHP_ */
     }
 
   /* Check that the arguments to the function are valid. */

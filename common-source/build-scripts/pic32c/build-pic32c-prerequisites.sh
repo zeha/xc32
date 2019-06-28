@@ -133,6 +133,19 @@ rm -rf $INSTALLDIR_MINGW && mkdir -p $INSTALLDIR_MINGW
 fi
 rm -rf $PACKAGEDIR && mkdir -p $PACKAGEDIR
 
+# To enforce a 32-bit binary
+if [[ "${uname_string}" == linux ]]; then
+    saveenv
+    saveenvvar CC_FOR_BUILD "gcc -m32 -march=i386"
+    saveenvvar CXX_FOR_BUILD "g++ -m32 -march=i386"
+    saveenvvar CPP_FOR_BUILD "cpp -m32 -march=i386"
+    saveenvvar CC "gcc -m32 -march=i386"
+    saveenvvar CPP "cpp -m32 -march=i386"
+    saveenvvar CPPCXX "cpp -m32 -march=i386"
+    saveenvvar CXX "g++ -m32 -march=i386"
+    saveenvvar LD "g++ -m32 -march=i386"
+fi
+
 status_update "Beginning Prerequisite build for PIC32C."
 cd $SRCDIR
 
@@ -285,6 +298,11 @@ assert_success $? "Task [I-6] /$HOST_NATIVE/expat/ : make"
 make install
 assert_success $? "Task [I-6] /$HOST_NATIVE/expat/ : install"
 popd
+
+# Remove the 32-bit binary environment changes.
+if [[ "${uname_string}" == linux ]]; then
+    restoreenv
+fi
 
 #if [ "x$uname_string" == "xdarwin" ] ; then
 #    restoreenv

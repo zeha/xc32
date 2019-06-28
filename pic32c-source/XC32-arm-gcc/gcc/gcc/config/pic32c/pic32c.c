@@ -235,36 +235,50 @@ struct valid_section_flags_
   unsigned long long incompatible_with;
 } valid_section_flags[]
   = {{SECTION_ATTR_ADDRESS, 0, SECTION_ADDRESS, SECTION_ALIGN | SECTION_INFO},
+      
      {SECTION_ATTR_ALIGN, 0, SECTION_ALIGN, SECTION_ADDRESS | SECTION_INFO},
+      
      {SECTION_ATTR_BSS, 'b', SECTION_BSS,
       SECTION_CODE | SECTION_WRITE | SECTION_PERSIST | SECTION_READ_ONLY},
+      
      {SECTION_ATTR_CODE, 'x', SECTION_CODE,
       SECTION_WRITE | SECTION_BSS | SECTION_NEAR | SECTION_PERSIST
 	| SECTION_READ_ONLY | SECTION_DTCM},
+      
      {SECTION_ATTR_CONST, 'r', SECTION_READ_ONLY,
       SECTION_CODE | SECTION_WRITE | SECTION_BSS | SECTION_NEAR | SECTION_INFO
 	| SECTION_DTCM},
+      
      {SECTION_ATTR_COHERENT, 0, SECTION_COHERENT, 0},
+      
      {SECTION_ATTR_DATA, 'd', SECTION_WRITE,
       SECTION_BSS | SECTION_PERSIST | SECTION_READ_ONLY | SECTION_ITCM},
+      
      {SECTION_ATTR_DTCM, 0, SECTION_DTCM,
       SECTION_CODE | SECTION_PERSIST | SECTION_READ_ONLY | SECTION_ITCM
 	| SECTION_NEAR},
+      
      {SECTION_ATTR_INFO, 0, SECTION_INFO,
       SECTION_PERSIST | SECTION_ADDRESS | SECTION_NEAR | SECTION_ALIGN
 	| SECTION_NOLOAD | SECTION_MERGE | SECTION_READ_ONLY | SECTION_ITCM
 	| SECTION_DTCM},
+      
      {SECTION_ATTR_ITCM, 0, SECTION_ITCM,
       SECTION_WRITE | SECTION_BSS | SECTION_NEAR | SECTION_PERSIST
 	| SECTION_RAMFUNC | SECTION_DTCM},
+      
      {SECTION_ATTR_KEEP, 0, SECTION_KEEP, 0},
+      
      {SECTION_ATTR_NOLOAD, 0, SECTION_NOLOAD, SECTION_MERGE | SECTION_INFO},
+      
      {SECTION_ATTR_PERSIST, 'b', SECTION_PERSIST,
       SECTION_CODE | SECTION_WRITE | SECTION_BSS | SECTION_MERGE | SECTION_INFO
 	| SECTION_READ_ONLY | SECTION_ITCM | SECTION_DTCM},
+      
      {SECTION_ATTR_RAMFUNC, 0, SECTION_RAMFUNC,
       SECTION_WRITE | SECTION_BSS | SECTION_NEAR | SECTION_PERSIST
-	| SECTION_READ_ONLY | SECTION_ITCM | SECTION_DTCM},
+	| SECTION_ITCM | SECTION_DTCM},
+      
      {SECTION_ATTR_REGION, 0, SECTION_REGION, 0},
      {SECTION_ATTR_SERIALMEM, 'r', SECTION_READ_ONLY,
       SECTION_CODE | SECTION_WRITE | SECTION_BSS | SECTION_NEAR | SECTION_INFO
@@ -292,7 +306,7 @@ struct reserved_section_names_
   {".pbss", SECTION_PERSIST},
   {".text", SECTION_CODE},
   {".text_itcm", SECTION_ITCM | SECTION_CODE},
-  {".ramfunc", SECTION_RAMFUNC},
+  {".ramfunc", SECTION_RAMFUNC | SECTION_CODE},
   {".gnu.linkonce.d", SECTION_WRITE},
   {".gnu.linkonce.t", SECTION_CODE},
   {".gnu.linkonce.r", SECTION_READ_ONLY},
@@ -662,6 +676,51 @@ pic32c_unsupported_attribute (tree *node, tree identifier ATTRIBUTE_UNUSED,
 }
 
 /*
+** Return nonzero if IDENTIFIER is a valid noload attribute.
+*/
+tree
+pic32c_noload_attribute (tree *decl, tree identifier ATTRIBUTE_UNUSED,
+			 tree args, int flags ATTRIBUTE_UNUSED,
+			 bool *no_add_attrs)
+{
+  const char *attached_to = 0;
+
+  if (DECL_P (*decl))
+    attached_to = IDENTIFIER_POINTER (DECL_NAME (*decl));
+
+  if (ignore_attribute ("noload", attached_to, *decl))
+    {
+      *no_add_attrs = 1;
+      return NULL_TREE;
+    }
+
+  if (TREE_CODE (*decl) != FUNCTION_DECL && DECL_INITIAL (*decl))
+    {
+      location_t loc = DECL_SOURCE_LOCATION (*decl);
+
+      /* This odd warning is for consistency with xc16. It's been moved
+         to attribute checking to avoid repeatedly issuing it in build_prefix. */
+      if (attached_to)
+	warning_at (loc, 0, "%D Noload variable '%s' will not be initialized",
+		    *decl, attached_to);
+      else
+	warning_at (loc, 0, "%D Noload variable will not be initialized",
+		    *decl);
+    }
+
+
+  /* Like 'keep' we require unique sections for noload at present. The
+     alternative (which seems preferable) would be to create noload variants
+     of all sections and map accordingly.
+     Like 'keep', we do not imply the unqiue_section attribute or any checks
+     directly. */
+  DECL_COMMON (*decl) = 0;
+  DECL_UNIQUE_SECTION (*decl) = 1;
+
+  return NULL_TREE;
+}
+
+/*
 ** Return nonzero if IDENTIFIER is a valid space attribute.
 */
 tree
@@ -718,12 +777,15 @@ pic32c_space_attribute (tree *decl, tree identifier ATTRIBUTE_UNUSED, tree args,
 	 data memory.
 	*/
 
-      if (TREE_VALUE (args) == get_identifier ("prog"))
+
+  if (TREE_VALUE (args) == get_identifier ("prog"))
 	{
 	  return space;
 	}
-      else if (TREE_VALUE (args) == get_identifier ("data"))
+  else if (TREE_VALUE (args) == get_identifier ("data"))
 	{
+    /* TODO add long_call attributes to functions with space(data) attribute,
+    otherwise linker needs -mlong-calls to link these functions */
 	  return space;
 	}
 #if 0 /* not supported yet */
@@ -819,6 +881,12 @@ pic32c_tcm_attribute (tree *decl, tree identifier ATTRIBUTE_UNUSED, tree args,
       *no_add_attrs = 1;
       return NULL_TREE;
     }
+
+  if (!TARGET_MCHP_ITCM) {
+    warning (OPT_Wattributes, "Ignoring tcm attribute. "
+				"Pass -mitcm and -mdtcm to enable TCM usage.");
+    return NULL_TREE;
+  }
 
   /* tcm attribute on a function implies noinline and noclone */
   if (TREE_CODE (*decl) == FUNCTION_DECL)
@@ -1258,7 +1326,16 @@ get_mchp_space_attribute (tree decl)
 static tree
 get_pic32c_tcm_attribute (tree decl)
 {
+  if (!TARGET_MCHP_ITCM)
+    return NULL_TREE;
+
   return lookup_attribute ("tcm", DECL_ATTRIBUTES (decl));
+}
+
+static tree
+get_pic32c_noload_attribute (tree decl)
+{
+  return lookup_attribute ("noload", DECL_ATTRIBUTES (decl));
 }
 
 static const char *
@@ -1503,10 +1580,13 @@ mchp_build_prefix (tree decl, int fnear, char *prefix)
   tree address_attr = 0;
   tree space_attr = 0;
   tree tcm_attr = 0;
+  tree noload_attr = 0;
 
   SECTION_FLAGS_INT flags = 0;
   const char *ident;
   int section_type_set = 0;
+
+  location_t loc = DECL_SOURCE_LOCATION(decl);
 
   if (fnear == -1)
     {
@@ -1517,6 +1597,7 @@ mchp_build_prefix (tree decl, int fnear, char *prefix)
   address_attr = get_mchp_absolute_address (decl);
   space_attr = get_mchp_space_attribute (decl);
   tcm_attr = get_pic32c_tcm_attribute (decl);
+  noload_attr = get_pic32c_noload_attribute (decl);
 
   if (DECL_SECTION_NAME (decl))
     {
@@ -1573,6 +1654,11 @@ mchp_build_prefix (tree decl, int fnear, char *prefix)
 	}
       else
 	f += sprintf (f, MCHP_ADDR_FLAG);
+    }
+
+  if (noload_attr)
+    {
+      f += sprintf (f, MCHP_NOLOAD_FLAG);
     }
 
   if (tcm_attr)

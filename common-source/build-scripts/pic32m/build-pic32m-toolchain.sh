@@ -1093,7 +1093,7 @@ build_gcc_targetlibs() {
    COMMAND="make all-target $NUMBER_OF_JOBS ${ALL_EXES[@]}"
    xc32_eval "$COMMAND" "ERROR: making/installing $2 build all-target"
 
-   COMMAND="make install-strip-target $NUMBER_OF_JOBS"
+   COMMAND="make install-strip-target -j2"
    xc32_eval "$COMMAND" "ERROR: making/installing $2 build install-target"
    popd
    status_update "$1 build_gcc_targetlibs complete"
@@ -1837,32 +1837,6 @@ if [ "x$SKIPLEGACYPLIB" != "x" ]; then
 
 	assert_success $? "plib-to-image"
 
-fi
-
-cd $WORKING_DIR
-
-########
-# Add Coverity static-analysis files to images
-# This path is mandated by coverity - not up to us.
-status_update "Add Coverity static-analysis files to images"
-COVERITY_DIR="./etc/coverity/mchip/xc_32"
-if [ -e install-Darwin ]; then
-  cd $WORKING_DIR/$NATIVEIMAGE
-  mkdir -p ./etc/coverity/mchip/xc32
-  cp $WORKING_DIR/Coverity/mchip_xc32/* $COVERITY_DIR
-  cd $WORKING_DIR
-fi
-if [ -e $LINUX32IMAGE ]; then
-  cd $WORKING_DIR/$LINUX32IMAGE
-  mkdir -p ./etc/coverity/mchip/xc32
-  cp $WORKING_DIR/Coverity/mchip_xc32/* $COVERITY_DIR
-  cd $WORKING_DIR
-fi
-if [ -e $INSTALLDIR_MINGW ]; then
-  cd $INSTALLDIR_MINGW
-  mkdir -p ./etc/coverity/mchip/xc32
-  cp $WORKING_DIR/Coverity/mchip_xc32/* $COVERITY_DIR
-  cd $WORKING_DIR
 fi
 
 cd $WORKING_DIR

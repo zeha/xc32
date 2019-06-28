@@ -106,16 +106,13 @@ function assert_success ()
 usage ()
 {
  # Shows the usage screen
- echo "USAGE: $0 [-t <tag> | -b <branch> | -?]"
+ echo "USAGE: $0 [-t <tag> | -b <branch> | -c <commit> | -?]"
  echo " -b <branch> Specify the branch for which you would like to build"
  echo " -t <tag>    Specify the tag for which you would like to build"
+ echo " -c <commit> Specify the checkout commit for Git repositories"
  echo " -?          Show this usage message"
  exit 1
 }
-
-if [ $# -gt 2 ] ; then
-    usage
-fi
 
 if [ -z "$bamboo_XC32_XCLM_BRANCH" ]; then
   XCLM_BRANCH=trunk
@@ -133,25 +130,35 @@ if [ "x$FOSSIL_SERVER" = "x" ] ; then
   FOSSIL_SERVER=fossil.microchip.com
 fi
 
-# order of repos must correspond to order of directories in all_source_directories
+# order of repos must correspond to order of directories in all_fossil_directories
 all_fossil_repos=(
- XC32-arm-gcc
  xclm_release
- pic32c-libs
  )
 # order of directories must correspond to order of repos in all_fossil_repos
-all_source_directories=(
- XC32-arm-gcc
+all_fossil_directories=(
  xclm_release
+)
+
+# Same, but for Git.
+all_git_repos=(
+ pic32c-gcc
  pic32c-libs
+ pic32c-headers_generator
+)
+all_git_directories=(
+ XC32-arm-gcc
+ pic32c-libs
+ pic32c-headers_generator
 )
 
 TAG="x"
 BRANCH="x"
 FULL_ONLY=no
+CHECKOUT_COMMIT=master
+PIC32C_HEADERS_GENERATOR_COMMIT=dev_xc32_part_support
 
 # Process the arguments
-while getopts t:b: opt
+while getopts t:b:c: opt
 do
  case "$opt" in
    t)
@@ -164,6 +171,9 @@ do
    BRANCH="$TVAL"
    BUILD=pic32-$TVAL-$DATE
    CVSB=$TVAL
+   ;;
+   c)
+   CHECKOUT_COMMIT="${OPTARG}"
    ;;
   \?) usage ;;
  esac
@@ -182,6 +192,13 @@ if [ -f $FOSSIL_CLONES ] ; then
 else
   status_update "Using FOSSIL_CLONES=$FOSSIL_CLONES"
 fi
+
+# Set the base URL for Git clones. The default assumes the user has an
+# SSH key that can authenticate to the server without any input.
+: ${XC32_GIT_URL:=ssh://git@bitbucket.microchip.com:7999/xc32}
+# Strip the trailing /, if any.
+XC32_GIT_URL="${XC32_GIT_URL%/}"
+status_update "Using XC32_GIT_URL=${XC32_GIT_URL}"
 
 #
 # Verify that we can reach the remote server before attempting to sync the repositories
@@ -286,17 +303,17 @@ echo "Using XCLM branch $XCLM_BRANCH"
 #
 
 status_update "Checking out the pic32c source code"
-count_dirs=${#all_source_directories[*]}
+count_dirs=${#all_fossil_directories[*]}
 
 for (( i=0; i<=$(( $count_dirs -1 )); i++ ))
 do
-  echo "Checking out source from ${all_fossil_repos[$i]} to ${all_source_directories[$i]}..." >> $LOGFILE
-  if [ -e ${all_source_directories[$i]} ] ; then
-    rm -rf ${all_source_directories[$i]}
+  echo "Checking out source from ${all_fossil_repos[$i]} to ${all_fossil_directories[$i]}..." >> $LOGFILE
+  if [ -e ${all_fossil_directories[$i]} ] ; then
+    rm -rf ${all_fossil_directories[$i]}
   fi
-  mkdir ${all_source_directories[$i]}
-  assert_success $? "ERROR: mkdir ${all_source_directories[$i]}"
-  pushd ${all_source_directories[$i]} > /dev/null
+  mkdir ${all_fossil_directories[$i]}
+  assert_success $? "ERROR: mkdir ${all_fossil_directories[$i]}"
+  pushd ${all_fossil_directories[$i]} > /dev/null
   if [[ "${all_fossil_repos[$i]}" == "xclm_release" ]] ; then
     fossil open $FOSSIL_CLONES/${all_fossil_repos[$i]}.fsl $XCLM_BRANCH > /dev/null
   elif [[ "${all_fossil_repos[$i]}" == "Coverity" ]] ; then
@@ -307,6 +324,29 @@ do
   assert_success $? "ERROR: fossil open $FOSSIL_CLONES/${all_fossil_repos[$i]}"
   popd > /dev/null
 done
+
+set -eu
+for (( i=0; i<$(( ${#all_git_directories[*]} )); i++ ))
+do
+  gitrepo="${all_git_repos[$i]}"
+  gitdir="${all_git_directories[$i]}"
+  echo "Checking out source from ${gitrepo} to ${gitdir}" >> ${LOGFILE}
+  if [[ ! -d "${gitdir}" ]]; then
+      echo "Cloning Git repository ${gitrepo}" >> ${LOGFILE}
+      (
+        PS4=""; exec 2>> ${LOGFILE}; set -x
+        git clone -q "${XC32_GIT_URL}/${gitrepo}.git" "${gitdir}"
+      )
+  fi
+  (
+    PS4=""; exec 2>> ${LOGFILE}; set -x
+    git -C "${gitdir}" pull --quiet origin
+    if [[ "${gitrepo}" != pic32c-headers_generator ]]; then
+      git -C "${gitdir}" checkout "${CHECKOUT_COMMIT}"
+    fi
+  )
+done
+set +eu
 
 cd $SOURCE_DIR
 pushd xclm_release

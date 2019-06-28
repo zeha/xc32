@@ -40,8 +40,8 @@ if [ -z "${MINGW_HOST_PREFIX:-}" ]; then
   MINGW_HOST_PREFIX=i686-w64-mingw32
 fi
 
-if [[ ! -e $ROOT/pic32c-source/XC32-arm-gcc/gcc/gcc/config/pic32c ]] ; then
-  assert_success 1 "ERROR: missing pic32c-source/XC32-arm-gcc/gcc/gcc/config/pic32c"
+if [[ ! -e $ROOT/pic32c-source/pic32c-headers_generator/xml2h/mchp/xc/pic32c ]] ; then
+  assert_success 1 "ERROR: missing pic32c-source/pic32c-headers_generator/xml2h/mchp/xc/pic32c"
 fi
 
 ### $1 Command
@@ -64,7 +64,7 @@ xc32_eval() {
 ##############################################
 status_update "BEGINNING $0"
 
-pushd $ROOT/pic32c-source/XC32-arm-gcc/gcc/gcc/config/pic32c
+pushd $ROOT/pic32c-source/pic32c-headers_generator/xml2h/mchp/xc/pic32c/specs_gen
 make s-device-specs
 assert_success $? "ERROR: failed make s-device-specs"
 
@@ -80,31 +80,31 @@ popd
 if [ -e install-Darwin ]; then
   status_update "Copying specs to install-Darwin"
   mkdir -p install-Darwin/bin/device_files/device-specs
-  xc32_eval "rsync -qavzCr --include=* --include=*.specs \"$ROOT/pic32c-source/XC32-arm-gcc/gcc/gcc/config/pic32c/device-specs/\" \"install-Darwin/bin/device_files/device-specs\""
+  xc32_eval "rsync -qav  \"$ROOT/pic32c-source/pic32c-headers_generator/xml2h/mchp/xc/pic32c/specs_gen/device-specs/\" \"install-Darwin/bin/device_files/device-specs\""
 fi
 
 if [ -e install-Darwin-nolm ]; then
   status_update "Copying specs to install-Darwin-nolm"
   mkdir -p install-Darwin-nolm/bin/device_files/device-specs
-  xc32_eval "rsync -qavzCr --include=* --include=*.specs \"$ROOT/pic32c-source/XC32-arm-gcc/gcc/gcc/config/pic32c/device-specs/\" \"install-Darwin-nolm/bin/device_files/device-specs\""
+  xc32_eval "rsync -qav  \"$ROOT/pic32c-source/pic32c-headers_generator/xml2h/mchp/xc/pic32c/specs_gen/device-specs/\" \"install-Darwin-nolm/bin/device_files/device-specs\""
 fi
 
 if [ -e install-Linux ]; then
   status_update "Copying specs to install-Linux"
   mkdir -p install-Linux/bin/device_files/device-specs
-  xc32_eval "rsync -qavzCr --include=* --include=*.specs \"$ROOT/pic32c-source/XC32-arm-gcc/gcc/gcc/config/pic32c/device-specs/\" \"install-Linux/bin/device_files/device-specs\""
+  xc32_eval "rsync -qav  \"$ROOT/pic32c-source/pic32c-headers_generator/xml2h/mchp/xc/pic32c/specs_gen/device-specs/\" \"install-Linux/bin/device_files/device-specs\""
 fi
 
 if [ -e install-Linux-nolm ]; then
   status_update "Copying specs to install-Linux-nolm"
   mkdir -p install-Linux-nolm/bin/device_files/device-specs
-  xc32_eval "rsync -qavzCr --include=* --include=*.specs \"$ROOT/pic32c-source/XC32-arm-gcc/gcc/gcc/config/pic32c/device-specs/\" \"install-Linux-nolm/bin/device_files/device-specs\""
+  xc32_eval "rsync -qav  \"$ROOT/pic32c-source/pic32c-headers_generator/xml2h/mchp/xc/pic32c/specs_gen/device-specs/\" \"install-Linux-nolm/bin/device_files/device-specs\""
 fi
 
 if [ -e install-mingw ]; then
   status_update "Copying specs to install-mingw"
   mkdir -p install-mingw/bin/device_files/device-specs
-  xc32_eval "rsync -qavzCr --include=* --include=*.specs \"$ROOT/pic32c-source/XC32-arm-gcc/gcc/gcc/config/pic32c/device-specs/\" \"install-mingw/bin/device_files/device-specs\""
+  xc32_eval "rsync -qav  \"$ROOT/pic32c-source/pic32c-headers_generator/xml2h/mchp/xc/pic32c/specs_gen/device-specs/\" \"install-mingw/bin/device_files/device-specs\""
 fi
 
 status_update "Completed $0"

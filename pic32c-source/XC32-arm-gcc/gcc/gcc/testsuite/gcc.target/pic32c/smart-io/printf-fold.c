@@ -15,4 +15,4 @@ void test()
 
 /* { dg-final { scan-assembler-times "puts" 2 } } */
 /* { dg-final { scan-assembler-times "putchar" 1 } } */
-/* { dg-final { scan-assembler-not "printf" } } */
+/* { dg-final { scan-assembler-not "bl\s*printf" } } */

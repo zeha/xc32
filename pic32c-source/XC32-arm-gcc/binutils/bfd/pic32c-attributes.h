@@ -166,6 +166,7 @@ MASK3( dma, address, 0, reverse, align, noload, 0, 0, keep, 0, memory, shared, p
 MASK3( keep, address, near, reverse, align, noload, merge, info, dma, coherent, memory, shared, preserved)
 MASK3( coherent, address, near, reverse, align, noload, 0, 0, 0, keep, memory, shared, preserved)
 MASK3( memory, address, near, 0, align, noload, 0, 0, dma, keep, coherent, shared, preserved)
+MASK3( ramfunc, address, 0, 0, align, 0, 0, 0, 0, 0, 0, memory, shared)
 /* lghica co-resident*/
 MASK3( shared, address, near, reverse, align, noload, merge, info, dma, keep, coherent, memory, preserved)
 MASK3( preserved, address, near, reverse, align, noload, merge, info, dma, keep, coherent, memory, shared)

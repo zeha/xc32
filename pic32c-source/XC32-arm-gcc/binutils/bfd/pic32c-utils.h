@@ -86,8 +86,8 @@
   (sec)->flags &= ~(SEC_LOAD | SEC_DATA | SEC_HAS_CONTENTS); }
 #define PIC32_SET_RAMFUNC_ATTR(sec) \
   { (sec)->ramfunc = 1;          \
-  (sec)->flags |= (SEC_HAS_CONTENTS | SEC_LOAD | SEC_ALLOC); \
-  (sec)->flags &= ~(SEC_DATA | SEC_CODE); }
+  (sec)->flags |= (SEC_HAS_CONTENTS | SEC_LOAD | SEC_ALLOC | SEC_CODE); \
+  (sec)->flags &= ~(SEC_DATA); }
 
 #define PIC32_SET_ABSOLUTE_ATTR(sec) \
   (sec)->absolute = 1;

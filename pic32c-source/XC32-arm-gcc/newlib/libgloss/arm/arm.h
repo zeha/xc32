@@ -35,7 +35,9 @@
    supporting Thumb-2 instructions, whether ARM instructions are available or
    not, is done many times in libgloss/arm.  So factor it out and use
    PREFER_THUMB instead.  */
-#if __thumb2__ || (__thumb__ && !__ARM_ARCH_ISA_ARM)
+/* PIC32C - force PREFER_THUMB to account for armv5et processors which are
+   thumb1 but not thumb-only (i.e. __ARM_ARCH_ISA_ARM is set). */
+#if __thumb2__ || (__thumb__ && (!__ARM_ARCH_ISA_ARM || defined(__ARM_ARCH_5T__) || defined(__ARM_ARCH_5TE__)))
 # define PREFER_THUMB
 #endif
 

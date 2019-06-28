@@ -3844,6 +3844,12 @@ decl_ultimate_origin (const_tree decl)
   if (DECL_ABSTRACT_P (decl) && DECL_ABSTRACT_ORIGIN (decl) == decl)
     return NULL_TREE;
 
+  /* XC32-742: if 'decl' refers to a built-in function, its abstract origin
+     field may end up being 'error_mark_node' due to a LTO shortcoming;
+	 report it as NULL_TREE instead to avoid an ICE */
+  if (DECL_ABSTRACT_ORIGIN (decl) == error_mark_node)
+    return NULL_TREE;
+
   /* Since the DECL_ABSTRACT_ORIGIN for a DECL is supposed to be the
      most distant ancestor, this should never happen.  */
   gcc_assert (!DECL_FROM_INLINE (DECL_ORIGIN (decl)));
@@ -20095,6 +20101,13 @@ dwarf2out_abstract_function (tree decl)
   int old_call_site_count, old_tail_call_site_count;
   struct call_arg_loc_node *old_call_arg_locations;
 
+  /* XC32-742: due to a LTO shortcoming, 'decl' may end up being
+     'error_mark_node' here, leading to an ICE; this happens for built-in
+	 functions that don't have an abstract origin so it's ok to just
+	 ignore the 'error_mark_node' */
+  if (decl == error_mark_node)
+    return;
+  
   /* Make sure we have the actual abstract inline, not a clone.  */
   decl = DECL_ORIGIN (decl);
 

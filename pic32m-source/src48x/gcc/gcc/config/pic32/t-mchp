@@ -49,6 +49,13 @@ mchp_sha.o: $(srcdir)/config/mchp-cci/mchp_sha.c \
 	$(COMPILER) -c $(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS) \
 	 $(srcdir)/config/mchp-cci/mchp_sha.c
 
+# Remove all objects dependent on SKIP_LICENSE_MANAGER flag
+clean-lm:
+	rm -f mchp.o
+
+# Force license manager enablement
+force_lm = $(if $(XC32_ENABLE_LM),$(subst -DSKIP_LICENCE_MANAGER,,$(1)),$(1))
+
 # Microchip PIC32-specific format checking and pragmas
 mchp.o: $(srcdir)/config/pic32/mchp.c $(srcdir)/config/pic32/mchp.h \
   $(srcdir)/config/mchp-cci/cci.h \
@@ -57,7 +64,7 @@ mchp.o: $(srcdir)/config/pic32/mchp.c $(srcdir)/config/pic32/mchp.h \
   tree.h c-family/c-format.h intl.h $(CPPLIB_H) c-family/c-pragma.h $(TM_H) $(TM_P_H) \
   toplev.h libfuncs.h langhooks.h sched-int.h function.h $(C_COMMON_H) \
   $(srcdir)/config/mips/mips-machine-function.h $(srcdir)/config/pic32/mchp-protos.h
-	$(COMPILER) -c $(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) \
+	$(COMPILER) -c $(call force_lm,$(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS)) $(INCLUDES) \
 	  $(srcdir)/config/pic32/mchp.c
 
 mchp-pragmas.o: $(srcdir)/config/pic32/mchp-pragmas.c \
@@ -87,3 +94,4 @@ mchp-hi-addr-analysis.o : $(srcdir)/config/pic32/mchp-hi-addr-analysis.c $(CONFI
    $(DF_H) $(CFGLOOP_H)
 	$(COMPILER) -c $(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) \
 	  $(srcdir)/config/pic32/mchp-hi-addr-analysis.c
+
