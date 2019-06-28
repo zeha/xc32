@@ -470,6 +470,9 @@ Target Report Var(TARGET_ALLOW_VOLATILE_LOADS_IN_DELAY_SLOTS) Undocumented Init(
 mmemorysummary=
 Target Joined Var(TARGET_MEMORY_SUMMARY) Undocumented
 
+-memorysummary
+Target Separate Alias(mmemorysummary=)
+
 mfill=
 Target Joined Var(TARGET_MEMORY_FILL) Undocumented
 

@@ -3655,17 +3655,17 @@ pic32_strip_sections (abfd)
   if ((sec == NULL) || (sec->next == NULL))
     return;
 
-  if (sec->flags & (SEC_KEEP | SEC_LINKER_CREATED))
-    return; 
-    
-  prev = sec;
   sec = sec->next; /* never strip the first section */
   /* loop through the sections in this bfd */
   for (; sec != NULL; sec = sec->next)
     {
+      /* don't touch the keep/linker created sections */
+      if (sec->flags & (SEC_KEEP | SEC_LINKER_CREATED))
+        continue;
       /* remove sections with size = 0 */
       if (sec->size == 0)
       {
+        prev = sec->prev;
         prev->next = sec->next;
         if (sec->next)
           sec->next->prev = prev; 
@@ -3676,12 +3676,11 @@ pic32_strip_sections (abfd)
         abfd->section_count -= 1;
         if (pic32_debug)
           printf("  Stripping section %s\n", sec->name);
-        }
-      else
-          prev = sec;
+      }
     }
   return;
 } /* static void pic32_strip_sections (...)*/
+
 
 void
 bfd_pic32_finish(void)

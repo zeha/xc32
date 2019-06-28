@@ -1,0 +1,184 @@
+# Copyright (C) 2003-2016 Free Software Foundation, Inc.
+#
+# This file is part of GCC.
+#
+# GCC is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3, or (at your option)
+# any later version.
+#
+# GCC is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with GCC; see the file COPYING3.  If not see
+# <http://www.gnu.org/licenses/>.
+
+# This harness is for testing builtin support.  Each test has two files:
+#
+#    - foo.c defines the main testing function, main_test().
+#    - foo-lib.c implements the library functions that foo.c is testing.
+#
+# The functions in foo-lib.c will often want to abort on certain inputs.
+# They can use the global variable inside_main to see whether they are
+# being called from the test program or part of the common runtime.
+#
+# In many cases, the library functions will behave as normal at -O0
+# and abort when optimisation is enabled.  Such implementations should
+# go into the lib/ directory so that they can be included by any test
+# that needs them.  They shouldn't call any external functions in case
+# those functions were overridden too.
+
+# Load support procs.
+load_lib gcc-defs.exp
+load_lib gcc-dg.exp
+
+# Initialize `dg'.
+dg-init
+
+# If a testcase doesn't have special options, use these.
+global DEFAULT_CFLAGS
+if ![info exists DEFAULT_CFLAGS] then {
+    set DEFAULT_CFLAGS ""
+}
+
+# This variable should only apply to tests called in this exp file.
+global dg_runtest_extra_prunes
+global allow_blank_lines
+set allow_blank_lines 1
+set dg_runtest_extra_prunes ""
+lappend dg_runtest_extra_prunes "warning: switch -m(cpu|arch)=.* conflicts with -m(cpu|arch)=.* switch"
+lappend dg_runtest_extra_prunes "Warning: Version in specs file missing or does not match compiler version"
+lappend dg_runtest_extra_prunes ".*warning: Linking stub _mon_getc().*"
+lappend dg_runtest_extra_prunes ".*warning: Linking stub _mon_putc().*"
+
+# dg action to scan map output for a regexp. testcase supplies map file name as
+# first argument
+proc scan-map { args } {
+    set testcase [testname-for-summary]
+    set output_file [file tail [lindex $args 0]]
+
+    dg-scan "scan-map" 1 $testcase $output_file [lrange $args 1 end]
+}
+
+# dg action to scan map output for absense of regexp. testcase supplies map file name as
+# first argument
+proc scan-map-not { args } {
+    set testcase [testname-for-summary]
+    set output_file [file tail [lindex $args 0]]
+
+    dg-scan "scan-map" 0 $testcase $output_file [lrange $args 1 end]
+}
+
+# Compare executable output with and without -msmart-io
+proc smart-io-compare { sources args } {
+    global tmpdir srcdir output target_triplet
+
+    set src [lindex $sources 0]
+
+    if { [llength $args] > 0 } {
+        set additional_flags [lindex $args 0]
+    } else {
+        set additional_flags ""
+    }
+
+    set cmd_plain [file tail [file rootname $src].plain.x]
+    set cmd_smart [file tail [file rootname $src].smart.x]
+
+    set exec_plain $tmpdir/$cmd_plain
+    set exec_smart $tmpdir/$cmd_smart
+
+    regsub "(?q)$srcdir/" $src "" testcase
+    if [string match "/*" $testcase] {
+	    set testcase "[file tail [file dirname $src]]/[file tail $src]"
+    }
+
+    set options ""
+    if { $additional_flags != "" } {
+        lappend options "additional_flags=$additional_flags"
+    }
+
+    file_on_host delete $exec_plain
+    file_on_host delete $exec_smart
+    verbose "Testing $testcase" 1
+
+    set options_plain "$options -mno-smart-io"
+
+    set comp_output_plain [gcc_target_compile "$sources" "${exec_plain}" executable $options_plain]
+    set comp_output_plain [gcc-dg-prune $target_triplet $comp_output_plain]
+
+    if ![gcc_check_compile "$testcase compilation" $options_plain $exec_plain $comp_output_plain] {
+        unresolved "$testcase execution, $options_plain"
+        file_on_host delete $exec_plain
+        return 0
+    }
+
+    set comp_output_smart [gcc_target_compile "$sources" "${exec_smart}" executable $options]
+    set comp_output_smart [gcc-dg-prune $target_triplet $comp_output_smart]
+
+    if ![gcc_check_compile "$testcase compilation" $options $exec_smart $comp_output_smart] {
+        unresolved "$testcase execution, $options"
+        file_on_host delete $exec_smart
+        return 0
+    }
+   
+    set result_plain [gcc_load "$cmd_plain" "" ""]
+    verbose "got result_plain: $result_plain"
+    set status_plain [lindex $result_plain 0]
+    set output_plain [lindex $result_plain 1]
+
+    if { $status_plain != "pass" } {
+        unresolved "$testcase execution, $exec_plain"
+        file_on_host delete $exec_plain
+        file_on_host delete $exec_smart
+        return 0
+    }
+
+    set result_smart [gcc_load "$cmd_smart" "" ""]
+    set status_smart [lindex $result_smart 0]
+    set output_smart [lindex $result_smart 1]
+
+    if { $status_smart != "pass" } {
+        unresolved "$testcase execution, $exec_smart"
+        file_on_host delete $exec_plain
+        file_on_host delete $exec_smart
+        return 0
+    }
+
+    if { ! [string equal $output_plain $output_smart] } {
+        fail "$testcase comparison: $output_plain != $output_smart"
+    } else {
+        pass "$testcase comparison"
+    }
+
+    file_on_host delete $exec_plain
+    file_on_host delete $exec_smart
+    return 0
+}
+
+
+set saved-dg-do-what-default ${dg-do-what-default}
+
+# Get relative path for source files.
+set where [file dirname [info script]]
+
+# -opt.c files check for mangled symbol generation
+dg-runtest [lsort [glob -nocomplain $where/*-opt*.c]] "" ""
+
+# -chk.c files check for compile/link errors.
+set dg-do-what-default "link"
+dg-runtest [lsort [glob -nocomplain $where/*-chk.c]] "" ""
+
+# -cmp.c files check output vs. no-smart-io.
+set dg-do-what-default "run"
+foreach src [lsort [find $srcdir/$subdir *-cmp.c]] {
+    smart-io-compare [list $src] "$DEFAULT_CFLAGS"
+}
+
+set dg-do-what-default ${saved-dg-do-what-default}
+set allow_blank_lines 0
+set dg_runtest_extra_prunes ""
+dg-finish
+

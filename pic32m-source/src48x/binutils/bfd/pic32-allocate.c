@@ -95,20 +95,36 @@ remove_section_from_bfd(bfd *abfd, asection *sec)
   s = abfd->sections;
   if ((s == NULL) || (s->next == NULL)) return;
 
-  prev = s;
-  s = s->next; /* never remove the first section */
-  for (; s != NULL; s = s->next) {
-      if (s == sec) {
-        prev->next = s->next;
-        abfd->section_count -= 1;
-        if (pic32_debug)
-          printf("    removing section %s\n", s->name);
-      }
-      else
-        prev = s;
-    }
+  /* as a sanity check, search for the section in the bfd */
+  /* this can be removed or made optional if speed is an issue */
+#if 1
+  /* lookup 'sec' starting with 2nd bfd section (never remove the 1st one) */
+  s = s->next;
+  while (s != sec && s != NULL)
+    s = s->next;
+  /* didn't find it */
+  if (s == NULL)
+#else
+  /* simple test for not removing the 1st section */
+  if (sec == NULL || sec->prev == NULL)
+#endif
+   return;
+
+  prev = sec->prev;  
+  prev->next = sec->next;
+  
+  if (sec->next)
+    sec->next->prev = prev;
+  else
+    abfd->section_last = prev; /*update the bfd->section_last field
+                                 if the removed section is the
+                                 last section.*/
+  abfd->section_count -= 1;
+  if (pic32_debug)
+     printf("    removing section %s\n", s->name);
   return;
 } /* static void remove_section_from_bfd (...)*/
+
 
 static void
 report_allocation_error(struct pic32_section *s) {
@@ -372,7 +388,17 @@ allocate_memory() {
       }
 
       if (merge_sec) {
-        os->header.next = next->header.next;  /* unlink the merged statement */
+        if (!(os->header.next = next->header.next)) /* unlink the merged statement */
+          /* update statement_list.tail if we just removed/merged the last stmt */
+          statement_list.tail = &os->header.next;
+
+        /* there's another (doubly) linked list containing only the output section */
+        /* statements so also update its links and the tail address when the last */
+        /* output statement is removed / merged */
+        if (!(os->output_section_statement.next = next->output_section_statement.next))
+          lang_output_section_statement.tail = &os->output_section_statement.next;
+        else
+          os->output_section_statement.next->prev = os;
         next = os;                            /* try to merge another one */
       }
     }

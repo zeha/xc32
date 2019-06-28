@@ -675,6 +675,7 @@ extern void pic32_final_include_paths(struct cpp_dir*,struct cpp_dir*);
       }                                                     \
                                                             \
     builtin_define_std ("PIC32");                           \
+    builtin_define_std ("PIC32M");                          \
     builtin_define     ("__C32__");                         \
     builtin_define     ("__XC32");                          \
     builtin_define     ("__XC32__");                        \

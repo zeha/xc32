@@ -1,0 +1,109 @@
+; Options for the PIC32C port of the compiler.
+
+; Copyright (C) 2005-2015 Free Software Foundation, Inc.
+;
+; This file is part of GCC.
+;
+; GCC is free software; you can redistribute it and/or modify it under
+; the terms of the GNU General Public License as published by the Free
+; Software Foundation; either version 3, or (at your option) any later
+; version.
+;
+; GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+; WARRANTY; without even the implied warranty of MERCHANTABILITY or
+; FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+; for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with GCC; see the file COPYING3.  If not see
+; <http://www.gnu.org/licenses/>.
+
+
+
+mprocessor=
+Target Report RejectNegative Joined Var(mchp_processor_string) Init(0)
+-mprocessor=PROCESSOR	Specify the target PIC32 PROCESSOR
+
+mconfig-data-file=
+Target Report RejectNagative Joined Var(mchp_config_data_file) Undocumented
+
+Waddress-attribute-use
+Warning C C++ Report Var(mchp_warn_address_attribute_use) Init(0)
+Warn about all uses of the address() attribute. For engineering-support purposes only, identify variables and functions that are address() attributed
+
+
+mprint-builtins
+Target RejectNegative Var(TARGET_PRINT_BUILTINS)
+-mprint-builtins	Print a list of enabled builtin functions
+
+
+mlicense-warning
+Target Var Var(TARGET_LICENSE_WARNING) Undocumented Init(1)
+-mlicense-warning	Emit the license warning when appropriate
+
+
+mno-fallback
+Target Report RejectNegative Var Var(TARGET_NO_FALLBACKLICENSE)
+--nofallback		Require a MPLAB XC32 Standard or Pro license and do not fall back to a lesser license
+
+
+mskip-license-check
+Target Var(TARGET_SKIP_LICENSE_CHECK) Init(0) Undocumented
+For use by MPLAB X IDE only - Forces a free license
+
+
+mtext=
+Target Report RejectNegative Joined Var(mchp_text_scn) Init(NULL) Undocumented 
+-mtext=NAME	Name the text section NAME (default .text)
+
+
+mprint-mchp-search-dirs
+Target RejectNegative Var(TARGET_PRINT_MCHP_SEARCH_DIRS) Init(0) Undocumented
+-mprint-mchp-search-dirs	Print to stdout a list of include-file search directories
+
+
+msmart-io
+Target Var Var(TARGET_MCHP_SMARTIO) Init(1)
+-msmart-io      Enable smart-IO library call forwarding level 1
+
+msmart-io=
+Target Var RejectNegative Joined UInteger Var(mchp_io_size_val) Init(1)
+-msmart-io=LEVEL	Enable smart-IO library call forwarding level LEVEL [0,2]
+
+mitcm=
+Target Report RejectNegative Joined
+-mitcm=VALUE	Enable tcm and set itcm size to VALUE
+
+mdtcm=
+Target Report RejectNegative Joined
+-mdtcm=VALUE	Enable tcm and set dtcm size to VALUE
+
+mstack-in-tcm
+Target Report Var(mchp_stack_in_tcm)
+-mstack-in-tcm Move stack from ram to dtcm 
+
+msoft-float
+Target Alias(mfloat-abi=, soft)
+-msoft-float	Alias for -mfloat-abi=soft
+
+mhard-float
+Target Alias(mfloat-abi=, hard)
+-mhard-float	Alias for -mfloat-abi=hard
+
+mdebugger
+Target RejectNegative Var(TARGET_MCHP_DEBUGGER) Init(0) Undocumented
+-mdebugger      For use by MPLAB X IDE only
+
+mno-device-startup-code
+Target RejectNegative
+-mno-device-startup-code	Do not link the default device-specific startup code
+
+msemihost
+Target RejectNegative VAR(TARGET_SEMIHOSTING) Init(0) Undocumented
+-msemihost      Use rdimon semihosting
+
+mdbg=
+Target Joined RejectNegative Var(mchp_deferred_debug) Defer Condition(_BUILD_MCHP_DEVEL_)
+-mdbg=[all|flag1,flag2,...]          Enable internal debug flags
+
+;

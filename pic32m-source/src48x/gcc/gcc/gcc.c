@@ -3599,7 +3599,7 @@ driver_handle_option (struct gcc_options *opts,
 	      add_infile (save_string (arg + prev, j - prev), "*");
 #if defined(TARGET_MCHP_PIC32MX)
                 /* If we use the --script option, don't add the default script to the 
-                   LIB_COMMAND_SPEC */
+                   LINK_COMMAND_SPEC */
                 if (strstr (infiles[n_infiles-1].name, "--script") != NULL)
                   use_custom_linker_script++;
                 if (strstr (infiles[n_infiles-1].name, "-T") != NULL)

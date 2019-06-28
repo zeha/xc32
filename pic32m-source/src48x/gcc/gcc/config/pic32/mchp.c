@@ -185,6 +185,7 @@ static pic32_function_replacement_prologue *pic32_function_replacement_prologue_
 #define SECTION_NAME_INIT_ARRAY   ".init_array"
 #define SECTION_NAME_FINI_ARRAY   ".fini_array"
 #define SECTION_NAME_SERIALMEM    ".serial_mem"
+#define SECTION_NAME_PERSIST      ".persist"
 
 #define JOIN2(X,Y) (X ## Y)
 #define JOIN(X,Y) JOIN2(X,Y)
@@ -333,7 +334,7 @@ struct reserved_section_names_
   { ".sbss",   SECTION_BSS | SECTION_NEAR },
   { ".sdata",  SECTION_WRITE | SECTION_NEAR },
   { ".sdconst",SECTION_WRITE | SECTION_NEAR },
-  { ".pbss",   SECTION_PERSIST },
+  { ".pbss",   SECTION_PERSIST | SECTION_COHERENT },
   { ".text",   SECTION_CODE },
   { ".ramfunc", SECTION_RAMFUNC },
   { ".gnu.linkonce.d", SECTION_WRITE },
@@ -1096,10 +1097,12 @@ pic32_get_license (int require_cpp)
 #undef str
 #undef MCHP_XCLM_SHA256_DIGEST_QUOTED
 #undef MCHP_XCLM64_SHA256_DIGEST_QUOTED
+#undef MCHP_FXCLM_SHA256_DIGEST_QUOTED
 #define xstr(s) str(s)
 #define str(s) #s
 #define MCHP_XCLM_SHA256_DIGEST_QUOTED xstr(MCHP_XCLM_SHA256_DIGEST)
 #define MCHP_XCLM64_SHA256_DIGEST_QUOTED xstr(MCHP_XCLM64_SHA256_DIGEST)
+#define MCHP_FXCLM_SHA256_DIGEST_QUOTED xstr(MCHP_FXCLM_SHA256_DIGEST)
 
     /* Verify SHA sum and call xclm to determine the license */
     if (found_xclm && mchp_pic32_license_valid==-1 && !TARGET_SKIP_LICENSE_CHECK)
@@ -1107,10 +1110,14 @@ pic32_get_license (int require_cpp)
         /* Verify that xclm executable is untampered */
         xclm_tampered = mchp_sha256_validate(exec, (const unsigned char*)MCHP_XCLM_SHA256_DIGEST_QUOTED);
 #ifdef __linux__
-        /*On linux, try to validate against 64-bit xclm SHA if 32-bit xclm SHA does not match*/
+        /*On linux, try to validate against 64-bit and fake xclm SHA if 32-bit xclm SHA does not match*/
         if (xclm_tampered != 0)
           { 
             xclm_tampered = mchp_sha256_validate(exec, (const unsigned char*)MCHP_XCLM64_SHA256_DIGEST_QUOTED);
+          }
+        if (xclm_tampered != 0)
+          { 
+            xclm_tampered = mchp_sha256_validate(exec, (const unsigned char*)MCHP_FXCLM_SHA256_DIGEST_QUOTED);
           }
 #endif 
         if (xclm_tampered != 0)
@@ -1154,6 +1161,7 @@ pic32_get_license (int require_cpp)
   #undef str
   #undef MCHP_XCLM_SHA256_DIGEST_QUOTED
   #undef MCHP_XCLM64_SHA256_DIGEST_QUOTED
+  #undef MCHP_FXCLM_SHA256_DIGEST_QUOTED
 #endif /* SKIP_LICENSE_MANAGER */
   return mchp_pic32_license_valid;
 }
@@ -4121,7 +4129,19 @@ static int
 mchp_persistent_p (tree decl)
 {
   tree a;
+  const char *sname = NULL;
+  
   a = lookup_attribute ("persistent", DECL_ATTRIBUTES (decl));
+  if (a == NULL_TREE)
+  {
+    if (DECL_SECTION_NAME(decl))
+      sname = TREE_STRING_POINTER(DECL_SECTION_NAME(decl));
+    /* test user-specified ".pbss" or ".persist" attributes */
+    if (sname &&
+  (!strcmp (sname, SECTION_NAME_PERSIST) || !strcmp (sname, SECTION_NAME_PBSS)))
+      return 1;
+  }
+
   return a != NULL_TREE;
 }
 
@@ -6072,6 +6092,28 @@ static int mchp_build_prefix(tree decl, int fnear, char *prefix)
         {
           flags |= SECTION_READ_ONLY;
         }
+      
+      if ((flags & SECTION_PERSIST)  || (mchp_persistent_p(decl)))
+        {
+          f += sprintf(f, MCHP_PRST_FLAG);
+          section_type_set = 1;
+          DECL_COMMON (decl) = 0;
+          if (DECL_INITIAL(decl))
+            {
+                if (DECL_NAME(decl) != NULL_TREE)
+                  {
+                    ident = IDENTIFIER_POINTER(DECL_NAME(decl));
+                    warning(0, "Persistent variable '%s' will not be initialized",
+                            ident);
+                  }
+                else
+                  {
+                    warning(0, "Persistent variable will not be initialized");
+                  }
+                /* Persistent variables will not be initialized. So, make them as bss sections. */
+                DECL_INITIAL(decl) = NULL_TREE ;
+            }
+        }
     }
   if (address_attr)
     {
@@ -6090,28 +6132,7 @@ static int mchp_build_prefix(tree decl, int fnear, char *prefix)
         }
       else f += sprintf(f, MCHP_ADDR_FLAG);
     }
-  if ((TREE_CODE(decl) == VAR_DECL) &&
-      ((flags & SECTION_PERSIST)  || (mchp_persistent_p(decl))))
-    {
-      f += sprintf(f, MCHP_PRST_FLAG);
-      section_type_set = 1;
-      DECL_COMMON (decl) = 0;
-      if (DECL_INITIAL(decl))
-        {
-            if (DECL_NAME(decl) != NULL_TREE)
-              {
-                ident = IDENTIFIER_POINTER(DECL_NAME(decl));
-                warning(0, "Persistent variable '%s' will not be initialized",
-                        ident);
-              }
-            else
-              {
-                warning(0, "Persistent variable will not be initialized");
-              }
-            /* Persistent variables will not be initialized. So, make them as bss sections. */
-            DECL_INITIAL(decl) = NULL_TREE ;
-        }
-    }
+      
   if ((flags & SECTION_KEEP) || mchp_keep_p(decl)) {
       DECL_COMMON (decl) = 0;
       f += sprintf(f, MCHP_KEEP_FLAG);
@@ -6220,7 +6241,10 @@ static int mchp_build_prefix(tree decl, int fnear, char *prefix)
   if (mchp_keep_p(decl)) {
     f += sprintf(f, MCHP_KEEP_FLAG);
   }
-  if (mchp_coherent_p(decl)) {
+  if (mchp_coherent_p(decl) 
+    || (flags & SECTION_PERSIST)  || mchp_persistent_p(decl)) 
+               /* add implicit coherent flag when persistent is specified */
+  {
     f += sprintf(f, MCHP_COHERENT_FLAG);
   }
     if (mchp_shared_p(decl)) {
@@ -6476,13 +6500,15 @@ static const char *default_section_name(tree decl, SECTION_FLAGS_INT flags)
       else if (TREE_CODE(decl) == VAR_DECL)
         {
           tree space_attr = get_mchp_space_attribute(decl);
-          if ((!mchp_coherent_p(decl)) && mchp_persistent_p(decl)) /* persist*/
-            {
-              pszSectionName = SECTION_NAME_PBSS;
-            }
-          else if (space_attr && (get_identifier("serial_mem") == (TREE_VALUE(TREE_VALUE(space_attr)))))
+          
+          if (space_attr && (get_identifier("serial_mem") == (TREE_VALUE(TREE_VALUE(space_attr)))))
             {
               pszSectionName = SECTION_NAME_SERIALMEM;
+            }
+          else if (mchp_persistent_p(decl))
+            {
+              if (!pszSectionName || strcmp(pszSectionName, SECTION_NAME_PERSIST) != 0)
+                pszSectionName = SECTION_NAME_PBSS;
             }
           else if (mips_in_small_data_p(decl))
             {
@@ -6505,7 +6531,7 @@ static const char *default_section_name(tree decl, SECTION_FLAGS_INT flags)
             }
           if (pszSectionName)
             {
-              if (flag_data_sections || DECL_UNIQUE_SECTION (decl))
+              if (flag_data_sections || (DECL_UNIQUE_SECTION (decl) && !mchp_persistent_p(decl)))
                 {
                   f += sprintf (result, "%s.%s", pszSectionName,
                                 IDENTIFIER_POINTER(DECL_NAME(decl)));
