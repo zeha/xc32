@@ -84,7 +84,7 @@ copyparts2image ()
   popd
 
   log "Copy pic32m device-specific header files to image directory"
-  cp ${FULLINSTDIR}/pic32mx/include/proc/*.h ${IMAGEDIR}/pic32mx/include/proc/
+  cp -r ${FULLINSTDIR}/pic32mx/include/proc/*  ${IMAGEDIR}/pic32mx/include/proc/
 
   log "Copying FULLINSTDIR/pic32mx/lib/proc/<device> dirs image/pic32mx/lib/proc directory"
   cp -r ${FULLINSTDIR}/pic32mx/lib/proc/* ${IMAGEDIR}/pic32mx/lib/proc/

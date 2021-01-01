@@ -15579,6 +15579,12 @@ else	# all_targets is true
 fi	# all_targets is true
 
 case ${host64}-${target64}-${want64} in
+  true-false-false)
+    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Using a 32-bit BFD on 64-bit host." >&5
+      $as_echo "$as_me: WARNING: Using a 32-bit BFD on 64-bit host." >&2;}
+    wordsize=32
+    all_backends='$(BFD32_BACKENDS)'
+    ;;
   *true*)
     wordsize=64
     bfd64_libs='$(BFD64_LIBS)'
