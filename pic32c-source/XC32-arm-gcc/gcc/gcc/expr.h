@@ -293,4 +293,9 @@ extern void expand_operands (tree, tree, rtx, rtx*, rtx*,
 /* Return an rtx for the size in bytes of the value of an expr.  */
 extern rtx expr_size (tree);
 
+#ifdef TARGET_MCHP_PIC32C
+extern bool try_complete_constructor (tree */*ctor*/);
+extern bool init_const_by_pieces_p (HOST_WIDE_INT, unsigned, tree, tree);
+#endif /* TARGET_MCHP_PIC32C */
+
 #endif /* GCC_EXPR_H */

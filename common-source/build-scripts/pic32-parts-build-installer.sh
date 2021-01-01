@@ -108,17 +108,35 @@ buildinst()
   checkreturn $? "OS X update installer build failed" $LINENO
   OSXINST=xc32-v${MCHP_VERSION}${MCHP_RESOURCE}-part-support-osx-installer.app 
   checkfile ${BITOUTDIR}/${OSXINST} $LINENO
-
-  echo "Using .dmg file created by BitRock"
-  OSXINST=xc32-v${MCHP_VERSION}${MCHP_RESOURCE}-part-support-osx-installer.dmg
-  checkfile ${BITOUTDIR}/${OSXINST} $LINENO
-  if [ ! -z "$MCHP_BUILD" ]; then
-    OSXINST_B=xc32-v${MCHP_VERSION}${MCHP_RESOURCE}${MCHP_BUILD}-part-support-osx-installer.dmg
+  if [ "$HOST" == "Darwin" ]; then 
+    if [ ! -e "xc32-v${MCHP_VERSION}${MCHP_RESOURCE}-part-support-osx-installer.dmg" ]; then
+     log "Creating disk image file of OS X update installer"
+     chmod +x ${BITOUTDIR}/mkdmg.sh
+     ${BITOUTDIR}/mkdmg.sh ${BITOUTDIR}/${OSXINST}     
+    else 
+     echo "Using .dmg file created by BitRock"
+    fi
+    OSXINST=xc32-v${MCHP_VERSION}${MCHP_RESOURCE}-part-support-osx-installer.dmg
+    checkfile ${BITOUTDIR}/${OSXINST} $LINENO
+    if [ ! -z "$MCHP_BUILD" ]; then
+      OSXINST_B=xc32-v${MCHP_VERSION}${MCHP_RESOURCE}${MCHP_BUILD}-part-support-osx-installer.dmg
+    else
+      OSXINST_B=$OSXINST
+    fi
+    cp        ${BITOUTDIR}/${OSXINST} ${INSTOUTDIR}/${OSXINST_B} 
   else
-    OSXINST_B=$OSXINST
+    log "Creating .dmg using genisoimage on Linux"
+    if [ ! -z "$MCHP_BUILD" ]; then
+      OSXINST_B=xc32-v${MCHP_VERSION}${MCHP_RESOURCE}${MCHP_BUILD}-part-support-osx-installer.dmg
+    else
+      OSXINST_B=xc32-v${MCHP_VERSION}${MCHP_RESOURCE}-part-support-osx-installer.dmg
+    fi
+    mkdir dummy && cp -r ${OSXINST} dummy
+    echo "genisoimage -D -V XC32-parts-installer -no-pad -r -apple -o ${OSXINST_B} dummy"
+    genisoimage -D -V XC32-parts-installer -no-pad -r -apple -o ${OSXINST_B} dummy
+    checkfile ${BITOUTDIR}/${OSXINST_B} $LINENO
+    cp -r ${BITOUTDIR}/${OSXINST_B} ${INSTOUTDIR}/
   fi
-  cp        ${BITOUTDIR}/${OSXINST} ${INSTOUTDIR}/${OSXINST_B} 
-
   checkreturn $? "Failed to copy OS X installer to ${INSTOUTDIR}" $LINENO
 
   log "Building update-installer for Windows"

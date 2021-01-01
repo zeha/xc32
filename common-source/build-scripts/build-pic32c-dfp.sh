@@ -175,7 +175,8 @@ pic32c_gen_part_files()
   log "Generating xc.h"
   rm -f ${OUTPUT_PATH}/xc32/xc.h
   rm -f ${TMP_PACK_DIR}/xc32/include/xc.h
-  ${SCRIPTROOT}/generate-pic32c-xc.h.sh ${PACKSDIR}/include > ${TMP_PACK_DIR}/xc32/include/xc.h
+  ATDF_PATH=${ATDF_PATH} OUTPUT_PATH=${OUTPUT_PATH} make -f Makefile-xc32 xc_h_dfp &> ${OUTPUT_PATH}/xc_h.log
+  mv ${OUTPUT_PATH}/xc32/xc.h ${TMP_PACK_DIR}/xc32/include/
 
   # specs files generate and copy
   log "Generating specs files"
@@ -188,7 +189,7 @@ pic32c_gen_part_files()
     UDEVICENAME=$(device_name ${ATDF_FILE})
 
     # copy specs file for this device
-    cp ${OUTPUT_PATH}/xc32/device-specs/specs-${UDEVICENAME} ${TMP_PACK_DIR}/xc32/${UDEVICENAME}
+    cp ${OUTPUT_PATH}/xc32/${UDEVICENAME}/specs-${UDEVICENAME} ${TMP_PACK_DIR}/xc32/${UDEVICENAME}
   done
 
   cd ${ROOTDIR}

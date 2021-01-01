@@ -16,7 +16,8 @@
  * 2.      Redistributions in binary form must reproduce the above 
  *         copyright notice, this list of conditions and the following 
  *         disclaimer in the documentation and/or other materials provided 
- *         with the distribution.
+ *         with the distribution.  Publication is not required when this 
+ *         file is used in an embedded application.
  * 3.      Microchip's name may not be used to endorse or promote products
  *         derived from this software without specific prior written 
  *         permission.
@@ -33,6 +34,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
  */
+
+
 #ifndef _PIC32C_BUILTINS_H
 #define _PIC32C_BUILTINS_H 1
 
@@ -91,9 +94,11 @@ __simd128_uint32_t  __builtin_arm_crypto_sha256su1(
         __simd128_uint32_t,
         __simd128_uint32_t,
         __simd128_uint32_t);
+#endif /* __ARM_FP */
 void  __builtin_arm_lane_check(
         int32_t,
         int32_t);
+#ifdef __ARM_FP
 __simd64_float32_t  __builtin_neon_vaddv2sf(
         __simd64_float32_t,
         __simd64_float32_t);
@@ -2227,7 +2232,7 @@ __simd128_int16_t  __builtin_neon_vcombinev4hi(
 __simd128_float16_t  __builtin_neon_vcombinev4hf(
         __simd64_float16_t,
         __simd64_float16_t);
-#endif
+#endif /* __ARM_FP16_FORMAT ... */
 __simd128_int32_t  __builtin_neon_vcombinev2si(
         __simd64_int32_t,
         __simd64_int32_t);
@@ -2244,7 +2249,7 @@ __simd64_int16_t  __builtin_neon_vget_highv8hi(
 #if defined (__ARM_FP16_FORMAT_IEEE) || defined (__ARM_FP16_FORMAT_ALTERNATIVE)
 __simd64_float16_t  __builtin_neon_vget_highv8hf(
         __simd128_float16_t);
-#endif
+#endif /* __ARM_FP16_FORMAT ... */
 __simd64_int32_t  __builtin_neon_vget_highv4si(
         __simd128_int32_t);
 __simd64_float32_t  __builtin_neon_vget_highv4sf(
@@ -2258,7 +2263,7 @@ __simd64_int16_t  __builtin_neon_vget_lowv8hi(
 #if defined (__ARM_FP16_FORMAT_IEEE) || defined (__ARM_FP16_FORMAT_ALTERNATIVE)
 __simd64_float16_t  __builtin_neon_vget_lowv8hf(
         __simd128_float16_t);
-#endif
+#endif /* __ARM_FP16_FORMAT ... */
 __simd64_int32_t  __builtin_neon_vget_lowv4si(
         __simd128_int32_t);
 __simd64_float32_t  __builtin_neon_vget_lowv4sf(
@@ -2672,7 +2677,7 @@ __simd128_float32_t  __builtin_neon_vcvtv4sfv4hf(
         __simd64_float16_t);
 __simd64_float16_t  __builtin_neon_vcvtv4hfv4sf(
         __simd128_float32_t);
-#endif
+#endif /* __ARM_FP16_FORMAT ... */
 __simd64_int8_t  __builtin_neon_vbslv8qi(
         __simd64_int8_t,
         __simd64_int8_t,
@@ -3035,4 +3040,4 @@ void  __builtin_nop(
         void);
 void  __builtin_software_breakpoint(
         void);
-#endif /* _PIC32C_BUILTINS_H */
+#endif /* _PIC32C_BUILTINS_H */ 

@@ -15109,10 +15109,6 @@ void mchp_write_builtin_proto(const struct mips_builtin_description *d) {
 
     if (strncmp(d->name, "__builtin_loongson_",19) == 0)  return;
 
-    /* for reasons I don't fully understand we also need to drop bposge32  */
-
-    if (strncmp(d->name, "__builtin_mips_bposge32",23) == 0)  return;
-    
 
     /* we construct a string containing the prototype by using the gratuitously */
     /* abstract construct provided by gcc.   Aren't we clever.                  */

@@ -139,46 +139,14 @@ generate ()
     PICFILELIST=(${PACKSDIR}/*.PIC)
   else
     #list of PIC files to be used for
-    if [ "$MCHP_RESOURCE" = "0" ]; then
-      #If doing a nightly build, pick all files which end with .PIC
-      # TODO: Make build failures not stop the entire build
-      PICFILELIST=(${P32PICDIR}/{PIC32MK,PIC32MM,PIC32MX,PIC32MZ,MEC14,MGC,USB49,USB7,BT,USB249}*.PIC)
-    else
-      PICFILELIST=(${P32PICDIR}/{PIC32MK,PIC32MM,PIC32MX,PIC32MZ,MEC14,MGC,USB49,USB7}*.PIC)
-    fi
+    PICFILELIST=(${P32PICDIR}/{PIC32MK,PIC32MM,PIC32MX,PIC32MZ,MEC14,MGC,USB49,USB7,BT,USB249}*.PIC)
   fi
   
   cd $PYDIR
 
-  #If not doing a nightly, remove .PIC files with empty informedby
-
   #Collect indices of elements to be removed from $PICFILELIST[]
   INDEX=0
   PICLISTINDEX=0
-  for PICFILE in "${PICFILELIST[@]}"
-  do
-    if [ "$MCHP_RESOURCE" != "0" ];then
-      #if not doing a nightly
-      if [ "x$PACKSDIR" != "x" ]; then
-        # TODO fixme when perl regex are available in docker image for DFP
-        grep -l 'edc\:informedby=\"[ \t]*[A-Za-z]\+.*"' $PICFILE > /dev/null
-      else
-        grep -Pl 'edc\:informedby=\"([\s]*[A-Za-z]+[\s]*)+\"' $PICFILE > /dev/null
-      fi
-      
-      if [ $? != 0 ]; then
-        REMOVEINDEXLIST[$INDEX]=$PICLISTINDEX
-        let INDEX++
-      elif [[ "$PICFILE" == *"FPGA"* ]] ; then
-        REMOVEINDEXLIST[$INDEX]=$PICLISTINDEX
-        let INDEX++
-      elif [[ "$PICFILE" == *"EMU"* ]] ; then
-        REMOVEINDEXLIST[$INDEX]=$PICLISTINDEX
-        let INDEX++
-      fi
-    fi
-    let PICLISTINDEX++
-  done
 
   if [ "x$PACKSDIR" != "x" ]; then
     # Add ARM-based PIC files to a separate remove index list
@@ -201,8 +169,6 @@ generate ()
     if [ "x$PACKSDIR" != "x" ]; then
       FILENAME=`basename $FILENAME`
     fi
-    log "Removing $FILENAME from PICFILELIST, informedby not valid"
-    unset PICFILELIST[$REMOVEINDEX]
   done
 
   #Remove ARM-based .PIC files from PICFILELIST

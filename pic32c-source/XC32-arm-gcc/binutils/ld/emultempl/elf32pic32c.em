@@ -496,6 +496,8 @@ static bfd_vma dtcm_stack_base = 0;
 static bfd_boolean elf_link_check_archive_element
    (char *, bfd *, struct bfd_link_info *);
 
+static bfd_boolean is_cmse_implib (void);
+
 /* Declare functions used by various EXTRA_EM_FILEs.  */
 
 static void pic32c_after_open  (void);
@@ -1228,18 +1230,28 @@ smartio_merge_symbols (void)
 
 	  /* remap all calls to the covering symbol and discard unused syms. */
 	  struct bfd_link_hash_entry *h
-	    = bfd_pic32_is_defined_global_symbol (buf);
-
+            = bfd_link_hash_lookup (link_info.hash, buf, FALSE, FALSE, TRUE);
 
           /* XC32-981 - if the covering symbol is not defined, we chose
              not to add it in smartio_add_symbols. so complete the handshake and
              fall back to the plain symbol. */
-          if (!h) 
-            {
-              DEBUG_SMARTIO("-- covering symbol not found, using vanilla function\n");
-              h = bfd_pic32_is_defined_global_symbol (smartio_funcs[hlist->index].name);
-            }
-          ASSERT(h);
+	  if (!h
+	      || !(h->type == bfd_link_hash_defined
+		   || h->type == bfd_link_hash_defweak))
+	    {
+	      DEBUG_SMARTIO (
+		"-- covering symbol not found, using vanilla function\n");
+
+	      /* XC32-1138 the lookup for the vanilla function now sets the
+		 'create' flag so that we can proceed with an undefined
+		 reference. */
+	      h = bfd_link_hash_lookup (link_info.hash,
+					smartio_funcs[hlist->index].name, TRUE,
+					FALSE, TRUE);
+	    }
+	  /* NB: if the covering symbol was not found, h should point to a
+             valid hash entry (possibly undefined) for the vanilla function. */
+	  ASSERT(h);
 
 	  if (hlist->h->type == bfd_link_hash_undefined
 	      || hlist->h->type == bfd_link_hash_undefweak)
@@ -1251,13 +1263,26 @@ smartio_merge_symbols (void)
               struct elf_link_hash_entry *from
                 = (struct elf_link_hash_entry *) hlist->h;
 
-              from->root.type = bfd_link_hash_defweak;
-              from->root.u.def.value = to->root.u.def.value;
-              from->root.u.def.section = to->root.u.def.section;
 
-              /* fix up references in elf link entry */
+              /* XC32-1138: h may be undefined, which will only happen when
+                 the vanilla function is not found. leave the from entry 
+                 alone in this case. */
+	      if (h->type == bfd_link_hash_defined
+		  || h->type == bfd_link_hash_defweak)
+		{
+		  from->root.type = bfd_link_hash_defweak;
+		  from->root.u.def.value = to->root.u.def.value;
+		  from->root.u.def.section = to->root.u.def.section;
+		}
+
+	      /* fix up references in elf link entry */
               to->ref_regular = to->ref_regular_nonweak = 1;
               from->ref_regular = from->ref_regular_nonweak = 0;
+
+              /* XC32-1136: also inherit the target_internal value. Otherwise
+                 we may get the relocation wrong when doing indirect calls. */
+              from->target_internal = to->target_internal;
+
             }
 
 	  hlist = hlist->next;
@@ -1638,8 +1663,8 @@ bfd_pic32_process_bfd_after_open (abfd, info)
 
         pic32_add_to_symbol_list(&pic32_symbol_list, sec_name, attr);
         if (pic32_debug)
-          fprintf(stderr,"    extended attributes for section %s: 0x%lx\n",
-                 sec_name, attr);
+          fprintf(stderr,"    extended attributes for section %s: 0x%lx %s\n",
+                 sec_name, attr, bfd_asymbol_name(symbols[i]));
       }
   }
 
@@ -2094,7 +2119,7 @@ void pic32_create_data_init_template(void)
       /* warn if initial data values will be ignored */
       for (s = data_sections; s != NULL; s = s->next)
         if (s->sec)
-          bfd_pic32_skip_data_section(s->sec, &total_data);
+          bfd_pic32_skip_data_section(s, &total_data);
     }
 
     if (pic32_debug) {
@@ -2414,6 +2439,10 @@ bfd_pic32_is_defined_global_symbol (name)
       return (struct bfd_link_hash_entry *) NULL;
 }
 
+static bfd_boolean is_cmse_implib (void)
+{
+  return (params.cmse_implib == 1);
+}
 
 static bfd_boolean
 elf_link_check_archive_element (name, abfd, sec_info)
@@ -2435,6 +2464,7 @@ elf_link_check_archive_element (name, abfd, sec_info)
 }
 
 
+bfd_boolean (*mchp_is_cmse_implib)(void) = is_cmse_implib;
 
 bfd_boolean (*mchp_elf_link_check_archive_element)(char *name, bfd *abfd,
                                                     struct bfd_link_info *) =

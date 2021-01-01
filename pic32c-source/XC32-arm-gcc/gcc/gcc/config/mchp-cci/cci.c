@@ -74,4 +74,10 @@ void mchp_print_builtin_function (tree t)
 	puts (IDENTIFIER_POINTER(DECL_NAME(t)));
 }
 
+
+void mchp_close_builtin_header ()
+{
+    close_builtins_h();
+}
+
 #endif /* _BUILD_MCHP_ */

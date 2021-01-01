@@ -5491,9 +5491,7 @@ static int mchp_build_prefix(tree decl, int fnear, char *prefix)
           f += sprintf(f, MCHP_NEAR_FLAG);
         }
     }
-  if (mchp_keep_p(decl)) {
-    f += sprintf(f, MCHP_KEEP_FLAG);
-  }
+
   if (mchp_coherent_p(decl) 
     || (flags & SECTION_PERSIST)  || mchp_persistent_p(decl)) 
                /* add implicit coherent flag when persistent is specified */

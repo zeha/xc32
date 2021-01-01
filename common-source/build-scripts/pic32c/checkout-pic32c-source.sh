@@ -193,7 +193,7 @@ fi
 
 # Set the base URL for Git clones. The default assumes the user has an
 # SSH key that can authenticate to the server without any input.
-: ${XC32_GIT_URL:=ssh://git@bitbucket.microchip.com:7999}
+: ${XC32_GIT_URL:=ssh://git@bitbucket.microchip.com}
 # Strip the trailing /, if any.
 XC32_GIT_URL="${XC32_GIT_URL%/}"
 status_update "Using XC32_GIT_URL=${XC32_GIT_URL}"

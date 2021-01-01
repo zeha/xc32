@@ -41,6 +41,7 @@ bfd_boolean (*mchp_elf_link_check_archive_element)
       (char *, bfd *, struct bfd_link_info *) __attribute__((weak));
 
 void (*mchp_smartio_add_symbols) (struct bfd_link_info *) __attribute__((weak));
+bfd_boolean (*mchp_is_cmse_implib) (void) __attribute__((weak));
 
 extern int pic32_debug;
 
@@ -11172,9 +11173,15 @@ elf_output_implib (bfd *abfd, struct bfd_link_info *info)
     goto free_sym_buf;
 
   /* Allow the BFD backend to copy any private header data it
-     understands from the output BFD to the import library BFD.  */
-  if (! bfd_copy_private_header_data (abfd, implib_bfd))
-    goto free_sym_buf;
+   * understands from the output BFD to the import library BFD
+   * only if we are not linking the CMSE implib. In the case of
+   * CMSE implib, the program headers and segments are not needed.
+   */
+#ifdef TARGET_IS_PIC32C
+  if (mchp_is_cmse_implib && !mchp_is_cmse_implib())
+#endif
+    if (! bfd_copy_private_header_data (abfd, implib_bfd))
+      goto free_sym_buf;
 
   /* Filter symbols to appear in the import library.  */
   if (bed->elf_backend_filter_implib_symbols)

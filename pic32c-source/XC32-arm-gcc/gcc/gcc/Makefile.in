@@ -1535,6 +1535,7 @@ OBJS = \
 	wide-int-print.o \
 	xc-coverage.o \
 	xc-covtool-comm.o \
+	xc-rm-unn-sets.o \
 	xcoffout.o \
 	$(out_object_file) \
 	$(EXTRA_OBJS) \

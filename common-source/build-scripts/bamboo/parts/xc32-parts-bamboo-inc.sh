@@ -33,14 +33,14 @@ read -d '' ERRHTMLREDIRECT <<EOF
 <html lang="en-US">
     <head>
         <meta charset="UTF-8">
-        <meta http-equiv="refresh" content="1;url=http://chn-sv-cyclone.microchip.com:8085/browse/XC32-PSNG-PJU-${bamboo_BUILD_NUMBER}/test">
+        <meta http-equiv="refresh" content="1;url=http://chn-sv-cyclone.microchip.com:8085/browse/M32DEV-PSN32-PJU-${bamboo_BUILD_NUMBER}/test">
         <script type="text/javascript">
-            window.location.href = "http://chn-sv-cyclone.microchip.com:8085/browse/XC32-PSNG-PJU-${bamboo_BUILD_NUMBER}/test"
+            window.location.href = "http://chn-sv-cyclone.microchip.com:8085/browse/M32DEV-PSN32-PJU-${bamboo_BUILD_NUMBER}/test"
         </script>
         <title>Page Redirection</title>
     </head>
     <body>
-        If you are not redirected automatically, follow the <a href='http://chn-sv-cyclone.microchip.com:8085/browse/XC32-PSNG-PJU-${bamboo_BUILD_NUMBER}/test'>link to test result page</a>
+        If you are not redirected automatically, follow the <a href='http://chn-sv-cyclone.microchip.com:8085/browse/M32DEV-PSN32-PJU-${bamboo_BUILD_NUMBER}/test'>Link to test result page</a>
     </body>
 </html>
 EOF

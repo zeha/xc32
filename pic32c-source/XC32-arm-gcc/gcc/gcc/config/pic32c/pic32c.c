@@ -1302,7 +1302,7 @@ pic32c_subtarget_expand_builtin (unsigned int fcode, tree exp, rtx target)
   switch (pic32c_fcode)
     {
     case PIC32C_BUILTIN_NOP:
-      emit_insn (gen_nop ());
+      emit_insn (gen_nopv ());
       return target;
 
     case PIC32C_BUILTIN_SOFTWARE_BREAKPOINT:
@@ -3204,7 +3204,7 @@ pic32c_emit_cc_section (const char *name)
 tree
 build_smartio_format (tree fmt, tree spec)
 {
-  tree result = tree_cons (get_identifier ("smartio-spec"), spec, NULL);
+    tree result = tree_cons (get_identifier ("smartio-spec"), spec, NULL);
   result = tree_cons (get_identifier ("smartio-fmt"), fmt, result);
   TREE_TYPE (result) = TREE_TYPE (fmt);
   TREE_CONSTANT (result) = 1;
@@ -3326,6 +3326,13 @@ pic32c_get_debug_option(const char *str)
 #endif /* _BUILD_MCHP_DEVEL_ */
 
 /*  stuff for writing pic32c_builtins.h           */
+
+
+static FILE *builtins_h = 0;
+static bool initialised = 0;
+static  bool in_neon_or_crypto_section = false;
+static  bool in_float16_section = false;
+
 
 void decode_qualifier(tree type, char **buffer) {
   int qualifiers;
@@ -3488,21 +3495,32 @@ bool decode_type(tree type, char **buffer) {
    }
 }
 
+
+// we need to write the trailing #endif and the just get out of here ...
+void close_builtins_h() {
+    fprintf(builtins_h,"#endif /* _PIC32C_BUILTINS_H */ \n");
+    fclose(builtins_h);
+    exit(1);
+}
+	
 void pretty_tree_with_prototype(tree fndecl_or_type) {
-  static FILE *builtins_h = 0;
-  static bool initialised = 0;
   tree type,arg = 0;
   int i = 0;
   char name_buffer[1024];
   char result_buffer[1024];
   char args_buffer[1024];
+  char result_and_args[2048];
   char *nbp = name_buffer;
   char *rbp = result_buffer;
   char *abp = args_buffer;
   bool print_it = true;
   int comma=0;
   tree fndecl;
+  bool has_neon_or_crypto;
+  bool has_float16;
+  
 
+  
   if (!initialised) {
     initialised=1;
     if (access("pic32c_builtins.h", F_OK) != -1)
@@ -3513,6 +3531,8 @@ void pretty_tree_with_prototype(tree fndecl_or_type) {
     if (builtins_h == NULL) {
         warning(0,"Cannot open file for writing");
     }
+    fprintf(builtins_h,"#ifndef _PIC32C_BUILTINS_H\n");
+    fprintf(builtins_h,"#define _PIC32C_BUILTINS_H 1\n\n");
     fprintf(builtins_h,"#include <stdint.h>\n\n");
   }
 
@@ -3549,11 +3569,50 @@ void pretty_tree_with_prototype(tree fndecl_or_type) {
     if ((arg != NULL) && (arg != void_list_node)) abp += sprintf(abp,",\n        ");
     if (arg == void_list_node) break;
   }
-  if (print_it) fprintf(builtins_h,"%s %s(\n%s);\n",result_buffer,name_buffer,args_buffer);
 
+  if (print_it)
+  {
+  
+  strcpy(result_and_args,args_buffer);
+  strcat(result_and_args,result_buffer);
+  has_float16 = strstr(result_and_args,"float16") != NULL;
+  has_neon_or_crypto = (strstr( name_buffer,"neon")  != NULL) || (strstr( name_buffer,"crypto")  != NULL);
+
+
+// do we need an arm_fp guard?
+
+  if (!in_neon_or_crypto_section && has_neon_or_crypto) {
+      in_neon_or_crypto_section = true;
+      fprintf(builtins_h,"#ifdef __ARM_FP\n");
+  }
+  
+  // do we to to end an arm_fp guard?
+  if (in_neon_or_crypto_section && !has_neon_or_crypto) {
+      in_neon_or_crypto_section = false;
+      fprintf(builtins_h,"#endif /* __ARM_FP */\n");
+  }
+
+  
+  
+  // do we need a float 16 guard?
+
+  if (!in_float16_section &&  has_float16) {
+      in_float16_section = true;
+      fprintf(builtins_h,"#if defined (__ARM_FP16_FORMAT_IEEE) || defined (__ARM_FP16_FORMAT_ALTERNATIVE)\n");
+  }
+  
+  // do we need to end a float16 guard?
+
+  if (in_float16_section &&  !has_float16) {
+      in_float16_section = false;
+      fprintf(builtins_h,"#endif /* __ARM_FP16_FORMAT ... */\n");
+  }
+
+  
+  // actually print the prototype here ...
+  fprintf(builtins_h,"%s %s(\n%s);\n",result_buffer,name_buffer,args_buffer);
+  }
 }
-
-
 
 
 

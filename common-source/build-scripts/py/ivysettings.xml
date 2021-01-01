@@ -1,10 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ivy-settings>
-  <settings defaultResolver="main" />
+  <property name="artifactory.root.url" value="https://artifacts.microchip.com/artifactory"/>
+  <settings defaultResolver="ivy"/>
   <resolvers>
     <chain name="main">
-      <ibiblio name="public" m2compatible="true" root="http://artifacts.microchip.com:8081/artifactory/ivy" />
-      <ibiblio name="public" m2compatible="true" root="http://artifacts.microchip.com:8081/artifactory/ivy-external" />
+      <url name="ivy" m2compatible="true">
+        <artifact pattern="${artifactory.root.url}/ivy/[organisation]/[module]/[revision]/[artifact]-[revision](-[classifier]).[ext]"/>
+        <ivy pattern="${artifactory.root.url}/ivy/[organisation]/[module]/[revision]/ivy-[revision](-[classifier]).xml"/>
+      </url>
     </chain>
   </resolvers>
 </ivy-settings>

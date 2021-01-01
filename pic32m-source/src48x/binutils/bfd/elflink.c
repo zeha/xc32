@@ -5557,7 +5557,7 @@ _bfd_elf_archive_symbol_lookup (bfd *abfd,
  * we only call this function if it is a valid pointer
  */
 
-extern void (*mchp_smartio_symbols)  (struct bfd_link_info*) __attribute__((weak)) ;
+void (*mchp_smartio_symbols)  (struct bfd_link_info*) __attribute__((weak)) ;
 #endif
 
 /* Add symbols from an ELF archive file to the linker hash table.  We

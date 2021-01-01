@@ -104,7 +104,7 @@ extern rtx pic32c_subtarget_expand_builtin (unsigned int code,
 extern tree pic32c_subtarget_builtin_decl (unsigned code, bool initialize_p); 
 extern bool pic32c_subtarget_gimple_fold_builtin (gimple_stmt_iterator*);
 extern void pretty_tree_with_prototype(tree fndecl);
-
+extern void close_builtins_h();
 /* pragmas */
 extern void mchp_handle_config_pragma(struct cpp_reader *);
 extern void mchp_handle_nocodecov_pragma(struct cpp_reader *);

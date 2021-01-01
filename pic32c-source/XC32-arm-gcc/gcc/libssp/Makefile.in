@@ -108,7 +108,7 @@ am__uninstall_files_from_dir = { \
 am__installdirs = "$(DESTDIR)$(toolexeclibdir)" \
 	"$(DESTDIR)$(libsubincludedir)"
 LTLIBRARIES = $(toolexeclib_LTLIBRARIES)
-am_libssp_la_OBJECTS = ssp.lo gets-chk.lo memcpy-chk.lo memmove-chk.lo \
+am_libssp_la_OBJECTS = ssp.lo ssp_fail.lo gets-chk.lo memcpy-chk.lo memmove-chk.lo \
 	mempcpy-chk.lo memset-chk.lo snprintf-chk.lo sprintf-chk.lo \
 	stpcpy-chk.lo strcat-chk.lo strcpy-chk.lo strncat-chk.lo \
 	strncpy-chk.lo vsnprintf-chk.lo vsprintf-chk.lo
@@ -290,7 +290,7 @@ toolexeclib_LTLIBRARIES = libssp.la libssp_nonshared.la
 libsubincludedir = $(libdir)/gcc/$(target_noncanonical)/$(gcc_version)/include
 nobase_libsubinclude_HEADERS = ssp/ssp.h ssp/string.h ssp/stdio.h ssp/unistd.h
 libssp_la_SOURCES = \
-	ssp.c gets-chk.c memcpy-chk.c memmove-chk.c mempcpy-chk.c \
+	ssp.c ssp_fail.c gets-chk.c memcpy-chk.c memmove-chk.c mempcpy-chk.c \
 	memset-chk.c snprintf-chk.c sprintf-chk.c stpcpy-chk.c \
 	strcat-chk.c strcpy-chk.c strncat-chk.c strncpy-chk.c \
 	vsnprintf-chk.c vsprintf-chk.c
@@ -460,6 +460,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/snprintf-chk.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sprintf-chk.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ssp.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ssp_fail.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stpcpy-chk.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/strcat-chk.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/strcpy-chk.Plo@am__quote@

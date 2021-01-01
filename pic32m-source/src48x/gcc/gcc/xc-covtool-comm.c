@@ -277,7 +277,8 @@ endElement (void           *userData ATTRIBUTE_UNUSED,
     obstack_1grow (&str_stack_, '\0');
     str = p = (char *) obstack_finish (&str_stack_);
 
-    /* parse all the integers in this string and add the to the current path */
+    /* parse all the integers in this string and add them to the current path */
+    errno = 0;
     for (num_bbs = 0; ; p = end_p, ++num_bbs) {
       while (ISSPACE (*p)) ++p;
       if (!*p) break;

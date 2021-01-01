@@ -6541,6 +6541,13 @@ simplify_set (rtx x)
 
   if (GET_MODE_CLASS (mode) == MODE_INT && HWI_COMPUTABLE_MODE_P (mode))
     {
+#ifdef TARGET_MCHP_PIC32C
+      /* XC32E-698: force_to_mode () *always* replaces a register known
+       * to have a zero value with (const_int 0).
+       * On ARM, when dest is a mem ref, such a substitution will result
+       * in an invalid insn and would prevent instruction combining. */
+      if (GET_CODE (src) != REG || GET_CODE (dest) != MEM)
+#endif
       src = force_to_mode (src, mode, ~(unsigned HOST_WIDE_INT) 0, 0);
       SUBST (SET_SRC (x), src);
     }

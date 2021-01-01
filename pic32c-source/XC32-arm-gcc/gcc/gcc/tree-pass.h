@@ -607,6 +607,7 @@ extern rtl_opt_pass *make_pass_split_before_regstack (gcc::context *ctxt);
 extern rtl_opt_pass *make_pass_convert_to_eh_region_ranges (gcc::context *ctxt);
 #if defined(_BUILD_MCHP_)
 extern rtl_opt_pass *make_pass_xc_coverage (gcc::context *ctxt);
+extern rtl_opt_pass *make_pass_xc_rm_unn_sets (gcc::context *ctxt);
 #endif
 extern rtl_opt_pass *make_pass_shorten_branches (gcc::context *ctxt);
 extern rtl_opt_pass *make_pass_set_nothrow_function_flags (gcc::context *ctxt);

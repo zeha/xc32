@@ -49,8 +49,13 @@ SECTION
 #endif
 
 #if defined(TARGET_IS_PIC32C)
+
 #include "../include/elf/pic32c.h"
 #include "pic32c-utils.h"
+
+/* used to check if we should generate elf header for CMSE implib */
+bfd_boolean (*mchp_is_cmse_implib) (void) __attribute__((weak));
+
 #endif
 
 static int elf_sort_sections (const void *, const void *);
@@ -6080,10 +6085,15 @@ prep_headers (bfd *abfd)
     bfd_big_endian (abfd) ? ELFDATA2MSB : ELFDATA2LSB;
   i_ehdrp->e_ident[EI_VERSION] = bed->s->ev_current;
 
+#ifdef TARGET_IS_PIC32C
+  if (mchp_is_cmse_implib && mchp_is_cmse_implib())
+	i_ehdrp->e_type = ET_REL;
+  else
+#endif
   if ((abfd->flags & DYNAMIC) != 0)
     i_ehdrp->e_type = ET_DYN;
   else if ((abfd->flags & EXEC_P) != 0)
-    i_ehdrp->e_type = ET_EXEC;
+	i_ehdrp->e_type = ET_EXEC;
   else if (bfd_get_format (abfd) == bfd_core)
     i_ehdrp->e_type = ET_CORE;
   else

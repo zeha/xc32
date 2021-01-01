@@ -693,13 +693,17 @@ def getobjfile (pic, outfile):
     outfile.write (" * The SFR definitions are now provided in a processor-specific *.S\n")
     outfile.write (" * assembly source file rather than the processor.o file. Use the new\n")
     outfile.write (" * .S file rather than this processor.o file for new projects. MPLAB XC32\n")
-    outfile.write (" * v2.10 and later will automatically link the new .S file. When using")
-    outfile.write (" * this linker script with an older MPLAB XC32 version, remove the\n")
-    outfile.write (" * OPTIONAL() line below and add the pic32mx/lib/proc/<device>.S file\n")
-    outfile.write (" * to your project.\n")
+    outfile.write (" * v2.10 and later will automatically link the new .S file.\n")
     outfile.write (" *************************************************************************/\n")
-    outfile.write ("OPTIONAL(\"processor.o\")\n")
-    
+    # procdefs.ld is not preprocessed
+    # DFPs use the full linker script, not procdefs.ld
+    if "procdefs.ld" not in outfile.name :
+      outfile.write ("#if defined(__XC32_VERSION__) && (__XC32_VERSION__ < 2100)\n")
+      outfile.write ("OPTIONAL(\"processor.o\")\n")
+      outfile.write ("#endif")
+    else :
+      outfile.write ("OPTIONAL(\"processor.o\")\n")
+
     if ("PIC32MX" in pic.name.upper() or "MGC3" in pic.name.upper()):
         outfile.write ("\n/*************************************************************************\n")
         outfile.write (" * Processor-specific legacy peripheral libraries are optional.\n")

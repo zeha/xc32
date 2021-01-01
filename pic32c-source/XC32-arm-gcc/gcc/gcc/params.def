@@ -1209,6 +1209,25 @@ DEFPARAM (PARAM_MAX_SPECULATIVE_DEVIRT_MAYDEFS,
 	  "Maximum number of may-defs visited when devirtualizing "
 	  "speculatively", 50, 0, 0)
 
+/* begin TARGET_MCHP_PIC32C specific params */
+
+DEFPARAM (PARAM_COMPLETE_INIT_MAX_TYPE_SIZE,
+	  "complete-init-max-type-size",
+	  "Maximum size in bytes of a compound type for which initializer completion is attempted.",
+	  16, 0, 0)
+
+DEFPARAM (PARAM_COMPLETE_INIT_MAX_SCALAR_INITS,
+	  "complete-init-max-scalar-inits",
+	  "Maximum number of scalar initializers allowed to complete the initializer of a compound type.",
+	  2, 0, 0)
+
+DEFPARAM (PARAM_INIT_CONST_BY_PIECES_SIZE,
+	  "init-const-by-pieces-size",
+	  "Max variable size for the initialization 'by pieces' heuristic to be applied (0 disables it).",
+	  128, 0, 0)
+
+/* end TARGET_MCHP_PIC32C specific params */
+
 /*
 
 Local variables:

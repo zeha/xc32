@@ -726,7 +726,7 @@ extern void pic32_final_include_paths(struct cpp_dir*,struct cpp_dir*);
         }                                                   \
         else if (strncmp (mchp_processor_string, "32MZ", 4) == 0)  { \
         char *proc=NULL, *p=NULL;                           \
-        int pincount, flashsize;                            \
+        int pincount, flashsize, ramsize = 0;               \
         char *featureset=NULL;                              \
         char *productgroup=NULL;                            \
         char *macroname=NULL;                               \
@@ -753,6 +753,11 @@ extern void pic32_final_include_paths(struct cpp_dir*,struct cpp_dir*);
           sscanf (proc, "__32MZ%4d%2c%1c%4d__",             \
                   &flashsize, &featureset[0],               \
                   &productgroup[0], &pincount);             \
+          if (strncmp(featureset, "W", 1) == 0) {          \
+            sscanf (proc, "__32MZ%2d%2d%2c%2c%3d__",        \
+                    &flashsize, &ramsize, &productgroup[0], \
+                    &featureset[0], &pincount);             \
+          }                                                 \
           builtin_define_with_int_value                     \
              ("__PIC32_FLASH_SIZE__",                       \
               flashsize);                                   \

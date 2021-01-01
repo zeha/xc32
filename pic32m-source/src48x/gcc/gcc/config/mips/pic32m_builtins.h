@@ -16,7 +16,8 @@
  * 2.      Redistributions in binary form must reproduce the above 
  *         copyright notice, this list of conditions and the following 
  *         disclaimer in the documentation and/or other materials provided 
- *         with the distribution.
+ *         with the distribution.  Publication is not required when this file
+ *         is used in an embedded application.
  * 3.      Microchip's name may not be used to endorse or promote products
  *         derived from this software without specific prior written 
  *         permission.

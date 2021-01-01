@@ -69,7 +69,7 @@ pic32c_init_save_reg_mask (void)
 /* helper for pic32c_adjust_insert_pos() below;
  * returns a reg number or INVALID_REGNUM if no tmp reg was found */
 static unsigned
-find_unused_tmp_reg (basic_block bb, unsigned skip_regno)
+find_unused_tmp_reg (regset live, unsigned skip_regno)
 {
   /* the first of the caller-saved regs r0-r3 (and r12 for Thumb2)
    * that doesn't hold a live value */
@@ -79,7 +79,7 @@ find_unused_tmp_reg (basic_block bb, unsigned skip_regno)
     {
       if ((regno <= 3 || regno == 12)
           && (regno != skip_regno)
-          && !REGNO_REG_SET_P (DF_LR_IN (bb), regno))
+          && !REGNO_REG_SET_P (live, regno))
         return regno;
     }
 
@@ -91,21 +91,12 @@ pic32c_adjust_insert_pos (basic_block bb,
                           int         prologue_bb,
                           rtx_insn    *where)
 {
-  /* look for an unused caller-saved register */
-  CC_TMP1_REGNO = find_unused_tmp_reg (bb, INVALID_REGNUM);
+  rtx_insn *const end = NEXT_INSN (BB_END (bb));
 
-  /* for Thumb-1 targets (that can benefit from a second scratch register) */
-  if (TARGET_THUMB1) {
-    /* look for another unused caller-saved register */
-    CC_TMP2_REGNO = find_unused_tmp_reg (bb, CC_TMP1_REGNO);
-  }
-
-  /* only bother to adjust when -fPIC and determining the position for the
-   * first (containing the prologue) basic block */
+  /* only bother to adjust WHERE when -fPIC and determining the position
+   * for the first (containing the prologue) basic block */
   if (flag_pic && prologue_bb) {
     gcc_assert (where && cfun->machine->pic_reg);
-
-    rtx_insn *const end = NEXT_INSN (BB_END (bb));
 
     /* look for the the (SET (pic_reg) (UNSPEC [...] UNSPEC_PIC_BASE))
      * (or UNSPEC_PIC_UNIFIED, on unoptimized builds) insn that inits
@@ -129,10 +120,27 @@ pic32c_adjust_insert_pos (basic_block bb,
     gcc_assert (where != end);
 
     where = NEXT_INSN (where);
-    if (where == end)
-      where = NULL;
   }
-  return where;
+
+  /* determine the set of regs live at the insert position (before WHERE) */
+  regset live = BITMAP_ALLOC (&reg_obstack);
+  simulate_backwards_to_point (bb, live, where ? PREV_INSN (where) : BB_END (bb));
+
+  /* look for an unused caller-saved register */
+  CC_TMP1_REGNO = find_unused_tmp_reg (live, INVALID_REGNUM);
+
+  /* for Thumb-1 targets (that can benefit from a second scratch register) */
+  if (TARGET_THUMB1) {
+    /* look for another unused caller-saved register */
+    CC_TMP2_REGNO = find_unused_tmp_reg (live, CC_TMP1_REGNO);
+  }
+
+  BITMAP_FREE (live);
+
+  /* the instrumentation code will be inserted before the WHERE insn,
+   * with the convention to return NULL if the insertion point is AFTER
+   * the last insn in the BB */
+  return (where != end) ? where : NULL;
 }
 
 void
@@ -252,8 +260,19 @@ pic32c_set_cc_bit (unsigned bit_no)
   emit_insn (gen_rtx_SET (byte_ref, gen_lowpart_SUBREG (QImode, CC_TMP1_REG)));
 
   /* need to restore the temp reg(s)? */
-  if (save_regs_mask)
+  if (save_regs_mask) {
     arm_emit_multi_reg_pop (save_regs_mask);
+
+    /* XC32-1173: it seems that arm_emit_multi_reg_pop() was intended to be used
+     * only for the epilogue code and, based on that, it emits a note that
+     * makes a gcc_assert() fail (i.e. internal compiler error) in dwarf2cfi.c;
+     * as the debug support for code coverage is not added yet, the simplest
+     * way to prevent the ICE is to just remove the note afterwards. */
+    rtx_insn *insn = get_last_insn ();
+    rtx note = find_reg_note (insn, REG_CFA_ADJUST_CFA, NULL_RTX);
+    if (note)
+      remove_note (insn, note);
+  }
 
   /* if we offseted the address, restore its value
      TODO: can we eliminate this easily? (most of the time the address isn't used afterwards) */

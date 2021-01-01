@@ -41,7 +41,6 @@ along with GCC; see the file COPYING3.  If not see
 #define MCHP_XCLM_FREE_LICENSE           0x0
 #define MCHP_XCLM_VALID_STANDARD_LICENSE 0x1
 #define MCHP_XCLM_VALID_PRO_LICENSE      0x2
-#define MCHP_XCLM_VALID_FS_LICENSE       0x7
 #define MCHP_XCLM_NO_CCOV_LICENSE        0x8
 #define MCHP_XCLM_VALID_CCOV_LICENSE     0x9
 
@@ -76,52 +75,6 @@ static const char *invalid_license = "due to an invalid XC32 license";
 #define str(s) _str(s)
 #define _str(s) #s
 
-/* Some standard definitions. */
-#define XCLM_XC32_PRODUCT_NAME "swxc32"
-#define XCLM_XCCOV_PRODUCT_NAME "swxc-cov"
-#define XCLM_XCCOV_COMMAND_OPTION "-fcfc"
-
-/*
- * When building for a functional safety license check, the option
- * passed to xclm for the license check is different, but not for code
- * coverage.  The default license value when skipping the license
- * manager is also different.  More importantly, once we get the
- * license, some checks must be run to ensure that only the FS license
- * is allowed.  The macros below define these values and actions.
- */
-#ifndef _BUILD_FS_LICENSE_
-bool
-allow_nullify_nofs_p (HOST_WIDE_INT license_value)
-{
-  return (license_value == MCHP_XCLM_VALID_PRO_LICENSE)
-    || (license_value == MCHP_XCLM_VALID_STANDARD_LICENSE);
-}
-
-#define XCLM_XC32_COMMAND_OPTION "-fcfc"
-#define LM_INITIAL_LICENSE_VALUE MCHP_XCLM_VALID_PRO_LICENSE
-#define LM_ALLOW_NULLIFY_P(V) allow_nullify_nofs_p (V)
-#define LM_AFTER_GET_LICENSE do { (void) 0; } while (0)
-
-#else  /* _BUILD_FS_LICENSE_ */
-
-bool
-allow_nullify_fs_p (HOST_WIDE_INT license_value)
-{
-  return license_value == MCHP_XCLM_VALID_FS_LICENSE;
-}
-
-#define XCLM_XC32_COMMAND_OPTION "-fcfs"
-#define LM_INITIAL_LICENSE_VALUE MCHP_XCLM_VALID_FS_LICENSE
-#define LM_ALLOW_NULLIFY_P(V) allow_nullify_fs_p (V)
-#define LM_AFTER_GET_LICENSE                                            \
-  if (mchp_pic32_license_valid != MCHP_XCLM_VALID_FS_LICENSE)           \
-    {                                                                   \
-      error("This compiler needs a valid MPLAB XC compiler "            \
-            "Functional Safety license.  Aborting compilation.");       \
-      inform(0, "Visit https://www.microchip.com/mplab/compilers "      \
-             "for more information.");                                  \
-    }
-#endif /* _BUILD_FS_LICENSE_ */
 
 #ifdef MCHP_USE_LICENSE_CONF
 #define MCHP_LICENSE_CONF_FILENAME "license.conf"
@@ -142,7 +95,7 @@ allow_nullify_fs_p (HOST_WIDE_INT license_value)
 #define MCHP_LICENSE_TBD -1
 
 #ifdef SKIP_LICENSE_MANAGER
-static HOST_WIDE_INT mchp_pic32_license_valid = LM_INITIAL_LICENSE_VALUE;
+static HOST_WIDE_INT mchp_pic32_license_valid = MCHP_XCLM_VALID_PRO_LICENSE;
 static HOST_WIDE_INT mchp_xccov_license_valid = MCHP_XCLM_VALID_CCOV_LICENSE;
 #else
 static HOST_WIDE_INT mchp_pic32_license_valid = MCHP_LICENSE_TBD;
@@ -307,24 +260,20 @@ get_license_manager_path (void)
 
 #endif /* SKIP_LICENSE_MANAGER */
 
-/* Retrieves the XC32 or the XCCOV license from XCLM.  Calls XCLM
-   using xclm_option and product_name, and returns the license type
-   indicated by XCLM's return code.  If there are any errors, return
-   default_license.  If the mafrlcsj option was provided, return
-   valid_license. */
+/* retrieves the XC32 or the XCCOV license from XCLM */
 static int
-pic32_get_license (int current_license, int default_license, int valid_license,
-                   const char *xclm_option, const char *product_name,
-                   bool construct_version)
+pic32_get_license (bool xccov)
 {
   /* if license type already determined for the corresponding product, just return it */
-  if (current_license != MCHP_LICENSE_TBD)
+  int license_type = xccov ? mchp_xccov_license_valid
+                           : mchp_pic32_license_valid;
+  if (license_type != MCHP_LICENSE_TBD)
     {
-      return current_license;
+      return license_type;
     }
 
-  /* assume default (free/no) license for now */
-  int license_type = default_license;
+  /* assume free/no license for now */
+  license_type = xccov ? MCHP_XCLM_NO_CCOV_LICENSE : MCHP_XCLM_FREE_LICENSE;
 
   /*
    *  On systems where we have a licence manager, call it
@@ -333,11 +282,12 @@ pic32_get_license (int current_license, int default_license, int valid_license,
   {
     char *exec;
 #if XCLM_FULL_CHECKOUT
-    char *kopt = const_cast<char *>(xclm_option);
+    char kopt[] = "-fcfc";
 #else
-    char *kopt = "-checkout";
+    char kopt[] = "-checkout";
 #endif /* XCLM_FULL_CHECKOUT */
-    char *product = const_cast<char *>(product_name);
+    char xc32_product[] = "swxc32";
+    char xccov_product[] = "swxc-cov";
     char version[16] = "1.0"; /* 1.0 works for xccov; for xc32, the version is determined below */
     char date[] = __DATE__;
 
@@ -355,7 +305,7 @@ pic32_get_license (int current_license, int default_license, int valid_license,
     int found_xclm = 0, xclm_tampered = 1;
 
     /* Get the version number string from the entire version string */
-    if (construct_version && (version_string != NULL) && *version_string)
+    if (!xccov && (version_string != NULL) && *version_string)
       {
         char *Microchip;
         gcc_assert(strlen(version_string) < 80);
@@ -384,7 +334,7 @@ pic32_get_license (int current_license, int default_license, int valid_license,
 
     /* Arguments to pass to xclm */
     args[1] = kopt;
-    args[2] = product;
+    args[2] = xccov ? xccov_product : xc32_product;
     args[3] = version;
 
 #if XCLM_FULL_CHECKOUT
@@ -464,7 +414,7 @@ pic32_get_license (int current_license, int default_license, int valid_license,
 #endif /* SKIP_LICENSE_MANAGER */
 
   if (mchp_mafrlcsj) {
-    license_type = valid_license;
+    license_type = xccov ? MCHP_XCLM_VALID_CCOV_LICENSE : MCHP_XCLM_VALID_PRO_LICENSE;
   }
 
   return license_type;
@@ -589,25 +539,19 @@ mchp_subtarget_override_options2 (void)
   }
   else
   {
-    mchp_pic32_license_valid = pic32_get_license (mchp_pic32_license_valid,
-                                                  MCHP_XCLM_FREE_LICENSE,
-                                                  MCHP_XCLM_VALID_PRO_LICENSE,
-                                                  XCLM_XC32_COMMAND_OPTION,
-                                                  XCLM_XC32_PRODUCT_NAME,
-                                                  true);
-    LM_AFTER_GET_LICENSE;
-    mchp_xccov_license_valid = pic32_get_license (mchp_xccov_license_valid,
-                                                  MCHP_XCLM_NO_CCOV_LICENSE,
-                                                  MCHP_XCLM_VALID_CCOV_LICENSE,
-                                                  XCLM_XCCOV_COMMAND_OPTION,
-                                                  XCLM_XCCOV_PRODUCT_NAME,
-                                                  false);
+    mchp_pic32_license_valid = pic32_get_license (0);
+    mchp_xccov_license_valid = pic32_get_license (1);
   }
 
-  if (LM_ALLOW_NULLIFY_P(mchp_pic32_license_valid))
+  if (mchp_pic32_license_valid == MCHP_XCLM_VALID_PRO_LICENSE
+      || mchp_pic32_license_valid == MCHP_XCLM_VALID_STANDARD_LICENSE)
     {
       nullify_lto = nullify_mips16 = nullify_O3 = nullify_Os = 0;
     }
+
+  /*
+   *  On systems where we have a licence manager, call it
+   */
 
   {
     /*

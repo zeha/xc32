@@ -37,6 +37,9 @@ fi
 cd ../../../
 find ./install-mingw -name 'libstdc++*-gdb.py' -delete
 
+echo "Code Signing Windows binaries"
+./build-scripts/bamboo/full-v2/xc_codesign_win.sh install-mingw xc32
+
 if [[ "x${bamboo_SKIP_DARWIN}" != "xtrue" && "x${bamboo_SKIP_DARWIN}" != "xTRUE" ]]; then
   echo "Unpacking Darwin image"
   tar -xzf install-Darwin.tar.gz

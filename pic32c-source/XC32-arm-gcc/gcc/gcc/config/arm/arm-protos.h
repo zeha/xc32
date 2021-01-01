@@ -196,6 +196,9 @@ extern void thumb2_final_prescan_insn (rtx_insn *);
 extern const char *thumb_load_double_from_address (rtx *);
 extern const char *thumb_output_move_mem_multiple (int, rtx *);
 extern const char *thumb_call_via_reg (rtx);
+#ifdef TARGET_MCHP_PIC32C
+extern bool thumb_expand_movmemqi_p (rtx *);
+#endif
 extern void thumb_expand_movmemqi (rtx *);
 extern rtx arm_return_addr (int, rtx);
 extern void thumb_reload_out_hi (rtx *);

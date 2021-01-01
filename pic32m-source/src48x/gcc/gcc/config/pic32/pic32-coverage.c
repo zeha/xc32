@@ -120,7 +120,7 @@ pic32_ld_cc_bits (unsigned offset)
 /* helper for pic32_adjust_insert_pos() below;
  * returns a reg number or INVALID_REGNUM if no tmp reg was found */
 static unsigned
-find_unused_tmp_reg (basic_block bb, unsigned skip_regno)
+find_unused_tmp_reg (regset live, unsigned skip_regno)
 {
   /* regs $2..$7 are preferable for microMIPS and MIPS16 (that's ok
    * given the order we use), then $8..$15 and $24..$25 and lastly $1
@@ -136,7 +136,7 @@ find_unused_tmp_reg (basic_block bb, unsigned skip_regno)
     {
       if ((regno < 16 || regno > 23)
           && (regno != skip_regno)
-          && !REGNO_REG_SET_P (DF_LR_IN (bb), regno))
+          && !REGNO_REG_SET_P (live, regno))
         return regno;
     }
 
@@ -151,15 +151,19 @@ pic32_adjust_insert_pos (basic_block bb,
                          int prologue_bb ATTRIBUTE_UNUSED,
                          rtx where)
 {
+  /* determine the set of regs live at the insert position (before WHERE) */
+  regset live = BITMAP_ALLOC (&reg_obstack);
+  simulate_backwards_to_point (bb, live, where ? PREV_INSN (where) : BB_END (bb));
+
   /* find a temp register that we can use;
    * NOTE: there's no need to check the return value as this will
    * always succeed ($at can always be used as a temporary register) */
-  CC_TMP1_REGNO = find_unused_tmp_reg (bb, INVALID_REGNUM);
+  CC_TMP1_REGNO = find_unused_tmp_reg (live, INVALID_REGNUM);
 
   /* in the MIPS16 case, a second temp register is needed */
   if (TARGET_MIPS16)
     {
-      CC_TMP2_REGNO = find_unused_tmp_reg (bb, CC_TMP1_REGNO);
+      CC_TMP2_REGNO = find_unused_tmp_reg (live, CC_TMP1_REGNO);
 
       /* no free register? (didn't hit this case yet in the tests but...) */
       if (CC_TMP2_REGNO == INVALID_REGNUM)
@@ -175,7 +179,7 @@ pic32_adjust_insert_pos (basic_block bb,
       /* otherwise, the second temp reg is not needed */
       CC_TMP2_REGNO = INVALID_REGNUM;
     }
-
+  BITMAP_FREE (live);
   return where;
 }
 

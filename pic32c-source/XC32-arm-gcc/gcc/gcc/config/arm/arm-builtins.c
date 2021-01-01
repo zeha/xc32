@@ -1855,6 +1855,7 @@ arm_init_builtins (void)
 {
 #ifdef _BUILD_MCHP_
   extern void mchp_print_builtin_function (tree);
+  extern void mchp_close_builtin_header ();
 #endif
   if (TARGET_REALLY_IWMMXT)
     arm_init_iwmmxt_builtins ();
@@ -1887,7 +1888,11 @@ arm_init_builtins (void)
 				ARM_BUILTIN_SET_FPSCR, BUILT_IN_MD, NULL, NULL_TREE);
     }
 
-  if (use_cmse)
+  if (use_cmse
+#ifdef _BUILD_MCHP_
+      || TARGET_WRITE_BUILTINS_H
+#endif
+      )
     {
       tree ftype_cmse_nonsecure_caller
 	= build_function_type_list (unsigned_type_node, NULL);
@@ -1928,8 +1933,8 @@ arm_init_builtins (void)
 #ifdef TARGET_MCHP_PIC32C
 #ifdef PIC32C_SUBTARGET_INIT_BUILTINS
   PIC32C_SUBTARGET_INIT_BUILTINS ();
-  // if this run is just to write the builtins.h file then quit with a non-zero code
-  if ( TARGET_WRITE_BUILTINS_H) exit(1);
+  // close out the builtins.h file if needed.   This call will not return!
+  if ( TARGET_WRITE_BUILTINS_H)  mchp_close_builtin_header ();
 #endif
 #endif
 

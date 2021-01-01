@@ -1115,7 +1115,12 @@ classify_partition (loop_p loop, struct graph *rdg, partition *partition)
       partition->niter = nb_iter;
       partition->plus_one = plus_one;
     }
+#ifdef TARGET_MCHP_PIC32C
+  /* XC32E-465: prevent detection of memcpy pattern when optimizing for size */
+  else if (single_store && single_load && !optimize_loop_for_size_p (loop))
+#else
   else if (single_store && single_load)
+#endif
     {
       gimple *store = DR_STMT (single_store);
       gimple *load = DR_STMT (single_load);
@@ -1759,8 +1764,16 @@ pass_loop_distribution::execute (function *fun)
 	continue;
 
       /* Only optimize hot loops.  */
+#ifdef TARGET_MCHP_PIC32C
+      /* XC32E-465: additionally, when optimizing for size, include
+       * very simple loops that may be replaced with a memset() call */
+      if (!(optimize_loop_for_speed_p (loop)
+            || (optimize_loop_for_size_p (loop) && loop->num_nodes <= 2)))
+        continue;
+#else
       if (!optimize_loop_for_speed_p (loop))
 	continue;
+#endif
 
       /* Initialize the worklist with stmts we seed the partitions with.  */
       bbs = get_loop_body_in_dom_order (loop);

@@ -137,7 +137,10 @@ sb_check (sb *ptr, size_t len)
       if ((ssize_t) want < 0)
 	as_fatal ("string buffer overflow");
 #if GCC_VERSION >= 3004
-      max = (size_t) 1 << (CHAR_BIT * sizeof (want) - __builtin_clzl (want));
+      /* XC32-1528 changed from clzl to clzll when switched to 64b builds
+       * This assumes the sizeof(size_t) = 8
+       */
+      max = (size_t) 1 << (CHAR_BIT * sizeof (want) - __builtin_clzll (want));
 #else
       max = 128;
       while (want > max)

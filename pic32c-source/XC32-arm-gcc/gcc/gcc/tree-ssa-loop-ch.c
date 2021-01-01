@@ -34,6 +34,118 @@ along with GCC; see the file COPYING3.  If not see
 #include "tree-ssa-scopedtables.h"
 #include "tree-ssa-threadedge.h"
 
+#ifdef TARGET_MCHP_PIC32C
+
+/* XC32E-465: duplicating the loop header helps the later "loop distribution"
+ * pass to recognize memset() more reliably but, if that wouldn't happen,
+ * the code size would increase, so we need to be very careful when to allow
+ * it (by default, this is always disallowed when optimizing for code size) */
+static bool
+pic32c_duplicate_loop_header_p (struct loop *loop)
+{
+  if (optimize_loop_for_size_p (loop))
+    {
+      /* not a small innermost loop? */
+      if (loop->inner || loop->num_nodes > 2)
+        return false;
+
+      /* the loop header should be neither too complicated nor too simple */
+      int num_asgns = 0;
+      for (gimple_stmt_iterator bsi = gsi_start_bb (loop->header);
+           !gsi_end_p (bsi); gsi_next (&bsi))
+        {
+          if (is_gimple_assign (gsi_stmt (bsi)))
+            ++num_asgns;
+        }
+      if (num_asgns != 1)
+        return false;
+
+      int num_phis = 0;
+      for (gphi_iterator psi = gsi_start_phis (loop->header);
+           !gsi_end_p (psi); gsi_next (&psi))
+        {
+          if (!virtual_operand_p (gimple_phi_result (psi.phi ())))
+            ++num_phis;
+        }
+      if (num_phis > 1)
+        return false;
+
+      /* also inspect the loop body */
+      int max_insns = 6, num_memref = 1;
+      for (gimple_stmt_iterator bsi = gsi_start_bb (loop->latch);
+           !gsi_end_p (bsi); gsi_next (&bsi))
+        {
+          gimple *stmt = gsi_stmt (bsi);
+          if (gimple_code (stmt) == GIMPLE_LABEL || is_gimple_debug (stmt))
+            continue;
+
+          /* bail out if anything else than an assignment */
+          if (!is_gimple_assign (stmt))
+            return false;
+
+          /* same if too many instructions */
+          max_insns -= estimate_num_insns (stmt, &eni_size_weights);
+          if (max_insns < 0)
+            return false;
+
+          tree lhs = gimple_assign_lhs (stmt);
+          enum tree_code rhs_code = gimple_assign_rhs_code (stmt);
+
+          if (TREE_CODE (lhs) == MEM_REF)
+            {
+              /* the right-hand side should be simple */
+              if (rhs_code != INTEGER_CST && rhs_code != SSA_NAME)
+                return false;
+
+              /* too many memrefs? */
+              if (--num_memref < 0)
+                return false;
+            }
+          else
+            {
+              switch (gimple_assign_rhs_class (stmt))
+                {
+                  /* ignore simple assignments */
+                  case GIMPLE_SINGLE_RHS:
+                    break;
+
+                  /* casts are the only unary ops allowed */
+                  case GIMPLE_UNARY_RHS:
+                    if (!gimple_assign_cast_p (stmt))
+                      return false;
+                    break;
+
+                  /* as for binary ops, allow only additions with powers of 2 */
+                  case GIMPLE_BINARY_RHS:
+                    {
+                      if (rhs_code != PLUS_EXPR
+                          && rhs_code != POINTER_PLUS_EXPR)
+                        return false;
+
+                      tree rhs2 = gimple_assign_rhs2 (stmt);
+                      if (TREE_CODE (rhs2) != INTEGER_CST
+                          || !tree_fits_uhwi_p (rhs2)
+                          || exact_log2 (tree_to_uhwi (rhs2)) < 0)
+                        return false;
+                    }
+                    break;
+
+                  /* anything else is not ok */
+                  default:
+                    return false;
+                }
+            }
+        }
+
+      /* precisely one memref is expected */
+      if (num_memref != 0)
+        return false;
+    }
+
+  return true;
+}
+#endif
+
 /* Duplicates headers of loops if they are small enough, so that the statements
    in the loop body are always executed when the loop is entered.  This
    increases effectiveness of code motion optimizations, and reduces the need
@@ -59,7 +171,11 @@ should_duplicate_loop_header_p (basic_block header, struct loop *loop,
      be true, since quite often it is possible to verify that the condition is
      satisfied in the first iteration and therefore to eliminate it.  Jump
      threading handles these cases now.  */
+#ifdef TARGET_MCHP_PIC32C
+  if (!pic32c_duplicate_loop_header_p (loop))
+#else
   if (optimize_loop_for_size_p (loop))
+#endif
     return false;
 
   gcc_assert (EDGE_COUNT (header->succs) > 0);

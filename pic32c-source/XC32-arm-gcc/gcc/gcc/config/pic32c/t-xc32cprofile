@@ -58,8 +58,8 @@ MULTILIB_REUSE       =
 MULTILIB_OPTIONS       += marm
 MULTILIB_DIRNAMES      += arm
 
-MULTILIB_OPTIONS       += march=armv7-m/march=armv7e-m/march=armv7-a/march=armv5te/march=armv8-m.base
-MULTILIB_DIRNAMES      += v7-m v7e-m v7-a v5te v8-m.base
+MULTILIB_OPTIONS       += march=armv7-m/march=armv7e-m/march=armv7-a/march=armv5te/march=armv8-m.base/march=armv8-m.main
+MULTILIB_DIRNAMES      += v7-m v7e-m v7-a v5te v8-m.base v8-m.main
 
 MULTILIB_OPTIONS       += mfpu=vfpv3-d16/mfpu=fpv4-sp-d16/mfpu=fpv5-d16
 MULTILIB_DIRNAMES      += vfpv3 fpv4-sp fpv5
@@ -100,11 +100,11 @@ MULTILIB_REQUIRED      += march=armv7e-m/mfpu=fpv5-d16/mfloat-abi=softfp/mno-una
 MULTILIB_REQUIRED      += march=armv7e-m/mfpu=fpv5-d16/mfloat-abi=hard/mno-unaligned-access
 
 # ARMv8-M Mainline
-#MULTILIB_REQUIRED      += mthumb/march=armv8-m.main
-#MULTILIB_REQUIRED      += mthumb/march=armv8-m.main/mfpu=fpv5-d16/mfloat-abi=softfp
-#MULTILIB_REQUIRED      += mthumb/march=armv8-m.main/mfpu=fpv5-d16/mfloat-abi=hard
-#MULTILIB_REQUIRED      += mthumb/march=armv8-m.main/mfpu=fpv5-sp-d16/mfloat-abi=softfp
-#MULTILIB_REQUIRED      += mthumb/march=armv8-m.main/mfpu=fpv5-sp-d16/mfloat-abi=hard
+MULTILIB_REQUIRED      += march=armv8-m.main
+MULTILIB_REQUIRED      += march=armv8-m.main/mfpu=fpv5-d16/mfloat-abi=softfp
+MULTILIB_REQUIRED      += march=armv8-m.main/mfpu=fpv5-d16/mfloat-abi=hard
+#MULTILIB_REQUIRED      += march=armv8-m.main/mfpu=fpv5-sp-d16/mfloat-abi=softfp
+#MULTILIB_REQUIRED      += march=armv8-m.main/mfpu=fpv5-sp-d16/mfloat-abi=hard
 
 # ARMv7-R as well as ARMv7-A and ARMv8-A if aprofile was not specified
 # note that armv7-a includes thumb and arm libraries
@@ -135,7 +135,7 @@ MULTILIB_MATCHES       += march?armv7-m=mcpu?cortex-m3
 MULTILIB_MATCHES       += march?armv7e-m=mcpu?cortex-m4
 MULTILIB_MATCHES       += march?armv7e-m=mcpu?cortex-m7
 MULTILIB_MATCHES       += march?armv8-m.base=mcpu?cortex-m23
-#MULTILIB_MATCHES       += march?armv8-m.main=mcpu?cortex-m33
+MULTILIB_MATCHES       += march?armv8-m.main=mcpu?cortex-m33
 MULTILIB_MATCHES       += march?armv7-a=mcpu?cortex-r4
 MULTILIB_MATCHES       += march?armv7-a=mcpu?cortex-r4f
 MULTILIB_MATCHES       += march?armv7-a=mcpu?cortex-r5

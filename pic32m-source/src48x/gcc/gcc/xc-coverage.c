@@ -809,7 +809,7 @@ xccov_define_cc_bits (void)
   TARGET_XCCOV_EMIT_SECTION (CODECOV_SECTION);
 
   /* size in bytes (rounded up from the no. of bits) */
-  const unsigned long long size = (num_rtl_cc_bits * TARGET_XCCOV_POINTSIZE + 7) / 8;
+  const unsigned long size = (num_rtl_cc_bits * TARGET_XCCOV_POINTSIZE + 7) / 8;
   ASM_OUTPUT_ALIGNED_LOCAL (asm_out_file, cc_bits_name, size, 8);
 }
 
@@ -937,6 +937,9 @@ xc_code_coverage (void)
 
   /* get coverage paths from output file */
   covfuncs = xccov_get_coverage_paths ();
+
+  /* make sure the live info is accurate (don't count on previous passes to be well-behaved) */
+  df_analyze ();
 
   /* add the instrumentation code */
   xccov_add_instrumentation_code (covfuncs);

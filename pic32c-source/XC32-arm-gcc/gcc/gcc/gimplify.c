@@ -3933,6 +3933,18 @@ gimplify_init_constructor (tree *expr_p, gimple_seq *pre_p, gimple_seq *post_p,
 	    break;
 	  }
 
+#ifdef TARGET_MCHP_PIC32C
+	/* XC32E-285: attempt a minor optimization for incomplete ctors */
+	if (!complete_p
+	    && !CONSTRUCTOR_NO_CLEARING (ctor)
+	    && try_complete_constructor (&ctor))
+	  {
+	    TREE_OPERAND (*expr_p, 1) = ctor;
+	    elts = CONSTRUCTOR_ELTS (ctor);
+	    complete_p = true;
+	  }
+#endif /* TARGET_MCHP_PIC32C */
+
 	/* If there are "lots" of initialized elements, even discounting
 	   those that are not address constants (and thus *must* be
 	   computed at runtime), then partition the constructor into
@@ -4012,7 +4024,14 @@ gimplify_init_constructor (tree *expr_p, gimple_seq *pre_p, gimple_seq *post_p,
 	    if (size > 0
 		&& num_nonzero_elements > 1
 		&& (size < num_nonzero_elements
+#ifdef TARGET_MCHP_PIC32C
+		    /* XC32E-642: assess the opportunity of doing the
+		     * initialization 'by pieces' while also taking into
+		     * account the actual object and its initializator */
+		    || !init_const_by_pieces_p (size, align, object, ctor)))
+#else
 		    || !can_move_by_pieces (size, align)))
+#endif
 	      {
 		if (notify_temp_creation)
 		  return GS_ERROR;

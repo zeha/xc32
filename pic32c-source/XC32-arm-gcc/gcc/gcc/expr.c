@@ -60,6 +60,10 @@ along with GCC; see the file COPYING3.  If not see
 #include "tree-chkp.h"
 #include "rtl-chkp.h"
 #include "ccmp.h"
+#ifdef TARGET_MCHP_PIC32C
+#include "params.h"
+#include <map>
+#endif
 
 
 /* If this is nonzero, we do not bother generating VOLATILE
@@ -5717,6 +5721,698 @@ count_type_elements (const_tree type, bool for_ctor_p)
       gcc_unreachable ();
     }
 }
+
+#ifdef TARGET_MCHP_PIC32C
+
+/* Inspects TYPE and associated CTOR (that might be NULL_TREE)
+ * and returns the number of scalar elements missing initializers.
+ *
+ * Returns -1 if the number isn't known. */
+
+static HOST_WIDE_INT
+missing_scalar_initializers (const_tree type, const_tree ctor)
+{
+  switch (TREE_CODE (type)) {
+  case ARRAY_TYPE: {
+    /* some arrays might be initialized with something else than a
+     * constructor (e.g. char arrays might be init'd with a STRING_CST)
+     * but we handle only constructors */
+    if (ctor && TREE_CODE (ctor) != CONSTRUCTOR)
+      return -1;
+
+    /* the number of array elements minus 1, as a tree */
+    tree nelts = array_type_nelts (type);
+    if (!nelts || !tree_fits_uhwi_p (nelts))
+      return -1;
+
+    /* the number of array elements, as a wide integer */
+    unsigned HOST_WIDE_INT n = tree_to_uhwi (nelts) + 1;
+    HOST_WIDE_INT missing_inits = 0;
+
+    if (ctor)
+      {
+        /* this function will handle arrays with max. 64 elements
+         * but this should (more) than enough for our purposes... */
+        if (n > HOST_BITS_PER_WIDE_INT)
+          return -1;
+
+        /* the bits in this value correspond to the initialized
+         * array elements */
+        HOST_WIDE_INT elts_initd = 0;
+
+        unsigned HOST_WIDE_INT idx;
+        tree value, purpose;
+        FOR_EACH_CONSTRUCTOR_ELT (CONSTRUCTOR_ELTS (ctor), idx, purpose, value)
+          {
+            /* this shouldn't happen in the front end (per GCC internals) */
+            if (!purpose)
+              return -1;
+
+            unsigned HOST_WIDE_INT lo_idx, hi_idx;
+            if (TREE_CODE (purpose) == INTEGER_CST)
+              {
+                /* the most common case: a single array element */
+                lo_idx = hi_idx = tree_to_uhwi (purpose);
+              }
+            else
+              {
+                /* the (only) other option is a range of elements */ 
+                gcc_assert (TREE_CODE (purpose) == RANGE_EXPR);
+
+                /* the range limits (inclusive) */
+                tree lo_index = TREE_OPERAND (purpose, 0);
+                tree hi_index = TREE_OPERAND (purpose, 1);
+
+                if (!tree_fits_uhwi_p (lo_index)
+                    || !tree_fits_uhwi_p (hi_index))
+                  return -1;
+
+                lo_idx = tree_to_uhwi (lo_index);
+                hi_idx = tree_to_uhwi (hi_index);
+              }
+
+            /* how many scalar initializations are needed to complete
+             * the initializator for one element of the current range */
+            HOST_WIDE_INT missing_per_elt =
+              missing_scalar_initializers (TREE_TYPE (type), value);
+
+            if (missing_per_elt == -1)
+              return -1;
+
+            /* accumulate the missing scalar initializers */
+            missing_inits += (hi_idx - lo_idx + 1) * missing_per_elt;
+
+            /* set the 'elts_initd' bits corresp. to the initialized elements */
+            for (unsigned HOST_WIDE_INT crt_idx = lo_idx;
+                 crt_idx <= hi_idx; ++crt_idx)
+              {
+                /* I doubt this will happen (multiple initializers for the
+                 * same array element), but add a safety net nevertheless */
+                if (elts_initd & ((HOST_WIDE_INT)1 << crt_idx))
+                  return -1;
+
+                elts_initd |= ((HOST_WIDE_INT)1 << crt_idx);
+              }
+          }
+
+        /* now that all the constructor elements were considered,
+         * determine the number of uninitialized array elements */
+        n -= popcount_hwi (elts_initd);
+      }
+
+    /* any remaining uninitialized array elements? */
+    if (n)
+      {
+        /* how many scalar initializations are needed per element
+         * without any constructor specified */
+        HOST_WIDE_INT missing_per_elt =
+          missing_scalar_initializers (TREE_TYPE (type), NULL_TREE);
+
+        if (missing_per_elt == -1)
+          return -1;
+
+        /* update total count of missing scalar initializers */
+        missing_inits += n * missing_per_elt;
+      }
+
+    return missing_inits;
+  }
+
+  case RECORD_TYPE: {
+    /* I don't know if record types can be initialized with anything
+     * else than a constructor, but it doesn't hurt to verify... */
+    if (ctor && TREE_CODE (ctor) != CONSTRUCTOR)
+      return -1;
+
+    HOST_WIDE_INT missing_inits = 0;
+
+    /* for all the fields in the record */
+    for (tree field = TYPE_FIELDS (type); field; field = DECL_CHAIN (field))
+      {
+        /* if not a POD or with complications such as bitfields, bail out */
+        if (TREE_CODE (field) != FIELD_DECL
+            || DECL_BIT_FIELD (field)
+            || flexible_array_member_p (field, type))
+          return -1;
+
+        unsigned HOST_WIDE_INT idx;
+        tree value, purpose, found = NULL_TREE;
+
+        /* look for the corresponding constructor element
+          * (that is, if a constructor is available) */
+        if (ctor)
+          {
+            FOR_EACH_CONSTRUCTOR_ELT (CONSTRUCTOR_ELTS (ctor),
+                                      idx, purpose, value)
+              if (purpose == field)
+                {
+                  found = value;
+                  break;
+                }
+          }
+
+        /* how many scalar initializations are needed per element
+          * with (a complete or incomplete) or without a constructor */
+        HOST_WIDE_INT missing_per_field =
+          missing_scalar_initializers (TREE_TYPE (field), found);
+
+        if (missing_per_field == -1)
+          return -1;
+
+        /* accumulate the missing scalar initializers */
+        missing_inits += missing_per_field;
+      }
+
+    return missing_inits;
+  }
+
+  case INTEGER_TYPE:
+    /* for integral types, return 1 if ctor/initializer is missing
+     * and 0 otherwise */
+    /* TODO: what about BOOLEAN_TYPE, ENUMERAL_TYPE, REAL_TYPE etc. ? */
+    return ctor == NULL_TREE;
+
+  default:
+    /* the rest are unknown/unsupported types */
+    return -1;
+  }
+}
+
+/* Adds the missing scalar initializers to the input CTOR of the given TYPE.
+ * If CTOR == NULL_TREE, a new complete constructor for TYPE is allocated/built.
+ *
+ * Prereq: a previous call to missing_scalar_initializers () with the same
+ * TYPE and CTOR arguments should've returned a positive value.
+ *
+ * Returns a complete CTOR for the specified TYPE (which can be the
+ * input CTOR completed recursively down to scalar initializations
+ * or a new CTOR if the input one is NULL_TREE). */
+
+static tree
+complete_constructor (tree type, tree ctor)
+{
+  switch (TREE_CODE (type)) {
+  case ARRAY_TYPE: {
+    /* the ctor elements are assumed to be ordered,
+     * so accumulate them into a temp vector */
+    vec<constructor_elt, va_gc> *v = NULL;
+
+    /* the number of array elements, as a wide integer */
+    unsigned HOST_WIDE_INT n = tree_to_uhwi (array_type_nelts (type)) + 1;
+
+    /* for all the array elements */
+    for (unsigned HOST_WIDE_INT crt_idx = 0; crt_idx < n; )
+      {
+        unsigned HOST_WIDE_INT hi_idx;
+        tree found = NULL_TREE, value;
+
+        /* if a constructor is specified for this array */
+        if (ctor)
+          {
+            unsigned HOST_WIDE_INT idx;
+            tree purpose;
+
+            /* see if it has an initializer for the current array element */
+            FOR_EACH_CONSTRUCTOR_ELT (CONSTRUCTOR_ELTS (ctor),
+                                      idx, purpose, value)
+              {
+                unsigned HOST_WIDE_INT lo_idx;
+
+                /* single element or element range? */
+                if (TREE_CODE (purpose) == INTEGER_CST)
+                  {
+                    lo_idx = hi_idx = tree_to_uhwi (purpose);
+                  }
+                else
+                  {
+                    lo_idx = tree_to_uhwi (TREE_OPERAND (purpose, 0));
+                    hi_idx = tree_to_uhwi (TREE_OPERAND (purpose, 1));
+                  }
+
+                /* if the current array element is covered by this
+                 * constructor element */
+                if (crt_idx >= lo_idx && crt_idx <= hi_idx)
+                  {
+                    /* in the case of a complex initializer value,
+                     * recurse to ensure it is complete */
+                    if (TREE_CODE (value) == CONSTRUCTOR)
+                      value = complete_constructor (TREE_TYPE (type), value);
+
+                    found = purpose;
+                    break;
+                  }
+              }
+          }
+
+        if (!found)
+          {
+            /* create a new constructor for the current array element */
+            /* (this could be optimized but for our very limited scope...) */
+            value = complete_constructor (TREE_TYPE (type), NULL_TREE);
+            found = build_int_cst (NULL_TREE, crt_idx);
+            hi_idx = crt_idx;
+          }
+
+        /* add the ctor elt to the temp vector
+         * and advance to the next array element */
+        CONSTRUCTOR_APPEND_ELT (v, found, value);
+        crt_idx = hi_idx + 1;
+      }
+
+    /* replace the initializer list (ctor elts) in the existing CTOR
+     * or use it to create a new constructor */
+    if (ctor)
+      CONSTRUCTOR_ELTS (ctor) = v;
+    else
+      ctor = build_constructor (type, v);
+    break;
+  }
+
+  case RECORD_TYPE: {
+    /* the ctor elements are assumed to be ordered,
+     * so accumulate them into a temp vector */
+    vec<constructor_elt, va_gc> *v = NULL;
+
+    /* for all the fields in the record */
+    for (tree field = TYPE_FIELDS (type); field; field = DECL_CHAIN (field))
+      {
+        tree found = NULL_TREE, value;
+
+        /* if a constructor is specified for this record */
+        if (ctor)
+          {
+            unsigned HOST_WIDE_INT idx;
+            tree purpose;
+
+            /* see if it has an initializer for the current record field */
+            FOR_EACH_CONSTRUCTOR_ELT (CONSTRUCTOR_ELTS (ctor),
+                                      idx, purpose, value)
+              if (purpose == field)
+                {
+                  /* in the case of a complex initializer value,
+                   * recurse to ensure it is complete */
+                  if (TREE_CODE (value) == CONSTRUCTOR)
+                    value = complete_constructor (TREE_TYPE (field), value);
+
+                  found = purpose;
+                  break;
+                }
+          }
+
+        if (!found)
+          {
+            /* create a new constructor for the current record field */
+            value = complete_constructor (TREE_TYPE (field), NULL_TREE);
+            found = field;
+          }
+
+        /* add the ctor elt to the temp vector */
+        CONSTRUCTOR_APPEND_ELT (v, found, value);
+      }
+
+    /* replace the initializer list (ctor elts) in the existing CTOR
+     * or use it to create a new constructor */
+    if (ctor)
+      CONSTRUCTOR_ELTS (ctor) = v;
+    else
+      ctor = build_constructor (type, v);
+    break;
+  }
+
+  case INTEGER_TYPE:
+    /* integer values that don't have an initializer are getting a zero one */
+    if (!ctor)
+      ctor = build_zero_cst (type);
+    break;
+
+  default:
+    /* we shouldn't reach this point if a previous call to
+     * missing_scalar_initializers () returned a positive value */
+    gcc_unreachable ();
+  }
+
+  return ctor;
+}
+
+
+/* CTOR is an incomplete constructor (not all fields have initializers).
+ * This function attempts to initialize each missing field with zero.
+ *
+ * If too many stores or the type is unsupported (we only support
+ * RECORD and ARRAY types), no changes are made to CTOR.
+ *
+ * Return whether or not CTOR was completed. */
+
+bool
+try_complete_constructor (tree *ctor)
+{
+  gcc_assert (ctor && *ctor && TREE_CODE (*ctor) == CONSTRUCTOR);
+
+  /* only for record and array types, when optimizing for size and
+   * when not disabled through the corresponding --param values */
+  tree type = TREE_TYPE (*ctor);
+  if ((TREE_CODE (type) != RECORD_TYPE && TREE_CODE (type) != ARRAY_TYPE)
+      || !(optimize_function_for_size_p (cfun)
+           && PARAM_VALUE (PARAM_COMPLETE_INIT_MAX_TYPE_SIZE)
+           && PARAM_VALUE (PARAM_COMPLETE_INIT_MAX_SCALAR_INITS)))
+    return false;
+
+  /* also, don't attempt to handle types larger than a certain size
+   * (changeable using the "complete-init-max-type-size" --param) */
+  if (int_size_in_bytes (type) > PARAM_VALUE (PARAM_COMPLETE_INIT_MAX_TYPE_SIZE))
+    return false;
+
+  /* the number of scalar initializers needed to complete CTOR */
+  HOST_WIDE_INT missing_initializers =
+    missing_scalar_initializers (type, *ctor);
+
+  /* it shouldn't be zero (CTOR was previously determined as incomplete) */
+  gcc_assert (missing_initializers);
+
+  /* do nothing if the ctor type is too complex/unhandled or too many scalar
+   * initializers would be needed to complete it (this amount can be altered
+   * by using the "complete-init-max-scalar-inits" --param) */
+  if (missing_initializers < 0
+      || missing_initializers > PARAM_VALUE (PARAM_COMPLETE_INIT_MAX_SCALAR_INITS))
+    return false;
+
+  /* otherwise, complete the input constructor */
+  *ctor = complete_constructor (type, *ctor);
+  return true;
+}
+
+/* anonymous namespace (defs are not exported) */
+namespace {
+
+/* helper class/struct used by init_const_by_pieces_p () to collect info
+ * about an initialization (init values, sizes, counts) */
+struct InitValsCntr {
+  /* HOST_WIDE_INT is always 64-bit (see hwint.h:52)
+   * i.e. enough to hold QI-DImode and SF/DFmode values */
+  typedef std::map<HOST_WIDE_INT, HOST_WIDE_INT> ValCnts;
+
+  /* init values and their counts, grouped by 'machine mode'/size
+   * (e.g. valsCnts[0] counts the 1-byte inits and valCnts[3] the 8-byte ones);
+   * the floating-point values are assimilated to the corresponding /
+   * same size integral ones (i.e. floats are added to the valCnts[2] bin
+   * and doubles to valCnts[3] */
+  ValCnts valCnts[4];
+
+  /* returns true if successful (all values/types are understood/handled) */
+  bool count_init_vals (tree type, tree ctor);
+};
+
+} /* end anonymous namespace */
+
+bool
+InitValsCntr::count_init_vals (tree type, tree ctor)
+{
+  switch (TREE_CODE (type)) {
+  case ARRAY_TYPE: {
+    /* the number of array elements minus 1, as a tree */
+    tree nelts = array_type_nelts (type);
+    if (!nelts || !tree_fits_uhwi_p (nelts))
+      return false;
+
+    /* the number of array elements, as a wide integer */
+    const unsigned HOST_WIDE_INT n = tree_to_uhwi (nelts) + 1;
+
+    /* for all the array elements */
+    for (unsigned HOST_WIDE_INT crt_idx = 0; crt_idx != n; )
+      {
+        bool inited = false;
+
+        /* if a constructor is specified for this array */
+        if (ctor)
+          {
+            /* really a CONSTRUCTOR ? */
+            if (TREE_CODE (ctor) == CONSTRUCTOR)
+              {
+                unsigned HOST_WIDE_INT idx;
+                tree purpose, value;
+
+                /* does it have an initializer for the current array element? */
+                FOR_EACH_CONSTRUCTOR_ELT (CONSTRUCTOR_ELTS (ctor),
+                                          idx, purpose, value)
+                  {
+                    unsigned HOST_WIDE_INT lo_idx, hi_idx;
+
+                    /* single element or element range? */
+                    if (TREE_CODE (purpose) == INTEGER_CST)
+                      {
+                        lo_idx = hi_idx = tree_to_uhwi (purpose);
+                      }
+                    else
+                      {
+                        lo_idx = tree_to_uhwi (TREE_OPERAND (purpose, 0));
+                        hi_idx = tree_to_uhwi (TREE_OPERAND (purpose, 1));
+                      }
+
+                    /* constructor element inits crt array element? */
+                    if (crt_idx >= lo_idx && crt_idx <= hi_idx)
+                      {
+                        /* recurse to do the actual counting (for all elems
+                         * in the range, while we're at it) */
+                        for (; crt_idx <= hi_idx; ++crt_idx)
+                          {
+                            if (!count_init_vals (TREE_TYPE (type), value))
+                              return false;
+                          }
+                        inited = true;
+                        break;
+                      }
+                  }
+              }
+            /* 'ctor' might also be a STRING_CST for an array of chars */
+            else if (TREE_CODE (ctor) == STRING_CST)
+              {
+                /* a character for the crt array element? */
+                if ((HOST_WIDE_INT)crt_idx < TREE_STRING_LENGTH (ctor))
+                  {
+                    /* create a tmp value to use the same counting mechanism */
+                    tree value = build_int_cst_type (TREE_TYPE (type),
+                                   TREE_STRING_POINTER (ctor)[crt_idx]);
+
+                    /* recurse to do the counting */
+                    if (!count_init_vals (TREE_TYPE (type), value))
+                      return false;
+
+                    inited = true;
+                    ++crt_idx;
+                  }
+              }
+            /* anything else? */
+            else
+              {
+                /* bail out / don't know how to handle this */
+                return false;
+              }
+          }
+
+        /* initializer not found */
+        if (!inited)
+          {
+            /* recurse with a NULL_TYPE value (counted as a zero) */
+            if (!count_init_vals (TREE_TYPE (type), NULL_TREE))
+              return false;
+            ++crt_idx;
+          }
+      }
+
+    break;
+  }
+
+  case RECORD_TYPE: {
+    /* I don't know if record types can be initialized with anything
+     * else than a constructor, but it doesn't hurt (that much) to verify... */
+    if (ctor && TREE_CODE (ctor) != CONSTRUCTOR)
+      return false;
+
+    /* for all the fields in the record */
+    for (tree field = TYPE_FIELDS (type); field; field = DECL_CHAIN (field))
+      {
+        /* if not a POD or with complications such as bitfields, bail out */
+        if (TREE_CODE (field) != FIELD_DECL
+            || DECL_BIT_FIELD (field)
+            || flexible_array_member_p (field, type))
+          return false;
+
+        bool inited = false;
+
+        /* if a constructor is specified for this record */
+        if (ctor)
+          {
+            unsigned HOST_WIDE_INT idx;
+            tree purpose, value;
+
+            /* see if it has an initializer for the current record field */
+            FOR_EACH_CONSTRUCTOR_ELT (CONSTRUCTOR_ELTS (ctor),
+                                      idx, purpose, value)
+              if (purpose == field)
+                {
+                  /* recurse to do the counting */
+                  if (!count_init_vals (TREE_TYPE (field), value))
+                    return false;
+
+                  inited = true;
+                  break;
+                }
+          }
+
+        if (!inited)
+          {
+            /* recurse with a NULL_TYPE value (counted as a zero) */
+            if (!count_init_vals (TREE_TYPE (type), NULL_TREE))
+              return false;
+          }
+      }
+
+    break;
+  }
+
+  case INTEGER_TYPE: {
+    /* shouldn't happen on ARM/PIC32C, but better to be safe */
+    if (TYPE_MODE (type) > DImode)
+      return false;
+
+    /* default value is 0 (if ctor is NULL_TREE) */
+    HOST_WIDE_INT val = 0;
+
+    if (ctor)
+      {
+        if (TYPE_UNSIGNED (type))
+          {
+            if (!tree_fits_uhwi_p (ctor))
+              return false;
+            val = tree_to_uhwi (ctor);
+          }
+        else
+          {
+            if (!tree_fits_shwi_p (ctor))
+              return false;
+            val = tree_to_shwi (ctor);
+          }
+      }
+
+    /* collect the int value / add it to corresp. bin - per its machine mode */
+    const int bin = ceil_log2 (GET_MODE_SIZE (TYPE_MODE (type)));
+    ++valCnts[bin][val];
+    break;
+  }
+
+  case REAL_TYPE: {
+    /* only handle single- and double-precision floats
+     * (not that PIC32C would support anything else, but...) */
+    if (TYPE_MODE (type) != SFmode && TYPE_MODE (type) != DFmode)
+      return false;
+
+    /* default value is 0 (if ctor is NULL_TREE) */
+    long v[2] = { 0, 0 };
+
+    if (ctor)
+      {
+        /* get the integer representation of the fp value (in 32-bit chunks) */
+        real_to_target (v, TREE_REAL_CST_PTR (ctor), TYPE_MODE (type));
+      }
+
+    /* pack the 32-bit part(s) into a single 64-bit value */
+    HOST_WIDE_INT val = v[0];
+    int bin = 2;   /* 32-bit values bin */
+    if (TYPE_MODE (type) == DFmode)
+      {
+        val |= (HOST_WIDE_INT)v[1] << 32;
+        bin = 3;   /* 64-bit values bin */
+      }
+    ++valCnts[bin][val];
+    break;
+  }
+
+  default:
+    /* don't know how to handle this; bail out */
+    return false;
+  }
+
+  /* ok */
+  return true;
+}
+
+/* the following is defined in arm.c (it seemed more appropriately this way
+ * since it is related to other decisions made at that level - for example,
+ * to the "movmemqi" expansion details) */
+bool
+arm_init_const_by_pieces_p (HOST_WIDE_INT, unsigned, bool,
+                            HOST_WIDE_INT **, HOST_WIDE_INT *);
+
+/* returns true if initialization 'by pieces' is preferable
+ * to a 'movememqi' expansion / memcpy () call */
+bool
+init_const_by_pieces_p (HOST_WIDE_INT size,
+                        unsigned int  align,
+                        tree          object,
+                        tree          ctor)
+{
+  /*
+    - only for Thumb1/2 targets (didn't analyze the costs for the ARM ones),
+      when optimizing for size & there's a relatively small object to initialize
+    - the default limit here is 128 bytes (see params.def); it's a 'relatively
+      small' value, but also related to the range of the 16-bit
+      STR Rt, [Rn, #imm] insn (assumed in some of the estimated costs)
+    - setting this limit to 0 from the command line provides a means to disable
+      init_const_by_pieces_p () / make it default to can_move_by_pieces ()
+   */
+  if (!TARGET_ARM
+      && optimize_size
+      && size < PARAM_VALUE (PARAM_INIT_CONST_BY_PIECES_SIZE))
+    {
+      InitValsCntr cntr;
+
+      /* hard to believe somebody will change this to a lower value, but... */
+      gcc_assert (HOST_BITS_PER_WIDE_INT >= 64);
+
+      /* init values info was collected successfully? */
+      if (cntr.count_init_vals (TREE_TYPE (object), ctor))
+        {
+          /* total distinct values */
+          size_t numVals = 0;
+          for (unsigned i = 0; i != 4; ++i)
+            numVals += cntr.valCnts[i].size ();
+          gcc_assert (numVals);
+
+          /* convert the info into plain arrays */
+          HOST_WIDE_INT *valCnts[4], numValCnts[4];
+          HOST_WIDE_INT *storage =
+            (HOST_WIDE_INT *) xmalloc (sizeof(*storage) * numVals * 2);
+          HOST_WIDE_INT *ptr = storage;
+
+          for (unsigned i = 0; i != 4; ++i)
+            {
+              valCnts[i] = ptr;
+              for (InitValsCntr::ValCnts::iterator it = cntr.valCnts[i].begin();
+                   it != cntr.valCnts[i].end (); ++it)
+                {
+                  *ptr++ = it->first;
+                  *ptr++ = it->second;
+                }
+              numValCnts[i] = (HOST_WIDE_INT)((ptr - valCnts[i]) >> 1);
+            }
+
+          /* let the ARM backend assess the opportunity of doing
+           * the initialization 'by pieces' */
+          const bool res = arm_init_const_by_pieces_p (
+                             size, align, TREE_STATIC (object),
+                             valCnts, numValCnts);
+          free (storage);
+          return res;
+        }
+    }
+
+  /* default case: call 'can_move_by_pieces' */
+  const bool res = can_move_by_pieces (size, align);
+  return res;
+}
+
+#endif /* TARGET_MCHP_PIC32C */
+
 
 /* Helper for categorize_ctor_elements.  Identical interface.  */
 

@@ -27,7 +27,7 @@ FOREPTGEN=partstablegen
 FOREPCPAUTO=compilerpage_automate
 FOREPBITRK=XC-installers
 
-GITURL='ssh://git@bitbucket.microchip.com:7999/xc32'
+GITURL='ssh://git@bitbucket.microchip.com/xc32'
 GITCLONEDIR=${ROOTDIR}/gitclones
 GITP32MLIBS=pic32m-libs
 GP32MLIBSDIR=${GITCLONEDIR}/${GITP32MLIBS}
