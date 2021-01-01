@@ -37,6 +37,10 @@ Target RejectNegative Var(TARGET_PRINT_BUILTINS)
 -mprint-builtins	Print a list of enabled builtin functions
 
 
+mprint-protos
+Target RejectNegative Var(TARGET_WRITE_BUILTINS_H) Undocumented
+-mprint-protos  write a builtins.h file containing prototypes for all builtins
+
 mlicense-warning
 Target Var Var(TARGET_LICENSE_WARNING) Undocumented Init(1)
 -mlicense-warning	Emit the license warning when appropriate

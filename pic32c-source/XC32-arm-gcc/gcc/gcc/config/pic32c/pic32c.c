@@ -25,6 +25,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "coretypes.h"
 #include "backend.h"
 #include "target.h"
+#include "c-family/c-common.h"
 #include "hash-table.h"
 #include "tm.h"
 #include "rtl.h"
@@ -1114,7 +1115,7 @@ mchp_get_smartio_fndecl (int bx)
 void
 pic32c_subtarget_init_builtins ()
 {
-  extern void mchp_print_builtin_function (const_tree);
+  extern void mchp_print_builtin_function (tree);
   tree const_str_type = build_pointer_type (
     build_qualified_type (char_type_node, TYPE_QUAL_CONST));
   tree str_type = build_pointer_type (char_type_node);
@@ -1227,7 +1228,7 @@ pic32c_subtarget_init_builtins ()
 			      PIC32C_BUILTIN_VSCANF_S),
 			    BUILT_IN_MD, NULL, NULL_TREE);
 
-  if (TARGET_PRINT_BUILTINS)
+  if (TARGET_PRINT_BUILTINS || TARGET_WRITE_BUILTINS_H)
     {
       unsigned int i;
       for (i = 0; i != (unsigned int) PIC32C_BUILTIN_MAX; ++i)
@@ -3323,4 +3324,240 @@ pic32c_get_debug_option(const char *str)
 }
 
 #endif /* _BUILD_MCHP_DEVEL_ */
+
+/*  stuff for writing pic32c_builtins.h           */
+
+void decode_qualifier(tree type, char **buffer) {
+  int qualifiers;
+
+  qualifiers = TYPE_QUALS(type);
+  if (qualifiers & TYPE_QUAL_CONST)
+    *buffer += sprintf(*buffer,"const ");
+  if (qualifiers & TYPE_QUAL_VOLATILE)
+    *buffer += sprintf(*buffer,"volatile ");
+  if (qualifiers & TYPE_QUAL_RESTRICT)
+    *buffer += sprintf(*buffer, "%s ",
+                       flag_isoc99 ? "restrict" : "__restrict__");
+}
+
+
+bool decode_type(tree type, char **buffer) {
+/*  returms true unless an unrepresentable type is found */
+  int strune=0;
+  int type_precision = -1;
+  int simd_width_in_bits;
+  int precision;
+  bool retval = true;
+
+  decode_qualifier(type, buffer);
+  switch TREE_CODE(type) {
+    case POINTER_TYPE:
+      retval = decode_type(TREE_TYPE(type),buffer);
+      *buffer += sprintf(*buffer, " *");
+      return (retval);
+
+    case VOID_TYPE:
+      *buffer += sprintf(*buffer,"void");
+      return (true);
+      
+    case VECTOR_TYPE:
+	simd_width_in_bits = 8*int_size_in_bytes(type);
+	*buffer += sprintf(*buffer,"__simd%d_",simd_width_in_bits);
+	if (TREE_CODE(TREE_TYPE(type)) == REAL_TYPE) {
+	    // vectors of real types need to be handled specially because we don't have the base types float32_t available
+	    // we do have __simdxx_float16_t and simdxx_float32_t though.
+	    type_precision = TYPE_PRECISION(TREE_TYPE(type));
+	    if (type_precision <= 8) {
+		type_precision = 8;
+	    } else if (type_precision <= 16) {
+		type_precision = 16;
+	    } else if (type_precision <= 32) {
+		type_precision = 32;
+	    } else if (type_precision <= 64) {
+		type_precision = 64;
+	    } else type_precision = 0;
+	    
+	    *buffer += sprintf(*buffer,"float%d_t", type_precision);
+          
+	}
+	else {
+	    return (decode_type(TREE_TYPE(type),buffer));
+	}
+	return (true);
+	
+    case BOOLEAN_TYPE:
+    case INTEGER_TYPE:
+      type_precision = TYPE_PRECISION(type);
+      if (type_precision <= 8) {
+        type_precision = 8;
+      } else if (type_precision <= 16) {
+        type_precision = 16;
+      } else if (type_precision <= 32) {
+        type_precision = 32;
+      } else if (type_precision <= 64) {
+        type_precision = 64;
+      } else type_precision = 0;
+
+      if (type_precision) {
+        if (TYPE_UNSIGNED(type)) {
+          char *b = *buffer;
+          *b++ = 'u';
+          *buffer = b;
+        }
+        *buffer += sprintf(*buffer,"int%d_t", type_precision);
+        return (true);
+      }
+      /* FALLSTHROUGH */
+    case REAL_TYPE:
+      if (type_precision == -1) {
+        type_precision = TYPE_PRECISION(type);
+        switch (type_precision) {
+	case 16:    return(false); // not representable!
+          case 32:  *buffer += sprintf(*buffer, "float");
+                    return (true);
+          case 64:  *buffer += sprintf(*buffer, "long double");
+                    return (true);
+        }
+      }
+      /* FALLSTHROUGH */
+    case FIXED_POINT_TYPE:
+      if (type_precision == -1) {
+
+	  type_precision = TYPE_PRECISION(type);
+        if (TYPE_UNSIGNED(type)) {
+          *buffer += sprintf(*buffer,"unsigned ");
+        }
+        if (type_precision == 16) {
+          *buffer += sprintf(*buffer, "__Fract");
+          return (true);
+        } else if (type_precision == 40) {
+          *buffer += sprintf(*buffer, "__Accum");
+          return (true);
+        }
+      }
+      // oh - oh, we didn't find a type 
+      if (TYPE_NAME(type)) {
+        int prec = TYPE_PRECISION (type);
+        retval = decode_type(TYPE_NAME(type),buffer);
+        *buffer += sprintf(*buffer,":%d", prec);
+      } else {
+        int prec = TYPE_PRECISION (type);
+
+        if (TYPE_NAME (type)) {
+          retval = decode_type(TYPE_NAME(type),buffer);
+          if (TYPE_PRECISION (type) != prec)
+          {
+            *buffer += sprintf(*buffer,":%d", prec);
+          }
+        } else {
+ 	    return false;    
+         }
+      }
+      return (retval);
+
+    case TYPE_DECL:
+	if (DECL_NAME(type)) {
+	    if (strstr( IDENTIFIER_POINTER(DECL_NAME(type)), "builtin_neon_") != NULL) return (false);
+	    *buffer += sprintf(*buffer,"%s",
+                           IDENTIFIER_POINTER(DECL_NAME(type)));
+      } else {
+	    return false;    
+      }
+      break;
+
+    case UNION_TYPE:
+      *buffer += sprintf(*buffer,"union ");
+      strune=1;
+      /* FALLSTHROUGH */ 
+    case RECORD_TYPE:
+      if (strune == 0) {
+        *buffer += sprintf(*buffer,"struct ");
+        strune=1;
+      }
+      //FALLSTHROUGH 
+    case ENUMERAL_TYPE:
+      if (strune == 0) {
+        *buffer += sprintf(*buffer,"enum ");
+        strune=1;
+      }
+      if (TYPE_NAME(type)) {
+	  return(decode_type(TYPE_NAME(type),buffer));
+      } else {
+	  return(false);
+      }
+   }
+}
+
+void pretty_tree_with_prototype(tree fndecl_or_type) {
+  static FILE *builtins_h = 0;
+  static bool initialised = 0;
+  tree type,arg = 0;
+  int i = 0;
+  char name_buffer[1024];
+  char result_buffer[1024];
+  char args_buffer[1024];
+  char *nbp = name_buffer;
+  char *rbp = result_buffer;
+  char *abp = args_buffer;
+  bool print_it = true;
+  int comma=0;
+  tree fndecl;
+
+  if (!initialised) {
+    initialised=1;
+    if (access("pic32c_builtins.h", F_OK) != -1)
+        builtins_h = fopen("pic32c_builtins.h","a");
+    else
+        builtins_h = fopen("pic32c_builtins.h","w");
+
+    if (builtins_h == NULL) {
+        warning(0,"Cannot open file for writing");
+    }
+    fprintf(builtins_h,"#include <stdint.h>\n\n");
+  }
+
+    
+  if (TYPE_P(fndecl_or_type)) {
+    fndecl = 0;
+    type = fndecl_or_type;
+  }
+  else {
+    type = TREE_TYPE(fndecl_or_type);
+    fndecl = fndecl_or_type;
+    gcc_assert(TREE_CODE(fndecl) == FUNCTION_DECL);
+  }
+
+  
+
+  print_it &= decode_type(TREE_TYPE(type),&rbp);
+  
+  nbp += sprintf(nbp," %s",
+     fndecl && DECL_NAME(fndecl) ?
+	  IDENTIFIER_POINTER(DECL_NAME(fndecl)) : "!!unknown");
+
+  
+  arg = TYPE_ARG_TYPES(type);
+  if (arg == NULL)
+      abp += sprintf(abp,"void");
+  else
+      abp += sprintf(abp,"        ");
+  
+  while (arg) {
+
+    print_it &= decode_type(TREE_VALUE(arg),&abp);
+    arg = TREE_CHAIN(arg);
+    if ((arg != NULL) && (arg != void_list_node)) abp += sprintf(abp,",\n        ");
+    if (arg == void_list_node) break;
+  }
+  if (print_it) fprintf(builtins_h,"%s %s(\n%s);\n",result_buffer,name_buffer,args_buffer);
+
+}
+
+
+
+
+
+
+
+
 
