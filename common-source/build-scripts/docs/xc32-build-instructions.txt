@@ -1,0 +1,183 @@
+XC32 Build Notes
+
+0. About this document
+----------------------------------------------------------------------------------------------------
+
+This document is kept in fossil in the XC32-build-scripts repository under docs/xc32-build-notes.txt, and
+describes the development build process and prerequisites for the XC32 ARM and MIPS builds on MacOS.
+
+Please keep this document up-to-date with any changes to the build scripts, process, or repository layout.
+
+1. Prerequisites
+
+The following are required to start a build from scratch on MacOS:
+
+- fossil (as well as recommended wrapper scripts)
+- macports, or some other means to get a suitable host build compiler and other dependencies
+- xcode, as required by macports
+- GCC 4.9 as the current preferred host build compiler for ARM
+- TeX and related tools needed to build GCC docs
+
+1.0 Installing fossil
+----------------------------------------------------------------------------------------------------
+
+Fossil installation instructions, as well as scripts provided for common shortcuts, are provided at:
+
+http://tinypm.microchip.com:8080/tinypm/wiki?projectCode=XC32-2014-1&page=Fossil_Installation_and_Set-up
+
+which can be read with username/pw 'reviewer'. An example of a working setup according to the instructions
+is provided here:
+
+	- obtain the fossil binary and place it somewhere in PATH under a different name, e.g:
+          original fossil in $HOME/bin/fossil-bin, where $HOME/bin is in your PATH variable.
+	- create a local path to store repository files (recommended), i.e. ~/fossils
+	- obtain the fossil wrapper scripts from the 'fossil' repository in scripts/, either:
+	  - by copy-pasting from the web interface at http://fossil.microchip.com/repos.cgi/fossil/dir?ci=tip
+            into files on your machine, or
+	  - by getting the files via the command line as follows:
+
+            $ fossil-bin clone http://username:password@fossil/repos.cgi/fossil ~/fossils/fossil.fsl
+	    $ mkdir myrepo; cd myrepo; fossil open ~/fossils/fossil.fsl
+
+            where you can find the necessary files under myrepo/scripts/.
+	- place scripts/fossil somewhere in your path, i.e. $HOME/bin.
+	- edit the new $HOME/bin/fossil to set FOSSIL_BINARY to the original binary, e.g. fossil-bin,
+          FOSSIL_CLONES to your local repository path, e.g. ~/fossils, and optionally to use
+          your username/password as SERVER_LOGIN. 
+	- place scripts/fossil-editior.sh in your PATH and edit to change FOSSIL_EDITOR as you like.
+	- run $ fossil settings editor fossil-editor.sh --global
+
+Tip: You might want to configure fossil to use a graphical merge tool. For instance on MacOS:
+  fossil setting gmerge-command "\"opendiff \"%original\" \"%merge\" -ancestor \"%baseline\" -merge \"%output\" | cat" -global
+On Linux, you might want to use meld or kdiff3.
+
+1.1 Installing Xcode/MacPorts
+
+MacPorts is one means of obtaining various prerequistes needed for the build or other tools. Other
+team members may have alternate means and preferences - feel free to add alternate methods to this
+document as appropriate. 
+
+MacPorts requires Xcode including the command line tools. There are some older Xcode installers in
+a Box share (sign up at webxsso.microchip.com and request that Jason share them), but these may have
+issues for newer versions of MacOS (as of this writing I was unable to get the 3.2 installer working on Sierra).
+MacPorts also may have dependencies on Xcode, so these instructions assume you are able to obtain the
+latest installer via the app store or apple developer site. There is a Microchip account for the 
+developer site if needed.
+
+With xcode installed follow the instructions on the MacPorts page for your MacOS version. For Sierra, this
+amounted to:
+
+	$ xcodebuild -license # prompts to accept license agreement
+	$ xcode-select --install # prompt to install command line tools
+
+At this point it is recommended that you verify and update your macports install using:
+
+$ sudo port -v selfupdate
+
+Note: The rsync port used by macports is blocked by the Microchip corporate firewall. You can get around this
+by switching to Git as described here: https://trac.macports.org/wiki/howto/SyncingWithGit 
+
+1.2 Installing host build compiler
+
+As of this writing GCC 4.9 is preferred for the ARM build. The exact dependencies are not explicitly known at
+the time of writing. 
+
+GCC 4.9 can be obtained using MacPorts by:
+
+$ sudo port install gcc49
+
+Note that other versions of GCC provided by macports have caused issues building with the Xcode compilers. However,
+the gcc49 binaries install cleanly with the latest Xcode using apple LLVM 8.0.
+
+The default installation of gcc49 will place all binaries under /opt/local/bin with nonstandard names using the
+suffix '-mp-4.9', e.g. /opt/local/bin/gcc-mp-4.9. 
+
+1.3 Other build dependencies
+
+TODO: check for a better method here
+
+Some GCC documentation currently in the ARM build will require TeX and related tools to build info files. 
+There may be a more efficient method to obtain whats needed to pass the build, but with macports you can get
+things working by:
+
+$ sudo port install texlive
+
+which will unfortunately put a lot of TeX things on your machine as well.
+
+2. Performing builds
+----------------------------------------------------------------------------------------------------
+
+2.0 Creating trees from repositories
+
+First you will need to create clones of the necessary repositories if they do not already exist. Using
+
+$ fossil klone <repo-name>
+
+will create a clone of the given repo under the FOSSIL_CLONES directory specified in your environment or
+by edititing the fossil wrapper script. The repositories of interest are:
+
+	XC32-arm-gcc		ARM XC32 compiler
+	XC32-gcc-48		MIPS XC32 compiler
+	XC32-build-scripts	common build scripts for ARM/MIPS
+
+With clones successfully created from all of the above, you will need to set up locations to create
+check-ins (trees) for each component. It is advised if not required to create separate trees for ARM/MIPS. 
+In the following example it is assumed you have a directory BUILD.
+
+Create directories (e.g.) BUILD/arm, BUILD/mips, and BUILD/scripts. From each directory create the
+corresponding tree, e.g.:
+
+$ cd BUILD/arm; fossil tree XC32-arm-gcc
+
+will create/populate BUILD/arm/XC32-arm-gcc with the contents of the repository.
+
+2.1 Build tree for ARM
+
+The ARM build tree is rooted at BUILD/arm, i.e. the location of your XC32-arm-gcc tree. The scripts
+for the ARM build are located in the XC32-build-scripts repository under pic32c/, so assuming the
+example directory structure, you will need to copy or link files from BUILD/scripts/XC32-build-scripts/pic32c
+into BUILD/arm.
+
+As of this writing the necessary scripts have two versions, with and without a '-gccv6' suffix. These are:
+
+pic32c/build-common[-gccv6].sh
+pic32c/build-prerequisites[-gccv6].sh
+pic32c/build-toolchain[-gccv6].sh
+
+Note that each set of scripts (gccv6 or pre-v6) may have explicit references to the others of the same set,
+so you will encounter errors if you attempt to copy or link the scripts under BUILD/arm with different names.
+The current ARM tree requires using the gccv6 scripts, as there are pathname dependencies (at least) on 
+some components.
+
+Next you will need to ensure that the necessary toolchain components for the build are used. The scripts use
+hardcoded instances of 'gcc', 'g++' and 'cpp'. There are many ways to ensure that, e.g. gcc-mp-4.9 is invoked 
+for gcc - for example, one can create links as:
+
+$ ln -sf /opt/local/bin/gcc-mp-4.9 BUILD/arm/gcc
+
+and ensure your working directory is in your PATH before /usr/bin or any conflicting executable.
+
+With this done, the build is performed as:
+
+$ ./build-prerequisites[-gccv6].sh
+$ ./build-toolchain[-gccv6].sh
+
+which will create directories build-native and install-native in BUILD/arm if they do not exist to 
+contain the build output. Logging will be performed to standard outputs.
+
+Note: Building the ISL prerequisite may require a specific version of GNU automake. In my case, this was 
+automake v1.14.1. To build automake from source, visit http://ftpmirror.gnu.org/automake/ and download the 
+appropriate source archive. In a build directory, run 
+  ../automake-1.14/configure --program-suffix="-1.14" --prefix="$HOME" && make && make install
+Ensure that $HOME/bin is in your system path.
+
+TODO: add details on cleaning, minimal rebuild, other things I have missed
+
+2.2 Build tree for MIPS
+
+TODO
+
+
+
+
+

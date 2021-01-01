@@ -1176,7 +1176,6 @@ static const char *invalid_license = "due to an invalid XC32 license";
     } \
     X
 
-static int nullify_O2 = 0;
 static int nullify_Os = 0;
 static int nullify_O3 = 0;
 static int nullify_mips16 = 0;
@@ -1193,47 +1192,6 @@ void mchp_override_options_after_change(void) {
             optimize = 2;
           }
         NULLIFY(optimize_size, "Optimize for size") = 0;
-      }
-    if (nullify_O2)
-      {
-        int opt1_max;
-        /* Disable -O2 optimizations */
-        if (optimize > 1)
-          {
-            NULLIFY(optimize, "Optimization level > 1") = 1;
-          }
-        NULLIFY(flag_indirect_inlining, "indirect inlining") = 0;
-        NULLIFY(flag_thread_jumps, "thread jumps") = 0;
-        NULLIFY(flag_crossjumping, "crossjumping") = 0;
-        NULLIFY(flag_optimize_sibling_calls, "optimize sibling calls") = 0;
-        NULLIFY(flag_cse_follow_jumps, "cse follow jumps") = 0;
-        NULLIFY(flag_gcse, "gcse") = 0;
-        NULLIFY(flag_expensive_optimizations, "expensive optimizations") = 0;
-        NULLIFY(flag_rerun_cse_after_loop, "cse after loop") = 0;
-        NULLIFY(flag_caller_saves, "caller saves") = 0;
-        NULLIFY(flag_peephole2, "peephole2") = 0;
-#ifdef INSN_SCHEDULING
-        NULLIFY(flag_schedule_insns, "schedule insns") = 0;
-        NULLIFY(flag_schedule_insns_after_reload, "schedule insns after reload") = 0;
-#endif
-        NULLIFY(flag_regmove, "regmove") = 0;
-        NULLIFY(flag_strict_aliasing, "strict aliasing") = 0;
-        NULLIFY(flag_strict_overflow, "strict overflow") = 0;
-        NULLIFY(flag_reorder_blocks, "reorder blocks") = 0;
-        NULLIFY(flag_reorder_functions, "reorder functions") = 0;
-        NULLIFY(flag_tree_vrp, "tree vrp") = 0;
-        NULLIFY(flag_tree_builtin_call_dce, "tree builtin call dce") = 0;
-        NULLIFY(flag_tree_pre, "tree pre") = 0;
-        NULLIFY(flag_tree_switch_conversion, "tree switch conversion") = 0;
-        NULLIFY(flag_ipa_cp, "ipa cp") = 0;
-        NULLIFY(flag_ipa_sra, "ipa sra") = 0;
-
-        /* Just -O1/-O0 optimizations.  */
-        opt1_max = (optimize <= 1);
-        align_loops = opt1_max;
-        align_jumps = opt1_max;
-        align_labels = opt1_max;
-        align_functions = opt1_max;
       }
     if (nullify_O3)
       {
@@ -1258,7 +1216,7 @@ void mchp_override_options_after_change(void) {
             /* Disable -mips16 and -mips16e */
             NULLIFY(mips_base_compression_flags, "mips16 mode") = 0;
           }
-        if ((mips_base_compression_flags & (MASK_MICROMIPS)) != 0 && 
+        if ((mips_base_compression_flags & (MASK_MICROMIPS)) != 0 &&
             mchp_subtarget_mips32_enabled())
           {
             /* Disable -mmicromips */
@@ -1281,9 +1239,6 @@ static void mchp_print_license_warning (void)
         invalid_license = "because the XC32 evaluation period has expired";
         break;
       case PIC32_FREE_LICENSE:
-        invalid_license = "because the free XC32 compiler does not support this feature.";
-        break;
-      case PIC32_VALID_STANDARD_LICENSE:
         invalid_license = "because this feature requires the MPLAB XC32 PRO compiler";
         break;
       default:
@@ -1308,14 +1263,13 @@ mchp_subtarget_override_options2 (void)
 {
   extern struct cl_decoded_option *save_decoded_options;
 
-    if (mchp_it_transport && *mchp_it_transport) {
-      if (strcasecmp(mchp_it_transport,"profile") == 0) {
-            mchp_profile_option = 1;
-      }
+  if (mchp_it_transport && *mchp_it_transport) {
+    if (strcasecmp(mchp_it_transport,"profile") == 0) {
+          mchp_profile_option = 1;
     }
+  }
 
 #ifndef SKIP_LICENSE_MANAGER
-  nullify_O2     = 1;
   nullify_O3     = 1;
   nullify_Os     = 1;
   nullify_mips16 = 1;
@@ -1336,13 +1290,10 @@ mchp_subtarget_override_options2 (void)
     mchp_pic32_license_valid = pic32_get_license ();
   }
 
-  if (mchp_pic32_license_valid == PIC32_VALID_PRO_LICENSE)
+  if (mchp_pic32_license_valid == PIC32_VALID_PRO_LICENSE
+      || mchp_pic32_license_valid == PIC32_VALID_STANDARD_LICENSE)
     {
-      nullify_lto = nullify_mips16 = nullify_O2 =  nullify_O3 = nullify_Os = 0;
-    }
-  else if (mchp_pic32_license_valid == PIC32_VALID_STANDARD_LICENSE)
-    {
-      nullify_O2 = 0;
+      nullify_lto = nullify_mips16 = nullify_O3 = nullify_Os = 0;
     }
   /*
    *  On systems where we have a licence manager, call it

@@ -119,7 +119,7 @@ pic32_set_attributes(asection *sec, unsigned int mask, unsigned char flag_debug)
 {
   unsigned int bit;
 
-  if (flag_debug || pic32_debug)
+  if (flag_debug && pic32_debug)
     printf ("--> pic32_set_attributes::begin\n");
 
 #undef ATTR
@@ -131,14 +131,14 @@ pic32_set_attributes(asection *sec, unsigned int mask, unsigned char flag_debug)
 #define ATTR(id, has_arg, set_it)                                \
   bit = (1<<id);                                                 \
   if ((mask & bit) == bit)   {                                   \
-    if (flag_debug || pic32_debug)                               \
+    if (flag_debug && pic32_debug)                               \
       printf("    pic32_set_attributes::setting bit %x\n", id);  \
     set_it; }
 
 #define NO_ARGS 1
 #include "pic32c-attributes.h"
 
-  if (flag_debug || pic32_debug)
+  if (flag_debug && pic32_debug)
     printf ("<-- pic32_set_attributes::end\n");
 }
 
@@ -191,10 +191,10 @@ pic32_set_implied_attributes(asection *sec, unsigned char flag_debug)
   unsigned int mask;
   long map = pic32_attribute_map(sec);
 
-  if (flag_debug || pic32_debug)
+  if (flag_debug && pic32_debug)
     printf ("--> pic32_set_implied_attributes::begin\n");
 
-  if (flag_debug || pic32_debug)
+  if (flag_debug && pic32_debug)
     printf ("    pic32_set_implied_attributes::map = %lx\n", map);
 
 
@@ -208,7 +208,7 @@ pic32_set_implied_attributes(asection *sec, unsigned char flag_debug)
   }  else if SECTION(id) {                                                 \
       mask = (1<<c);         /* set type */                               \
       if (d) mask |= (1<<d); /* and modifier (if any) */                  \
-      if (flag_debug || pic32_debug) {                                                   \
+      if (flag_debug && pic32_debug) {                                                   \
         printf ("    pic32_set_implied_attributes::section = %s\n", #id); \
         printf ("    pic32_set_implied_attributes::mask = %x\n", mask);   \
       }                                                                   \
@@ -228,7 +228,7 @@ pic32_set_implied_attributes(asection *sec, unsigned char flag_debug)
         (TYPE_ATTR_MASK | INFO_ATTR_MASK)) == 0)
        PIC32_SET_DATA_ATTR(sec);  /* set the default, quietly       */
 
-  if (flag_debug || pic32_debug)
+  if (flag_debug && pic32_debug)
     printf ("<-- pic32_set_implied_attributes::exit(%d)\n", result);
 
   return result;
@@ -266,7 +266,7 @@ pic32_is_valid_attributes (unsigned int mask, unsigned char flag_debug)
   unsigned int type_mask,attr_mask;
     
     
-  if (flag_debug || pic32_debug) {
+  if (flag_debug && pic32_debug) {
     printf ("--> pic32_is_valid_attributes::begin\n");
     printf ("    pic32_is_valid_attributes::mask = %x\n",mask);
   }
@@ -290,7 +290,7 @@ pic32_is_valid_attributes (unsigned int mask, unsigned char flag_debug)
 
    type = mask & type_mask;
 
-   if (flag_debug || pic32_debug)
+   if (flag_debug && pic32_debug)
      printf ("    pic32_is_valid_attributes::type = %x\n", type);
    for (num=0,idx=0; idx<MAX_TYPES; idx++) {
      if ((type) & (1<<idx)) num++;
@@ -305,12 +305,12 @@ pic32_is_valid_attributes (unsigned int mask, unsigned char flag_debug)
 
      type = (1<<data);
      mask |= type;
-     if (flag_debug || pic32_debug)
+     if (flag_debug && pic32_debug)
        printf ("    pic32_is_valid_attributes::no type specified, default = data\n");
 
    }
 
-   if (flag_debug || pic32_debug)
+   if (flag_debug && pic32_debug)
      printf ("    pic32_is_valid_attributes::valid_type = %s\n",
              valid_type ? "true" : "false");
 
@@ -328,7 +328,7 @@ pic32_is_valid_attributes (unsigned int mask, unsigned char flag_debug)
      attr_mask = (1<<b)|(1<<c)|(1<<d)|(1<<e)|(1<<f)                    \
                  |(1<<g)|(1<<h)|(1<<i)|(1<<j)|(1<<k)|(1<<l)            \
                  |(1<<m)|(1<<n)|(1<<o);                                \
-     if (flag_debug || pic32_debug)                                    \
+     if (flag_debug && pic32_debug)                                    \
        printf ("    pic32_is_valid_attributes::modifier_mask = %x\n",  \
                attr_mask);                                             \
      if ((mask & ~ (type_mask | attr_mask)) == 0)                      \
@@ -336,7 +336,7 @@ pic32_is_valid_attributes (unsigned int mask, unsigned char flag_debug)
    }
 
 #include "pic32c-attributes.h"
-   if (flag_debug || pic32_debug)
+   if (flag_debug && pic32_debug)
      printf ("    pic32_is_valid_attributes::valid_modifiers = %s\n",
              valid_modifiers ? "true" : "false" );
 
@@ -357,11 +357,11 @@ pic32_is_valid_attributes (unsigned int mask, unsigned char flag_debug)
      invalid_combo |= 1;;
 
 #include "pic32c-attributes.h"
- if (flag_debug || pic32_debug)
+ if (flag_debug && pic32_debug)
    printf ("    pic32_is_valid_attributes::valid_combination = %s\n",
            invalid_combo ? "false" : "true" );
 
-  if (flag_debug|| pic32_debug)
+  if (flag_debug && pic32_debug)
     printf ("<-- pic32_is_valid_attributes::exit\n");
 
  return (valid_type &&

@@ -58,6 +58,7 @@ bfd_boolean pic32_has_softfloat_option = FALSE;
 bfd_boolean pic32_has_stack_option = FALSE;
 bfd_boolean pic32_heap_required = FALSE;
 bfd_vma     pic32c_itcm_vectors_address = 0x0;
+bfd_boolean pic32c_relocate_vectors = FALSE;
 
 
 /* Data Structures for the Data Init Template */
@@ -70,9 +71,11 @@ struct pic32_fill_option *pic32_fill_option_list;
 
 
 extern bfd_boolean          pic32c_tcm_enabled = FALSE;
+extern unsigned int         pic32c_tcm_size = 0;
 extern unsigned int         pic32c_itcm_size = 0;
 extern unsigned int         pic32c_dtcm_size = 0;
 extern bfd_boolean          pic32c_stack_in_tcm = FALSE;
+ bfd_boolean          pic32c_vectors_in_tcm = TRUE;
 
 
 /* lghica co-resident*/
@@ -96,8 +99,8 @@ struct pic32_memory *program_memory_free_blocks;
 
 static void bfd_pic32_write_data_header(unsigned char **d, bfd_vma addr,
                                         bfd_vma len, int format);
-static void bfd_pic32_process_data_section(asection *sect, PTR fp);
-static void bfd_pic32_process_code_section(asection *sect, PTR fp, bfd_boolean update_flags);
+static void bfd_pic32_process_data_section(struct pic32_section *sect, PTR fp);
+static void bfd_pic32_process_code_section(struct pic32_section *sect, PTR fp, bfd_boolean update_flags);
 
 
 /*
@@ -129,10 +132,11 @@ bfd_pic32_write_data_header(unsigned char **d, bfd_vma addr, bfd_vma len, int fo
 
 
 static void
-bfd_pic32_process_code_section(asection *sect, PTR fp, bfd_boolean update_flags)
+bfd_pic32_process_code_section(struct pic32_section *section, PTR fp, bfd_boolean update_flags)
 {
     unsigned char *buf,*p;
     unsigned char **d = (unsigned char **) fp;
+    asection *sect = section->sec;
     bfd_vma runtime_size = sect->size;
     bfd_vma runtime_addr = sect->output_offset + sect->output_section->vma;
     Elf_Internal_Shdr *this_hdr;
@@ -145,11 +149,11 @@ bfd_pic32_process_code_section(asection *sect, PTR fp, bfd_boolean update_flags)
     {
         runtime_addr = pic32c_itcm_vectors_address;
     }
-    
-    if (PIC32_IS_CODE_ATTR(sect) && (sect->size > 0))
+              
+    if (PIC32_IS_CODE_ATTR(sect) && (sect->size > 0) && section->init)
     {
         if (pic32_debug)
-            printf("  %s (data), size = %x bytes, template addr = %lx\n",
+            fprintf(stderr,"  %s (data), size = %x bytes, template addr = %lx\n",
                    sect->name, (unsigned int) runtime_size,
                    (long unsigned int) *d);
         
@@ -183,6 +187,7 @@ bfd_pic32_process_code_section(asection *sect, PTR fp, bfd_boolean update_flags)
         }
         
         { int count = 0;
+
             /* write header */
             bfd_pic32_write_data_header(d, runtime_addr, runtime_size, COPY);
             for (p = buf; p < (buf + sect->size); )
@@ -222,10 +227,11 @@ bfd_pic32_process_code_section(asection *sect, PTR fp, bfd_boolean update_flags)
  ** multiple records.
  */
 static void
-bfd_pic32_process_data_section(asection *sect, PTR fp)
+bfd_pic32_process_data_section(struct pic32_section *section, PTR fp)
 {
     unsigned char *buf,*p;
     unsigned char **d = (unsigned char **) fp;
+    asection *sect = section->sec;
     bfd_vma runtime_size = sect->size;
     bfd_vma runtime_addr; /* lghica */
     Elf_Internal_Shdr *this_hdr;
@@ -235,27 +241,34 @@ bfd_pic32_process_data_section(asection *sect, PTR fp)
     if (sect->output_section == NULL)
         return;
     
+    if (!section->init) {
+      if (pic32_debug)
+        fprintf(stderr, "data_section %s (skipped, !init)\n", sect->name);
+      return;
+    }
+
     if (sect->size > 0)
         runtime_addr = sect->output_offset + sect->output_section->vma; /* lghica */
-        
+   
     /* skip persistent or noload data sections */
     if (PIC32_IS_PERSIST_ATTR(sect) || PIC32_IS_NOLOAD_ATTR(sect))
     {
             if (pic32_debug)
-                printf("  %s (skipped), size = %x\n",
+                fprintf(stderr,"data_section %s (skipped), size = %x\n",
                        sect->name, (unsigned int) runtime_size);
             return;
-        }
+    }
     
     /* process BSS-type sections */
     if ((PIC32_IS_BSS_ATTR(sect) || PIC32_IS_BSS_ATTR_WITH_MEMORY_ATTR(sect)) && (sect->size > 0))
     {
         if (pic32_debug)
-            printf("  %s (bss), size = %x bytes, template addr = %lx\n",
+            fprintf(stderr,"data_Section %s (bss), size = %x bytes, template addr = %lx\n",
                    sect->name, (unsigned int) runtime_size,
                    (long unsigned int) *d);
         
         /* write header only */
+
         bfd_pic32_write_data_header(d, runtime_addr, runtime_size, CLEAR);
     }
     
@@ -264,7 +277,7 @@ bfd_pic32_process_data_section(asection *sect, PTR fp)
         (sect->size > 0))
     {
         if (pic32_debug)
-            printf("  %s (data), size = %x bytes, template addr = %lx\n",
+            fprintf(stderr,"data_section %s (data), size = %x bytes, template addr = %lx\n",
                    sect->name, (unsigned int) runtime_size,
                    (long unsigned int) *d);
         
@@ -299,7 +312,7 @@ bfd_pic32_process_data_section(asection *sect, PTR fp)
         
         { int count = 0;
             /* write header */
-            bfd_pic32_write_data_header(d, runtime_addr, runtime_size, COPY);
+           bfd_pic32_write_data_header(d, runtime_addr, runtime_size, COPY);
             for (p = buf; p < (buf + sect->size); )
             {
                 *(*d)++ = *p++;
@@ -340,9 +353,11 @@ bfd_boolean pic32c_elf_final_link(bfd *abfd, struct bfd_link_info *info)
     unsigned int         i;
 
     if (pic32_debug)
-        printf("  LG - filling DINIT\n");
+        fprintf(stderr,"  LG - filling DINIT\n");
    
 //    if (pic32_data_init)
+    /* DZ: not sure why this is disabled, so i've at least addded a check to prevent a segfault. */
+    if (init_template != NULL)
     {
         dinit_sec = init_template->output_section;
         dinit_size = init_template->size;
@@ -371,27 +386,28 @@ bfd_boolean pic32c_elf_final_link(bfd *abfd, struct bfd_link_info *info)
         
         /* scan sections and write data records */
         if (pic32_debug)
-            printf("\nProcessing data sections:\n");
+            fprintf(stderr, "\nProcessing data sections:\n");
         dat = init_data;
         for (s_sec = data_sections; s_sec != NULL; s_sec = s_sec->next)
             if ((s_sec->sec) && (((s_sec->sec->flags & SEC_EXCLUDE) == 0) &&
                                  (s_sec->sec->output_section != bfd_abs_section_ptr)))
-                bfd_pic32_process_data_section(s_sec->sec, &dat);
+                bfd_pic32_process_data_section(s_sec, &dat);
         
         ///\ add itcm sections if any
         if (pic32_debug)
-            printf("\nProcessing code sections:\n");
-        for (s_sec = code_sections; s_sec != NULL; s_sec = s_sec->next)
+            fprintf(stderr, "\nProcessing code sections:\n");
+        for (s_sec = code_sections; s_sec != NULL; s_sec = s_sec->next) {
+
             if ((s_sec->sec) && (((s_sec->sec->flags & SEC_EXCLUDE) == 0)
                                      &&(s_sec->sec->output_section != bfd_abs_section_ptr)))
             {
                 if (s_sec->sec->itcm)
-                    bfd_pic32_process_code_section(s_sec->sec, &dat, TRUE);
-                else if ((pic32c_itcm_size > 0)
-                         && (strstr(s_sec->sec->output_section->name, ".vectors") != NULL))
-                    bfd_pic32_process_code_section(s_sec->sec, &dat, FALSE);
+                    bfd_pic32_process_code_section(s_sec, &dat, TRUE);
+                else if (pic32c_relocate_vectors &&
+                         (strstr(s_sec->sec->output_section->name, ".vectors") != NULL))
+                    bfd_pic32_process_code_section(s_sec, &dat, FALSE);
             }
-        
+        }
         /* write zero terminator - 64-bit */
         *dat++ = 0; *dat++ = 0; *dat++ = 0; *dat++ = 0;
         *dat++ = 0; *dat++ = 0; *dat++ = 0; *dat++ = 0;

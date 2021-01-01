@@ -79,8 +79,7 @@ function status_update ()
   elif [ ! -z "${GROWL_SEND:-}" ] ; then
     $GROWL_SEND -sm "$MESSAGE"
   fi
-  echo "status: $MESSAGE"
-  #echo `date` "status: $MESSAGE" >> $LOGFILE
+  echo `date` "status: $MESSAGE" | tee -a $LOGFILE
   set -u
 }
 
@@ -96,13 +95,12 @@ function assert_success ()
  local MESSAGE=$2
  if [ $RESULT != 0 ]
  then
-  echo "$MESSAGE ($RESULT)"
   if [ ! -z "${NOTIFY_SEND:-}" ] ; then
    $NOTIFY_SEND "$MESSAGE" "XC32 Build Error"
   elif [ ! -z "${GROWL_SEND:-}" ] ; then
     $GROWL_SEND -sm "XC32 Build Error: $MESSAGE"
   fi
-  echo "$MESSAGE ($RESULT)" >> $LOGFILE
+  echo "$MESSAGE ($RESULT)" | tee -a $LOGFILE
   error_handler
  fi
 }
@@ -152,24 +150,18 @@ error_handler ()
 ### $1 Command
 ### $2 Error Message
 xc32_eval() {
-  echo ""
-  echo "directory executed: `pwd`"
-  echo "command executed: $1"
-  echo "" >> $LOGFILE
-  echo "directory executed: `pwd`" >> $LOGFILE
-  echo "command executed: $1" >> $LOGFILE
+  echo "" | tee -a $LOGFILE
+  echo "directory executed: `pwd`" | tee -a $LOGFILE
+  echo "command executed: $1" | tee -a $LOGFILE
   bash -c "$1"
   assert_success $? "$2"
 }
 
 xc32_checkout_script() {
   set +u
-  echo ""
-  echo "directory executed: `pwd`"
-  echo "command executed: $1 $2"
-  echo "" >> $LOGFILE
-  echo "directory executed: `pwd`" >> $LOGFILE
-  echo "command executed: $1 $2" >> $LOGFILE
+  echo "" | tee -a $LOGFILE
+  echo "directory executed: `pwd`" | tee -a $LOGFILE
+  echo "command executed: $1 $2" | tee -a $LOGFILE
   bash -c "$1 $2"
   assert_success $? "ERROR: $1 $2"
   set -u
@@ -312,7 +304,7 @@ if [ "x$skip_steps" != "x" ]; then
 fi
 
 
-echo "Beginning xc32-build-all.sh" > $LOGFILE
+echo "Beginning xc32-build-all.sh" | tee $LOGFILE
 
 if [[ -e $BUILDSUBDIR ]] ; then
  echo "WARNING: $BUILDSUBDIR already exists, using existing directory"
@@ -409,7 +401,7 @@ fi
 
 
 if [ "x$skip_pic32c" == "xno" ] ; then
-echo "command executed: $script_path/pic32c/build-pic32c-toolchain.sh --skip_steps=gdb-with-python,mingw32-gdb-with-python --build_type=native${DEVEL}${DEBUG} $JOBS_ARG" >> $LOGFILE
+  echo "command executed: $script_path/pic32c/build-pic32c-toolchain.sh --skip_steps=gdb-with-python,mingw32-gdb-with-python --build_type=native${DEVEL}${DEBUG} $JOBS_ARG" | tee -a $LOGFILE
   bash $script_path/pic32c/build-pic32c-toolchain.sh --skip_steps=gdb-with-python,mingw32-gdb-with-python --build_type=native${DEVEL}${DEBUG} $JOBS_ARG
   assert_success $? "Build pic32c toolchain: pic32c/build-pic32c-toolchain.sh"
   xc32_eval "$script_path/pic32c/build-pic32c-specs.sh" "Build and install pic32c spec files"

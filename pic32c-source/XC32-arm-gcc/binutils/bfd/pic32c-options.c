@@ -54,9 +54,12 @@ gldelf32pic32c_list_options (FILE * file)
                    " (e.g., 32MX795F512L)\n"));
   fprintf (file, _("  --report-mem         Report memory usage to console\n"));
   fprintf (file, _("  --smart-io           Merge I/O library functions (default)\n"));
-  fprintf (file, _("  --no-smart-io        Don't merge I/O library functions\n"));
-  /* lghica co-resident */
-  fprintf (file, _("  --coresident         link for coresident application\n"));
+  fprintf (file, _("  --itcm = x          Allocate x bytes of ITCM\n"));
+  fprintf (file, _("  --dtcm = x          Allocate x bytes of DTCM\n"));
+  fprintf (file, _("  --tcm = x           Allocate x bytes of combined TCM\n"));
+  fprintf (file, _("  --stack-in-tcm       Allocate the stack in TCM\n"));
+  fprintf (file, _("  --no-vectors-in-tcm   Don't allocate the interrupt vectors in TCM\n"));
+  
 } /* static void elf32pic32c_list_options () */
 
 static void pic32_init_fill_option_list (struct pic32_fill_option **lst)
@@ -274,7 +277,11 @@ gldelf32pic32c_parse_args (int argc, char ** argv)
 #ifdef PIC32_DEBUG_SMARTIO
   pic32_debug_smartio = TRUE;
 #endif
+// the initializer for this didn't seem to work
+  pic32c_vectors_in_tcm = TRUE;
 
+
+  
   wanterror  = opterr;
   lastoptind = optind;
   optc   = getopt_long_only (argc, argv, shortopts, longopts, & longind);
@@ -442,6 +449,22 @@ gldelf32pic32c_parse_args (int argc, char ** argv)
       else
         (void) sscanf(optarg, "%lx", &dinit_address);
       break;
+
+    case TCM_OPTION:
+        pic32c_tcm_enabled = TRUE;
+        if (optarg)
+        {
+            pic32c_tcm_size = strtol(optarg, &inv_char, 0);
+            if ((inv_char!= NULL) && ((*inv_char) != 0))
+            {
+                einfo(_("%P: Warning: Invalid value for tcm option. "
+                        "Setting it to default value.\n"));
+                pic32c_tcm_size = DEFAULT_TCM_SIZE;
+            }
+        }
+        else
+            pic32c_tcm_size = DEFAULT_TCM_SIZE;
+        break;
             
     case ITCM_OPTION:
         pic32c_tcm_enabled = TRUE;
@@ -480,6 +503,12 @@ gldelf32pic32c_parse_args (int argc, char ** argv)
         if (pic32_debug)
             printf("Note: Enabled stack in tcm\n");
         pic32c_stack_in_tcm = TRUE;
+        break;
+
+    case VECTORS_IN_TCM_OPTION:
+        if (pic32_debug)
+            printf("Note: Not placing interrupt vectors in tcm\n");
+        pic32c_vectors_in_tcm = FALSE;
         break;
 
 

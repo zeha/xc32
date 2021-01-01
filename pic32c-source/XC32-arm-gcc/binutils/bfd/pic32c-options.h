@@ -73,9 +73,11 @@ extern bfd_boolean pic32_dinit_has_absolute_address;
 extern bfd_vma dinit_address;
 
 extern bfd_boolean          pic32c_tcm_enabled;
+extern unsigned int         pic32c_tcm_size;
 extern unsigned int         pic32c_itcm_size;
 extern unsigned int         pic32c_dtcm_size;
 extern bfd_boolean          pic32c_stack_in_tcm;
+extern bfd_boolean          pic32c_vectors_in_tcm;
 
 /* lghica - co-resident */
 //extern bfd_boolean      pic32_memory_usage;
@@ -122,9 +124,11 @@ enum elfpic32c_options {
   NO_DINIT_IN_SERIAL_MEM_OPTION,
 #endif
   DINIT_ADDRESS_OPTION,
+  TCM_OPTION,
   ITCM_OPTION,
   DTCM_OPTION,
   STACK_IN_TCM_OPTION,
+  VECTORS_IN_TCM_OPTION,
   /* lghica co-resident */
     MEMORY_USAGE,
     RESERVE_CONST,
@@ -157,9 +161,11 @@ static struct option longopts[] =
   { "no-dinit-in-serial-mem", no_argument,  NULL,   NO_DINIT_IN_SERIAL_MEM_OPTION },
 #endif
   { "dinit-address",    required_argument, NULL,    DINIT_ADDRESS_OPTION },
+  { "tcm",              required_argument, NULL,    TCM_OPTION},
   { "itcm",             required_argument, NULL,    ITCM_OPTION},
   { "dtcm",             required_argument, NULL,    DTCM_OPTION},
   { "stack-in-tcm",     no_argument,       NULL,    STACK_IN_TCM_OPTION},
+  { "vectors-in-tcm",   no_argument,       NULL,    VECTORS_IN_TCM_OPTION},
     /* lghica co-resident */
     { "memory-usage",           no_argument,        NULL, MEMORY_USAGE },
     { "reserve-const",          optional_argument,  NULL, RESERVE_CONST },

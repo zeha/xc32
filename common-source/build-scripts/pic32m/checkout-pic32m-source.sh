@@ -76,8 +76,7 @@ function status_update ()
   elif [ "x$GROWL_SEND" != "x" ] ; then
     $GROWL_SEND -p low -n build-pic32m -m "$MESSAGE"
   fi
-  echo "status: $MESSAGE"
-  echo `date` "status: $MESSAGE" >> $LOGFILE
+  echo `date` "status: $MESSAGE" | tee -a $LOGFILE
 }
 
 ####
@@ -91,13 +90,12 @@ function assert_success ()
  local MESSAGE=$2
  if [ $RESULT != 0 ]
  then
-  echo "$MESSAGE ($RESULT)"
   if [ "x$NOTIFY_SEND" != "x" ] ; then
    $NOTIFY_SEND "$MESSAGE" "XC32 Build Error"
   elif [ "x$GROWL_SEND" != "x" ] ; then
     $GROWL_SEND -p high -n build-pic32m -sm "XC32 Build Error: $MESSAGE"
   fi
-  echo "$MESSAGE ($RESULT)" >> $LOGFILE
+  echo "$MESSAGE ($RESULT)" | tee -a $LOGFILE
   error_handler
  fi
 }
@@ -331,7 +329,7 @@ count_dirs=${#all_fossil_directories[*]}
 
 for (( i=0; i<=$(( $count_dirs -1 )); i++ ))
 do
-  echo "Checking out source from ${all_fossil_repos[$i]} to ${all_fossil_directories[$i]}..." >> $LOGFILE
+  echo "Checking out source from ${all_fossil_repos[$i]} to ${all_fossil_directories[$i]}..." | tee -a $LOGFILE
   if [ -e ${all_fossil_directories[$i]} ] ; then
     rm -rf ${all_fossil_directories[$i]}
   fi
@@ -361,18 +359,18 @@ do
       commitid="${XCLM_BRANCH}"
   fi
 
-  echo "Checking out source from ${gitname} to ${gitdir}" >> ${LOGFILE}
+  echo "Checking out source from ${gitname} to ${gitdir}" | tee -a ${LOGFILE}
   if [[ ! -d "${gitdir}" ]]; then
-      echo "Cloning Git repository ${gitname}" >> ${LOGFILE}
+      echo "Cloning Git repository ${gitname}" | tee -a ${LOGFILE}
       (
-        PS4=""; exec 2>> ${LOGFILE}; set -x
-        git clone -q "${XC32_GIT_URL}/${gitrepo}.git" "${gitdir}"
+        PS4=""; set -x
+        git clone -q "${XC32_GIT_URL}/${gitrepo}.git" "${gitdir}" | tee -a ${LOGFILE}
       )
   fi
   (
-    PS4=""; exec 2>> ${LOGFILE}; set -x
-    git -C "${gitdir}" pull --quiet origin
-    git -C "${gitdir}" checkout "${commitid}"
+    PS4=""; set -x
+    git -C "${gitdir}" pull --quiet origin | tee -a ${LOGFILE}
+    git -C "${gitdir}" checkout "${commitid}" | tee -a ${LOGFILE}
   )
 done
 set +eu

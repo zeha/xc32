@@ -190,9 +190,16 @@ extern tree build_smartio_format (tree, tree);
 #endif /* !defined (IN_LIBCC2) */
 
 #ifndef TARGET_FINAL_INCLUDES
+struct cpp_dir;
 extern void pic32c_final_include_paths (struct cpp_dir *, struct cpp_dir *);
 #define TARGET_FINAL_INCLUDES pic32c_final_include_paths
 #endif
+
+/* This does not prevent the creation of a .jcr section in
+   crt{begin,end}.o, but is added to be consistent with what we have
+   in MIPS.  See defaults.h regarding JCR_SECTION_NAME. */
+#undef TARGET_USE_JCR_SECTION
+#define TARGET_USE_JCR_SECTION 0
 
 #undef TARGET_ASM_SELECT_SECTION
 #define TARGET_ASM_SELECT_SECTION mchp_select_section
@@ -435,7 +442,7 @@ extern unsigned int g_ARM_BUILTIN_MAX;
    but are not by default also passed to the assembler. */
 #define PIC32C_INST_SET_SPEC                                                   \
   "%{mcpu=*: -mcpu=%*; : %{march=*: -march=%*; : -" PIC32C_BASE_ARCH "}}"      \
-  " -mthumb "
+  "%{!marm: -mthumb}"
 
 /* Default FPU specs.
    float-abi defaults to soft, corresponding to MULTILIB_DEFAULTS. */
@@ -447,7 +454,7 @@ extern unsigned int g_ARM_BUILTIN_MAX;
 #undef MULTILIB_DEFAULTS
 #define MULTILIB_DEFAULTS                                                      \
   {                                                                            \
-    "mthumb", PIC32C_BASE_ARCH, "mlittle-endian", PIC32C_BASE_FLOAT_ABI        \
+    PIC32C_BASE_ARCH, "mthumb", "mlittle-endian", PIC32C_BASE_FLOAT_ABI        \
   }
 
 #undef CPLUSPLUS_CPP_SPEC
@@ -513,6 +520,13 @@ extern unsigned int g_ARM_BUILTIN_MAX;
 
 #undef SUBTARGET_LINKER_SCRIPT_SPEC
 #define SUBTARGET_LINKER_SCRIPT_SPEC ""
+
+/* We redefine these to keep crtbegin/crti but not crt0, which 
+   is replaced by device-specific startup. */
+#undef STARTFILE_SPEC
+#define STARTFILE_SPEC                                                         \
+  " crti%O%s crtbegin%O%s "                                                    \
+  "%{Ofast|ffast-math|funsafe-math-optimizations:crtfastmath.o%s} "
 
 /* FIXME: no-lto is a workaround for the broken lto library. */
 /* These are guarded with specs=* to avoid conflicts with device specs. */

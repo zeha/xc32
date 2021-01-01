@@ -48,12 +48,9 @@ fi
 ### $2 Error Message
 xc32_eval() {
   set +u
-  echo ""
-  echo "directory executed: `pwd`"
-  echo "command executed: $1"
-  echo "" >> $LOGFILE
-  echo "directory executed: `pwd`" >> $LOGFILE
-  echo "command executed: $1" >> $LOGFILE
+  echo "" | tee -a $LOGFILE
+  echo "directory executed: `pwd`" | tee -a $LOGFILE
+  echo "command executed: $1" | tee -a $LOGFILE
   bash -c "$1"
   assert_success $? "$2"
   
@@ -105,6 +102,12 @@ if [ -e install-mingw ]; then
   status_update "Copying specs to install-mingw"
   mkdir -p install-mingw/bin/device_files/device-specs
   xc32_eval "rsync -qav  \"$ROOT/pic32c-source/pic32c-headers_generator/xml2h/mchp/xc/pic32c/specs_gen/device-specs/\" \"install-mingw/bin/device_files/device-specs\""
+fi
+
+if [ -e image ]; then
+  status_update "Copying specs to image"
+  mkdir -p image/bin/device_files/device-specs
+  xc32_eval "rsync -qav  \"$ROOT/pic32c-source/pic32c-headers_generator/xml2h/mchp/xc/pic32c/specs_gen/device-specs/\" \"image/bin/device_files/device-specs\""
 fi
 
 status_update "Completed $0"

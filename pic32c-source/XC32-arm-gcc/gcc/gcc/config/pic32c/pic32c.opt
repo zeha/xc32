@@ -126,4 +126,8 @@ minclude-legacy-headers
 Target RejectNegative
 -minclude-legacy-headers	Include legacy device headers, not MCC ones which are default for XC32.
 
+mallow-partial-config-words
+Target Var(mchp_allow_partial_config_words) Init(0)
+Allow (or disallow) config words to be partially specified using #pragma config directives.
+
 ;

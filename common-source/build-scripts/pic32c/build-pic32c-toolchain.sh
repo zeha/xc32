@@ -90,12 +90,9 @@ fi
 ### $2 Error Message
 xc32_eval() {
   set +u
-  echo ""
-  echo "directory executed: `pwd`"
-  echo "command executed: $1"
-  echo "" >> $LOGFILE
-  echo "directory executed: `pwd`" >> $LOGFILE
-  echo "command executed: $1" >> $LOGFILE
+  echo "" | tee -a $LOGFILE
+  echo "directory executed: `pwd`" | tee -a $LOGFILE
+  echo "command executed: $1" | tee -a $LOGFILE
   bash -c "$1"
   assert_success $? "$2"
   
@@ -156,12 +153,12 @@ else
  SHASUM256="shasum -a 256 -p"
 fi # NATIVEIMAGE
 
-echo "HOSTMACHINE=$HOSTMACHINE" >> $LOGFILE
-echo "LINUX32IMAGE=$LINUX32IMAGE" >> $LOGFILE
-echo "BUILDMACHINE=$BUILDMACHINE" >> $LOGFILE
-echo "LIBHOST=$LIBHOST" >> $LOGFILE
-echo "NUMBER_OF_JOBS=$NUMBER_OF_JOBS" >> $LOGFILE
-echo "WORKING_DIR=$WORKING_DIR" >> $LOGFILE
+echo "HOSTMACHINE=$HOSTMACHINE" | tee -a $LOGFILE
+echo "LINUX32IMAGE=$LINUX32IMAGE" | tee -a $LOGFILE
+echo "BUILDMACHINE=$BUILDMACHINE" | tee -a $LOGFILE
+echo "LIBHOST=$LIBHOST" | tee -a $LOGFILE
+echo "NUMBER_OF_JOBS=$NUMBER_OF_JOBS" | tee -a $LOGFILE
+echo "WORKING_DIR=$WORKING_DIR" | tee -a $LOGFILE
 }
 
 skip_mingw32=no
@@ -653,8 +650,7 @@ restoreenv
 
 
 LOGTASKFILE=$WORKING_DIR/log-build-pic32c-Task-III-3b-pic32c-libs.txt
-echo Task [III-3b] /$HOST_NATIVE/pic32c-libs/ > $LOGTASKFILE
-echo Task [III-3b] /$HOST_NATIVE/pic32c-libs/
+echo Task [III-3b] /$HOST_NATIVE/pic32c-libs/ | tee -a $LOGTASKFILE
 status_update "  Task [III-3] /$HOST_NATIVE/pic32c-libs/"
 saveenv
 prepend_path PATH $INSTALLDIR_NATIVE_NOLM/bin

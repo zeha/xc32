@@ -106,7 +106,7 @@ case "${host_cpu}" in
   arm* | pic32c*)
 	machine_dir=arm
 	libm_machine_dir=arm
-	newlib_cflags="${newlib_cflags} -mno-smart-io -DSMALL_MEMORY"
+	newlib_cflags="${newlib_cflags} -mno-smart-io -ffunction-sections -fdata-sections -DPREFER_SIZE_OVER_SPEED -DSMALL_MEMORY"
 	;;
   avr*)
 	newlib_cflags="${newlib_cflags} -DPREFER_SIZE_OVER_SPEED -mcall-prologues"

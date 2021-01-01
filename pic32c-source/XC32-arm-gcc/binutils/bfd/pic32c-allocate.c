@@ -39,6 +39,8 @@
 **
 */
 
+#include "pic32c-options.h"
+
 /* useful constants and macros */
 #define NEAR_BOUNDARY   0xa0010000
 
@@ -60,6 +62,413 @@
 #include "pic32c-attributes.h"
  } ;
 
+/* helper(s) to deal with missing regions that pass region_lookup.
+   these get a length of -1. */
+static int 
+valid_region(lang_memory_region_type *region) {
+    return (region && (region->length > 0) && (region->length != ~(bfd_size_type)0));
+}
+
+/* this usage is intended for checking if a region_info member is present and valid,
+   i.e. an additional NULL check for the pic32_region pointer. */
+static int
+pic32_valid_region(struct pic32_region *regn) {
+    return (regn && valid_region(regn->region));
+}
+
+/* a hard coded magic number   the cache line size for jubilee is 16 bytes */
+/* for now Jubilee is the only family with combines TCM, so I only need one of these.*/
+
+/* ensure that the region has all of the needed_flags and none of the
+   invalid_flags. basically, this copes with flags and not_flags. */
+static int 
+check_region_flags(const lang_memory_region_type *region, 
+                   unsigned needed_flags, 
+                   unsigned invalid_flags) {
+    return ((region->flags & needed_flags) == needed_flags &&
+            (region->not_flags & needed_flags) == 0 &&
+            (invalid_flags == 0 ||
+              ((region->flags & invalid_flags) == 0) ||
+              ((region->not_flags & invalid_flags) != 0)));
+}
+
+/* not static, because it's needed (?) in elf32pic32c.em */
+struct region_info region_info;
+
+/* a hard coded magic number   the cache line size for jubilee is 16 bytes */
+/* for now Jubilee is the only family with combines TCM, so I only need one of these.*/
+
+#define JUBILEE_CACHE_LINE_ALIGNMENT_POWER 4
+
+enum tcm_style 
+determine_tcm_style (lang_memory_region_type **code, lang_memory_region_type **data) {
+
+/*   the tcm style of the machine is determined by which memory regions are defined
+ *   so this really comes from the linker script
+ *
+ *    if there is a memory region called "tcm" then we have TCM_COMBINED
+ *    if either of dtcm or itcm exists we have TCM_SEPERATTE
+ *    if one of these co-exists with tcm we are in an error situation (not checked here)
+ *    if none of these exist we have TCM_NONE    
+ *
+ *    input tcm sections will have the attribute itcm or dtcm depending if they are
+ *    code or data resp.   Plain "tcm" is not a valid attribute.
+*/
+    
+    bfd_boolean found_itcm_or_dtcm = FALSE;
+    *code = *data = NULL;
+    
+    lang_memory_region_type *region = region_lookup("tcm");
+
+    if (region &&  (region->length > 0) && (region->length != ~(bfd_size_type) 0)) {
+	*code = region;
+	*data = region;
+	return TCM_COMBINED;
+    }
+    region = region_lookup("itcm");
+    if (region &&  (region->length > 0) && (region->length != ~(bfd_size_type) 0)) {
+	*code = region;
+	found_itcm_or_dtcm = TRUE;
+    }
+    region = region_lookup("dtcm");
+    if (region &&  (region->length > 0) && (region->length != ~(bfd_size_type) 0)) {
+	*data = region;
+	found_itcm_or_dtcm = TRUE;
+    }
+	
+    if (found_itcm_or_dtcm) return TCM_SEPARATE;
+    return TCM_NONE;
+}
+
+/* debug helper to display regions as classified */
+static void 
+dump_single_region_info (const struct pic32_region *region, const char *name) {
+    const lang_memory_region_type *regn = region->region;
+    fprintf(stderr, "%12s %12s %12x %12x    ", name, regn->name_list.name, regn->origin, regn->length);
+    fprintf(stderr, "%c", (region->flags.init_needed ? 'I' : '.'));
+    fprintf(stderr, "%c", (region->flags.is_cleared ? 'Z' : '.'));
+    fprintf(stderr, "%c", (region->flags.is_exec ? 'X' : '.'));
+    fprintf(stderr, "%c", (region->flags.is_tcm ? 'T' : '.'));
+    fprintf(stderr, "\n");
+}
+
+static void 
+dump_region_info(const struct region_info *rinfo) {
+
+    fprintf(stderr, "%12s %12s %12s %12s %8s\n", "region", "name", "origin", "length", "flags");
+
+    if (pic32_valid_region(rinfo->code))
+        dump_single_region_info(rinfo->code, "code");
+    if (pic32_valid_region(rinfo->data)) 
+        dump_single_region_info(rinfo->data, "data");
+    if (pic32_valid_region(rinfo->code_tcm)) 
+        dump_single_region_info(rinfo->code_tcm, "itcm");
+    if (pic32_valid_region(rinfo->data_tcm)) 
+        dump_single_region_info(rinfo->data_tcm, "dtcm");
+    if (pic32_valid_region(rinfo->vectors))
+      dump_single_region_info(rinfo->vectors, "vectors");
+}
+
+/* helper to output a region description to a memory info file. TCM reporting
+   is disabled unless show_tcm is set, as apparently this can affect/break
+   the IDE memory display? */
+static void
+report_single_region_info(FILE *fp, struct pic32_region *regn, const char *name) {
+  unsigned long total_size = 0;
+  unsigned long used_size = 0;
+  struct pic32_section *s;
+  lang_memory_region_type *region;
+
+  if (!pic32_valid_region(regn) || !regn->region->length) 
+      return;
+
+  total_size = regn->region->length;
+
+  for (s = pic32_section_list; s != NULL; s = s->next)
+      if (s->sec)
+          used_size += bfd_pic32_collect_section_size (s, regn->region);
+
+  fprintf (fp, "    <memory name=\"%s\">\n"
+               "      <units>bytes</units>\n"
+               "      <length>%lu</length>\n"
+               "      <used>%lu</used>\n"
+               "      <free>%lu</free>\n"
+               "    </memory>\n",
+           name, total_size, used_size, total_size - used_size);
+}
+
+void
+pic32_report_region_info(FILE *f, int show_tcm) {
+
+    /* report code as 'rom' if not shared with data (or if readonly?) */
+    if (pic32_valid_region(region_info.code) && 
+        region_info.code != region_info.data) {
+        report_single_region_info(f, region_info.code, "rom");
+    }
+
+    if (pic32_valid_region(region_info.data)) {
+        report_single_region_info(f, region_info.data, "ram");
+    }
+
+    if (show_tcm) {
+        /* report tcm as 'tcm' when combined, else itcm/dtcm */
+        if (pic32_valid_region(region_info.code_tcm) &&
+            region_info.code_tcm == region_info.data_tcm) {
+            report_single_region_info(f, region_info.code_tcm, "tcm");
+        } 
+        else {
+            if (pic32_valid_region(region_info.code_tcm)) {
+                report_single_region_info(f, region_info.code_tcm, "itcm");
+            }
+            if (pic32_valid_region(region_info.data_tcm)) {
+                report_single_region_info(f, region_info.data_tcm, "dtcm");
+            }
+        }
+    }
+}
+
+/* allocate and initialize a pic32_region for the underlying BFD region. */
+static struct pic32_region *
+pic32_new_region(struct memory_region_struct *region) {
+    struct pic32_region *p = xmalloc(sizeof(struct pic32_region));
+    memset(p, 0, sizeof(struct pic32_region));
+    p->region = region;
+    return p;
+}
+
+
+/* Populate region_info with information about regions that the BFA
+   can allocate to. Returns true iff the BFA has any hope of working,
+   i.e. there are regions for everything that could be allocated.
+*/
+static int
+pic32_init_region_info(struct region_info *rinfo) {
+
+    lang_memory_region_type *code_region, *data_region;
+
+    /* wipe out whatever was there. */
+    memset(rinfo, 0, sizeof *rinfo);
+
+    /* first: check for 'ram'/'rom', the usual case. these
+       are the expected regions, along with maybe TCM, for 
+       cortex-M devices so far.
+       the convention here is that if 'ram' exists, we expect
+       a 'rom' as well. */
+    data_region = region_lookup ("ram");
+    code_region = region_lookup ("rom");
+
+    if (pic32_debug) {
+      fprintf(stderr, "classify: ram length %x\n", data_region->length);
+      fprintf(stderr, "classify: rom length %x\n", code_region->length);
+    }
+
+    if (valid_region(data_region)) {
+        /* FIXME: our scripts use the 'r' flag for just about every section
+           which seems to mean readonly, not readable (everything is readable).
+           so we can't check that flag for data. */
+        if (check_region_flags(data_region, (SEC_DATA), 0)) {
+            if (pic32_debug) 
+                fprintf(stderr, "classify: data -> 'ram'\n");
+            rinfo->data = pic32_new_region(data_region);
+            rinfo->data->flags.is_exec = check_region_flags(data_region, (SEC_CODE), 0);
+            rinfo->data->flags.init_needed = check_region_flags(data_region, 0, (SEC_LOAD));
+        }
+    }
+    else {
+      /* try sram if ram isn't anywhere to be found. */
+      data_region = region_lookup ("sram");
+      if (check_region_flags(data_region, (SEC_DATA), 0)) {
+        if (pic32_debug) 
+          fprintf(stderr, "classify: data -> 'sram'\n");
+        rinfo->data = pic32_new_region(data_region);
+        rinfo->data->flags.is_exec = check_region_flags(data_region, (SEC_CODE), 0);
+        rinfo->data->flags.init_needed = check_region_flags(data_region, 0, (SEC_LOAD));
+      }
+    }
+
+    if (valid_region(code_region)) {
+        if (check_region_flags(code_region, (SEC_CODE), 0)) {
+            if (pic32_debug) 
+                fprintf(stderr, "classify: code -> 'rom'\n");
+            rinfo->code = pic32_new_region(code_region);
+            rinfo->code->flags.is_exec = 1;
+            rinfo->code->flags.init_needed = check_region_flags(code_region, 0, (SEC_LOAD));
+        }
+    }
+
+    /* check for TCM regions and kind of TCM to handle. */
+
+    rinfo->tcm_style = determine_tcm_style(&code_region, &data_region);
+
+    if (rinfo->tcm_style != TCM_NONE) {
+
+        /* currently determine_tcm_style guarantees the regions are real, but 
+           we'll also check flags */
+        /* see above TODO for a note about SEC_READONLY .. */
+        if (valid_region(data_region) &&
+            check_region_flags(data_region, (SEC_DATA), 0)) {
+            rinfo->data_tcm = pic32_new_region(data_region);
+            rinfo->data_tcm->flags.is_exec = check_region_flags(data_region, (SEC_CODE), 0);
+            rinfo->data_tcm->flags.init_needed = check_region_flags(data_region, 0, (SEC_LOAD));
+        }
+
+        if (rinfo->tcm_style == TCM_COMBINED) {
+            rinfo->code_tcm = rinfo->data_tcm;
+        }
+        else if (valid_region(code_region) && 
+            check_region_flags(code_region, (SEC_CODE), 0)) {
+            rinfo->code_tcm = pic32_new_region(code_region);
+            rinfo->code_tcm->flags.is_exec = 1;
+            rinfo->code_tcm->flags.init_needed = check_region_flags(code_region, 0, (SEC_LOAD));
+        }
+    }
+
+    if (rinfo->code == NULL && rinfo->data != NULL) {
+        /* if is_exec isn't set, we are out of luck. */
+        if (!rinfo->data->flags.is_exec) {
+            if (pic32_debug) {
+                fprintf(stderr, "no rom region available, but ram is not executable\n");
+            }
+            return 0;
+        }
+        rinfo->code = rinfo->data;
+
+        /* in this case we have to assume the section is loaded, as there's no
+           ROM */
+        rinfo->code->flags.init_needed = 0;
+        rinfo->data->flags.init_needed = 0;
+
+        if (pic32_debug) 
+            fprintf(stderr, "classify: code and data will be in same region\n");
+    }
+
+    /* Now, we determine how to handle tcm-like relocations, i.e. moving .vectors
+       around at runtime to something that isn't the code region. 
+       If there's tcm regions, we trust the tcm-related options. 
+       Otherwise, we check for 'sram', magically indicating SAMA5/MPU.
+       TODO: set stack region as needed for stack-in-dtcm?
+       */ 
+    if (rinfo->tcm_style == TCM_NONE) {
+        code_region = region_lookup("sram");
+
+        /* we only want to relocate the vectors if we are not locating
+           code in sram already. */
+        if (valid_region(code_region) &&
+            (rinfo->code != NULL && rinfo->code->region != code_region)) {
+            if (check_region_flags(code_region, (SEC_CODE), 0)) {
+                if (pic32_debug) 
+                    fprintf(stderr, "classify: vectors -> 'sram'\n");
+                rinfo->vectors = pic32_new_region(code_region);
+                rinfo->vectors->flags.is_exec = 1;
+                rinfo->vectors->flags.init_needed = check_region_flags(code_region, 0, (SEC_LOAD));
+                pic32c_relocate_vectors = TRUE;
+                pic32c_vectors_in_tcm = FALSE;
+            }
+        }
+    }
+    else if (pic32c_vectors_in_tcm) {
+        rinfo->vectors = rinfo->code_tcm;
+        pic32c_relocate_vectors = TRUE;
+    }
+
+    /* that's it for magic names, now just check if we can proceed at all. */
+    if (!pic32_valid_region(rinfo->code) || !pic32_valid_region(rinfo->data)) {
+        if (pic32_debug) {
+            fprintf(stderr, "unable to determine code/data targets for allocation.\n");
+            fprintf(stderr, "check memory region names/flags.\n");
+        }
+        return 0;
+    }
+
+    return 1;
+}
+
+/* create the free_block list for each known region as needed. this is moved out of
+   the allocate_XXX_memory function in order to deal with code/data sharing. 
+   we'll still keep the order itcm->dtcm->code->data. 
+   this also initializes the vector/stack target region lists for relocation
+   if they are in different region(s) than code/data/tcm. */
+static void
+pic32_build_free_blocks(struct region_info *rinfo) {
+
+    /* build itcm/tcm free blocks */
+    if (pic32_valid_region(rinfo->code_tcm))
+        build_free_block_list(rinfo->code_tcm, 0);
+
+    /* build dtcm free blocks if not shared with itcm/tcm */
+    if (pic32_valid_region(rinfo->data_tcm)) {
+        if (rinfo->data_tcm != rinfo->code_tcm)
+            build_free_block_list(rinfo->data_tcm, 0);
+    }
+
+    /* do the same for code/data. */
+    build_free_block_list(rinfo->code, 0);
+    if (rinfo->data == rinfo->code) {
+        // TODO: have to suspect the same cache line issue may affect shared code/data
+        // for SAMA5/MPUs
+        //align_free_blocks(rinfo->data->free_blocks, 5);
+    }
+    else 
+        build_free_block_list(rinfo->data, 0);
+
+    /* if the vector/stack targets are not any of the above, build them now.
+     */
+    if (rinfo->vectors != NULL && rinfo->vectors->free_blocks == NULL) 
+        build_free_block_list(rinfo->vectors, 0);
+    if (rinfo->stack != NULL && rinfo->stack->free_blocks == NULL) 
+        build_free_block_list(rinfo->stack, 0);
+}
+
+/* Free any allocated memory used by region_info. In particular,
+   free all the free block lists. This is to be called from 
+   bfd_pic32_finish, or at least at the end of the region_info's usefulness. */
+void 
+pic32_free_region_info(struct region_info *rinfo) {
+    if (!rinfo) return;
+
+    /* here we deal with sharing of free block lists - code/data may be shared
+       between tcm and not-tcm flavours */
+    if (rinfo->code->free_blocks) {
+        pic32_free_memory_list(&rinfo->code->free_blocks);
+    }
+
+    if (rinfo->data->free_blocks) {
+        pic32_free_memory_list(&rinfo->data->free_blocks);
+    }
+
+    if (rinfo->code_tcm && rinfo->code_tcm->free_blocks) {
+        pic32_free_memory_list(&rinfo->code_tcm->free_blocks);
+    }
+
+    if (rinfo->data_tcm && rinfo->data_tcm->free_blocks) {
+        pic32_free_memory_list(&rinfo->data_tcm->free_blocks);
+    }
+
+    /* and then do the same excercise for the regions themselves. */
+    if (rinfo->code) {
+        free (rinfo->code);
+        if (rinfo->data == rinfo->code)
+            rinfo->data = NULL;
+        rinfo->code = NULL;
+    }
+    if (rinfo->data) {
+        free (rinfo->data);
+        rinfo->data = NULL;
+    }
+    if (rinfo->code_tcm) {
+        free (rinfo->code_tcm);
+        if (rinfo->data_tcm == rinfo->code_tcm)
+            rinfo->data_tcm = NULL;
+        rinfo->code_tcm = NULL;
+    }
+    if (rinfo->data_tcm) {
+        free (rinfo->data_tcm);
+        rinfo->data_tcm = NULL;
+    }
+
+    memset(rinfo, 0, sizeof *rinfo);
+}
+
 /* Create a bit mask to match any attribute */
 #define all_attr 0xFFFFFFFF
 
@@ -78,8 +487,11 @@ enum {
 
 /* Data structure for free program memory blocks */
 extern struct pic32_memory *program_memory_free_blocks;
-extern bfd_vma     pic32c_itcm_vectors_address;
-extern unsigned int         pic32c_itcm_size;
+
+/* TODO: this is used as the relocated vector address, so the name should probably
+   not mention itcm? */
+extern bfd_vma pic32c_itcm_vectors_address;
+extern bfd_boolean pic32c_relocate_vectors;
 
 static void allocate_stack_in_dtcm();
 
@@ -138,14 +550,17 @@ remove_section_from_bfd(bfd *abfd, asection *sec)
                                     last section.*/
     abfd->section_count -= 1;
     if (pic32_debug)
-        printf("    removing section %s\n", s->name);
+        fprintf(stderr,"    removing section %s\n", s->name);
     return;
 } /* static void remove_section_from_bfd (...)*/
+
+
+
 
 /*
  * reserve_space_for_vectors()
  *
- * This function reserve the beginning of itcm region for a copy of
+ * This function reserve space at the beginning the given region for a copy of
  * .vectors section
  *
  * Called by: allocate_program_memory()
@@ -155,33 +570,38 @@ remove_section_from_bfd(bfd *abfd, asection *sec)
  *            pic32_static_assign_memory()
  *
  */
-void reserve_space_for_vectors()
+static void 
+reserve_space_for_vectors(struct pic32_region *regn)
 {
-    ///\ itcm region lookup
-    struct memory_region_struct     *region = region_lookup("itcm");
+
+
     ///\ get .vectors
     asection                        *vectors_section =
     bfd_get_section_by_name(link_info.output_bfd, ".vectors");
     struct pic32_memory             *vectors_block = NULL;
-    
-    ///\ no itcm specified in the linker script
-    if ((region == NULL) || (pic32c_itcm_size == 0))
+
+    // ensure target region exists and is valid
+    if (!pic32_valid_region(regn))
         return;
-    
+
+    if (pic32_debug) {
+      fprintf(stderr, "allocating space for .vectors in %s\n", regn->region->name_list.name);
+    }
+
     if (vectors_section == NULL)
         return;
-    
+
     ///\ keep the itcm->origin for .dinit dump
-    pic32c_itcm_vectors_address = region->origin;
-    
+    pic32c_itcm_vectors_address = regn->region->origin;
+
     ///\ allocate .vectors as an absolute section
-    vectors_block = pic32_static_assign_memory(free_blocks,
+    vectors_block = pic32_static_assign_memory(regn->free_blocks,
                                                vectors_section->size,
                                                pic32c_itcm_vectors_address);
     if (vectors_block == NULL)
         einfo("%X Could not allocate .vectors at the beginning of itcm\n");
     
-    create_remainder_blocks(free_blocks,vectors_block, vectors_section->size);
+    create_remainder_blocks(regn->free_blocks,vectors_block, vectors_section->size);
 }
 
 
@@ -211,6 +631,42 @@ static void generate_vectors_symbols()
     
 }
 
+
+static void check_absolute_section(struct pic32_section *s)
+{
+    lang_memory_region_type *m;
+//    bfd_boolean found = FALSE;
+    if (s->sec == NULL) return;
+    
+    /* cannot do this - need to reach into ldlang to get a list of regions
+     this check is a work in progress ... see XC32E-406
+    for (m = lang_memory_region_list; m != NULL; m = m->next)
+    {
+	if ((s->sec->lma >= m->origin) && (s->sec->lma < (m->origin + m->length))) {
+	    found = TRUE;
+	    break;
+	}
+	
+    }
+    
+    if (pic32c_debug) {
+	if (found) printf("found absolute section %s in region %s \n",s->sec->name, m->name_list.name);
+	else printf("Error: invalid address for absolute section %s \n",s->sec->name);
+    }
+    */
+
+    if ((region_info.tcm_style == TCM_COMBINED) && pic32_valid_region(region_info.code_tcm)) {
+	m = region_info.code_tcm->region;
+	if ((s->sec->lma >= m->origin) && (s->sec->lma < (m->origin + m->length)))
+	    einfo("Absolute section %s is in tcm memory.  Not permitted on this device. \n",s->sec->name);
+    }
+}
+
+
+
+
+
+
 static void
 report_allocation_error(struct pic32_section *s) {
 #define PREFIX "/tmp"
@@ -232,12 +688,12 @@ report_allocation_error(struct pic32_section *s) {
 
     einfo(_("%X%s%s Link Error: Could not allocate section %s, %s, %s\n"),
           filename, colon, secname, s1 ? s1 : "", s2 ? s2 : "");
-
+ 
     if (s1) free(s1);  /* free the malloc'ed strings */
     if (s2) free(s2);
 
     if (pic32_debug)
-      printf("\n    Error: Could not allocate section %s\n", s->sec->name);
+      fprintf(stderr,"\n    Error: Could not allocate section %s\n", s->sec->name);
 }
 
 /*
@@ -270,7 +726,35 @@ allocate_memory() {
 
   /* save the last output section statement
      after sequential allocation */
-  last_os = (lang_output_section_statement_type **) statement_list.tail;
+  last_os = (lang_output_section_statement_type **) lang_output_section_statement.tail;
+
+
+  if (region_info.tcm_style == TCM_COMBINED) {
+
+  
+    /*
+     * with combined TCM we need to enforce a rule that programmers cannot mark any item as both
+     * tcm and absolute.   If this is allowed it becomes very complicated to make sure that data
+     * and code do not co-exist on the same cache line
+     */
+    struct pic32_section *s, *prev, *next;
+
+    // check all the absolute sections to see that they make sense
+    prev = unassigned_sections;
+    for (s = prev; s != NULL; s = next) {
+      if ((s->sec != NULL) && PIC32_IS_ABSOLUTE_ATTR(s->sec)) {
+          check_absolute_section(s);
+      }
+      next = s->next;
+    }
+  }
+
+
+  
+  if (pic32_debug) {
+      pic32_print_section_list(unassigned_sections, "unassigned");
+      pic32_print_section_list(memory_region_list, "memory region");
+  }
 
   /*
    * Build an ordered list of output sections
@@ -287,22 +771,38 @@ allocate_memory() {
     pic32_print_section_list(unassigned_sections, "unassigned");
     pic32_print_section_list(memory_region_list, "memory region");
   }
+    
+    /* build the free blocks list for all known regions. */
+    pic32_build_free_blocks(&region_info);
 
-  result = allocate_data_memory();
-  if (result != 0)
-    einfo(_("%F%sdata memory\n"), ERR_STR );
-
-  result = allocate_program_memory();
-  if (result != 0)
-    einfo(_("%F%sprogram memory\n"), ERR_STR );
-#if 1
-  if (has_user_defined_memory) {
-    result = allocate_user_memory();
+    result = allocate_tcm_memory();
     if (result != 0)
-      einfo(_("%F%suser-defined memory region\n"), ERR_STR );
-  }
+        einfo(_("%F%stcm memory\n"), ERR_STR );
+
+    result = allocate_data_memory();
+    if (result != 0)
+        einfo(_("%F%sdata memory\n"), ERR_STR );
+
+    result = allocate_program_memory();
+    if (result != 0)
+        einfo(_("%F%sprogram memory\n"), ERR_STR );
+
+#ifdef ENABLE_USER_MEMORY
+    if (has_user_defined_memory) {
+        result = allocate_user_memory();
+        if (result != 0)
+            einfo(_("%F%suser-defined memory region\n"), ERR_STR );
+    }
 #endif
-  /* allocate the heap, if required */
+
+    // if vectors are not to be relocated, generate the symbols in the
+    // default code region
+    if (!pic32c_relocate_vectors) {
+        generate_flash_vectors_symbol("__svectors_nvm");
+        generate_flash_vectors_symbol("__svectors");
+    }
+  
+    /* allocate the heap, if required */
 
   /* allocate the stack, unless the user has defined one */
 
@@ -431,8 +931,88 @@ allocate_memory() {
       }
     }
   }
-
 } /* allocate_memory() */
+
+/*
+ * allocate_tcm_memory()
+ *
+ * This function attempts to allocate all itcm and dtcm input memory sections.
+ *
+ * Called by: allocate_memory()
+ *
+ * Calls:     build_alloc_section_list()
+ *            build_free_block_list()
+ *            locate_sections()
+ *            pic32_section_list_length()
+ *
+ * Returns:   status code
+ *            (0 = success)
+ */
+static int
+allocate_tcm_memory() {
+
+  unsigned int mask = itcm|dtcm ;
+  int result = 0;
+  
+  if (pic32_debug)
+    fprintf(stderr,"\nBuilding allocation list for regions \"itcm\", \"dtcm\" and \"tcm\"\n"
+           "  attribute mask = %x\n", mask);
+
+  build_alloc_section_list(mask);
+  // if (pic32_section_list_length(alloc_section_list) == 0)
+  //   return result;
+
+  if (pic32_debug) {
+      pic32_print_section_list(alloc_section_list, "tcm input");
+  }
+    
+// first we allocate itcm sections to itcm_region
+// then we allocate dtcm input sections to dtcm_region
+// these two might be the same ... in that case we will need to check that no free block in free_blocks has any partial cache line.
+// for now the cache line size is hard coded - there is only one such family (Jubilee) and the line size is 16 bytes
+// in the more common case that itcm and dtcm are separate memory regions we will need to build a new free block list
+
+
+  if (!pic32_valid_region(region_info.code_tcm)) {
+      // do not even try if itcm_region is not defined ...
+      if (pic32_debug)     fprintf(stderr,"no output region for itcm input sections  : not proceeding with BF allocation \n");
+  }
+  else {
+      if (pic32c_vectors_in_tcm && pic32_valid_region(region_info.vectors))  {
+	      reserve_space_for_vectors(region_info.vectors);
+	      generate_vectors_symbols();
+      } 
+
+      reset_locate_options();
+      
+      result |= locate_sections(address, dtcm, region_info.code_tcm);   /* most restrictive  */
+      result |= locate_sections(all_attr, dtcm, region_info.code_tcm);  /* less restrictive */
+  }
+  
+  if (!pic32_valid_region(region_info.data_tcm)) {
+      // do not even try if dtcm_region is not defined ...
+      if (pic32_debug)     fprintf(stderr,"no output region for dtcm input sections  : not proceeding with BF allocation \n");
+  }
+  else {
+      
+      // make sure that the free blocks list does not contain any partial cache lines
+      // TODO: make cache line size configurable
+      if (region_info.tcm_style == TCM_COMBINED)
+          align_free_blocks(region_info.data_tcm->free_blocks, JUBILEE_CACHE_LINE_ALIGNMENT_POWER);
+      
+      reset_locate_options();
+
+      result |= locate_sections(address, 0, region_info.data_tcm);   /* most restrictive  */
+      result |= locate_sections(all_attr, 0, region_info.data_tcm);  /* least restrictive */
+  }
+
+  if (pic32c_stack_in_tcm)
+      allocate_stack_in_dtcm();
+
+  
+  return result;
+} /* allocate_tcm_memory() */
+
 
 
 /*
@@ -452,12 +1032,11 @@ allocate_memory() {
  */
 static int
 allocate_program_memory() {
-  struct memory_region_struct *region;
-  unsigned int mask = code | itcm;
+  unsigned int mask = code ;
   int result = 0;
 
   if (pic32_debug)
-    printf("\nBuilding allocation list for regions \"program\" and \"itcm\"\n"
+    fprintf(stderr,"\nBuilding allocation list for region \"program\" \n"
            "  attribute mask = %x\n", mask);
 
   build_alloc_section_list(mask);
@@ -465,78 +1044,25 @@ allocate_program_memory() {
     return result;
 
   if (pic32_debug) {
-    pic32_print_section_list(alloc_section_list, "allocation");
+    pic32_print_section_list(alloc_section_list, "allocate_code");
   }
 
     
-    
-// now we try to allocate the list of input sections we just built to ROM and ITCM
-// first we allocate to ROM blocking any sections marked ITCM
-// then we do it all again to itcm
+// now we  allocate the list of input sections we just built to ROM
 
-    ///\ LG to fix    (to fix what? - JLM)
-  region = region_lookup ("rom");
-
-  if (region->length == ~(bfd_size_type) 0) {
-      program_memory_free_blocks = NULL;
-      
+  if (!pic32_valid_region(region_info.code)) {
       // do not bother going further if rom was not defined in the linker script ...
-      if (pic32_debug)     printf("no section named rom : not proceeding with BF allocation\n");
-      return 0;
-    
-  }
+      if (pic32_debug) 
+          fprintf(stderr, "no section named rom : not proceeding with BF allocation\n");
 
-  build_free_block_list(region, mask);
+      return 0;
+  }
 
   reset_locate_options();
 
-  result |= locate_sections(address, itcm, region);   /* most restrictive  */
-
-  result |= locate_sections(all_attr, itcm, region);  /* less restrictive */
-
-  /* save the free blocks list */
-  program_memory_free_blocks = free_blocks;
-    
-  region = region_lookup ("itcm");
-
-  if ((region != NULL) && (region->length != 0)
-      && (region->length != ~(bfd_size_type) 0))
-  {
+  result |= locate_sections(address, itcm, region_info.code);   /* most restrictive  */
+  result |= locate_sections(all_attr, itcm, region_info.code);  /* less restrictive */
   
-      build_free_block_list(region, mask);
-      
-      ///\ reserve space at the beginning of itcm for .vectors
-      reserve_space_for_vectors();
-      
-      generate_vectors_symbols();
-      
-      reset_locate_options();
-
-      result |= locate_sections(address, 0, region);   /* most restrictive  */
-
-      result |= locate_sections(all_attr, 0, region);  /* least restrictive */
-      
-  }
-    else if (((region = region_lookup("tcm")) != NULL)
-             && (region->length != 0)
-             && (region->length != ~(bfd_size_type) 0))
-    {
-        build_free_block_list(region, mask);
-        reset_locate_options();
-        
-        result |= locate_sections(address, 0, region);   /* most restrictive  */
-        
-        result |= locate_sections(all_attr, 0, region);  /* least restrictive */
-    }
-    ///\ if itcm is not enabled, generate only the .vectors flash symbols
-    else
-    {
-        generate_flash_vectors_symbol("__svectors_nvm");
-        generate_flash_vectors_symbol("__svectors");
-    }
-
-  free_blocks = 0;
-
   return result;
 } /* allocate_program_memory() */
 
@@ -557,8 +1083,10 @@ allocate_program_memory() {
  *            (0 = success)
  *
  * Notes: List "data_memory_free_blocks" is needed by
- *        bfd_pic322_finish() to allocate the stack
+ *        bfd_pic32_finish() to allocate the stack
  *        and heap, so don't exit this function early.
+ *        DZ: data_memory_free_blocks is now region_info.data->free_blocks, 
+ *        but the same caveat about freeing the list applies.
  *
  *        EDS allocation is tricky. Although these sections
  *        can be allocated anywhere, we need to preserve
@@ -578,94 +1106,43 @@ allocate_program_memory() {
  */
 static int
 allocate_data_memory() {
-  struct memory_region_struct *region = NULL;
-  struct memory_region_struct *dtcm_region = NULL;
-  struct pic32_section *s;
-  unsigned int mask = data|bss|persist|stack|heap|ramfunc;
-  int result = 0;
+    struct pic32_section *s;
+    unsigned int mask = data|bss|persist|stack|heap|ramfunc;
+    int result = 0;
 
-  // build a list of data sections to be allocated - includes tcm and non-tcm
+    if (pic32_debug)
+        fprintf(stderr,"\nBuilding allocation list for region \"data\"\n"
+               "  attribute mask = %x\n", mask);
 
-  if (pic32_debug)
-    printf("\nBuilding allocation list for region \"data\"\n"
-           "  attribute mask = %x\n", mask);
+    // build a list of data sections to be allocated -should not contain any tcm
 
-  build_alloc_section_list(mask);
+    build_alloc_section_list(mask);
 
-  if (pic32_debug) {
-    pic32_print_section_list(alloc_section_list, "allocation");
-  }
+    if (pic32_debug) {
+        pic32_print_section_list(alloc_section_list, "allocate_data");
+    }
 
+    if (!pic32_valid_region(region_info.data)) {
+        // do not bother going further if  ram was not defined in the linker script ...
+        if (pic32_debug) fprintf(stderr,"no section named ram : not proceeding with BF allocation\n");
+        return 0; 
+    }
 
+    /* TODO: try to move the reserving of space for vectors outside of specific
+       allocate functions. for now we do it here assuming allocate_tcm didn't, 
+       based on the presence of the code_tcm region. */
+    if (pic32c_relocate_vectors && !pic32c_vectors_in_tcm) {
+      reserve_space_for_vectors(region_info.vectors);
+      generate_vectors_symbols();
+    }
 
-  // now we allocate the sections on the list to ram or dtcm as needed
-  // 
-  // region lookup populates the variable free_block_list with the free blocks from region.
-  // there is only one such variable, so we can only allocate to one region at a time.
-  // We allocate first to ram, providing dtcm as the "block" parameter - then we do it all again
-  // to dtcm
+    // now we allocate the sections on the list to ram
+    // 
+    reset_locate_options();
 
-  region =  region_lookup ("ram");
+    result |= locate_sections(address, dtcm, region_info.data);
+    result |= locate_sections(all_attr, stack|heap|dtcm, region_info.data);
 
-   if (region->length == ~(bfd_size_type) 0) {
-      // do not bother going further if  ram was not defined in the linker script ...
-       data_memory_free_blocks = NULL;
-      if (pic32_debug)     printf("no section named ram : not proceeding with BF allocation\n");
-      return 0; 
-  }
-
-  if (region == NULL)
-    einfo (_(" Link Error: missing mem region for device"));
-
-  build_free_block_list(region, mask);
-
-  reset_locate_options();
-
-  result |= locate_sections(address, dtcm, region);
-
-  result |= locate_sections(all_attr, stack|heap|dtcm, region);
-
-
-    /* save the free blocks list */
-    /* needed for further heap/stack checks */
-    data_memory_free_blocks = free_blocks;
-    free_blocks = 0;
-    
-    
-  region =  region_lookup ("dtcm");
-
-  if ((region != NULL) && (region->length != 0)) {
-
-      build_free_block_list(region, mask);
-
-      reset_locate_options();
-
-      result |= locate_sections(address , 0, region);
-
-      result |= locate_sections(dtcm, stack|heap, region);
-
-      if (pic32c_stack_in_tcm)
-          allocate_stack_in_dtcm();
-
-      free_blocks = 0;
-  }
-  else if (((region = region_lookup("tcm")) != NULL)
-           && (region->length != 0))
-  {
-      build_free_block_list(region, mask);
-      
-      reset_locate_options();
-      
-      result |= locate_sections(address , 0, region);
-      
-      result |= locate_sections(dtcm, stack|heap, region);
-      
-      if (pic32c_stack_in_tcm)
-          allocate_stack_in_dtcm();
-      
-      free_blocks = 0;
-  }
-  
 #if 0
   /* user-defined heap */
   if (ramfunc_begin != 0) {
@@ -753,9 +1230,9 @@ group_section_size(struct pic32_section *g)
  *            (0 = success)
  */
 
- static int
- locate_group_section(struct pic32_section *s,
-                        struct memory_region_struct *region) {
+static int
+locate_group_section(struct pic32_section *s,
+                     struct pic32_region *regn) {
 
   struct pic32_memory *b;
   bfd_vma len = group_section_size(s);
@@ -764,23 +1241,23 @@ group_section_size(struct pic32_section *g)
 
   /* DEBUG */
   if (pic32_debug)
-    printf("  group section \"%s\", total size = %lx\n",
+    fprintf(stderr,"  group section \"%s\", total size = %lx\n",
            s->sec->name, len);
 
   /* look for tricky user error */
-  if (PIC32_IS_ABSOLUTE_ATTR(s->sec) && ACROSS_REGION(addr, len, region))
+  if (PIC32_IS_ABSOLUTE_ATTR(s->sec) && ACROSS_REGION(addr, len, regn->region))
         einfo(_(" Link Warning: absolute section \'%s\' crosses"
                 " the boundary of region %s.\n"),
-              s->sec->name, region->name_list.name);
+              s->sec->name, regn->region->name_list.name);
 
   if (len == 0)
-    update_group_section_info(0,s,region); /* trivial case */
+    update_group_section_info(0,s,regn); /* trivial case */
   else if (PIC32_IS_ABSOLUTE_ATTR(s->sec) &&
-           OUTSIDE_REGION(addr, len, region)) {
-    update_group_section_info(addr, s, region);  /* falls outside region */
+           OUTSIDE_REGION(addr, len, regn->region)) {
+    update_group_section_info(addr, s, regn);  /* falls outside region */
   }
   else {                          /* locate using free_blocks list */
-    b = select_free_block(s, len);
+    b = select_free_block(regn, s, len);
     if (b) {
       addr = b->addr + b->offset;
 #if 0 ///\ LG
@@ -788,21 +1265,23 @@ group_section_size(struct pic32_section *g)
       if (PIC32_IS_COHERENT_ATTR(s->sec))
         addr |= 0x20000000u;
 #endif
-      update_group_section_info(addr,s,region);
-      create_remainder_blocks(free_blocks,b,len);
-      remove_free_block(b);
+      update_group_section_info(addr,s,regn);
+      create_remainder_blocks(regn->free_blocks,b,len);
+      remove_free_block(regn->free_blocks, b);
     } else {
       if (locate_options != NO_LOCATE_OPTION) {
         if (pic32_debug)
-          printf("    \"%s\" location declined\n", s->sec->name);
+          fprintf(stderr,"    \"%s\" location declined\n", s->sec->name);
         return 0;
       }
       result |= 1;
     }
+
+    s->region = regn;
   }
 
   if (pic32_debug)
-    printf("    removing group from allocation list\n");
+    fprintf(stderr,"    removing group from allocation list\n");
   pic32_remove_group_from_section_list(alloc_section_list);
 
   return result;
@@ -821,36 +1300,39 @@ group_section_size(struct pic32_section *g)
  *            (0 = success)
  */
 
- static int
- locate_single_section(struct pic32_section *s,
-                       struct memory_region_struct *region) {
+static int
+locate_single_section(struct pic32_section *s,
+                      struct pic32_region *regn) {
 
   struct pic32_memory *b;
   bfd_vma len = s->sec->rawsize? s->sec->rawsize : s->sec->size;
   bfd_vma addr = s->sec->lma;
   int result = 0;
 
-
+  s->region = NULL; /* initially unassigned */
+  
   /* look for tricky user error */
-  if (PIC32_IS_ABSOLUTE_ATTR(s->sec) && ACROSS_REGION(addr, len, region))
+  if (PIC32_IS_ABSOLUTE_ATTR(s->sec) && ACROSS_REGION(addr, len, regn->region))
         einfo(_(" Link Warning: absolute section \'%s\' crosses"
                 " the boundary of region %s.\n"),
-              s->sec->name, region->name_list.name);
+              s->sec->name, regn->region->name_list.name);
   
   if (len == 0)
-    update_section_info(0,s,region);       /* trivial case */
+    update_section_info(0,s,regn);       /* trivial case */
   else if (PIC32_IS_ABSOLUTE_ATTR(s->sec) &&
-           OUTSIDE_REGION(addr, len, region)) {
-    update_section_info(addr, s, region);  /* falls outside region */
+           OUTSIDE_REGION(addr, len, regn->region)) {
+    update_section_info(addr, s, regn);  /* falls outside region */
   }
   else {                          /* locate using free_blocks list */
-    b = select_free_block(s, len);
+    b = select_free_block(regn, s, len);
     if (b) {
       addr = b->addr + b->offset;
+      /* FIXME: this seems pretty device specific, but for MPUs we'll want
+         to place coherent things in non-cached DDR sometimes.. */
       if (PIC32_IS_COHERENT_ATTR(s->sec))
         addr |= 0x20000000;
-      update_section_info(addr,s,region);
-      create_remainder_blocks(free_blocks,b,len);
+      update_section_info(addr,s,regn);
+      create_remainder_blocks(regn->free_blocks,b,len);
         /* lghica co-resident */
 #if 0
         if (PIC32_IS_SHARED_ATTR(s->sec) && PIC32_IS_ABSOLUTE_ATTR(s->sec))
@@ -859,11 +1341,11 @@ group_section_size(struct pic32_section *g)
                                      b->addr+b->offset, len);
         }
 #endif
-      remove_free_block(b);
+      remove_free_block(regn->free_blocks,b);
     } else {
       if (locate_options != NO_LOCATE_OPTION) {
         if (pic32_debug)
-          printf("    \"%s\" location declined\n", s->sec->name);
+          fprintf(stderr,"    \"%s\" location declined\n", s->sec->name);
         return 0;
       }
       result |= 1;
@@ -871,7 +1353,8 @@ group_section_size(struct pic32_section *g)
   }
 
   if (pic32_debug)
-    printf("    removing from allocation list\n");
+    fprintf(stderr,"    removing %s from allocation list\n", s->sec->name);
+
   pic32_remove_from_section_list(alloc_section_list,s);
 
   return result;
@@ -902,15 +1385,15 @@ group_section_size(struct pic32_section *g)
  */
 static int
 locate_sections(unsigned int mask, unsigned int block,
-                struct memory_region_struct *region)
+                struct pic32_region *regn)
 {
     struct pic32_section *s,*next;
     int result = 0;
     static int ramfunc_section_count = 0;
     
     if (pic32_debug) {
-	printf("\nLocating sections with mask %x, but not %x\n", mask, block);
-	printf("  locate_options = %x, exclude_addr = %lx\n",
+	fprintf(stderr,"\nLocating sections with mask %x, but not %x\n", mask, block);
+	fprintf(stderr,"  locate_options = %x, exclude_addr = %lx\n",
 	       locate_options, exclude_addr);
     }
     
@@ -922,7 +1405,7 @@ locate_sections(unsigned int mask, unsigned int block,
 	if (s->sec && (PIC32_IS_DATA_ATTR(s->sec) || PIC32_IS_BSS_ATTR(s->sec))
             && !PIC32_IS_ABSOLUTE_ATTR(s->sec) && (s->sec->linked == 1))
 	{
-	    update_section_info(s->sec->lma, s, region);
+	    update_section_info(s->sec->lma, s, regn);
 	}
 	else {
 	    if (s->sec && (s->attributes & mask) &&
@@ -932,7 +1415,7 @@ locate_sections(unsigned int mask, unsigned int block,
 		if (pic32_debug) {
 		    char *attr = pic32_section_attr_string(s->sec);
 		    
-		    printf("  b \"%s\", len = %lx, %s\n",
+		    fprintf(stderr,"  b \"%s\", len = %lx, %s\n",
 			   s->sec->name, (unsigned long)len, attr ? attr : "");
 		    if (attr) free(attr);
 		}
@@ -942,7 +1425,7 @@ locate_sections(unsigned int mask, unsigned int block,
 			set_locate_options(FAVOR_HIGH_ADDR,0);
 			s->sec->alignment_power = 11;
 			ramfunc_section_count++;
-			result |= locate_group_section(s, region);
+			result |= locate_group_section(s, regn);
 			if (s->sec->vma == 0)
 			{
 			    report_allocation_error(s);
@@ -956,20 +1439,20 @@ locate_sections(unsigned int mask, unsigned int block,
 			    einfo(_("Link Warning: Cannot define '_ramfunc_begin' due to existing definition; check linker script\n"));
 			}
 			if (pic32_debug)
-			    printf("  _ramfunc_begin = %x\n", (unsigned int)ramfunc_begin);
+			    fprintf(stderr,"  _ramfunc_begin = %x\n", (unsigned int)ramfunc_begin);
 			if (!bfd_pic32_is_defined_global_symbol("_bmxdkpba_address")) {
 			    _bfd_generic_link_add_one_symbol (&link_info, link_info.output_bfd, "_bmxdkpba_address",
 							      BSF_GLOBAL, bfd_abs_section_ptr,
-							      ramfunc_begin - region->origin, "_bmxdkpba_address", 1, 0, 0);
+							      ramfunc_begin - regn->region->origin, "_bmxdkpba_address", 1, 0, 0);
 			} else {
 			    einfo(_("Link Warning: Cannot define '_bmxdkpba_address' due to existing definition; check linker script\n"));
 			}
 			if (pic32_debug)
-			    printf("  _bmxdkpba_address = %x\n", (unsigned int)(ramfunc_begin - region->origin));
+			    fprintf(stderr,"  _bmxdkpba_address = %x\n", (unsigned int)(ramfunc_begin - regn->region->origin));
 		    }
 		}
 		else {
-		    result |= locate_single_section(s, region);
+		    result |= locate_single_section(s, regn);
 		}
 	    }
 	}
@@ -1068,7 +1551,7 @@ confirm_dma_range_defined() {
 
 
 static struct pic32_memory *
-select_free_block(struct pic32_section *s, unsigned int len) {
+select_free_block(struct pic32_region *regn, struct pic32_section *s, unsigned int len) {
 
   unsigned int align_power = s->sec->alignment_power;
 
@@ -1097,7 +1580,7 @@ select_free_block(struct pic32_section *s, unsigned int len) {
       }
       else
 #endif
-          b = pic32_static_assign_memory(free_blocks, len, s->sec->lma);
+          b = pic32_static_assign_memory(regn->free_blocks, len, s->sec->lma);
     if (!b) {
         if ((s->sec->flags & SEC_NEVER_LOAD) ||
             (command_line.check_section_addresses == FALSE))
@@ -1124,13 +1607,13 @@ select_free_block(struct pic32_section *s, unsigned int len) {
   /*
    * Loop through the free blocks list
    */
-  for (b = free_blocks; b != NULL; b = b->next) {
+  for (b = regn->free_blocks; b != NULL; b = b->next) {
 
     if ((b->addr == 0) && (b->size == 0))
       continue;
 
     if (pic32_debug)
-      printf("    consider block at %lx, len = %lx\n", b->addr, b->size);
+      fprintf(stderr,"    consider block at %lx, len = %lx\n", b->addr, b->size);
 
     /*
      * Qualify the block first, so we don't waste
@@ -1161,7 +1644,7 @@ select_free_block(struct pic32_section *s, unsigned int len) {
     limit1  = b->addr + (b->size - len);
     option1_valid = TRUE; /* set default */
     if (pic32_debug)
-      printf("    option1 [advancing from %lx]\n", option1 + 2);
+      fprintf(stderr,"    option1 [advancing from %lx]\n", option1 + 2);
     while (1) {
 
       if (IS_LOCATE_OPTION(FAVOR_HIGH_ADDR)) {
@@ -1184,7 +1667,7 @@ select_free_block(struct pic32_section *s, unsigned int len) {
 
 
       if (pic32_debug)
-        printf("    option1 aligned at %lx\n", option1);
+        fprintf(stderr,"    option1 aligned at %lx\n", option1);
 
       /* aligned address is valid, check other attributes */
 
@@ -1227,7 +1710,7 @@ select_free_block(struct pic32_section *s, unsigned int len) {
           !VALID_HIGH_ADDR(option1, len)) {
         option1 = exclude_addr - 1;  /* skip ahead */
         if (pic32_debug)
-          printf("    approaching EXCLUDE boundary from %lx\n", option1);
+          fprintf(stderr,"    approaching EXCLUDE boundary from %lx\n", option1);
         continue;
       }
 
@@ -1241,7 +1724,7 @@ select_free_block(struct pic32_section *s, unsigned int len) {
     limit2  = b->addr;
       option2_valid = TRUE; /* set default */
       if (pic32_debug)
-        printf("    option2 [descending from %lx]\n", option2 - 2);
+        fprintf(stderr,"    option2 [descending from %lx]\n", option2 - 2);
       while (1) {
 
         if (IS_LOCATE_OPTION(FAVOR_LOW_ADDR)) {
@@ -1263,7 +1746,7 @@ select_free_block(struct pic32_section *s, unsigned int len) {
         }
 
         if (pic32_debug)
-          printf("    option2 aligned at %lx\n", option2);
+          fprintf(stderr,"    option2 aligned at %lx\n", option2);
 
           /* lghica co-resident */
 #if 1
@@ -1294,7 +1777,7 @@ select_free_block(struct pic32_section *s, unsigned int len) {
         if  (PIC32_IS_NEAR_ATTR(s->sec)    && !VALID_NEAR(option2, len)) {
           option2 = NEAR_BOUNDARY - len + 1;  /* skip back */
           if (pic32_debug)
-            printf("    approaching Near boundary from %lx\n", option2);
+            fprintf(stderr,"    approaching Near boundary from %lx\n", option2);
           continue;
         }
 
@@ -1303,7 +1786,7 @@ select_free_block(struct pic32_section *s, unsigned int len) {
             !VALID_LOW_ADDR(option2, len)) {
           option2 = exclude_addr - len + 1;  /* skip back */
           if (pic32_debug)
-            printf("    approaching EXCLUDE boundary from %lx\n", option2);
+            fprintf(stderr,"    approaching EXCLUDE boundary from %lx\n", option2);
           continue;
         }
 
@@ -1315,12 +1798,12 @@ select_free_block(struct pic32_section *s, unsigned int len) {
       continue;  /* try the next free block */
 
     if (pic32_debug) {
-      printf("    ");
+      fprintf(stderr,"    ");
       if (option1_valid)
-        printf("option1 = %lx, ", option1);
+        fprintf(stderr,"option1 = %lx, ", option1);
       if (option2_valid)
-        printf("option2 = %lx", option2);
-      printf("\n");
+        fprintf(stderr,"option2 = %lx", option2);
+      fprintf(stderr,"\n");
     }
 
     /* we have 1 or 2 valid options */
@@ -1372,7 +1855,7 @@ select_free_block(struct pic32_section *s, unsigned int len) {
     if (s2) free(s2);
 
     if (pic32_debug)
-      printf("\n    Error: Could not allocate section %s\n", s->sec->name);
+      fprintf(stderr,"\n    Error: Could not allocate section %s\n", s->sec->name);
   }
 #endif
 
@@ -1446,13 +1929,11 @@ finish_section_info(struct pic32_section *s, lang_output_section_statement_type 
  *
  * If section was a heap or stack, set some globals.
  *
- * Note: argument region is currently unused.
- *
  */
 static void
 update_section_info(bfd_vma alloc_addr,
                     struct pic32_section *s,
-                    struct memory_region_struct *region) {
+                    struct pic32_region *regn) {
 
   lang_output_section_statement_type *os;
   char *name;
@@ -1460,27 +1941,29 @@ update_section_info(bfd_vma alloc_addr,
   update_section_addr(s->sec, alloc_addr);
 
   if (pic32_debug) {
-    printf("    updating section info:"
+    fprintf(stderr,"    updating section info:"
            "  vma = %lx, lma = %lx\n", s->sec->vma, s->sec->lma);
   }
 
   /* create a unique name for the output section */
-    name = (s->sec->size > 0) ?
-    unique_section_name(s->sec->name) :
-    unique_zero_length_section_name(s->sec->name);
+  name = (s->sec->size > 0) ?
+  unique_section_name(s->sec->name) :
+  unique_zero_length_section_name(s->sec->name);
 
   /* create an output section (statement) */
   os = lang_output_section_statement_lookup (name, 0, TRUE);
 
-
   if (pic32_debug)
-    printf("    creating output section statement \"%s\"\n\n", os->name);
+    fprintf(stderr,"    creating output section statement \"%s\"\n\n", os->name);
 
   /* lang_add_section() will call init_os() if needed */
   lang_add_section (&os->children, s->sec, NULL, os);
 
   finish_section_info(s, os);
-    
+
+  /* hook section up to target region */
+  s->region = regn;
+
 #if 0
     ///\coresident - make sections absolute sections
    if (pic32_coresident_app)
@@ -1488,8 +1971,6 @@ update_section_info(bfd_vma alloc_addr,
       PIC32_SET_ABSOLUTE_ATTR(s->sec->output_section);
    }
 #endif
-    
-  region = region;
 } /* update_section_info() */
 
 /*
@@ -1502,7 +1983,7 @@ update_section_info(bfd_vma alloc_addr,
 static void
 update_group_section_info(bfd_vma alloc_addr,
                     struct pic32_section *g,
-                    struct memory_region_struct *region ATTRIBUTE_UNUSED) {
+                    struct pic32_region *region) {
 
   struct pic32_section *s, *next;
   asection *sec;
@@ -1525,7 +2006,7 @@ update_group_section_info(bfd_vma alloc_addr,
   /* create an output section (statement) */
   os = lang_output_section_statement_lookup (name, 0, TRUE);
   if (pic32_debug)
-    printf("    creating output section statement \"%s\"\n", os->name);
+    fprintf(stderr,"    creating output section statement \"%s\"\n", os->name);
 
   /* loop through the input sections in this group */
   for (s = g; s != NULL; s = next) {
@@ -1538,11 +2019,14 @@ update_group_section_info(bfd_vma alloc_addr,
       lang_add_section (&os->children, s->sec, NULL, os);
 
       if (pic32_debug)
-        printf("    updating grouped section info:"
+        fprintf(stderr,"    updating grouped section info:"
                "  vma = %lx, lma = %lx\n", s->sec->vma, s->sec->lma);
     }
   }
   finish_section_info(g, os);
+
+  /* hook section up to target region */
+  g->region = region;
 } /* update_group_section_info() */
 
 
@@ -1559,7 +2043,7 @@ create_remainder_blocks(struct pic32_memory *lst,
   bfd_vma remainder = b->size - (len + b->offset);
 
   if (pic32_debug)
-    printf("    creating remainder blocks: %lx, %lx\n",
+    fprintf(stderr,"    creating remainder blocks: %lx, %lx\n",
            b->offset, remainder);
 
   if (b->offset > 0)  /* gap at beginning */
@@ -1593,6 +2077,9 @@ insert_alloc_section (struct pic32_section *lst,
   new->sec  = as->sec;
   new->attributes = as->attributes;
   new->file = as->file;
+  new->use_vma = as->use_vma;
+  new->init = as->init;
+  new->region = as->region;
 
   /* insert it at the right spot */
   prev = lst;
@@ -1650,18 +2137,18 @@ build_alloc_section_list(unsigned int mask) {
   /* insert the unassigned sections */
   prev = unassigned_sections;
   for (s = prev; s != NULL; s = next) {
-
     next = s->next;
     /* Don't add gc-sections to the alloc list */
     if (s->sec && (s->sec->flags & SEC_EXCLUDE))
       continue;
     if (s->attributes & mask) {
-      if (pic32_debug)
-        printf("  input section \"%s\", len = %lx, flags = %x, attr = %x\n",
-               s->sec->name, s->sec->rawsize? s->sec->rawsize :
-               s->sec->size, s->sec->flags, s->attributes);
-        insert_alloc_section(alloc_section_list, s);
-        prev->next = next; /* unlink it from unassigned_sections */        
+      if (pic32_debug) {
+        fprintf(stderr,"  input section \"%s\", len = %lx, flags = %x, attr = %x\n",
+                s->sec->name, s->sec->rawsize? s->sec->rawsize :
+                s->sec->size, s->sec->flags, s->attributes);
+      }
+      insert_alloc_section(alloc_section_list, s);
+      prev->next = next; /* unlink it from unassigned_sections */        
     } else
       prev = s;
   }
@@ -1682,29 +2169,34 @@ build_alloc_section_list(unsigned int mask) {
  *   they have an absolute address.
  */
 static void
-build_free_block_list(struct memory_region_struct *region,
+build_free_block_list(struct pic32_region *regn,
                       unsigned int mask ATTRIBUTE_UNUSED) {
   int cnt = 0;
   bfd_vma len, dot, limit, ma;
   struct pic32_section *s;
+  struct memory_region_struct *region = regn->region;
 
-  if (free_blocks)
-    pic32_free_memory_list(&free_blocks);
+  /* DZ - having free blocks associated with each memory region
+     means we *dont* want to free - already allocated means already
+     computed for the region. */
+  if (regn->free_blocks)
+    return; 
 
-  pic32_init_memory_list(&free_blocks);
+  pic32_init_memory_list(&regn->free_blocks);
 
   if (pic32_debug)
-    printf("\nBuilding free block list for region \"%s\"\n"
+    fprintf(stderr,"\nBuilding free block list for region \"%s\"\n"
            "  origin = %lx, length = %lx, current = %lx\n",
            region->name_list.name, region->origin, region->length, region->current );
 
+
   /* find any gaps left by sequential allocator */
-    dot = region->origin;
+  dot = region->origin;
   limit = dot + region->length;
   for (s = pic32_section_list; s != NULL; s = s->next) {
 
       if (pic32_debug && s->sec)
-        printf("    Checking (section \"%s\", lma = %lx, vma = %lx, len = %lx, attr = %x)\n",
+        fprintf(stderr,"    Checking (section \"%s\", lma = %lx, vma = %lx, len = %lx, attr = %x)\n",
                s->sec->name, s->sec->lma, s->sec->vma,
                s->sec->rawsize? s->sec->rawsize : s->sec->size,
                s->attributes);
@@ -1726,7 +2218,7 @@ build_free_block_list(struct memory_region_struct *region,
         (ma || ( (s->sec->lma == 0x0) && (region->origin == 0x0)))
         ) {
       if (pic32_debug)
-        printf("    (section \"%s\", addr = %lx, len = %lx, attr = %x)\n",
+        fprintf(stderr,"    (section \"%s\", addr = %lx, len = %lx, attr = %x)\n",
                s->sec->name, ma,
                s->sec->rawsize? s->sec->rawsize : s->sec->size,
                s->attributes);
@@ -1737,9 +2229,9 @@ build_free_block_list(struct memory_region_struct *region,
       else if (ma > dot) {               /* a gap preceeds section */
         len = ma - dot;                          /* compute length */
         if (pic32_debug)
-          printf("  block %d, addr = %lx, len = %lx\n",
+          fprintf(stderr,"  block %d, addr = %lx, len = %lx\n",
                  ++cnt, dot, len);
-        pic32_add_to_memory_list(free_blocks, dot, len);  /* add free block */
+        pic32_add_to_memory_list(regn->free_blocks, dot, len);  /* add free block */
         dot += len + (s->sec->rawsize? s->sec->rawsize : s->sec->size);           /* advance dot    */
       }
     }
@@ -1750,9 +2242,9 @@ build_free_block_list(struct memory_region_struct *region,
   len = region->length - (dot - region->origin);
   if (len > 0) {
     if (pic32_debug)
-      printf("  block %d, addr = %lx, len = %lx\n",
+      fprintf(stderr,"  block %d, addr = %lx, len = %lx\n",
              ++cnt, dot, len);
-    pic32_add_to_memory_list(free_blocks, dot, len);
+    pic32_add_to_memory_list(regn->free_blocks, dot, len);
   }
 } /* build_free_block_list() */
 
@@ -1760,13 +2252,49 @@ build_free_block_list(struct memory_region_struct *region,
 /*
  * remove_free_block()
  *
- * Remove an item from the free memory blocks list.
+regn-> * Remove an item from the free memory blocks list.
  *
  */
 static void
-remove_free_block(struct pic32_memory *b) {
-  pic32_remove_from_memory_list(free_blocks, b);
+remove_free_block(struct pic32_memory *lst, struct pic32_memory *b) {
+  pic32_remove_from_memory_list(lst, b);
 }
+
+
+/*
+ * align_free_blocks(unsigned int)
+ *
+ * go through the free block list and trim away any partial cache lines ...
+ * this is necessary on some parts where code and data can both be allocated to the same space but
+ * are not permitted to share cache lines.
+ *
+ * specifically we are doing this for Jubilee tcm allocation
+ */
+static void
+align_free_blocks(struct pic32_memory *lst, unsigned int alignment_power) {
+
+    bfd_vma bump_amount;
+    bfd_vma alignment_amount = 1 << alignment_power;
+    struct pic32_memory     *block;
+    
+    for(block = lst; block != NULL ; block = block->next){
+	// for each free block in the list trim away partial cache lines at either end.
+
+	bump_amount = block->addr % alignment_amount;
+	if (bump_amount > 0) {
+	    bump_amount = alignment_amount - bump_amount;
+	    block->addr += bump_amount;
+	    block->size -= bump_amount;
+	}
+	bump_amount =  (block->size % alignment_amount);
+	if (bump_amount > 0) {
+	    block->size -= bump_amount;            
+	}	
+    }   
+}
+
+
+
 
 
 /*
@@ -1775,7 +2303,7 @@ remove_free_block(struct pic32_memory *b) {
  * If a stack section was not explicitly defined,
  * and the stack init symbols were not defined,
  * then this function is called to allocate the
- * largest stack possible from data_memory_free_blocks.
+ * largest stack possible from the given region.
  *
  * Called by: bfd_pic32_finish()
  *
@@ -1795,41 +2323,48 @@ remove_free_block(struct pic32_memory *b) {
  */
 
 static void
-allocate_default_stack() {
+allocate_default_stack(struct pic32_region *regn) {
   struct pic32_memory *big_block = 0;
   struct pic32_memory *b, *next;
   bfd_vma under,over;
-#define DATA_MEM_LIMIT      0x2045FFFFul;
-  bfd_vma max_addr = DATA_MEM_LIMIT;
+  bfd_vma max_addr;
 
-  if (data_memory_free_blocks == NULL) {
-      einfo("%P%F: Error: Unable to allocate stack. No blocks available in RAM. \n");
+  if (!pic32_valid_region(regn)) {
+      if (pic32_debug)
+          fprintf(stderr, "allocate_default_stack failed - invalid pic32 region\n");
+      abort();
+  }
+
+  max_addr = regn->region->origin + regn->region->length - 1;
+
+  if (regn->free_blocks == NULL) {
+      einfo("%P%F: Error: Unable to allocate stack. No blocks available in %s. \n",
+            regn->region->name_list.name);
       return;
-        
   }
     
     
   /* if a free block straddles the upper limit, divide it */
-  for (b = data_memory_free_blocks; b != NULL; b = next) {
+  for (b = regn->free_blocks; b != NULL; b = next) {
     next = b->next;
     if ((b->addr < max_addr) && ((b->addr + b->size) > max_addr)) {
 
       if (pic32_debug)
-        printf("  free block at %lx crosses upper stack limit (%lx)\n",
+        fprintf(stderr,"  free block at %lx crosses upper stack limit (%lx)\n",
                b->addr, max_addr);
 
       under = max_addr - b->addr;
       over  = (b->addr + b->size) - max_addr;
 
-      pic32_add_to_memory_list(data_memory_free_blocks, b->addr, under);
-      pic32_add_to_memory_list(data_memory_free_blocks, max_addr, over);
-      pic32_remove_from_memory_list(data_memory_free_blocks, b);
+      pic32_add_to_memory_list(regn->free_blocks, b->addr, under);
+      pic32_add_to_memory_list(regn->free_blocks, max_addr, over);
+      pic32_remove_from_memory_list(regn->free_blocks, b);
       break;
     }
   }
 
   /* find the largest block that qualifies */
-  for (b = data_memory_free_blocks; b != NULL; b = next) {
+  for (b = regn->free_blocks; b != NULL; b = next) {
     if (b->addr < max_addr)
       big_block = b;
     next = b->next;
@@ -1862,29 +2397,40 @@ allocate_default_stack() {
     stack_limit--;
 
   if (pic32_debug) {
-    printf("  selecting block at %lx\n", big_block->addr);
-    printf("  heap base = %x, heap limit = %x\n", heap_base, heap_limit);
-    printf("  stack base = %x, stack limit = %x\n", stack_base, stack_limit);
+    fprintf(stderr,"  selecting block at %lx\n", big_block->addr);
+    fprintf(stderr,"  heap base = %x, heap limit = %x\n", heap_base, heap_limit);
+    fprintf(stderr,"  stack base = %x, stack limit = %x\n", stack_base, stack_limit);
   }
 
   /* remove the block that we just used */
-  pic32_remove_from_memory_list(data_memory_free_blocks, big_block);
+  pic32_remove_from_memory_list(regn->free_blocks, big_block);
 }
 
-static void allocate_stack_in_dtcm()
+static void 
+allocate_stack_in_dtcm()
 {
     struct pic32_memory     *block = NULL;
     struct pic32_memory     *iter;
     unsigned int            max_size = 0;
-    
-    ///\ lookup for dtcm region
-    struct memory_region_struct   *dtcm_region = region_lookup("dtcm");
-    
+  
+    if (!pic32_valid_region(region_info.data_tcm)) {
+        einfo(_("%X Link error: requested stack in dtcm but dtcm region not present\n"));
+        return;
+    }
+
+    lang_memory_region_type *dtcm_region = region_info.data_tcm->region;
+    struct pic32_memory *free_blocks = region_info.data_tcm->free_blocks;
+
+    if (free_blocks == NULL) {
+        einfo("%P%F: Error: Unable to allocate stack. No blocks available in %s. \n",
+              dtcm_region->name_list.name);
+        return;
+    }
     
     ///\ stack gets the largest, and preferably the highest address
     ///\ lookup for the free block with this property(ies)
     for (iter = free_blocks; iter != NULL; iter = iter->next) {
-        if (iter->size > max_size)
+	if (iter->size > max_size)
         {
             block = iter;
             max_size = iter->size;
@@ -1892,10 +2438,10 @@ static void allocate_stack_in_dtcm()
     }
     
     ///\ check that addresses from data_memory_free_blocks belong to dtcm
-    
-    if ((block->addr > (unsigned long)(dtcm_region->origin + dtcm_region->length+1))
+
+    if (block == NULL || (block->addr > (unsigned long)(dtcm_region->origin + dtcm_region->length+1))
         || (block->addr < (unsigned long)dtcm_region->origin))
-        einfo(_("%X Link Error: Data memory free blocks built for other region, not for dtcm\n"));
+        einfo(_("%X Link Error: Data memory free blocks built for incorrect region\n"));
     
     
     dtcm_stack_limit = block->addr + block->size - 1 ;
@@ -1930,6 +2476,7 @@ compare_memory_region_origin (const void *a, const void *b)
   return 0;
 }
 
+#ifdef ENABLE_USER_MEMORY
 static void
 check_overlapping_memory_regions (asection **asec_list, unsigned int asec_count)
 {
@@ -2027,7 +2574,7 @@ allocate_user_memory() {
     
     region_name = r->sec->name + strlen(memory_region_prefix);
     if (pic32_debug)
-      printf("\nBuilding allocation list for user-defined region \"%s\""
+      fprintf(stderr,"\nBuilding allocation list for user-defined region \"%s\""
              " origin = %lx, length = %lx\n",
              region_name, r->sec->vma, r->sec->lma);
 
@@ -2049,7 +2596,7 @@ allocate_user_memory() {
       if (!s->file || !s->sec) continue;
       
 #if 0
-      printf("s->file =%s, s->sec = %s \n", (char *) s->file, (char *) s->sec);
+      fprintf(stderr,"s->file =%s, s->sec = %s \n", (char *) s->file, (char *) s->sec);
 #endif
       if (strcmp((char *)s->file, region_name) == 0) {
         /* if this section has been assigned to the current region,
@@ -2059,7 +2606,7 @@ allocate_user_memory() {
           ssnext = ss->next;
           if (ss->sec && strcmp((char *) s->sec, ss->sec->name) == 0) {
             if (pic32_debug)
-              printf("  input section \"%s\", len = %lx, flags = %x, attr = %x\n",
+              fprintf(stderr,"  input section \"%s\", len = %lx, flags = %x, attr = %x\n",
                      ss->sec->name, ss->sec->size,
                      ss->sec->flags, ss->attributes);
 
@@ -2073,7 +2620,7 @@ allocate_user_memory() {
     
     if (pic32_section_list_length(alloc_section_list) == 0) {
       if (pic32_debug)
-        printf("\n  (none)\n");
+        fprintf(stderr,"\n  (none)\n");
       continue;
     }
       
@@ -2107,4 +2654,4 @@ allocate_user_memory() {
 
   return result;
 } /* allocate_user_memory() */
-
+#endif /* ENABLE_USER_MEMORY */

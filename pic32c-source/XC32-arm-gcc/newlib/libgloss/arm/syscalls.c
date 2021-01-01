@@ -590,6 +590,9 @@ _getpid (int n __attribute__ ((unused)))
 /* Heap limit returned from SYS_HEAPINFO Angel semihost call.  */
 uint __heap_limit = 0xcafedead;
 
+#if 0 /* !defined(_BUILD_MCHP_) */
+/* MCHP target does not support this implementation. _sbrk is provided
+   in libpic32c.a/ */
 caddr_t __attribute__((weak))
 _sbrk (int incr)
 {
@@ -624,6 +627,7 @@ _sbrk (int incr)
 
   return (caddr_t) prev_heap_end;
 }
+#endif
 
 int 
 _swistat (int fd, struct stat * st)

@@ -84,7 +84,6 @@ along with GCC; see the file COPYING3.  If not see
 #include "except.h"
 #include "tm_p.h"
 #include "target.h"
-#include "target-def.h"
 #include "debug.h"
 #include "langhooks.h"
 #include "bitmap.h"
@@ -118,7 +117,6 @@ along with GCC; see the file COPYING3.  If not see
 
 /* Static Variables to modify the optimizatrion option levels */
 
-static int nullify_O2 = 0;
 static int nullify_Os = 0;
 static int nullify_O3 = 0;
 static int nullify_lto = 0;
@@ -513,44 +511,7 @@ void mchp_override_options_after_change(void) {
           }
         NULLIFY(optimize_size, "Optimize for size") = 0;
       }
-    if (nullify_O2)
-      {
-        int opt1_max;
-        /* Disable -O2 optimizations */
-        if (optimize > 1)
-          {
-            NULLIFY(optimize, "Optimization level > 1") = 1;
-          }
-        NULLIFY(flag_indirect_inlining, "indirect inlining") = 0;
-        NULLIFY(flag_thread_jumps, "thread jumps") = 0;
-        NULLIFY(flag_crossjumping, "crossjumping") = 0;
-        NULLIFY(flag_optimize_sibling_calls, "optimize sibling calls") = 0;
-        NULLIFY(flag_cse_follow_jumps, "cse follow jumps") = 0;
-        NULLIFY(flag_gcse, "gcse") = 0;
-        NULLIFY(flag_expensive_optimizations, "expensive optimizations") = 0;
-        NULLIFY(flag_rerun_cse_after_loop, "cse after loop") = 0;
-        NULLIFY(flag_caller_saves, "caller saves") = 0;
-        NULLIFY(flag_peephole2, "peephole2") = 0;
-#ifdef INSN_SCHEDULING
-        NULLIFY(flag_schedule_insns, "schedule insns") = 0;
-        NULLIFY(flag_schedule_insns_after_reload, "schedule insns after reload") = 0;
-#endif
-        NULLIFY(flag_strict_aliasing, "strict aliasing") = 0;
-        NULLIFY(flag_strict_overflow, "strict overflow") = 0;
-        NULLIFY(flag_reorder_functions, "reorder functions") = 0;
-        NULLIFY(flag_tree_vrp, "tree vrp") = 0;
-        NULLIFY(flag_tree_pre, "tree pre") = 0;
-        NULLIFY(flag_tree_switch_conversion, "tree switch conversion") = 0;
-        NULLIFY(flag_ipa_cp, "ipa cp") = 0;
-        NULLIFY(flag_ipa_sra, "ipa sra") = 0;
 
-        /* Just -O1/-O0 optimizations.  */
-        opt1_max = (optimize <= 1);
-        align_loops = opt1_max;
-        align_jumps = opt1_max;
-        align_labels = opt1_max;
-        align_functions = opt1_max;
-      }
     if (nullify_O3)
       {
         if (optimize >= 3)
@@ -583,9 +544,6 @@ static void mchp_print_license_warning (void)
         invalid_license = "because the XC32 evaluation period has expired";
         break;
       case PIC32_FREE_LICENSE:
-        invalid_license = "because the free XC32 compiler does not support this feature.";
-        break;
-      case PIC32_VALID_STANDARD_LICENSE:
         invalid_license = "because this feature requires the MPLAB XC32 PRO compiler";
         break;
       default:
@@ -611,12 +569,11 @@ void pic32c_subtarget_override_options(void)
   if (TARGET_MCHP_SMARTIO_LEVEL > 2)
     {
       warning (0, "smart-io level %d invalid, defaulting to level %d",
-	       TARGET_MCHP_SMARTIO_LEVEL, 2);
+               TARGET_MCHP_SMARTIO_LEVEL, 2);
       TARGET_MCHP_SMARTIO_LEVEL = 2;
     }
 
 #ifndef SKIP_LICENSE_MANAGER
-  nullify_O2     = 1;
   nullify_O3     = 1;
   nullify_Os     = 1;
   nullify_lto    = 1;
@@ -630,20 +587,17 @@ void pic32c_subtarget_override_options(void)
   {
     mchp_pic32_license_valid = PIC32_FREE_LICENSE;
   }
-  else 
+  else
   {
     mchp_pic32_license_valid = pic32_get_license ();
   }
 
-  if (mchp_pic32_license_valid == PIC32_VALID_PRO_LICENSE)
+  if (mchp_pic32_license_valid == PIC32_VALID_PRO_LICENSE
+      || mchp_pic32_license_valid == PIC32_VALID_STANDARD_LICENSE)
   {
-    nullify_lto = nullify_O2 =  nullify_O3 = nullify_Os = 0;
+    nullify_lto = nullify_O3 = nullify_Os = 0;
   }
-  else if (mchp_pic32_license_valid == PIC32_VALID_STANDARD_LICENSE)
-  {
-    nullify_O2 = 0;
-  }
-  
+
   /*
    *  On systems where we have a licence manager, call it
    */
@@ -662,7 +616,7 @@ void pic32c_subtarget_override_options(void)
     {
       mchp_print_license_warning();
     }
-    
+
     if (nullify_lto)
     {
       if (optimize_size)
@@ -673,7 +627,7 @@ void pic32c_subtarget_override_options(void)
       {
         NULLIFY(optimize, "Optimization level > 2") = 2;
       }
-      
+
       NULLIFY(optimize_size, "Optimize for size") = 0;
       NULLIFY(flag_predictive_commoning, "predictive commoning") = 0;
       NULLIFY(flag_inline_functions, "inline functions") = 0;
@@ -688,7 +642,7 @@ void pic32c_subtarget_override_options(void)
       NULLIFY(flag_whole_program, "Whole-program optimizations") = 0;
       NULLIFY(flag_generate_lto, "Link-time optimization") = 0;
     }
-    
+
     if (message_displayed && TARGET_LICENSE_WARNING)
     {
       /*Now display a warning for the Pro option */
@@ -698,7 +652,7 @@ void pic32c_subtarget_override_options(void)
       message_purchase_display++;
       message_displayed=0;
     }
-    
+
     if ((message_purchase_display > 0) && (TARGET_LICENSE_WARNING))
     {
       inform (0, "Disable the option or visit http://www.microchip.com/MPLABXCcompilers "
@@ -712,11 +666,11 @@ void pic32c_subtarget_override_options(void)
     }
 
     /*Require a Standard or Pro license */
-    if (TARGET_NO_FALLBACKLICENSE && 
+    if (TARGET_NO_FALLBACKLICENSE &&
         (mchp_pic32_license_valid == PIC32_FREE_LICENSE))
       error ("Unable to find a valid license, aborting");
   }
- 
+
 #undef PIC32_EXPIRED_LICENSE
 #undef PIC32_VALID_STANDARD_LICENSE
 #undef PIC32_VALID_PRO_LICENSE

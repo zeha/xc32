@@ -45,7 +45,7 @@ endif
 
 INCLUDES := -I. -I../ -I../../include
 
-WARN := -Wno-macro-redefined
+WARN := -Wno-builtin-macro-redefined
 EXTRA_FLAGS += -mno-smart-io
 
 # Common defines

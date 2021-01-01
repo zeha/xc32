@@ -4999,16 +4999,35 @@ do_self_spec (const char *spec)
 	      /* Specs should only generate options, not input
 		 files.  */
 	      if (strcmp (decoded_options[j].arg, "-") != 0)
-          {
+                {
 #ifdef _BUILD_XC32_
-              ///\ PIC32C: allow .c input files in specs
-              add_infile (decoded_options[j].arg, "c");
-#else
-              fatal_error (input_location,
-			     "switch %qs does not start with %<-%>",
-			     decoded_options[j].arg);
+		  ///\ PIC32C: allow .c/.S input files in specs
+                  int k = strlen (decoded_options[j].arg) - 1;
+                  
+                  if (k > 0 && decoded_options[j].arg[k-1] == '.')
+                    {
+                        switch (decoded_options[j].arg[k]) 
+                          {
+                          case 'c':
+                            add_infile(decoded_options[j].arg, "c");
+                            break;
+                          case 'S':
+                            add_infile(decoded_options[j].arg, 0);
+                            break;
+                          default:
+                            fatal_error (input_location,
+                                         "input file %qs has unsupported suffix",
+                                         decoded_options[j].arg);
+                          }
+                    }
+                  else
 #endif
-          }
+                    {
+                      fatal_error (input_location,
+                                   "switch %qs does not start with %<-%>",
+                                   decoded_options[j].arg);
+                    }
+                }
 	      else
 		fatal_error (input_location,
 			     "spec-generated switch is just %<-%>");

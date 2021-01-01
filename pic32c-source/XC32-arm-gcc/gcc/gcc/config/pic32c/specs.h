@@ -64,6 +64,8 @@
   { "subtarget_asm_float_spec", SUBTARGET_ASM_FLOAT_SPEC },                    \
   { "subtarget_extra_link_spec", SUBTARGET_EXTRA_LINK_SPEC },                  \
   { "pic32_cmsis_include",      PIC32_CMSIS_INCLUDE_SPEC},                     \
+  { "pic32_cmsis_include_m",    PIC32_CMSIS_INCLUDE_M_SPEC},                   \
+  { "pic32_cmsis_include_a",    PIC32_CMSIS_INCLUDE_A_SPEC},                   \
   { "mcc_include",      MCC_INCLUDE_SPEC},                                     \
   SUBSUBTARGET_EXTRA_SPECS
 
@@ -145,7 +147,14 @@
     %{!nostdlib:%{!nostartfiles:%E}} %{T*} \n%(post_link) }}}}}}"
 #endif
 
-#define PIC32_CMSIS_INCLUDE_SPEC " -isystem %R/include/CMSIS/Core/Include "
+/* FIXME: this should be moved to device spec files rather than matching
+   options. */
+#define PIC32_CMSIS_INCLUDE_M_SPEC " -isystem %R/include/CMSIS/Core/Include "
+#define PIC32_CMSIS_INCLUDE_A_SPEC " -isystem %R/include/CMSIS/Core_A/Include "
+#define PIC32_CMSIS_INCLUDE_SPEC                                               \
+  " %{mprocessor=SAMA5*|mcpu=cortex-a*|march=armv7-a*: "                       \
+  "%(pic32_cmsis_include_a); :%(pic32_cmsis_include_m)}"
+
 #define MCC_INCLUDE_SPEC \
   " %{!minclude-legacy-headers: -D__XC32_INCLUDE_MCC  -isystem %R/include_mcc \
       ;: -D__XC32_INCLUDE_LEGACY } "

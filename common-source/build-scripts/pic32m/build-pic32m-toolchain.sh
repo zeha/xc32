@@ -196,13 +196,13 @@ else
  SHASUM="shasum -a 256 -p"
 fi # NATIVEIMAGE
 
-echo "HOSTMACHINE=$HOSTMACHINE" >> $LOGFILE
-echo "LINUX32IMAGE=$LINUX32IMAGE" >> $LOGFILE
-echo "BUILDMACHINE=$BUILDMACHINE" >> $LOGFILE
-echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> $LOGFILE
-echo "LIBHOST=$LIBHOST" >> $LOGFILE
-echo "NUMBER_OF_JOBS=$NUMBER_OF_JOBS" >> $LOGFILE
-echo "WORKING_DIR=$WORKING_DIR" >> $LOGFILE
+echo "HOSTMACHINE=$HOSTMACHINE" | tee -a $LOGFILE
+echo "LINUX32IMAGE=$LINUX32IMAGE" | tee -a $LOGFILE
+echo "BUILDMACHINE=$BUILDMACHINE" | tee -a $LOGFILE
+echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" | tee -a $LOGFILE
+echo "LIBHOST=$LIBHOST" | tee -a $LOGFILE
+echo "NUMBER_OF_JOBS=$NUMBER_OF_JOBS" | tee -a $LOGFILE
+echo "WORKING_DIR=$WORKING_DIR" | tee -a $LOGFILE
 }
 
 trap 'assert_success -1 "ERROR: Caught signal"' SIGHUP SIGINT SIGTERM
@@ -554,14 +554,13 @@ export MCHP_RESOURCE
 #
 # Create the working directory
 #
-echo `date` " START PIC32 build." > $LOGFILE
-echo `date` " Creating build in $WORKING_DIR..." >> $LOGFILE
-#echo "Using XCLM branch $XCLM_BRANCH" >> $LOGFILE
-#echo "Using XCLM branch $XCLM_BRANCH"
+echo `date` " START PIC32 build." | tee $LOGFILE
+echo `date` " Creating build in $WORKING_DIR..." | tee -a $LOGFILE
+#echo "Using XCLM branch $XCLM_BRANCH" | tee -a $LOGFILE
 
 #if [ -e $WORKING_DIR ]
 #then
-# echo `date` " $WORKING_DIR already exists..." >> $LOGFILE
+# echo `date` " $WORKING_DIR already exists..." | tee -a $LOGFILE
 #else
 # mkdir $WORKING_DIR
 # assert_success $? "ERROR: creating directory $WORKING_DIR"
@@ -615,7 +614,7 @@ then
 
   for (( i=0; i<=$(( $count_dirs -1 )); i++ ))
   do
-      echo "Checking out source from ${all_fossil_repos[$i]} to ${all_source_directories[$i]}..." >> $LOGFILE
+      echo "Checking out source from ${all_fossil_repos[$i]} to ${all_source_directories[$i]}..." | tee -a $LOGFILE
       if [ -e ${all_source_directories[$i]} ] ; then
         rm -rf ${all_source_directories[$i]}
       fi
@@ -673,8 +672,8 @@ cd $WORKING_DIR
 cd $SOURCE_DIR/XC-libs/htc/XC32
 
 # Install headers into cross compiler's install image directory
-echo "Making libc headers for cross-compiler"
-echo `date` "Making library headers for cross compiler's install image..." >> $LOGFILE
+echo "Making libc headers for cross-compiler" | tee -a $LOGFILE
+echo `date` "Making library headers for cross compiler's install image..." | tee -a $LOGFILE
 
 build_install_headers $NATIVE_NOLM_IMAGE
 build_install_headers $NATIVEIMAGE
@@ -697,8 +696,8 @@ cd $SOURCE_DIR/fdlibm/src
 cd xc32
 
 # Install headers into cross compiler's install image directory
-echo "Making fdlibm headers for cross-compiler"
-echo `date` "Making library headers for cross compiler's install image..." >> $LOGFILE
+echo "Making fdlibm headers for cross-compiler" | tee -a $LOGFILE
+echo `date` "Making library headers for cross compiler's install image..." | tee -a $LOGFILE
 
 build_install_headers $NATIVE_NOLM_IMAGE
 build_install_headers $NATIVEIMAGE
@@ -721,8 +720,8 @@ if [ "x$SKIPXCPPLIBS" == "x" ] ; then
 cd $SOURCE_DIR/XCpp-libs
 
 # Install Cpp headers into cross compiler's install image directory
-echo "Making Cpp headers for cross-compiler"
-echo `date` "Making Cpp library headers for cross compiler's install image..." >> $LOGFILE
+echo "Making Cpp headers for cross-compiler" | tee -a $LOGFILE
+echo `date` "Making Cpp library headers for cross compiler's install image..." | tee -a $LOGFILE
 
 build_install_headers $NATIVE_NOLM_IMAGE
 build_install_headers $NATIVEIMAGE
@@ -745,8 +744,8 @@ cd $WORKING_DIR
 #######################################################################
 cd $SOURCE_DIR/pic32-libs
 
-echo "Making library headers for cross-compiler"
-echo `date` "Making library headers for cross compiler's install image..." >> $LOGFILE
+echo "Making library headers for cross-compiler" | tee -a $LOGFILE
+echo `date` "Making library headers for cross compiler's install image..." | tee -a $LOGFILE
 
 build_install_headers $NATIVE_NOLM_IMAGE
 build_install_headers $NATIVEIMAGE
@@ -1002,12 +1001,11 @@ build_binutils() {
    cd binutils
 
   # Configure cross binutils
-   echo `date` " Configuring $3 binutils build in $WORKING_DIR/$1..." >> $LOGFILE
-   echo "Configure command: $SOURCE_GCC_DIR/binutils/configure $4" >> $LOGFILE
+   echo `date` " Configuring $3 binutils build in $WORKING_DIR/$1..." | tee -a $LOGFILE
    xc32_eval "$SOURCE_GCC_DIR/binutils/configure $4" "ERROR: configuring $3 binutils build"
 
   # Make binutils and install it
-   echo `date` " Making all in $1/build/binutils and installing..." >> $LOGFILE
+   echo `date` " Making all in $1/build/binutils and installing..." | tee -a $LOGFILE
    xc32_eval "make all $NUMBER_OF_JOBS" "ERROR: making/installing $3 binutils build"
    xc32_eval "make -j2 install" "ERROR: making/installing $3 binutils build"
 
@@ -1037,15 +1035,15 @@ build_gcc() {
    cd gcc
 
   # Configure $2 compiler
-   echo "" >> $LOGFILE
-   echo `date` " Configuring cross compiler build in $1..." >> $LOGFILE
+   echo "" | tee -a $LOGFILE
+   echo `date` " Configuring cross compiler build in $1..." | tee -a $LOGFILE
 
    declare -a COMMAND=("${!3}")
    TEMP=${COMMAND[@]}
    xc32_eval "$TEMP" "ERROR: configuring $2 build"
 
    # Make cross compiler (make all-gcc)
-   echo `date` " Making all in $1/gcc and installing..." >> $LOGFILE
+   echo `date` " Making all in $1/gcc and installing..." | tee -a $LOGFILE
    COMMAND="make all-gcc $NUMBER_OF_JOBS"
    xc32_eval "$COMMAND" "ERROR: making/installing $2 build all-gcc"
 
@@ -1086,8 +1084,8 @@ build_gcc_targetlibs() {
   if [ "x$SKIPREBUILD" == "x" ]; then
    pushd $1/gcc
 
-   echo "" >> $LOGFILE
-   echo `date` " build_gcc_targetlibs $1..." >> $LOGFILE
+   echo "" | tee -a $LOGFILE
+   echo `date` " build_gcc_targetlibs $1..." | tee -a $LOGFILE
    set +u
   # Make everything else (make all-target)
    COMMAND="make all-target $NUMBER_OF_JOBS ${ALL_EXES[@]}"
@@ -1124,7 +1122,7 @@ cd $WORKING_DIR
 if [ "x$SKIPNATIVE_NOLM" == "x" ] ; then
 if [ "x$SKIPREBUILD" == "x" ] ; then
         # Build native cross compiler
-        echo `date` " Creating cross build in $WORKING_DIR/$NATIVE_NOLM_BUILD..." >> $LOGFILE
+        echo `date` " Creating cross build in $WORKING_DIR/$NATIVE_NOLM_BUILD..." | tee -a $LOGFILE
         status_update "Beginning native xc32 build"
 
         cd $WORKING_DIR
@@ -1202,7 +1200,7 @@ if [ "x$SKIPLIBS" == "x" ] ; then
         cd $ROOT/pic32m-source/pic32-libs
 
         # Build cross compiler libraries
-        echo `date` " Making and installing cross-compiler pic32-libs libraries to $WORKING_DIR/$NATIVEIMAGE..." >> $LOGFILE
+        echo `date` " Making and installing cross-compiler pic32-libs libraries to $WORKING_DIR/$NATIVEIMAGE..." | tee -a $LOGFILE
         xc32_eval "make DESTROOT="$WORKING_DIR/$NATIVE_NOLM_IMAGE" clean -j2" "ERROR: making libraries for cross build"
         xc32_eval "make DESTROOT="$WORKING_DIR/$NATIVE_NOLM_IMAGE" all $NUMBER_OF_JOBS" "ERROR: making libraries for cross build"
 
@@ -1226,7 +1224,7 @@ if [ "x$SKIPLIBS" == "x" ] ; then
         cd $ROOT/pic32m-source/fpmath/xc32
 
         # Build cross compiler libraries
-        echo `date` " Making and installing cross-compiler fpmath/xc32 libraries to $WORKING_DIR/$NATIVEIMAGE..." >> $LOGFILE
+        echo `date` " Making and installing cross-compiler fpmath/xc32 libraries to $WORKING_DIR/$NATIVEIMAGE..." | tee -a $LOGFILE
         xc32_eval "make DESTROOT="$WORKING_DIR/$NATIVE_NOLM_IMAGE" all $NUMBER_OF_JOBS" "ERROR: making libraries for cross build"
 
         # Install cross compiler libraries
@@ -1250,7 +1248,7 @@ if [ "x$SKIPLIBS" == "x" ] ; then
           cd $ROOT/pic32m-source/XC-libs/htc/XC32
 
           # Build cross compiler libraries once
-          echo `date` " Making and installing cross-compiler XC-libs libraries to $WORKING_DIR/$NATIVE_NOLM_IMAGE..." >> $LOGFILE
+          echo `date` " Making and installing cross-compiler XC-libs libraries to $WORKING_DIR/$NATIVE_NOLM_IMAGE..." | tee -a $LOGFILE
           xc32_eval "find $ROOT/pic32m-source/XC-libs/htc/XC32 -name \"*.o\" -delete" "ERROR: Deleting object files from XC-libs/htc/XC32"
           xc32_eval "find $ROOT/pic32m-source/XC-libs/htc/XC32 -name \"*.eo\" -delete" "ERROR: Deleting object files from XC-libs/htc/XC32"
           xc32_eval "make DESTROOT=$WORKING_DIR/$NATIVE_NOLM_IMAGE all $NUMBER_OF_JOBS" "ERROR: making XC-libs/htc/XC32 libraries for cross build"
@@ -1273,7 +1271,7 @@ if [ "x$SKIPLIBS" == "x" ] ; then
           cd xc32
 
           #Build fdlibm once
-          echo `date` " Making and installing cross-compiler fdlibm libraries to $WORKING_DIR/$NATIVE_NOLM_IMAGE..." >> $LOGFILE
+          echo `date` " Making and installing cross-compiler fdlibm libraries to $WORKING_DIR/$NATIVE_NOLM_IMAGE..." | tee -a $LOGFILE
           xc32_eval "make DESTROOT=$WORKING_DIR/$NATIVE_NOLM_IMAGE all $NUMBER_OF_JOBS" "ERROR: making fdlibm  libraries for cross build"
 
           # Then install
@@ -1298,7 +1296,7 @@ if [ "x$SKIPLIBS" == "x" ] ; then
           cd $ROOT/pic32m-source/XCpp-libs
 
           # Build cross compiler libraries
-          echo `date` " Making and installing cross-compiler XCpp-libs libraries to $WORKING_DIR/$NATIVE_NOLM_IMAGE..." >> $LOGFILE
+          echo `date` " Making and installing cross-compiler XCpp-libs libraries to $WORKING_DIR/$NATIVE_NOLM_IMAGE..." | tee -a $LOGFILE
           xc32_eval "find $ROOT/pic32m-source/XCpp-libs -name \"*.o\" -delete" "ERROR: Deleting object files from XCpp-libs"
           xc32_eval "make DESTROOT=$WORKING_DIR/$NATIVE_NOLM_IMAGE all $NUMBER_OF_JOBS" "ERROR: making libraries for cross build"
 
@@ -1327,7 +1325,7 @@ if [ "x$SKIPNATIVE" == "x" ] ; then
 # Begin building licensed native
 ####################################################################
 # Build native cross compiler
-echo `date` " Creating cross build in Licensed $WORKING_DIR/$NATIVEIMAGE..." >> $LOGFILE
+echo `date` " Creating cross build in Licensed $WORKING_DIR/$NATIVEIMAGE..." | tee -a $LOGFILE
 status_update "pic32m Beginning native licensed xc32 build"
 
 LOGTASKFILE="$WORKING_DIR/log-build-pic32m-native-lm-gcc.txt"
@@ -1371,8 +1369,7 @@ elif [ "x$uname_string" == "xlinux" ] ; then
   fi
   XCLM_SHASUM_MACRO="-DMCHP_XCLM_SHA256_DIGEST=${XCLM_SHASUM} -DMCHP_XCLM64_SHA256_DIGEST=${XCLM64_SHASUM} -DMCHP_FXCLM_SHA256_DIGEST=8727ea3da9bdd624fee0130eb6133188719892bcbee7da32606911a8b08a1a8d "
 else
-  echo "ERROR: No XCLM_SHASUM_MACRO defined"
-  echo "ERROR: No XCLM_SHASUM_MACRO defined" >> $LOGFILE
+  echo "ERROR: No XCLM_SHASUM_MACRO defined" | tee -a $LOGFILE
 fi
 
   CONFIG_CMD=("${ALL_EXES[@]}" $SOURCE_GCC_DIR/gcc/configure --enable-static CFLAGS=\"${XCLM_SHASUM_MACRO}$CFLAGS\" CXXFLAGS=\"${XCLM_SHASUM_MACRO}$CXXFLAGS\" --disable-shared --prefix=$WORKING_DIR/$NATIVEIMAGE --includedir=$WORKING_DIR/$NATIVEIMAGE/pic32mx/include --bindir=$WORKING_DIR/$NATIVEIMAGE/bin/bin --libexecdir=$WORKING_DIR/$NATIVEIMAGE/bin/bin --with-libelf=$WORKING_DIR/$NATIVE_LM_BUILD/host-libs "${LIBHOST[@]}" --with-gmp=$WORKING_DIR/$NATIVE_LM_BUILD/host-libs --with-ppl=$WORKING_DIR/$NATIVE_LM_BUILD/host-libs --with-cloog=$WORKING_DIR/$NATIVE_LM_BUILD/host-libs "${GCC_CONFIG_FLAGS[@]}" $SUPPORT_CHECKING)
@@ -1433,7 +1430,7 @@ if [ "x$SKIPLINUXBUILD" == "x" ] ; then
  unset LD
  unset LDFLAGS
 
- echo `date` " Creating linux cross build in $BUILDDIR_LINUX..." >> $LOGFILE
+ echo `date` " Creating linux cross build in $BUILDDIR_LINUX..." | tee -a $LOGFILE
  cd $WORKING_DIR
  ensure_dir build-pic32m-Linux
  cd build-pic32m-Linux
@@ -1534,7 +1531,7 @@ if [ "$WINDOWS" = "yes" ]; then
   fi
 
 cd $WORKING_DIR
-echo `date` " Creating cross build in $WORKING_DIR/$WIN_BUILD..." >> $LOGFILE
+echo `date` " Creating cross build in $WORKING_DIR/$WIN_BUILD..." | tee -a $LOGFILE
 status_update "pic32m Creating cross build in $WORKING_DIR/$WIN_BUILD"
 
 if [ ! -e $WIN_BUILD ] ; then
@@ -1550,7 +1547,7 @@ assert_success $? "ERROR: creating directory $WORKING_DIR/$WIN_BUILD"
   echo "Open $LOGTASKFILE" >$LOGTASKFILE
 
   # Configure mingw32-cross binutils
-  echo `date` " Configuring win32 binutils build in $WORKING_DIR/$WIN_BUILD..." >> $LOGFILE
+  echo `date` " Configuring win32 binutils build in $WORKING_DIR/$WIN_BUILD..." | tee -a $LOGFILE
   build_binutils "$WIN_BUILD" "x" "windows" "--target=pic32mx --prefix=$INSTALLDIR_MINGW --bindir=$INSTALLDIR_MINGW/bin/bin --libexecdir=$INSTALLDIR_MINGW/bin/bin --host=$MINGW_HOST_PREFIX $BUILDMACHINE --disable-nls --disable-tui --disable-gdbtk --disable-shared --enable-static --disable-threads --disable-bootstrap --with-dwarf2 --enable-multilib --without-newlib --disable-sim --with-lib-path=: --enable-poison-system-directories --program-prefix=pic32m- --with-bugurl=http://www.microchip.com/support --disable-werror"
 
   cd $ROOT/$WIN_BUILD
@@ -1561,8 +1558,7 @@ assert_success $? "ERROR: creating directory $WORKING_DIR/$WIN_BUILD"
 
  if [ "x$SHASUM256" != "x" ]; then
    XCLM_SHASUM=`$SHASUM256 $INSTALLDIR_MINGW/bin/xclm.exe | head -c 64`
-   echo ${XCLM_SHASUM} >> $LOGFILE
-   echo ${XCLM_SHASUM}
+   echo ${XCLM_SHASUM} | tee -a $LOGFILE
    if [ ${#XCLM_SHASUM} != 64 ]; then
        assert_success -1 "ERROR: Failed to calculate SHASUM256 digest for $INSTALLDIR_MINGW/bin/xclm.exe"
    fi
@@ -1633,7 +1629,7 @@ unset LDFLAGS
 unset ABI
 PATH=$OLDPATH
 
-echo `date` "Completed build-pic32m-toolchain.sh" >> $LOGFILE
+echo `date` "Completed build-pic32m-toolchain.sh" | tee -a $LOGFILE
 status_update "Completed build-pic32m-toolchain.sh"
 
 fossil settings autosync on --global
@@ -1671,7 +1667,7 @@ fi
 # Install the documentation
 #
 ####
-echo `date` " Installing documentation to $WORKING_DIR/$NATIVEIMAGE/docs..." >> $LOGFILE
+echo `date` " Installing documentation to $WORKING_DIR/$NATIVEIMAGE/docs..." | tee -a $LOGFILE
 
 erase_and_make_dir "$WORKING_DIR/$NATIVEIMAGE/docs"
 
@@ -1697,8 +1693,7 @@ find . -name "config.mif" -exec rm -rf \{\} \;
 # In the resultant install directory, there are a few extra directories
 # that we don"t want for our Windows build.
 ###
-echo `date` " Removing unecessary directories from build..." >> $LOGFILE
-echo "Directory clean up for pic-tools"
+echo `date` " Removing unecessary directories from build..." | tee -a $LOGFILE
 
 if [ "$WINDOWS" = "yes" ] ; then
  rm -rf $INSTALLDIR_MINGW/include
@@ -1741,11 +1736,11 @@ if [ "x$LINUX32IMAGE" != "x" ] ; then
  find $WORKING_DIR/$LINUX32IMAGE -name "*\**" -delete
 fi
 
-echo "Making tar files"
+echo "Making tar files" | tee -a $LOGFILE
 # Tar installation directory.
 
-echo `date` " Tar components to $WORKING_DIR/zips directory..." >> $LOGFILE
-echo `date` " Tar installation directory..." >> $LOGFILE
+echo `date` " Tar components to $WORKING_DIR/zips directory..." | tee -a $LOGFILE
+echo `date` " Tar installation directory..." | tee -a $LOGFILE
 cd $WORKING_DIR
 if [[ ! -e zips ]] ; then
  mkdir zips
@@ -1753,19 +1748,19 @@ fi
 
 # ZIP library source
 
-echo `date` " ZIP library source..." >> $LOGFILE
+echo `date` " ZIP library source..." | tee -a $LOGFILE
 cd $WORKING_DIR
 rm -rf export
 mkdir export
 cd export
 
-echo Exporting pic32-libs...
-echo `date` " Copy pic32-libs to export/pic32-libs..." >> $LOGFILE
+echo Exporting pic32-libs... | tee -a $LOGFILE
+echo `date` " Copy pic32-libs to export/pic32-libs..." | tee -a $LOGFILE
 
 copy_dir_clean "$WORKING_DIR/pic32-libs/" "$WORKING_DIR/export/pic32-libs/"
 assert_success $? "ERROR: Copy pic32-libs to export/pic32-libs failed"
 
-echo `date` " Removing MTK source directories..." >> $LOGFILE
+echo `date` " Removing MTK source directories..." | tee -a $LOGFILE
 echo Removing MTK source directories...
 cd $WORKING_DIR/export/pic32-libs
 #
@@ -1783,7 +1778,7 @@ do
   if [[ -d $x ]]; then
   # remove all directories except
    if [[ $x != "peripheral" && $x != "include" && $x != "libpic32" && $x != "save" && $x != "debugsupport" && $x != "proc" && $x != "cppcfl" ]]; then
-    echo `date` " Removing MTK directory $x..." >> $LOGFILE
+    echo `date` " Removing MTK directory $x..." | tee -a $LOGFILE
     rm -rf $x
    fi
   elif [[ $x != Makefile && $x != defines.mk && ${x%txt} == $x ]]; then
@@ -1829,10 +1824,10 @@ if [ "x$SKIPLEGACYPLIB" != "x" ]; then
 
 	cd $WORKING_DIR/..
 
-	echo "Extract the plibs to the install images" >> $LOGFILE
+	echo "Extract the plibs to the install images" | tee -a $LOGFILE
 	status_update "pic32m Extract the plibs to the install images"
 	SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-	echo "$SCRIPTDIR/plib-to-image.sh -g trunk -D $WORKING_DIR" >> $LOGFILE
+	echo "$SCRIPTDIR/plib-to-image.sh -g trunk -D $WORKING_DIR" | tee -a $LOGFILE
 	$SCRIPTDIR/plib-to-image.sh -g"trunk" -D"$WORKING_DIR"
 
 	assert_success $? "plib-to-image"
@@ -1854,7 +1849,7 @@ if [ "x$NATIVE_IMAGE" != "xinstall-Darwin" ] ; then
   MANIFEST_CHECK_ARGS+=" -d"
 fi
 
-#echo "$SCRIPTDIR/pic32-manifest-check.sh $MANIFEST_CHECK_ARGS" >> $LOGFILE
+#echo "$SCRIPTDIR/pic32-manifest-check.sh $MANIFEST_CHECK_ARGS" | tee -a $LOGFILE
 #$SCRIPTDIR/pic32-manifest-check.sh $MANIFEST_CHECK_ARGS
 #assert_success $? "pic32-manifest-check"
 
@@ -1864,7 +1859,7 @@ fi
 cd $WORKING_DIR
 # Determine location of the md5sum utility
 if [ "x$MD5SUM" == "x" ]; then
-  echo "MD5SUM generation" >> $LOGFILE
+  echo "MD5SUM generation" | tee -a $LOGFILE
   MD5SUM_LOC=`which md5sum`
   if [ "x$MD5SUM_LOC" != "x" ] ; then
     MD5SUM=md5sum
@@ -1881,18 +1876,15 @@ fi
 
 if [ "x$MD5SUM" != "x" ] ; then
  if [ "$WINDOWS" = "yes" ] ; then
-  echo "Generating md5sum for $INSTALLDIR_MINGW" >> $LOGFILE
-  echo "Generating md5sum for $INSTALLDIR_MINGW"
+  echo "Generating md5sum for $INSTALLDIR_MINGW" | tee -a $LOGFILE
   cd $INSTALLDIR_MINGW
   find . -type f -exec $MD5SUM {} \; > ../zips/mingw.md5
  fi
-  echo "Generating md5sum for $NATIVEIMAGE" >> $LOGFILE
-  echo "Generating md5sum for $NATIVEIMAGE"
+  echo "Generating md5sum for $NATIVEIMAGE" | tee -a $LOGFILE
   cd $WORKING_DIR/$NATIVEIMAGE
   find . -type f -exec $MD5SUM {} \; > ../zips/$NATIVEIMAGE.md5
   if [ "x$LINUX32IMAGE" != "x" ]; then
-    echo "Generating md5sum for $LINUX32IMAGE" >> $LOGFILE
-    echo "Generating md5sum for $LINUX32IMAGE"
+    echo "Generating md5sum for $LINUX32IMAGE" | tee -a $LOGFILE
     cd $WORKING_DIR/$LINUX32IMAGE
     find . -type f -exec $MD5SUM {} \; > ../zips/$LINUX32IMAGE.md5
   fi
@@ -1903,8 +1895,7 @@ fi
 cd $WORKING_DIR
 REV=${BUILD##pic32-}
 
-echo "copy_dir_clean $SOURCE_GCC_DIR ./xc32-tools-$REV-src" >> $LOGFILE
-echo "copy_dir_clean $SOURCE_GCC_DIR ./xc32-tools-$REV-src"
+echo "copy_dir_clean $SOURCE_GCC_DIR ./xc32-tools-$REV-src" | tee -a $LOGFILE
 
 if [ -e source-archive ] ; then
   rm -rf source-archive
@@ -1917,8 +1908,7 @@ assert_success $? "copy_dir_clean $SOURCE_GCC_DIR ./xc32-tools-$REV-src"
 
 if [ "x$SKIPCREATETAR" == "x" ]; then
 
- echo "Generating tar for xc32-tools-$REV-src" >> $LOGFILE
- echo "Generating tar for xc32-tools-$REV-src"
+ echo "Generating tar for xc32-tools-$REV-src" | tee -a $LOGFILE
  tar cjf $WORKING_DIR/zips/xc32-tools-$REV-src.tar.bz2 xc32-tools-$REV-src
 
 
@@ -1927,18 +1917,15 @@ if [ "x$SKIPCREATETAR" == "x" ]; then
  cd $WORKING_DIR
 
  if [ "$WINDOWS" = "yes" ] ; then
-  echo "Generating tar for Windows" >> $LOGFILE
-  echo "Generating tar for Windows"
+  echo "Generating tar for Windows" | tee -a $LOGFILE
   tar cjf $WORKING_DIR/zips/xc32-tools-$REV-Windows.tar.bz2 install-mingw
   assert_success $? "tar mingw"
  fi
- echo "Generating tar for $NATIVEIMAGE" >> $LOGFILE
- echo "Generating tar for $NATIVEIMAGE"
+ echo "Generating tar for $NATIVEIMAGE" | tee -a $LOGFILE
  tar cjf $WORKING_DIR/zips/xc32-tools-$REV-$NATIVEIMAGE.tar.bz2 $NATIVEIMAGE
   assert_success $? "tar $NATIVEIMAGE"
  if [ "x$LINUX32IMAGE" != "x" ]; then
-  echo "Generating tar for $LINUX32IMAGE" >> $LOGFILE
-  echo "Generating tar for $LINUX32IMAGE"
+  echo "Generating tar for $LINUX32IMAGE" | tee -a $LOGFILE
   tar cjf $WORKING_DIR/zips/xc32-tools-$REV-$LINUX32IMAGE.tar.bz2 $LINUX32IMAGE
  assert_success $? "tar $LINUX32IMAGE"
  fi
@@ -1965,7 +1952,7 @@ unset LDFLAGS
 unset ABI
 PATH=$OLDPATH
 
-echo `date` "Completed build-pic32m-toolchain.sh" >> $LOGFILE
+echo `date` "Completed build-pic32m-toolchain.sh" | tee -a $LOGFILE
 status_update "Completed build-pic32m-toolchain.sh"
 
 exit 0

@@ -9440,7 +9440,7 @@ elf_link_output_extsym (struct bfd_hash_entry *bh, void *data)
                   zero-size stripped section, don't emit the symbol. FS */
 		if (bfd_section_removed_from_list(flinfo->output_bfd,
                                                  input_sec->output_section))
-                  return FALSE;
+                  return TRUE;
                 else
 #endif
                   {

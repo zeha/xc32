@@ -889,7 +889,7 @@ pic32c_tcm_attribute (tree *decl, tree identifier ATTRIBUTE_UNUSED, tree args,
   }
   else if (!(TARGET_MCHP_DTCM || TARGET_MCHP_TCM)) {
     warning (OPT_Wattributes, "Ignoring tcm attribute. "
-              "Pass -mditcm or -mtcm as appropriate for your target device to enable TCM usage.");
+              "Pass -mdtcm or -mtcm as appropriate for your target device to enable TCM usage.");
     return NULL_TREE;
   }
 
@@ -1300,7 +1300,7 @@ pic32c_final_include_paths (struct cpp_dir *quote, struct cpp_dir *bracket)
         {
             if (!p)
                 break;
-            fprintf (stderr, "Compiler:%s\n", p->name);
+            fprintf (stderr, "compiler:%s\n", p->name);
         }
     }
 }
@@ -1331,7 +1331,7 @@ get_mchp_space_attribute (tree decl)
 static tree
 get_pic32c_tcm_attribute (tree decl)
 {
-  if (!TARGET_MCHP_ITCM)
+  if (!(TARGET_MCHP_ITCM || TARGET_MCHP_TCM))
     return NULL_TREE;
 
   return lookup_attribute ("tcm", DECL_ATTRIBUTES (decl));
@@ -2870,6 +2870,41 @@ pic32c_attribute_takes_identifier_p (const_tree attr_id)
   return false;
 }
 
+/* Verify that all the settings in a configuration word have been
+   specified. */
+static bool
+pic32c_verify_configuration_word (struct mchp_config_word *word,
+                                  unsigned referenced_bits)
+{
+  struct mchp_config_setting *setting;
+  unsigned mask = 0;
+
+  for (setting = word->settings; setting != NULL; setting = setting->next)
+    {
+      mask |= setting->mask;
+    }
+
+  return (mask == referenced_bits);
+}
+
+/* Check that the aggregration of settings for a configuration word is
+   valid. */
+static void
+pic32c_check_configuration_word (struct mchp_config_word *word,
+                                 unsigned referenced_bits)
+{
+  if (mchp_allow_partial_config_words)
+    return;
+
+  if (!pic32c_verify_configuration_word (word, referenced_bits))
+    {
+      /* TODO: Can we make the location information more useful, or
+         ignore line/column information? */
+      error ("config word for address 0x%x not fully specified",
+             word->address);
+    }
+}
+
 static void
 pic32c_output_configuration_words (void)
 {
@@ -2885,6 +2920,8 @@ pic32c_output_configuration_words (void)
 	  /* if there are referenced bits in the word, output its value */
 	  if (spec->referenced_bits)
 	    {
+              pic32c_check_configuration_word (spec->word,
+                                               spec->referenced_bits);
 	      fprintf (asm_out_file, "@ Configuration word at address 0x%08x\n",
 		       spec->word->address);
 	      fprintf (

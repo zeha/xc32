@@ -433,7 +433,7 @@ mchp_handle_configuration_setting (const char *name,
                                     /* update the value of the word with the value
                                        indicated */
                                     spec->value = (spec->value & ~setting->mask)
-                                                  | (setting->mask) & (strtol((char *)value_name, NULL, 10) << shift);
+                                                  | (setting->mask) & (strtoul((char *)value_name, NULL, 10) << shift);
                                     return;
                                 }
 #endif /* MCHP_ALLOW_INTEGER_CONFIGVALUE */
@@ -533,6 +533,11 @@ mchp_handle_config_pragma (struct cpp_reader *pfile)
             snprintf((char *)value_name, MAX_VALUE_NAME_LENGTH, "%u", i);
             #undef MAX_VALUE_NAME_LENGTH
           }
+          else
+            {
+              error ("config-setting value must be a valid integer constant");
+              break;
+            }
         }
       else
         {

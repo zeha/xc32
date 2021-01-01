@@ -242,6 +242,7 @@ extern void pic32_system_pre_include_paths(const char *root, const char *system,
 #endif
 
 #ifndef TARGET_FINAL_INCLUDES
+struct cpp_dir;
 extern void pic32_final_include_paths(struct cpp_dir*,struct cpp_dir*);
 #define TARGET_FINAL_INCLUDES pic32_final_include_paths
 #endif
