@@ -1023,6 +1023,7 @@ extern void pic32_final_include_paths(struct cpp_dir*,struct cpp_dir*);
   c_register_pragma(0, "coherent", mchp_handle_coherent_pragma); \
   c_register_pragma(0, "optimize", mchp_handle_optimize_pragma); \
   c_register_pragma(0, "region", mchp_handle_region_pragma); \
+  c_register_pragma(0, "nocodecov", mchp_handle_nocodecov_pragma); \
   mchp_init_cci_pragmas(); \
   }
 
@@ -1147,6 +1148,9 @@ extern void pic32_final_include_paths(struct cpp_dir*,struct cpp_dir*);
 #define DTORS_SECTION_ASM_OP "\t.section .dtors, code"
 #endif
 
+#undef SUBTARGET_ASM_CODE_END
+#define SUBTARGET_ASM_CODE_END mchp_asm_code_end()
+
 #undef TARGET_ASM_FILE_END
 #define TARGET_ASM_FILE_END mchp_file_end
 
@@ -1221,6 +1225,7 @@ extern void pic32_final_include_paths(struct cpp_dir*,struct cpp_dir*);
     { "function_replacement_prologue",  0, 0,  true, false,  false,  mchp_frp_attribute, false },        \
     { "shared",           0, 0,  false, false, false, mchp_shared_attribute, false },         \
     { "noload",           0, 0,  false, false, false, mchp_noload_attribute, false },         \
+    { "nocodecov",        0, 0,  false, true,  true, NULL, false },                           \
     /* prevent FPU usage in ISRs */                                                           \
     { "no_fpu",           0, 0,  false, true,  true,  NULL, false },
 
@@ -1299,6 +1304,9 @@ extern void pic32_final_include_paths(struct cpp_dir*,struct cpp_dir*);
 
 #undef TARGET_APPLY_PRAGMA
 #define TARGET_APPLY_PRAGMA mchp_apply_pragmas
+
+#undef TARGET_SET_DEFAULT_TYPE_ATTRIBUTES
+#define TARGET_SET_DEFAULT_TYPE_ATTRIBUTES mchp_set_default_type_attributes
 
 /* Initialize the GCC target structure.  */
 #undef TARGET_OVERRIDE_OPTIONS_AFTER_CHANGE
@@ -1424,5 +1432,24 @@ do {                                    \
         generate_option (OPT_mdsp, NULL, 1, CL_DRIVER, &(decoded_options)[decoded_options_count-1]);  \
       }                                                                            \
     }
+
+
+/* Code Coverage-related ---> */
+
+#define TARGET_XCCOV_LIBEXEC_PATH   pic32_libexec_path
+#define TARGET_XCCOV_BEGIN_INSTMT   pic32_begin_cc_instrument
+#define TARGET_XCCOV_ADJ_INS_POS    pic32_adjust_insert_pos
+#define TARGET_XCCOV_CC_BITS_OFS    TARGET_MIPS16
+#define TARGET_XCCOV_LD_CC_BITS     pic32_ld_cc_bits
+#define TARGET_XCCOV_SET_CC_BIT     pic32_set_cc_bit
+#define TARGET_XCCOV_ADD_EOB_INSN   pic32_add_eob_insn
+#define TARGET_XCCOV_LICENSED       pic32_licensed_xccov_p
+#define TARGET_XCCOV_EMIT_SECTION   pic32_emit_cc_section
+
+#undef SUBTARGET_CONDITIONAL_REGISTER_USAGE
+#define SUBTARGET_CONDITIONAL_REGISTER_USAGE pic32_cond_reg_usage
+
+/* <--- end of Code Coverage-related */
+
 
 #endif /* MCHP_H */

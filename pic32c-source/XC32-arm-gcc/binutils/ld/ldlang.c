@@ -1462,11 +1462,14 @@ lang_memory_region_lookup (const char *const name, bfd_boolean create)
 	  return r;
 	}
 
-#if !defined(TARGET_IS_PIC32C)
-  if (!create && strcmp (name, DEFAULT_MEMORY_REGION))
+  if (!create && strcmp (name, DEFAULT_MEMORY_REGION)) {
+#if defined(TARGET_IS_PIC32C)
+    return NULL;
+#else
     einfo (_("%P:%S: warning: memory region `%s' not declared\n"),
 	   NULL, name);
 #endif
+  }
 
   new_region = (lang_memory_region_type *)
       stat_alloc (sizeof (lang_memory_region_type));
@@ -2273,7 +2276,7 @@ lang_map (void)
 
       /* PIC32C: we may have created useless regions as a side effect
          of looking up specific names. */
-      if (m->length == ~(bfd_size_type)0) continue;
+      if (!valid_region(m)) continue;
 
       fprintf (config.map_file, "%-16s ", m->name_list.name);
 
@@ -5127,7 +5130,7 @@ lang_check_section_addresses (void)
   for (m = lang_memory_region_list; m; m = m->next)
     {
       /* PIC32C: again deal with garbage region_lookup artifacts */
-      if (m->length == ~(bfd_size_type)0) continue;
+      if (!valid_region(m)) continue;
       if (m->had_full_message)
         einfo (_("%X%P: region `%s' overflowed by %ld bytes\n"),
                m->name_list.name, (long)(m->current - (m->origin + m->length)));
@@ -5145,10 +5148,6 @@ os_region_check (lang_output_section_statement_type *os,
 		 etree_type *tree,
 		 bfd_vma rbase)
 {
-  /* PIC32C - you know the drill (see previous PIC32C comments) */
-  if (region->length == ~(bfd_size_type)0) 
-    einfo(_("%X%P: region `%s' invalid\n"), region->name_list.name);
-
   if ((region->current < region->origin
        || (region->current - region->origin > region->length))
       && ((region->current != region->origin + region->length)
@@ -8769,7 +8768,7 @@ lang_print_memory_usage (void)
       double percent;
 
       /* PIC32C: again deal with garbage region_lookup artifacts */
-      if (r->length == ~(bfd_size_type)0) continue;
+      if (!valid_region(r)) continue;
 
       printf ("%16s: ",r->name_list.name);
       lang_print_memory_size (used_length);

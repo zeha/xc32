@@ -49,6 +49,8 @@ DESCRIPTION
 	<<errno>>.
 */
 
+extern int _link (const char *old, const char *new);
+
 int
 _DEFUN (_link_r, (ptr, old, new),
      struct _reent *ptr _AND

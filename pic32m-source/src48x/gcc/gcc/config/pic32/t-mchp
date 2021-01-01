@@ -56,15 +56,21 @@ clean-lm:
 # Force license manager enablement
 force_lm = $(if $(XC32_ENABLE_LM),$(subst -DSKIP_LICENSE_MANAGER,,$(1)) $(XC32_LM_FLAGS),$(1))
 
+mchp-license-manager.o: $(srcdir)/config/pic32/mchp-license-manager.c $(CONFIG_H) $(SYSTEM_H) \
+	coretypes.h $(TM_H) $(TREE_H) output.h $(C_COMMON_H) \
+	$(srcdir)/config/pic32/mchp.h $(srcdir)/config/mchp-cci/xclm_public.h \
+	$(srcdir)/config/pic32/mchp-protos.h
+	$(COMPILER) -c $(call force_lm,$(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS)) $(INCLUDES) \
+		$(srcdir)/config/pic32/mchp-license-manager.c
+
 # Microchip PIC32-specific format checking and pragmas
 mchp.o: $(srcdir)/config/pic32/mchp.c $(srcdir)/config/pic32/mchp.h \
   $(srcdir)/config/mchp-cci/cci.h \
-  $(srcdir)/config/mchp-cci/xclm_public.h \
   $(CONFIG_H) $(SYSTEM_H) coretypes.h \
   tree.h c-family/c-format.h intl.h $(CPPLIB_H) c-family/c-pragma.h $(TM_H) $(TM_P_H) \
   toplev.h libfuncs.h langhooks.h sched-int.h function.h $(C_COMMON_H) \
   $(srcdir)/config/mips/mips-machine-function.h $(srcdir)/config/pic32/mchp-protos.h
-	$(COMPILER) -c $(call force_lm,$(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS)) $(INCLUDES) \
+	$(COMPILER) -c $(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) \
 	  $(srcdir)/config/pic32/mchp.c
 
 mchp-pragmas.o: $(srcdir)/config/pic32/mchp-pragmas.c \
@@ -95,3 +101,8 @@ mchp-hi-addr-analysis.o : $(srcdir)/config/pic32/mchp-hi-addr-analysis.c $(CONFI
 	$(COMPILER) -c $(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) \
 	  $(srcdir)/config/pic32/mchp-hi-addr-analysis.c
 
+pic32-coverage.o: $(srcdir)/config/pic32/pic32-coverage.c \
+  $(CONFIG_H) $(SYSTEM_H) coretypes.h $(TM_H) dwarf2asm.h\
+  xc-coverage.h $(C_COMMON_H)
+	$(COMPILER) -c $(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) \
+          $(srcdir)/config/pic32/pic32-coverage.c

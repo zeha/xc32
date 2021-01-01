@@ -74,7 +74,8 @@ MULTILIB_DIRNAMES      += aligned
 # Note MULTILIB_DEFAULTS set in pic32c.h are not included.
 
 # ARMv5
-MULTILIB_REQUIRED      += march=armv5te
+# note this is arm-only
+MULTILIB_REQUIRED      += marm/march=armv5te
 
 # ARMv6-M
 #MULTILIB_REQUIRED      += march=armv6s-m
@@ -106,6 +107,7 @@ MULTILIB_REQUIRED      += march=armv7e-m/mfpu=fpv5-d16/mfloat-abi=hard/mno-unali
 #MULTILIB_REQUIRED      += mthumb/march=armv8-m.main/mfpu=fpv5-sp-d16/mfloat-abi=hard
 
 # ARMv7-R as well as ARMv7-A and ARMv8-A if aprofile was not specified
+# note that armv7-a includes thumb and arm libraries
 MULTILIB_REQUIRED      += march=armv7-a
 MULTILIB_REQUIRED      += march=armv7-a/mfpu=vfpv3-d16/mfloat-abi=softfp
 MULTILIB_REQUIRED      += march=armv7-a/mfpu=vfpv3-d16/mfloat-abi=hard

@@ -114,6 +114,7 @@ along with GCC; see the file COPYING3.  If not see
 
 #include "dumpfile.h"
 #include "tree-pretty-print.h"
+#include "xc-coverage.h"
 
 #include "pic32c-protos.h"
 #include "pic32c.h"
@@ -173,59 +174,61 @@ SECTION_FLAGS_INT mchp_text_flags = SECTION_CODE;
 
 /* 0x100000 */
 #define SECTION_READ_ONLY (MCHP_ULL (SECTION_MACH_DEP))
-#define SECTION_CONST (MCHP_ULL (SECTION_MACH_DEP))
-#define SECTION_RAMFUNC (MCHP_ULL (SECTION_MACH_DEP) << 1ull)
-#define SECTION_NEAR (MCHP_ULL (SECTION_MACH_DEP) << 2ull)
-#define SECTION_PERSIST (MCHP_ULL (SECTION_MACH_DEP) << 3ull)
-#define SECTION_NOLOAD (MCHP_ULL (SECTION_MACH_DEP) << 4ull)
-#define SECTION_INFO (MCHP_ULL (SECTION_MACH_DEP) << 5ull)
-#define SECTION_ADDRESS (MCHP_ULL (SECTION_MACH_DEP) << 6ull)
-#define SECTION_ALIGN (MCHP_ULL (SECTION_MACH_DEP) << 7ull)
-#define SECTION_KEEP (MCHP_ULL (SECTION_MACH_DEP) << 8ull)
-#define SECTION_COHERENT (MCHP_ULL (SECTION_MACH_DEP) << 9ull)
-#define SECTION_REGION (MCHP_ULL (SECTION_MACH_DEP) << 10ull)
+#define SECTION_CONST     (MCHP_ULL (SECTION_MACH_DEP))
+#define SECTION_RAMFUNC   (MCHP_ULL (SECTION_MACH_DEP) << 1ull)
+#define SECTION_NEAR      (MCHP_ULL (SECTION_MACH_DEP) << 2ull)
+#define SECTION_PERSIST   (MCHP_ULL (SECTION_MACH_DEP) << 3ull)
+#define SECTION_NOLOAD    (MCHP_ULL (SECTION_MACH_DEP) << 4ull)
+#define SECTION_INFO      (MCHP_ULL (SECTION_MACH_DEP) << 5ull)
+#define SECTION_ADDRESS   (MCHP_ULL (SECTION_MACH_DEP) << 6ull)
+#define SECTION_ALIGN     (MCHP_ULL (SECTION_MACH_DEP) << 7ull)
+#define SECTION_KEEP      (MCHP_ULL (SECTION_MACH_DEP) << 8ull)
+#define SECTION_COHERENT  (MCHP_ULL (SECTION_MACH_DEP) << 9ull)
+#define SECTION_REGION    (MCHP_ULL (SECTION_MACH_DEP) << 10ull)
 #define SECTION_SERIALMEM (MCHP_ULL (SECTION_MACH_DEP) << 11ull)
-#define SECTION_ITCM (MCHP_ULL (SECTION_MACH_DEP) << 12ull)
-#define SECTION_DTCM (MCHP_ULL (SECTION_MACH_DEP) << 13ull)
+#define SECTION_ITCM      (MCHP_ULL (SECTION_MACH_DEP) << 12ull)
+#define SECTION_DTCM      (MCHP_ULL (SECTION_MACH_DEP) << 13ull)
 
 /* the attribute names from the assemblers point of view */
-#define SECTION_ATTR_ADDRESS "address"
-#define SECTION_ATTR_ALIGN "align"
-#define SECTION_ATTR_BSS "bss"
-#define SECTION_ATTR_CODE "code"
-#define SECTION_ATTR_CONST "code"
-#define SECTION_ATTR_COHERENT "coherent"
-#define SECTION_ATTR_DATA "data"
-#define SECTION_ATTR_DTCM "dtcm"
-#define SECTION_ATTR_INFO "info"
-#define SECTION_ATTR_ITCM "itcm"
-#define SECTION_ATTR_KEEP "keep"
-#define SECTION_ATTR_NEAR "near"
-#define SECTION_ATTR_NOLOAD "noload"
-#define SECTION_ATTR_PERSIST "persist"
-#define SECTION_ATTR_RAMFUNC "ramfunc"
-#define SECTION_ATTR_DEFAULT "unused"
-#define SECTION_ATTR_REGION "memory"
+#define SECTION_ATTR_ADDRESS   "address"
+#define SECTION_ATTR_ALIGN     "align"
+#define SECTION_ATTR_BSS       "bss"
+#define SECTION_ATTR_CODE      "code"
+#define SECTION_ATTR_CONST     "code"
+#define SECTION_ATTR_COHERENT  "coherent"
+#define SECTION_ATTR_DATA      "data"
+#define SECTION_ATTR_DTCM      "dtcm"
+#define SECTION_ATTR_INFO      "info"
+#define SECTION_ATTR_ITCM      "itcm"
+#define SECTION_ATTR_KEEP      "keep"
+#define SECTION_ATTR_NEAR      "near"
+#define SECTION_ATTR_NOLOAD    "noload"
+#define SECTION_ATTR_PERSIST   "persist"
+#define SECTION_ATTR_RAMFUNC   "ramfunc"
+#define SECTION_ATTR_DEFAULT   "unused"
+#define SECTION_ATTR_REGION    "memory"
 #define SECTION_ATTR_CO_SHARED "shared"
 #define SECTION_ATTR_SERIALMEM "serial_mem"
 
-#define SECTION_NAME_BSS ".bss"
-#define SECTION_NAME_NBSS ".sbss"
-#define SECTION_NAME_SBSS ".sbss"
-#define SECTION_NAME_DATA ".data"
-#define SECTION_NAME_NDATA ".sdata"
-#define SECTION_NAME_SDATA ".sdata"
-#define SECTION_NAME_CONST ".rodata"
-#define SECTION_NAME_RAMFUNC ".ramfunc"
-#define SECTION_NAME_PBSS ".pbss"
-#define SECTION_NAME_INIT ".init"
-#define SECTION_NAME_FINI ".fini"
-#define SECTION_NAME_CTORS ".ctors"
-#define SECTION_NAME_DTORS ".dtors"
+#define SECTION_NAME_BSS        ".bss"
+#define SECTION_NAME_NBSS       ".sbss"
+#define SECTION_NAME_SBSS       ".sbss"
+#define SECTION_NAME_DATA       ".data"
+#define SECTION_NAME_NDATA      ".sdata"
+#define SECTION_NAME_SDATA      ".sdata"
+#define SECTION_NAME_CONST      ".rodata"
+#define SECTION_NAME_RAMFUNC    ".ramfunc"
+#define SECTION_NAME_PBSS       ".pbss"
+#define SECTION_NAME_PERSIST    ".persist"
+#define SECTION_NAME_INIT       ".init"
+#define SECTION_NAME_FINI       ".fini"
+#define SECTION_NAME_CTORS      ".ctors"
+#define SECTION_NAME_DTORS      ".dtors"
 #define SECTION_NAME_INIT_ARRAY ".init_array"
 #define SECTION_NAME_FINI_ARRAY ".fini_array"
-#define SECTION_NAME_SERIALMEM ".serial_mem"
-#define SECTION_NAME_ITCM ".text_itcm"
+#define SECTION_NAME_SERIALMEM  ".serial_mem"
+#define SECTION_NAME_ITCM       ".text_itcm"
+
 
 struct valid_section_flags_
 {
@@ -307,6 +310,7 @@ struct reserved_section_names_
   {".text", SECTION_CODE},
   {".text_itcm", SECTION_ITCM | SECTION_CODE},
   {".ramfunc", SECTION_RAMFUNC | SECTION_CODE},
+  {".codecov_info", SECTION_INFO},
   {".gnu.linkonce.d", SECTION_WRITE},
   {".gnu.linkonce.t", SECTION_CODE},
   {".gnu.linkonce.r", SECTION_READ_ONLY},
@@ -404,6 +408,10 @@ static smartio_fndesc smartio_fn_info[PIC32C_BUILTIN_SMARTIO_N] = {
 /*  Configuration specificiation data used by cci */
 struct mchp_config_specification *mchp_configuration_values;
 
+/* mchp_pragma_nocodecov is != 0 when #pragma nocodecov is in effect */
+int mchp_pragma_nocodecov = 0;
+
+
 /*
  *  Static function prototypes.
  */
@@ -411,6 +419,8 @@ static int ignore_attribute (const char *attribute, const char *attached_to,
 			     tree node);
 
 static tree get_mchp_absolute_address (tree decl);
+
+static int mchp_persistent_p (tree func);
 
 static int mchp_keep_p (tree decl);
 
@@ -448,6 +458,7 @@ static struct reserved_section_names_ *pic32c_find_in_rsn (const char *name);
 static valid_section_flags_ *pic32c_find_in_vsf (const char *name);
 
 extern bool bss_initializer_p (const_tree decl);
+
 
 /* Attributes processing */
 
@@ -605,6 +616,27 @@ pic32c_address_attribute (tree *decl, tree identifier ATTRIBUTE_UNUSED,
 }
 
 /*
+ *  "target_error" attribute.
+ */
+tree pic32c_target_error_attribute(tree *node, tree identifier ATTRIBUTE_UNUSED,
+                                   tree args, int flags ATTRIBUTE_UNUSED,
+                                   bool *no_add_attrs)
+{
+  if (!DECL_P (*node)) {
+    error("'target_error' attribute may be applied only to declarations");
+    return NULL_TREE;
+  }
+  const char *attached_to = IDENTIFIER_POINTER(DECL_NAME(*node));
+  if (TREE_CODE(TREE_VALUE(args)) != STRING_CST) {
+    error("invalid argument to 'target_error' attribute applied to '%s',"
+          " literal string expected", attached_to);
+    return NULL_TREE;
+  }
+  TREE_DEPRECATED(*node) = 1;
+  return NULL_TREE;
+}
+
+/*
  *  "unsupported" attribute.
  */
 tree
@@ -691,6 +723,14 @@ pic32c_noload_attribute (tree *decl, tree identifier ATTRIBUTE_UNUSED,
   if (ignore_attribute ("noload", attached_to, *decl))
     {
       *no_add_attrs = 1;
+      return NULL_TREE;
+    }
+
+  /* If the persistent attribute is specified, noload is implied, and
+     we can simply handle this as any other persistent data (i.e.
+     placed into noload section .pbss. */
+  if (mchp_persistent_p (*decl))
+    {
       return NULL_TREE;
     }
 
@@ -957,6 +997,45 @@ pic32c_keep_attribute (tree *decl, tree identifier ATTRIBUTE_UNUSED, tree args,
 {
   DECL_COMMON (*decl) = 0;
   DECL_UNIQUE_SECTION (*decl) = 1;
+  return NULL_TREE;
+}
+
+tree pic32c_persistent_attribute(tree *node, tree identifier ATTRIBUTE_UNUSED,
+                                 tree args, int flags ATTRIBUTE_UNUSED,
+                                 bool *no_add_attrs)
+{
+  const char *attached_to = 0;
+
+  DECL_UNIQUE_SECTION (*node) = 1;
+
+  if (flag_pic || flag_pie)
+    {
+      warning (0, "'persistent' attribute cannot be specified with -fpic, -fPIC or -fpie option");
+      *no_add_attrs = 1;
+      return NULL_TREE;
+    }
+
+  if (DECL_P(*node))
+    {
+      attached_to = IDENTIFIER_POINTER(DECL_NAME(*node));
+    }
+    // TODO: "coherent" is N/A on PIC32C
+#if 0
+  /* The persistent attribute implies coherent for variables. */
+    // Don't worry about the initialization value specified for persistent,
+    // it will be et to NULL.
+    // TODO: The .pbss section will not be created now. Is it required?
+
+  if ((TREE_CODE(*node) == VAR_DECL) &&
+//       !DECL_INITIAL(*node) &&
+      (lookup_attribute ("coherent", DECL_ATTRIBUTES(*node)) == NULL) )
+    {
+      tree attrib_coherent = build_tree_list (get_identifier ("coherent"), NULL_TREE);
+      attrib_coherent = chainon (DECL_ATTRIBUTES(*node), attrib_coherent);
+      decl_attributes (node, attrib_coherent, 0);
+      DECL_COMMON (*node) = 0;
+    }
+#endif
   return NULL_TREE;
 }
 
@@ -1313,6 +1392,25 @@ mchp_keep_p (tree decl)
   return (a != NULL_TREE);
 }
 
+static int
+mchp_persistent_p (tree decl)
+{
+  tree a;
+  const char *sname = NULL;
+
+  a = lookup_attribute ("persistent", DECL_ATTRIBUTES (decl));
+  if (a == NULL_TREE)
+  {
+    sname = DECL_SECTION_NAME(decl);
+    /* test user-specified ".pbss" or ".persist" attributes */
+    if (sname &&
+  (!strcmp (sname, SECTION_NAME_PERSIST) || !strcmp (sname, SECTION_NAME_PBSS)))
+      return 1;
+  }
+
+  return a != NULL_TREE;
+}
+
 static tree
 get_mchp_absolute_address (tree decl)
 {
@@ -1661,6 +1759,28 @@ mchp_build_prefix (tree decl, int fnear, char *prefix)
 	{
 	  flags |= SECTION_READ_ONLY;
 	}
+
+      if ((flags & SECTION_PERSIST)  || (mchp_persistent_p(decl)))
+        {
+          f += sprintf(f, MCHP_PRST_FLAG);
+          section_type_set = 1;
+          DECL_COMMON (decl) = 0;
+          if (DECL_INITIAL(decl))
+            {
+                if (DECL_NAME(decl) != NULL_TREE)
+                  {
+                    ident = IDENTIFIER_POINTER(DECL_NAME(decl));
+                    warning(0, "Persistent variable '%s' will not be initialized",
+                            ident);
+                  }
+                else
+                  {
+                    warning(0, "Persistent variable will not be initialized");
+                  }
+                /* Persistent variables will not be initialized. So, make them as bss sections. */
+                DECL_INITIAL(decl) = NULL_TREE;
+            }
+        }
     }
 
   if (address_attr)
@@ -1782,7 +1902,15 @@ mchp_build_prefix (tree decl, int fnear, char *prefix)
     {
       f += sprintf (f, MCHP_KEEP_FLAG);
     }
-
+    // TODO: "coherent" is N/A on PIC32C
+#if 0
+  if (mchp_coherent_p (decl)
+    || (flags & SECTION_PERSIST) || mchp_persistent_p(decl))
+     /* add implicit coherent flag when persistent is specified */
+  {
+    f += sprintf(f, MCHP_COHERENT_FLAG);
+  }
+#endif
   return fnear;
 }
 
@@ -2306,7 +2434,8 @@ mchp_select_section (tree decl, int reloc,
   if ((TREE_CODE (decl) == FUNCTION_DECL) || (TREE_CODE (decl) == VAR_DECL))
     {
       if (IN_NAMED_SECTION (decl) || get_mchp_absolute_address (decl)
-	  || get_mchp_space_attribute (decl) || get_pic32c_tcm_attribute (decl))
+	  || get_mchp_space_attribute (decl) || get_pic32c_tcm_attribute (decl)
+          || mchp_persistent_p (decl))
 	{
 	  flags = section_flags_from_decl (decl);
 
@@ -2467,6 +2596,11 @@ default_section_name (tree decl, SECTION_FLAGS_INT flags)
 	}
       else if (TREE_CODE (decl) == VAR_DECL)
 	{
+	  if (mchp_persistent_p(decl))
+	    {
+	      if (!pszSectionName || strcmp(pszSectionName, SECTION_NAME_PERSIST) != 0)
+		pszSectionName = SECTION_NAME_PBSS;
+	    }
 	  if (pszSectionName
 	      && !(tcm_attr && flag_data_sections)) /* FIX ME: fix
 						       -fdata-sections on tcm
@@ -2799,7 +2933,7 @@ mchp_get_named_section_flags (const char *pszSectionName,
     {
       f += sprintf (f, "," SECTION_ATTR_NOLOAD);
     }
-  if (flags & SECTION_DEBUG)
+  if ((flags & SECTION_DEBUG) || (flags & SECTION_INFO))
     {
       f += sprintf (f, "," SECTION_ATTR_INFO);
     }
@@ -2947,6 +3081,66 @@ pic32c_file_end (void)
 {
   pic32c_output_configuration_words ();
 }
+
+/* The following hooks were added for Code Coverage but they
+ * may prove useful for other purposes as well */
+void
+pic32c_expand_function_start (tree decl)
+{
+  pic32c_start_function (decl);
+}
+
+void
+pic32c_asm_code_end (void)
+{
+  xccov_code_end ();
+}
+
+void
+pic32c_cond_reg_usage (void)
+{
+  pic32c_reserve_registers ();
+}
+
+/* if 'mchp_pragma_nocodecov' is set, adds 'nocodecov' attribute to function types */
+void
+pic32c_set_default_type_attributes (tree type)
+{
+  if (mchp_pragma_nocodecov
+      && (TREE_CODE (type) == FUNCTION_TYPE || TREE_CODE (type) == METHOD_TYPE))
+    {
+      tree type_attr_list = TYPE_ATTRIBUTES (type);
+      tree attr_name = get_identifier ("nocodecov");
+
+      type_attr_list = tree_cons (attr_name, NULL_TREE, type_attr_list);
+      TYPE_ATTRIBUTES (type) = type_attr_list;
+    }
+}
+
+void
+pic32c_emit_cc_section (const char *name)
+{
+  gcc_assert (name);
+
+  SECTION_FLAGS_INT flags = 0;
+
+  if (!strcmp (name, CODECOV_SECTION))
+    {
+      flags = SECTION_BSS;
+    }
+  else if (!strcmp (name, CODECOV_INFO_HDR) || !strcmp (name, CODECOV_INFO))
+    {
+      flags = SECTION_INFO | SECTION_KEEP;
+    }
+  else
+    {
+      gcc_unreachable ();
+    }
+
+  switch_to_section (get_section (name, flags, NULL));
+}
+
+/* --- end of Code Coverage-related hooks */
 
 /* Build a TREE_LIST node encoding a format string and conversion specifier
    set for smart-io. */

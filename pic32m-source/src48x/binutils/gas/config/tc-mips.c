@@ -18288,11 +18288,10 @@ mips_fix_adjustable (fixS *fixp)
   /* adjusting relocation to be against section symbol in case the section is an
      absolute section would mess up addresses */
 #ifdef TARGET_IS_PIC32MX
-  if (fixp->fx_addsy->bsym && fixp->fx_addsy->bsym->section)
-    {
-          if (PIC32_IS_ABSOLUTE_ATTR(fixp->fx_addsy->bsym->section))
-            return 0;
-    }
+  segT section = S_GET_SEGMENT(fixp->fx_addsy);
+
+  if (section && PIC32_IS_ABSOLUTE_ATTR(section))
+    return 0;
 #endif
 
   /* Alow relocs used for EH tables.  */

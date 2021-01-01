@@ -1,8 +1,8 @@
 /* Definitions of target machine for GNU compiler.
    For ARM with ELF obj format.
-   Copyright (C) 2017 Free Software Foundation, Inc.
+   Copyright (C) 2017, 2018 Free Software Foundation, Inc.
    Contributed by L Ghica <lavinia.ghica@microchip.com>
-   
+
    This file is part of GCC.
 
    GCC is free software; you can redistribute it and/or modify it
@@ -24,6 +24,12 @@
    see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
    <http://www.gnu.org/licenses/>.  */
 
+#include "config/mchp-cci/cci-backend.h"
+
+#ifndef MCHP_CCI_CC1_SPEC
+#error MCHP_CCI_CC1_SPEC not defined
+#endif
+
 #undef CPLUSPLUS_CPP_SPEC
 #define CPLUSPLUS_CPP_SPEC  \
     "%(cpp)"
@@ -38,12 +44,14 @@
     "%(cc1_smartio)"         \
     "%(cc1_config_data)"     \
     "%(pic32_cmsis_include)" \
-    "%(mcc_include)"
+    "%(mcc_include)"         \
+    "%(mchp_cci_cc1_spec)"
 
 #undef CC1PLUS_SPEC
 #define CC1PLUS_SPEC         \
     "%(pic32_cmsis_include)" \
     "%(mcc_include)"
+
 
 #undef SUBTARGET_EXTRA_SPECS
 #define SUBTARGET_EXTRA_SPECS                                                  \
@@ -60,13 +68,14 @@
   { "asm_float", ASM_FLOAT_SPEC },                                             \
   { "linker_script", SUBTARGET_LINKER_SCRIPT_SPEC },                           \
   { "linker_smartio", SUBTARGET_LINKER_SMARTIO_SPEC },                         \
-  { "subtarget_extra_asm_spec",	SUBTARGET_EXTRA_ASM_SPEC },                    \
+  { "subtarget_extra_asm_spec", SUBTARGET_EXTRA_ASM_SPEC },                    \
   { "subtarget_asm_float_spec", SUBTARGET_ASM_FLOAT_SPEC },                    \
   { "subtarget_extra_link_spec", SUBTARGET_EXTRA_LINK_SPEC },                  \
   { "pic32_cmsis_include",      PIC32_CMSIS_INCLUDE_SPEC},                     \
   { "pic32_cmsis_include_m",    PIC32_CMSIS_INCLUDE_M_SPEC},                   \
   { "pic32_cmsis_include_a",    PIC32_CMSIS_INCLUDE_A_SPEC},                   \
   { "mcc_include",      MCC_INCLUDE_SPEC},                                     \
+  { "mchp_cci_cc1_spec", MCHP_CCI_CC1_SPEC },                                  \
   SUBSUBTARGET_EXTRA_SPECS
 
 #undef SUBTARGET_EXTRA_ASM_SPEC

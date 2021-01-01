@@ -35,6 +35,10 @@ along with GCC; see the file COPYING3.  If not see
 #undef TARGET_64BIT
 #define TARGET_64BIT TARGET_64BIT_DEFAULT
 
+#ifndef COMPILER_PATH_ENV
+#define COMPILER_PATH_ENV "COMPILER_PATH"
+#endif
+
 #ifndef LIBRARY_PATH_ENV
 #define LIBRARY_PATH_ENV "LIBRARY_PATH"
 #endif
@@ -1123,7 +1127,7 @@ main (int argc, char **argv)
 #endif
 
   /* Extract COMPILER_PATH and PATH into our prefix list.  */
-  prefix_from_env ("COMPILER_PATH", &cpath);
+  prefix_from_env (COMPILER_PATH_ENV, &cpath);
   prefix_from_env ("PATH", &path);
 
   /* Try to discover a valid linker/nm/strip to use.  */

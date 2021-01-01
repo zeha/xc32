@@ -3672,8 +3672,7 @@ elf_link_add_object_symbols (bfd *abfd, struct bfd_link_info *info)
 
   // PIC32
   if (pic32_debug)
-    printf("\nLoading symbols from %s\n", abfd->filename);
-
+    fprintf(stderr, "\nLoading symbols from %s\n", abfd->filename);
 
 
   htab = elf_hash_table (info);

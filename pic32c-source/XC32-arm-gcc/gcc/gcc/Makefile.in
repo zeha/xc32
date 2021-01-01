@@ -1034,7 +1034,7 @@ BUILD_LIBDEPS= $(BUILD_LIBIBERTY)
 LIBS = @LIBS@ libcommon.a $(CPPLIB) $(LIBINTL) $(LIBICONV) $(LIBBACKTRACE) \
 	$(LIBIBERTY) $(LIBDECNUMBER) $(HOST_LIBS)
 BACKENDLIBS = $(ISLLIBS) $(GMPLIBS) $(PLUGINLIBS) $(HOST_LIBS) \
-	$(ZLIB)
+	$(ZLIB) -lexpat
 # Any system libraries needed just for GNAT.
 SYSLIBS = @GNAT_LIBEXC@
 
@@ -1533,6 +1533,8 @@ OBJS = \
 	web.o \
 	wide-int.o \
 	wide-int-print.o \
+	xc-coverage.o \
+	xc-covtool-comm.o \
 	xcoffout.o \
 	$(out_object_file) \
 	$(EXTRA_OBJS) \

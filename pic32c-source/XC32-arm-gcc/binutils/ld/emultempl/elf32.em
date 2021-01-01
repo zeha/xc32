@@ -64,9 +64,8 @@ static void gld${EMULATION_NAME}_after_parse (void);
 static void gld${EMULATION_NAME}_after_open (void);
 static void gld${EMULATION_NAME}_before_allocation (void);
 static void gld${EMULATION_NAME}_after_allocation (void);
-// remove this for PIC32
-//static lang_output_section_statement_type *gld${EMULATION_NAME}_place_orphan
-//  (asection *, const char *, int);
+static lang_output_section_statement_type *gld${EMULATION_NAME}_place_orphan
+  (asection *, const char *, int);
 EOF
 
 if [ "x${USE_LIBPATH}" = xyes ] ; then
@@ -1964,9 +1963,11 @@ output_rel_find (asection *sec, int isdyn)
 /* Place an orphan section.  We use this to put random SHF_ALLOC
    sections in the right segment.  */
 
-#if 0   
+#if 1   
 
 // do not include this for PIC32
+// actually, include it so that we may still place orphans when
+// BFA is disabled.
 
 static lang_output_section_statement_type *
 gld${EMULATION_NAME}_place_orphan (asection *s,

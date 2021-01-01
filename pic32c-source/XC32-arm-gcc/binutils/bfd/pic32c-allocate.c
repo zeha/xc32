@@ -62,13 +62,6 @@
 #include "pic32c-attributes.h"
  } ;
 
-/* helper(s) to deal with missing regions that pass region_lookup.
-   these get a length of -1. */
-static int 
-valid_region(lang_memory_region_type *region) {
-    return (region && (region->length > 0) && (region->length != ~(bfd_size_type)0));
-}
-
 /* this usage is intended for checking if a region_info member is present and valid,
    i.e. an additional NULL check for the pic32_region pointer. */
 static int
@@ -107,7 +100,7 @@ determine_tcm_style (lang_memory_region_type **code, lang_memory_region_type **d
  *   so this really comes from the linker script
  *
  *    if there is a memory region called "tcm" then we have TCM_COMBINED
- *    if either of dtcm or itcm exists we have TCM_SEPERATTE
+ *    if either of dtcm or itcm exists we have TCM_SEPERATE
  *    if one of these co-exists with tcm we are in an error situation (not checked here)
  *    if none of these exist we have TCM_NONE    
  *
@@ -118,20 +111,20 @@ determine_tcm_style (lang_memory_region_type **code, lang_memory_region_type **d
     bfd_boolean found_itcm_or_dtcm = FALSE;
     *code = *data = NULL;
     
-    lang_memory_region_type *region = region_lookup("tcm");
+    lang_memory_region_type *region = lang_memory_region_lookup("tcm", FALSE);
 
-    if (region &&  (region->length > 0) && (region->length != ~(bfd_size_type) 0)) {
+    if (valid_region(region)) {
 	*code = region;
 	*data = region;
 	return TCM_COMBINED;
     }
-    region = region_lookup("itcm");
-    if (region &&  (region->length > 0) && (region->length != ~(bfd_size_type) 0)) {
+    region = lang_memory_region_lookup("itcm", FALSE);
+    if (valid_region(region)) {
 	*code = region;
 	found_itcm_or_dtcm = TRUE;
     }
-    region = region_lookup("dtcm");
-    if (region &&  (region->length > 0) && (region->length != ~(bfd_size_type) 0)) {
+    region = lang_memory_region_lookup("dtcm", FALSE);
+    if (valid_region(region)) {
 	*data = region;
 	found_itcm_or_dtcm = TRUE;
     }
@@ -254,13 +247,8 @@ pic32_init_region_info(struct region_info *rinfo) {
        cortex-M devices so far.
        the convention here is that if 'ram' exists, we expect
        a 'rom' as well. */
-    data_region = region_lookup ("ram");
-    code_region = region_lookup ("rom");
-
-    if (pic32_debug) {
-      fprintf(stderr, "classify: ram length %x\n", data_region->length);
-      fprintf(stderr, "classify: rom length %x\n", code_region->length);
-    }
+    data_region = lang_memory_region_lookup ("ram", FALSE);
+    code_region = lang_memory_region_lookup ("rom", FALSE);
 
     if (valid_region(data_region)) {
         /* FIXME: our scripts use the 'r' flag for just about every section
@@ -277,7 +265,8 @@ pic32_init_region_info(struct region_info *rinfo) {
     else {
       /* try sram if ram isn't anywhere to be found. */
       data_region = region_lookup ("sram");
-      if (check_region_flags(data_region, (SEC_DATA), 0)) {
+      if (valid_region(data_region)
+          && check_region_flags(data_region, (SEC_DATA), 0)) {
         if (pic32_debug) 
           fprintf(stderr, "classify: data -> 'sram'\n");
         rinfo->data = pic32_new_region(data_region);
@@ -349,7 +338,7 @@ pic32_init_region_info(struct region_info *rinfo) {
        TODO: set stack region as needed for stack-in-dtcm?
        */ 
     if (rinfo->tcm_style == TCM_NONE) {
-        code_region = region_lookup("sram");
+        code_region = lang_memory_region_lookup("sram", FALSE);
 
         /* we only want to relocate the vectors if we are not locating
            code in sram already. */
@@ -402,14 +391,18 @@ pic32_build_free_blocks(struct region_info *rinfo) {
     }
 
     /* do the same for code/data. */
-    build_free_block_list(rinfo->code, 0);
+    if (pic32_valid_region(rinfo->code))
+        build_free_block_list(rinfo->code, 0);
+
     if (rinfo->data == rinfo->code) {
         // TODO: have to suspect the same cache line issue may affect shared code/data
         // for SAMA5/MPUs
         //align_free_blocks(rinfo->data->free_blocks, 5);
     }
-    else 
-        build_free_block_list(rinfo->data, 0);
+    else {
+        if (pic32_valid_region(rinfo->data))
+            build_free_block_list(rinfo->data, 0);
+    }
 
     /* if the vector/stack targets are not any of the above, build them now.
      */
@@ -428,19 +421,19 @@ pic32_free_region_info(struct region_info *rinfo) {
 
     /* here we deal with sharing of free block lists - code/data may be shared
        between tcm and not-tcm flavours */
-    if (rinfo->code->free_blocks) {
+    if (pic32_valid_region(rinfo->code) && rinfo->code->free_blocks) {
         pic32_free_memory_list(&rinfo->code->free_blocks);
     }
 
-    if (rinfo->data->free_blocks) {
+    if (pic32_valid_region(rinfo->data) && rinfo->data->free_blocks) {
         pic32_free_memory_list(&rinfo->data->free_blocks);
     }
 
-    if (rinfo->code_tcm && rinfo->code_tcm->free_blocks) {
+    if (pic32_valid_region(rinfo->code_tcm) && rinfo->code_tcm->free_blocks) {
         pic32_free_memory_list(&rinfo->code_tcm->free_blocks);
     }
 
-    if (rinfo->data_tcm && rinfo->data_tcm->free_blocks) {
+    if (pic32_valid_region(rinfo->data_tcm) && rinfo->data_tcm->free_blocks) {
         pic32_free_memory_list(&rinfo->data_tcm->free_blocks);
     }
 
@@ -962,6 +955,7 @@ allocate_tcm_memory() {
   // if (pic32_section_list_length(alloc_section_list) == 0)
   //   return result;
 
+
   if (pic32_debug) {
       pic32_print_section_list(alloc_section_list, "tcm input");
   }
@@ -994,14 +988,15 @@ allocate_tcm_memory() {
       if (pic32_debug)     fprintf(stderr,"no output region for dtcm input sections  : not proceeding with BF allocation \n");
   }
   else {
-      
+      // 
       // make sure that the free blocks list does not contain any partial cache lines
       // TODO: make cache line size configurable
       if (region_info.tcm_style == TCM_COMBINED)
-          align_free_blocks(region_info.data_tcm->free_blocks, JUBILEE_CACHE_LINE_ALIGNMENT_POWER);
+	  align_free_blocks(region_info.data_tcm->free_blocks, JUBILEE_CACHE_LINE_ALIGNMENT_POWER);
+      
       
       reset_locate_options();
-
+      
       result |= locate_sections(address, 0, region_info.data_tcm);   /* most restrictive  */
       result |= locate_sections(all_attr, 0, region_info.data_tcm);  /* least restrictive */
   }
@@ -2132,7 +2127,9 @@ build_alloc_section_list(unsigned int mask) {
   if (alloc_section_list)
     pic32_free_section_list(&alloc_section_list);
 
+
   pic32_init_section_list(&alloc_section_list);
+
 
   /* insert the unassigned sections */
   prev = unassigned_sections;
@@ -2140,7 +2137,8 @@ build_alloc_section_list(unsigned int mask) {
     next = s->next;
     /* Don't add gc-sections to the alloc list */
     if (s->sec && (s->sec->flags & SEC_EXCLUDE))
-      continue;
+      continue;    
+
     if (s->attributes & mask) {
       if (pic32_debug) {
         fprintf(stderr,"  input section \"%s\", len = %lx, flags = %x, attr = %x\n",
@@ -2375,7 +2373,7 @@ allocate_default_stack(struct pic32_region *regn) {
     heap_base = (big_block->addr + 1);
     heap_limit = (heap_base + (big_block->size) - 0x80u);
     einfo("%P%X Error: Not enough memory for heap"
-          " (0x%x bytes needed, 0x%x bytes available)\n",
+          " (%u bytes needed, %u bytes available)\n",
             (unsigned int)(pic32c_heap_size),
             (unsigned )(heap_limit - heap_base));
   } else {

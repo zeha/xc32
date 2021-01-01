@@ -343,7 +343,7 @@ pic32c*-*-*)
 	cxx_target_objs="arm-c.o"
 	extra_options="${extra_options} arm/arm-tables.opt pic32c/pic32c.opt"
 	target_gtfiles="\$(srcdir)/config/arm/arm-builtins.c"
-	extra_objs="${extra_objs} pic32c.o mchp-license-manager.o sha256.o mchp_sha.o cci.o"
+	extra_objs="${extra_objs} pic32c.o mchp-license-manager.o sha256.o mchp_sha.o cci.o cci-backend.o pic32c-coverage.o"
 	;;
 avr-*-*)
 	cpu_type=avr

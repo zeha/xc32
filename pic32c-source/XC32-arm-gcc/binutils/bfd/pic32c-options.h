@@ -105,6 +105,7 @@ const char * shortopts = "-Dp:"; /* note: leading "-" is important */
 enum elfpic32c_options {
   REPORT_MEM_OPTION = 1000,
   PIC32C_DEBUG_OPTION,
+  PIC32C_DEBUG_SMARTIO_OPTION,
   REPORT_MAFRLCSJ_OPTION,
   REPORT_MAFRLCSJ2_OPTION,
   SMART_IO_OPTION,
@@ -141,6 +142,7 @@ enum elfpic32c_options {
 static struct option longopts[] =
 {
   { "debug",            no_argument,        NULL, PIC32C_DEBUG_OPTION },
+  { "debug-sio",        no_argument,        NULL, PIC32C_DEBUG_SMARTIO_OPTION },
   { "smart-io",         no_argument,        NULL, SMART_IO_OPTION },
   { "no-smart-io",      no_argument,        NULL, NO_SMART_IO_OPTION },
   { "report-mem",       no_argument,        NULL, REPORT_MEM_OPTION },

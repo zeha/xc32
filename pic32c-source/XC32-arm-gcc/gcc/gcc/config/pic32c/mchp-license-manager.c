@@ -1,6 +1,6 @@
 /* Subroutines used for Microchip PIC32C code generation.
    Copyright (C) 1989, 1990, 1991, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
+   1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2019
    Free Software Foundation, Inc.
    Contributed by Rathish C, rathish.chamukuttan@microchip.com
 
@@ -23,104 +23,39 @@ along with GCC; see the file COPYING3.  If not see
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
-#include "hash-table.h"
 #include "tm.h"
-#include "rtl.h"
-#include "hash-set.h"
-#include "machmode.h"
-#include "vec.h"
-#include "double-int.h"
-#include "input.h"
-#include "alias.h"
-#include "symtab.h"
-#include "wide-int.h"
-#include "inchash.h"
-#include "tree.h"
-#include "memmodel.h"
-#include "fold-const.h"
-#include "stringpool.h"
-#include "stor-layout.h"
-#include "calls.h"
-#include "varasm.h"
-#include "obstack.h"
-#include "regs.h"
-#include "hard-reg-set.h"
-#include "insn-config.h"
-#include "conditions.h"
-#include "output.h"
-#include "insn-attr.h"
-#include "flags.h"
-#include "reload.h"
-#include "function.h"
-#include "hashtab.h"
-#include "statistics.h"
-#include "real.h"
-#include "fixed-value.h"
-#include "expmed.h"
-#include "dojump.h"
-#include "explow.h"
-#include "emit-rtl.h"
-#include "stmt.h"
-#include "expr.h"
-#include "insn-codes.h"
-#include "optabs.h"
 #include "diagnostic-core.h"
-#include "recog.h"
-#include "predict.h"
-#include "dominance.h"
-#include "cfg.h"
-#include "cfgrtl.h"
-#include "cfganal.h"
-#include "lcm.h"
-#include "cfgbuild.h"
-#include "cfgcleanup.h"
-#include "basic-block.h"
-#include "hash-map.h"
-#include "is-a.h"
-#include "plugin-api.h"
-#include "ipa-ref.h"
-#include "cgraph.h"
-#include "ggc.h"
-#include "except.h"
-#include "tm_p.h"
-#include "target.h"
-#include "debug.h"
-#include "langhooks.h"
-#include "bitmap.h"
-#include "df.h"
-#include "intl.h"
-#include "libfuncs.h"
-#include "params.h"
 #include "opts.h"
-#include "dumpfile.h"
-#include "gimple-expr.h"
-#include "builtins.h"
-#include "tm-constrs.h"
-#include "rtl-iter.h"
-#include "sched-int.h"
-#include "gimplify.h"
 #include "version.h"
 
 #include "pic32c-protos.h"
 #include "pic32c.h"
 
 #if !defined(SKIP_LICENSE_MANAGER)
+
 #include "config/mchp-cci/xclm_public.h"
 #include "config/mchp-cci/mchp_sha.h"
+
+#else
+
+#define MCHP_XCLM_FREE_LICENSE           0x0
+#define MCHP_XCLM_VALID_STANDARD_LICENSE 0x1
+#define MCHP_XCLM_VALID_PRO_LICENSE      0x2
+#define MCHP_XCLM_NO_CCOV_LICENSE        0x8
+#define MCHP_XCLM_VALID_CCOV_LICENSE     0x9
+
 #endif  /* SKIP_LICENSE_MANAGER */
 
+/* Note: this doesn't look like it's defined anymore in xclm_public.h,
+ * so just define it - but maybe it should be removed?! */
+#define MCHP_XCLM_EXPIRED_DEMO           0x10
 
-#ifndef MCHP_XCLM_FREE_LICENSE
- #define MCHP_XCLM_FREE_LICENSE 0x0
- #warning MCHP_XCLM_FREE_LICENSE not defined by API
-#endif
 
-/* Static Variables to modify the optimizatrion option levels */
+/* Static Variables to modify the optimization option levels */
 
 static int nullify_Os = 0;
 static int nullify_O3 = 0;
 static int nullify_lto = 0;
-//static const char *invalid = (const char*) "invalid";
 
 static const char *disabled_option_message = NULL;
 static int message_displayed = 0;
@@ -136,8 +71,8 @@ static const char *invalid_license = "due to an invalid XC32 license";
     } \
     X
 
-#define xstr(s) str(s)
-#define str(s) #s
+#define str(s) _str(s)
+#define _str(s) #s
 
 
 #ifdef MCHP_USE_LICENSE_CONF
@@ -155,15 +90,15 @@ static const char *invalid_license = "due to an invalid XC32 license";
 #define MCHP_XCLM_FILENAME "xclm"
 #endif /* __MINGW32__*/
 
+/* this value indicates that the license status isn't resolved yet */
+#define MCHP_LICENSE_TBD -1
 
 #ifdef SKIP_LICENSE_MANAGER
-#if defined(MCHP_XCLM_VALID_PRO_LICENSE)
-HOST_WIDE_INT mchp_pic32_license_valid = MCHP_XCLM_VALID_PRO_LICENSE;
+static HOST_WIDE_INT mchp_pic32_license_valid = MCHP_XCLM_VALID_PRO_LICENSE;
+static HOST_WIDE_INT mchp_xccov_license_valid = MCHP_XCLM_VALID_CCOV_LICENSE;
 #else
-HOST_WIDE_INT mchp_pic32_license_valid = 0x2;
-#endif /* MCHP_XCLM_VALID_PRO_LICENSE */
-#else
-HOST_WIDE_INT mchp_pic32_license_valid = -1;
+static HOST_WIDE_INT mchp_pic32_license_valid = MCHP_LICENSE_TBD;
+static HOST_WIDE_INT mchp_xccov_license_valid = MCHP_LICENSE_TBD;
 #endif /* SKIP_LICENSE_MANAGER*/
 
 
@@ -175,7 +110,6 @@ get_license_manager_path (void)
   extern struct cl_decoded_option *save_decoded_options;
   char *xclmpath = NULL;
   char* bindir = NULL;
-  FILE *fptr = NULL;
   struct stat filestat;
   int xclmpath_length;
 
@@ -311,32 +245,24 @@ get_license_manager_path (void)
 
 #endif /* SKIP_LICENSE_MANAGER */
 
-
-
+/* retrieves the XC32 or the XCCOV license from XCLM */
 static int
-pic32_get_license ()
+pic32_get_license (bool xccov)
 {
+  /* if license type already determined for the corresponding product, just return it */
+  int license_type = xccov ? mchp_xccov_license_valid
+                           : mchp_pic32_license_valid;
+  if (license_type != MCHP_LICENSE_TBD)
+    {
+      return license_type;
+    }
+
+  /* assume free/no license for now */
+  license_type = xccov ? MCHP_XCLM_NO_CCOV_LICENSE : MCHP_XCLM_FREE_LICENSE;
+
   /*
    *  On systems where we have a licence manager, call it
    */
-
-/* Misc. Return Codes */
-#ifndef MCHP_XCLM_EXPIRED_DEMO
-#define MCHP_XCLM_EXPIRED_DEMO 0x10
-#endif /* MCHP_XCLM_EXPIRED_DEMO*/
-
-#if defined(MCHP_XCLM_VALID_STANDARD_LICENSE)
-#define PIC32_EXPIRED_LICENSE        MCHP_XCLM_EXPIRED_DEMO
-#define PIC32_FREE_LICENSE           MCHP_XCLM_FREE_LICENSE
-#define PIC32_VALID_STANDARD_LICENSE MCHP_XCLM_VALID_STANDARD_LICENSE
-#define PIC32_VALID_PRO_LICENSE      MCHP_XCLM_VALID_PRO_LICENSE
-#else
-#define PIC32_EXPIRED_LICENSE        MCHP_XCLM_EXPIRED_DEMO
-#define PIC32_FREE_LICENSE           0
-#define PIC32_VALID_STANDARD_LICENSE 1
-#define PIC32_VALID_PRO_LICENSE      2
-#endif
-
 #ifndef SKIP_LICENSE_MANAGER
   {
     char *exec;
@@ -345,31 +271,30 @@ pic32_get_license ()
 #else
     char kopt[] = "-checkout";
 #endif /* XCLM_FULL_CHECKOUT */
-    char productc[] = "swxc32";
-    char version[9] = "";
+    char xc32_product[] = "swxc32";
+    char xccov_product[] = "swxc-cov";
+    char version[16] = "1.0"; /* 1.0 works for xccov; for xc32, the version is determined below */
     char date[] = __DATE__;
 
 #if XCLM_FULL_CHECKOUT
-    char * args[] = { NULL, NULL, NULL, NULL, NULL, NULL};
+    char *args[] = { NULL, NULL, NULL, NULL, NULL, NULL};
 #else
-    char * args[] = { NULL, NULL, NULL, NULL, NULL};
+    char *args[] = { NULL, NULL, NULL, NULL, NULL};
 #endif /* XCLM_FULL_CHECKOUT */
 
-    //char *err_msg=(char*)"", *err_arg=(char*)"";
     const char *failure = NULL;
     int status = 0;
     int err = 0;
     int major_ver =0, minor_ver=0;
-    //extern struct cl_decoded_option *save_decoded_options;
     struct stat filestat;
     int found_xclm = 0, xclm_tampered = 1;
 
     /* Get the version number string from the entire version string */
-    if ((version_string != NULL) && *version_string)
+    if (!xccov && (version_string != NULL) && *version_string)
       {
         char *Microchip;
         gcc_assert(strlen(version_string) < 80);
-        Microchip = strrchr ((char*)version_string, 'v');
+        Microchip = strrchr (const_cast<char*>(version_string), 'v');
         if (Microchip)
           {
             while ((*Microchip) &&
@@ -389,14 +314,14 @@ pic32_get_license ()
                 minor_ver = strtol(Microchip, &Microchip, 0);
               }
           }
-        snprintf (version, 6, "%d.%02d", major_ver, minor_ver);
+        snprintf (version, sizeof(version), "%d.%02d", major_ver, minor_ver);
       }
 
     /* Arguments to pass to xclm */
     args[1] = kopt;
-    args[2] = productc;
+    args[2] = xccov ? xccov_product : xc32_product;
     args[3] = version;
-    
+
 #if XCLM_FULL_CHECKOUT
     args[4] = date;
 #endif /* XCLM_FULL_CHECKOUT */
@@ -410,15 +335,13 @@ pic32_get_license ()
 
     if (exec == NULL)
       {
-         /*Set free edition if the license manager isn't available.*/
-        mchp_pic32_license_valid=PIC32_FREE_LICENSE;
+         /*The free edition is used if the license manager isn't available.*/
         warning (0, "Could not retrieve compiler license");
         inform (input_location, "Please reinstall the compiler");
       }
     else if (-1 == stat (exec, &filestat))
       {
-         /*Set free edition if the license manager execution fails. */
-        mchp_pic32_license_valid=PIC32_FREE_LICENSE;
+         /*The free edition is used if the license manager execution fails. */
         warning (0, "Could not retrieve compiler license");
         inform (input_location, "Please reinstall the compiler");
       }
@@ -428,40 +351,27 @@ pic32_get_license ()
           found_xclm = 1;
       }
 
-#undef xstr
-#undef str
-#undef MCHP_XCLM_SHA256_DIGEST_QUOTED
-#undef MCHP_XCLM64_SHA256_DIGEST_QUOTED
-#undef MCHP_FXCLM_SHA256_DIGEST_QUOTED
-#define xstr(s) str(s)
-#define str(s) #s
-
-#define MCHP_XCLM_SHA256_DIGEST_QUOTED   xstr(MCHP_XCLM_SHA256_DIGEST)
-#define MCHP_XCLM64_SHA256_DIGEST_QUOTED xstr(MCHP_XCLM64_SHA256_DIGEST)
-#define MCHP_FXCLM_SHA256_DIGEST_QUOTED  xstr(MCHP_FXCLM_SHA256_DIGEST)
-
     /* Verify SHA sum and call xclm to determine the license */
-    if (found_xclm && mchp_pic32_license_valid==-1 && !TARGET_SKIP_LICENSE_CHECK)
+    if (found_xclm && !TARGET_SKIP_LICENSE_CHECK)
       {
         /* Verify that xclm executable is untampered */
-        xclm_tampered = mchp_sha256_validate(exec, (const unsigned char*)MCHP_XCLM_SHA256_DIGEST_QUOTED);
+        xclm_tampered = mchp_sha256_validate(exec, (const unsigned char*)str(MCHP_XCLM_SHA256_DIGEST));
 #ifdef __linux__
         /*On linux, try to validate against 64-bit and fake xclm SHA if 32-bit xclm SHA does not match*/
         if (xclm_tampered != 0)
-          { 
-            xclm_tampered = mchp_sha256_validate(exec, (const unsigned char*)MCHP_XCLM64_SHA256_DIGEST_QUOTED);
+          {
+            xclm_tampered = mchp_sha256_validate(exec, (const unsigned char*)str(MCHP_XCLM64_SHA256_DIGEST));
           }
-        if (xclm_tampered != 0)
-          { 
-            xclm_tampered = mchp_sha256_validate(exec, (const unsigned char*)MCHP_FXCLM_SHA256_DIGEST_QUOTED);
-          }
-#endif 
         if (xclm_tampered != 0)
           {
-            /* Set free edition if the license manager SHA digest does not
+            xclm_tampered = mchp_sha256_validate(exec, (const unsigned char*)str(MCHP_FXCLM_SHA256_DIGEST));
+          }
+#endif
+        if (xclm_tampered != 0)
+          {
+            /* The free edition is used if the license manager SHA digest does not
                match. The free edition disables optimization options without an
                eval period. */
-            mchp_pic32_license_valid=PIC32_FREE_LICENSE;
             warning (0, "Detected corrupt executable file");
             inform (input_location, "Please reinstall the compiler");
           }
@@ -472,33 +382,35 @@ pic32_get_license ()
 
             if (failure != NULL)
               {
-                /* Set free edition if the license manager isn't available.
+                /* The free edition is used if the license manager isn't available.
                    The free edition disables optimization options without an
                    eval period. */
-                mchp_pic32_license_valid=PIC32_FREE_LICENSE;
                 warning (0, "Could not retrieve compiler license (%s)", failure);
                 inform (input_location, "Please reinstall the compiler");
               }
             else if (WIFEXITED(status))
               {
-                mchp_pic32_license_valid = WEXITSTATUS(status);
+                /* Use the license type reported by XCLM */
+                license_type = WEXITSTATUS(status);
               }
           }
       }
   }
-  if (mchp_mafrlcsj) {
-    mchp_pic32_license_valid = PIC32_VALID_PRO_LICENSE;
-  }
-#undef xstr
-#undef str
-#undef MCHP_XCLM_SHA256_DIGEST_QUOTED
-#undef MCHP_XCLM64_SHA256_DIGEST_QUOTED
-#undef MCHP_FXCLM_SHA256_DIGEST_QUOTED
 #endif /* SKIP_LICENSE_MANAGER */
 
-  return mchp_pic32_license_valid;
+  if (mchp_mafrlcsj) {
+    license_type = xccov ? MCHP_XCLM_VALID_CCOV_LICENSE : MCHP_XCLM_VALID_PRO_LICENSE;
+  }
+
+  return license_type;
 }
 
+/* xc-coverage.c uses this to check for a valid codecov license */
+int
+pic32c_licensed_xccov_p ()
+{
+  return mchp_xccov_license_valid == MCHP_XCLM_VALID_CCOV_LICENSE;
+}
 
 void mchp_override_options_after_change(void) {
     if (nullify_Os)
@@ -540,10 +452,10 @@ static void mchp_print_license_warning (void)
 {
     switch (mchp_pic32_license_valid)
       {
-      case PIC32_EXPIRED_LICENSE:
+      case MCHP_XCLM_EXPIRED_DEMO:
         invalid_license = "because the XC32 evaluation period has expired";
         break;
-      case PIC32_FREE_LICENSE:
+      case MCHP_XCLM_FREE_LICENSE:
         invalid_license = "because this feature requires the MPLAB XC32 PRO compiler";
         break;
       default:
@@ -564,8 +476,6 @@ static void mchp_print_license_warning (void)
 
 void pic32c_subtarget_override_options(void)
 {
-  extern struct cl_decoded_option *save_decoded_options;
-
   if (TARGET_MCHP_SMARTIO_LEVEL > 2)
     {
       warning (0, "smart-io level %d invalid, defaulting to level %d",
@@ -585,15 +495,17 @@ void pic32c_subtarget_override_options(void)
 
   if (TARGET_SKIP_LICENSE_CHECK)
   {
-    mchp_pic32_license_valid = PIC32_FREE_LICENSE;
+    mchp_pic32_license_valid = MCHP_XCLM_FREE_LICENSE;
+    mchp_xccov_license_valid = MCHP_XCLM_NO_CCOV_LICENSE;
   }
   else
   {
-    mchp_pic32_license_valid = pic32_get_license ();
+    mchp_pic32_license_valid = pic32_get_license (0);
+    mchp_xccov_license_valid = pic32_get_license (1);
   }
 
-  if (mchp_pic32_license_valid == PIC32_VALID_PRO_LICENSE
-      || mchp_pic32_license_valid == PIC32_VALID_STANDARD_LICENSE)
+  if (mchp_pic32_license_valid == MCHP_XCLM_VALID_PRO_LICENSE
+      || mchp_pic32_license_valid == MCHP_XCLM_VALID_STANDARD_LICENSE)
   {
     nullify_lto = nullify_O3 = nullify_Os = 0;
   }
@@ -667,14 +579,7 @@ void pic32c_subtarget_override_options(void)
 
     /*Require a Standard or Pro license */
     if (TARGET_NO_FALLBACKLICENSE &&
-        (mchp_pic32_license_valid == PIC32_FREE_LICENSE))
+        (mchp_pic32_license_valid == MCHP_XCLM_FREE_LICENSE))
       error ("Unable to find a valid license, aborting");
   }
-
-#undef PIC32_EXPIRED_LICENSE
-#undef PIC32_VALID_STANDARD_LICENSE
-#undef PIC32_VALID_PRO_LICENSE
-
 }
-
-#undef NULLIFY

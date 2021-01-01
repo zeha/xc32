@@ -16855,6 +16855,10 @@ elf32_arm_fake_sections (bfd * abfd, Elf_Internal_Shdr * hdr, asection * sec)
   if (sec->flags & SEC_ELF_PURECODE)
     hdr->sh_flags |= SHF_ARM_PURECODE;
 
+#ifdef TARGET_IS_PIC32C
+	pic32c_fake_sections (abfd, hdr, sec);
+#endif
+
   return TRUE;
 }
 

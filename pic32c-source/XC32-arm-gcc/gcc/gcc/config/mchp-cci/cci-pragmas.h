@@ -32,6 +32,7 @@ extern void mchp_handle_scanf_args_pragma (struct cpp_reader *pfile);
 extern void mchp_handle_keep_pragma (struct cpp_reader *pfile);
 extern void mchp_handle_optimize_pragma (struct cpp_reader *pfile);
 extern void mchp_handle_align_pragma (struct cpp_reader *pfile);
+extern void mchp_handle_nocodecov_pragma (struct cpp_reader *pfile);
 
 #define MCHP_CONFIGURATION_DATA_FILENAME "configuration.data"
 #define MCHP_CONFIGURATION_HEADER_MARKER \
@@ -89,5 +90,7 @@ struct mchp_config_specification
   };
 
 extern struct mchp_config_specification *mchp_configuration_values;
+
+extern int mchp_pragma_nocodecov;
 
 #endif

@@ -110,31 +110,50 @@ copypic32mparts2image ()
   log "Copying xc.h to image directory : cp ${PYOUTDIR}/xc.h ${IMAGEDIR}/pic32-libs/include"
   cp ${PYOUTDIR}/xc.h ${IMAGEDIR}/pic32-libs/include
   cp ${PYOUTDIR}/xc-pic32m.h ${IMAGEDIR}/pic32-libs/include
+
+  if [ -f ${PYOUTDIR}/xc.h ]; then
+      cp ${PYOUTDIR}/xc.h ${IMAGEDIR}/pic32mx/include
+  fi
+  if [ -f ${PYOUTDIR}/xc-pic32m.h ]; then
+      cp ${PYOUTDIR}/xc-pic32m.h ${IMAGEDIR}/pic32mx/include
+  fi
   
-  #If we are generating part-support for full build, then exit here
-  if [ ! -z $bamboo_PART_GEN_FOR_FULL ]; then  
-    exit 0
+  log "Copying config .html files to image directory"
+  if [ -f ${PYOUTDIR}/PIC32ConfigSet.html ]; then
+      cp ${PYOUTDIR}/PIC32ConfigSet.html ${IMAGEDIR}/docs
   fi
 
-  cp ${PYOUTDIR}/xc.h ${IMAGEDIR}/pic32mx/include
-  cp ${PYOUTDIR}/xc-pic32m.h ${IMAGEDIR}/pic32mx/include
-
-  log "Copying config .html files to image directory"
-  cp ${PYOUTDIR}/PIC32ConfigSet.html ${IMAGEDIR}/docs
-  cp ${PYOUTDIR}/config_docs/*.html ${IMAGEDIR}/docs/config_docs
-
+  if ls  ${PYOUTDIR}/config_docs/*.html   1> /dev/null 2>&1; then
+      cp ${PYOUTDIR}/config_docs/*.html ${IMAGEDIR}/docs/config_docs
+  fi
+  
   log "Copying .info files to image directory"
+
+  if [ -f ${RESOUTDIR}/xc32_device.info ]; then 
   cp ${RESOUTDIR}/xc32_device.info ${IMAGEDIR}/bin
   cp ${RESOUTDIR}/xc32_device.info ${IMAGEDIR}/pic32mx
-  cp ${RESOUTDIR}/*.info ${IMAGEDIR}/bin/device_files
-  cp ${RESOUTDIR}/*.info ${IMAGEDIR}/pic32mx/device_files
-  cp ${RESOUTDIR}/*.info ${IMAGEDIR}/pic32mx/bin/device_files
+  fi
+
+  if ls  ${RESOUTDIR}/*.info 1> /dev/null 2>&1; then
+      cp ${RESOUTDIR}/*.info ${IMAGEDIR}/bin/device_files
+      cp ${RESOUTDIR}/*.info ${IMAGEDIR}/pic32mx/device_files
+      cp ${RESOUTDIR}/*.info ${IMAGEDIR}/pic32mx/bin/device_files
+  fi
   
   log "Copying .xml files to image directory"
   # The deviceSupport.xml file will be rebuilt later with the full pic32c/pic32m device list.
-  cp ${RESOUTDIR}/deviceSupport.xml ${IMAGEDIR}/bin
-  cp ${RESOUTDIR}/.LanguageToolSuite ${IMAGEDIR}/bin
-  cp ${RESOUTDIR}/.LanguageToolSuite ${IMAGEDIR}/pic32-libs/proc/XC32.LanguageToolSuite
+  if [ -f ${RESOUTDIR}/deviceSupport.xml ]; then
+      cp ${RESOUTDIR}/deviceSupport.xml ${IMAGEDIR}/bin
+  fi
+  if [ -f  ${RESOUTDIR}/.LanguageToolSuite ]; then
+      cp ${RESOUTDIR}/.LanguageToolSuite ${IMAGEDIR}/bin
+      cp ${RESOUTDIR}/.LanguageToolSuite ${IMAGEDIR}/pic32-libs/proc/XC32.LanguageToolSuite
+  fi
+
+  #If we are generating part-support for full build, then exit here
+  if [ ! -z $bamboo_PART_GEN_FOR_FULL ]; then
+    exit 0
+  fi
 
   #log "Getting files that are not generated from pic32-libs fossil repo"
   #We no longer use fossil. Get the BitBucket repo from Bamboo instead

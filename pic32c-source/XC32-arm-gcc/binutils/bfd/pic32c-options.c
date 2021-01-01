@@ -296,6 +296,9 @@ gldelf32pic32c_parse_args (int argc, char ** argv)
     case PIC32C_DEBUG_OPTION:
       pic32_debug = TRUE;
       break;
+    case PIC32C_DEBUG_SMARTIO_OPTION:
+      pic32_debug_smartio = TRUE;
+      break;
     case SMART_IO_OPTION:
       if (pic32_has_smart_io_option && (!pic32_smart_io))
         einfo(_("%P%F: Error: %s%s"), smart_io_option_err, option_err);

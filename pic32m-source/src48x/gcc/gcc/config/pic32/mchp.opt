@@ -516,3 +516,13 @@ For use by MPLAB X IDE only - Forces a free license
 mno-hi-addr-opt
 Target RejectNegative Var(TARGET_MCHP_DISABLE_HI_ADDR_OPT)
 -mno-hi-addr-opt	Disable HI address part optimization
+
+mcodecov=
+Target Report JoinedOrMissing RejectNegative ToLower Var(mchp_codecov) Init()
+-mcodecov=[sb]     Enable code coverage instrumentation
+
+mcodecov
+Target RejectNegative Alias(mcodecov=,)
+
+mcodecov-sb
+Target RejectNegative Alias(mcodecov=,sb) Undocumented

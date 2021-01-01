@@ -341,7 +341,7 @@ do
   gitdir="${all_git_directories[$i]}"
 
   commitid="${CHECKOUT_COMMIT}"
-  if [[ "${gitname}" == xclm-release ]]; then
+  if [[ "${gitname}" == "xclm"* ]]; then
       commitid="${XCLM_BRANCH}"
   fi
 

@@ -49,6 +49,14 @@ DESCRIPTION
 	<<errno>>.
 */
 
+/* provide namespace-clean name as weak stub for libpic32c syscall. */
+#if 0 //def _BUILD_MCHP_
+__attribute__((weak)) int
+_kill (int pid, int sig) {
+  return kill (pid, sig);
+}
+#endif
+
 int
 _DEFUN (_kill_r, (ptr, pid, sig),
      struct _reent *ptr _AND
@@ -88,6 +96,8 @@ DESCRIPTION
 	We never need <<errno>>, of course, but for consistency we
 	still must have the reentrant pointer argument.
 */
+
+extern int _getpid ();
 
 int
 _DEFUN (_getpid_r, (ptr),

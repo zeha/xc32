@@ -1499,4 +1499,11 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #define DWARF_GNAT_ENCODINGS_DEFAULT DWARF_GNAT_ENCODINGS_GDB
 #endif
 
+/* Type of section type flags */
+#ifdef _BUILD_MCHP_
+#ifndef SECTION_FLAGS_INT
+#define SECTION_FLAGS_INT unsigned long long
+#endif
+#endif
+
 #endif  /* ! GCC_DEFAULTS_H */

@@ -67,6 +67,7 @@ reload_cse_regs (rtx_insn *first ATTRIBUTE_UNUSED)
   reload_cse_regs_1 ();
   reload_combine ();
   moves_converted = reload_cse_move2add (first);
+
   if (flag_expensive_optimizations)
     {
       if (moves_converted)
@@ -1763,12 +1764,16 @@ move2add_use_add2_insn (rtx reg, rtx sym, rtx off, rtx_insn *insn)
     {
       struct full_rtx_costs oldcst, newcst;
       rtx tem = gen_rtx_PLUS (GET_MODE (reg), reg, new_src);
-
       get_full_set_rtx_cost (pat, &oldcst);
       SET_SRC (pat) = tem;
       get_full_set_rtx_cost (pat, &newcst);
       SET_SRC (pat) = src;
 
+      /* MCHP: the costs of adds vs. constant loads here are confounding, and
+         certainly don't account for the storage cost of a immaterializable 
+         constant (consuming a literal pool entry) vs. the cost of
+         an add with immediate operand. 
+         costs_leq_p is an ugly attempt to work around this.. */
       if (costs_lt_p (&newcst, &oldcst, speed)
 	  && have_add2_insn (reg, new_src))
 	changed = validate_change (insn, &SET_SRC (pat), tem, 0);	
@@ -1925,6 +1930,7 @@ reload_cse_move2add (rtx_insn *first)
       if (! INSN_P (insn))
 	continue;
       pat = PATTERN (insn);
+
       /* For simplicity, we only perform this optimization on
 	 straightforward SETs.  */
       if (GET_CODE (pat) == SET

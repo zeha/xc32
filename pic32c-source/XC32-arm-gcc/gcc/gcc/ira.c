@@ -3085,6 +3085,16 @@ equiv_init_movable_p (rtx x, int regno)
     case UNSPEC_VOLATILE:
       return 0;
 
+#ifdef TARGET_MCHP_PIC32C
+    /* when code coverage is enabled on PIC32C with -fPIC, we need the PIC register
+     * even in the functions that otherwise wouldn't need it but, since the codecov
+     * instrumentation code is added very late, in such functions the (SET r (UNSPEC ...))
+     * that initializes the PIC register would be removed by update_equiv_regs () here
+     * => we'll prevent that by marking the corresp. UNSPEC source as immovable */
+    case UNSPEC:
+      return !(mchp_codecov && (XINT (x, 1) == UNSPEC_PIC_UNIFIED));
+#endif
+
     case ASM_OPERANDS:
       if (MEM_VOLATILE_P (x))
 	return 0;

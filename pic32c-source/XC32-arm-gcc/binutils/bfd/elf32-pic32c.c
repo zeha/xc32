@@ -431,8 +431,21 @@ bfd_boolean pic32c_elf_final_link(bfd *abfd, struct bfd_link_info *info)
     return TRUE;
 }
 
+void pic32c_fake_sections (bfd *abfd, Elf_Internal_Shdr *hdr, asection *sec)
+{
+  const char * name;
 
+  name = bfd_get_section_name (abfd, sec);
 
+  if (CONST_STRNEQ (name, CODECOV_INFO_HDR))
+    {
+      hdr->sh_type = SHT_XC_CODECOV_INFO_HDR;
+    }
+  else if (CONST_STRNEQ (name, CODECOV_INFO))
+    {
+      hdr->sh_type = SHT_XC_CODECOV_INFO;
+    }
+}
 #if 0
 /* TODO not added yet */
 /* Data Structures for the Undefined Symbol Table */

@@ -47,6 +47,8 @@ DESCRIPTION
 	<<errno>>.
 */
 
+extern int _isatty (int fd);
+
 int
 _isatty_r (ptr, fd)
      struct _reent *ptr;

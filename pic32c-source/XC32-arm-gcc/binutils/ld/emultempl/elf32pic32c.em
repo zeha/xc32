@@ -52,7 +52,7 @@ fragment <<EOF
 #include "../bfd/pic32c-options.h"
 #include "../bfd/pic32c-utils.h"
 
-#ifndef SMARTIO_DUMP
+#ifdef NO_SMARTIO_DUMP
 #define DEBUG_SMARTIO(...)
 #else
 #define DEBUG_SMARTIO(...) do { if (pic32_debug_smartio) fprintf (stderr, __VA_ARGS__); } while(0)
@@ -105,6 +105,15 @@ char *altNameforSplim = NULL;
 char *altNamefor_dtcm_Stack = NULL;
 char *altNamefor_dtcm_Splim = NULL;
 
+/* helper(s) to deal with missing regions that pass region_lookup.
+   these get a length of -1. the default region is expected to 
+   have this length, so we handle it by name. */
+int 
+valid_region(lang_memory_region_type *region) {
+    return (region && (region->length > 0) && 
+            ((region->length != ~(bfd_size_type)0) ||
+             (strcmp (region->name_list.name, DEFAULT_MEMORY_REGION) == 0)));
+}
 
 static void
 gld${EMULATION_NAME}_before_parse (void)
@@ -1115,7 +1124,21 @@ smartio_add_symbols (struct bfd_link_info *sec_info)
 
       while (hlist != NULL)
         {
-          if (use_smartio)
+          /* xc32-981 - we must also do a lookup for user-defined equivalents and
+             faithfully use them. */
+          long user_defined = 0;
+          struct bfd_link_hash_entry *hf
+            = bfd_link_hash_lookup (sec_info->hash, smartio_funcs[hlist->index].name, 0, 0, 0);
+
+          if (hf && (hf->type == bfd_link_hash_defined)) 
+            {
+              user_defined = 1;
+              DEBUG_SMARTIO("using user-defined %s for %s\n",
+                            smartio_funcs[hlist->index].name, hlist->h->root.string);
+
+            }
+
+          if (use_smartio && !user_defined)
 	    sprintf (buf, "_%s_%s", smartio_funcs[hlist->index].name,
 		     suffix_info[index].suffix);
 	  else
@@ -1206,7 +1229,17 @@ smartio_merge_symbols (void)
 	  /* remap all calls to the covering symbol and discard unused syms. */
 	  struct bfd_link_hash_entry *h
 	    = bfd_pic32_is_defined_global_symbol (buf);
-	  ASSERT(h);
+
+
+          /* XC32-981 - if the covering symbol is not defined, we chose
+             not to add it in smartio_add_symbols. so complete the handshake and
+             fall back to the plain symbol. */
+          if (!h) 
+            {
+              DEBUG_SMARTIO("-- covering symbol not found, using vanilla function\n");
+              h = bfd_pic32_is_defined_global_symbol (smartio_funcs[hlist->index].name);
+            }
+          ASSERT(h);
 
 	  if (hlist->h->type == bfd_link_hash_undefined
 	      || hlist->h->type == bfd_link_hash_undefweak)
@@ -1423,7 +1456,7 @@ bfd_pic32_report_sections (s, region, magic_sections, fp)
 
   /* TODO: this is probably indicative of serious issues, if we want
      to report on a fake region. */
-  if (region->length == ~(bfd_size_type)0) 
+  if (!valid_region(region))
     return 0;
     
   /*
@@ -2950,7 +2983,7 @@ pic32_strip_sections (abfd)
  * memory configuration. */
 void
 pic32_init_alloc(void) {
-  pic32_init_region_info(&region_info);
+  pic32_allocate = pic32_allocate && pic32_init_region_info(&region_info);
 }
 
 void
@@ -3006,7 +3039,7 @@ bfd_pic32_finish(void)
 
   /* If a stack was not defined as a section, or by symbols,
      allocate one from remaining memory */
-  if (!user_defined_stack) {
+  if (!user_defined_stack && pic32_allocate) {
     allocate_default_stack(region_info.data);
 
   /*
@@ -3062,6 +3095,7 @@ bfd_pic32_finish(void)
             fprintf( stderr, "Link Error: Unable to allocate stack\n");
         }
   }
+
   /* was there a PROVIDE in the linker script to give an alternate name for _stack and _splim? */
   /* see ldexp.c for details */
   if (altNameforStack != NULL) {
@@ -3084,9 +3118,9 @@ bfd_pic32_finish(void)
       free(altNameforSplim);
       
   }
-  
- 
-  
+
+  /* if we don't understand the stack, we shouldn't check it. */
+  if (stack_limit && stack_base) {
 
   /* Range check the stack, no matter how it was created */
   if ( (unsigned int) (stack_limit - stack_base) < (unsigned int) pic32c_stack_size)
@@ -3119,6 +3153,10 @@ bfd_pic32_finish(void)
                                     BSF_GLOBAL, bfd_abs_section_ptr,
                                     pic32c_heap_size, "_min_heap_size", 1, 0, 0);
 
+  }
+
+  /* this will be 0 if there's no user stack or BFA-allocated stack .. good thing
+     it does not appear to be used. */
   end_data_mem = stack_limit;
 
 
@@ -3927,7 +3965,7 @@ bfd_pic32_report_memory_usage (fp)
   {
      if (!lang_memory_region_exist(pmregions_to_report[region_index].name))
        continue;
-     region = region_lookup(pmregions_to_report[region_index].name);
+     region = lang_memory_region_lookup(pmregions_to_report[region_index].name, FALSE);
 
      /* could have a bogus region due to region_lookup's strangeness. */
      if (!valid_region(region)) 
@@ -3972,7 +4010,7 @@ bfd_pic32_report_memory_usage (fp)
      if (!lang_memory_region_exist(dmregions_to_report[region_index].name))
        continue;
 
-     region = region_lookup(dmregions_to_report[region_index].name);
+     region = lang_memory_region_lookup(dmregions_to_report[region_index].name, FALSE);
 
      /* could have a bogus region due to region_lookup's strangeness. */
      if (!valid_region(region))
@@ -4129,9 +4167,9 @@ bfd_pic32_report_memory_regions (FILE *memory_summary_file,
     if (!lang_memory_region_exist (*region_names))
       continue;
 
-    region = region_lookup (*region_names);
+    region = lang_memory_region_lookup (*region_names, FALSE);
 
-    if (region->length == ~(bfd_size_type) 0)
+    if (!valid_region(region))
       continue;
 
     for (s = pic32_section_list; s != NULL; s = s->next)
@@ -4255,10 +4293,8 @@ bfd_pic32_collect_section_size (s, region )
    
   /*
   ** report SEC_ALLOC sections in memory
-  ** TODO: it is likely a severe error to enter this when the
-  ** region is invalid.
   */
-  if (region->length != ~(bfd_size_type)0 && 
+  if (valid_region(region) &&
       ((s->sec->flags & SEC_ALLOC) && (s->sec->size > 0)))
     {
       if ((start >= region->origin) &&
@@ -4814,9 +4850,9 @@ pic32c_after_open(void)
    sections in the right segment.  */
 
 static lang_output_section_statement_type
-*gldelf32pic32c_place_orphan ( asection *sec,
-                              const char *secname ATTRIBUTE_UNUSED,
-                              int constraint ATTRIBUTE_UNUSED)
+*arm_elf_place_orphan ( asection *sec,
+                        const char *secname ATTRIBUTE_UNUSED,
+                        int constraint ATTRIBUTE_UNUSED)
 {
 
   if (pic32_allocate) {  /* if best-fit allocator enabled */
@@ -4859,8 +4895,9 @@ static lang_output_section_statement_type
     
     return 1;  /* and exit */
   }
-// downstream this return value is ignored so just give NULL all the time
-  return NULL;
+  else {
+    return gld${EMULATION_NAME}_place_orphan(sec, secname, constraint);
+  }
 } /*static lang_output_section_statement_type* gldelf32pic32c_place_orphan () */
 
 EOF
@@ -5101,11 +5138,14 @@ LDEMUL_EXTRA_MAP_FILE_TEXT=arm_extra_map_file_text
 
 LDEMUL_AFTER_OPEN=pic32c_after_open
 
+# FIXME? these fail to include or handle any of the existing
+# arm-specific emulation options.
 LDEMUL_PARSE_ARGS=gldelf32pic32c_parse_args
 LDEMUL_LIST_OPTIONS=gldelf32pic32c_list_options
 # fixme:  not sure next one is right or even needed
 #LDEMUL_AFTER_PARSE=arm_after_parse    
 
-LDEMUL_PLACE_ORPHAN=gldelf32pic32c_place_orphan
+# Renamed because we may need to call the standard place_orphan.
+LDEMUL_PLACE_ORPHAN=arm_elf_place_orphan
 
 LDEMUL_AFTER_ALLOCATION=gldelf32pic32c_after_allocation

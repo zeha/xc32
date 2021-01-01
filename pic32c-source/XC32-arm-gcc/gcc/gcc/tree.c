@@ -12557,6 +12557,28 @@ typedef_variant_p (const_tree type)
   return is_typedef_decl (TYPE_NAME (type));
 }
 
+#ifdef _BUILD_MCHP_
+static const char *get_node_name (tree node)
+{
+  if (DECL_P (node))
+    return IDENTIFIER_POINTER (DECL_NAME (node));
+
+  gcc_assert (TYPE_P (node));
+  tree what = NULL_TREE;
+
+  if (TYPE_NAME (node))
+    {
+      if (TREE_CODE (TYPE_NAME (node)) == IDENTIFIER_NODE)
+        what = TYPE_NAME (node);
+      else if (TREE_CODE (TYPE_NAME (node)) == TYPE_DECL
+                && DECL_NAME (TYPE_NAME (node)))
+        what = DECL_NAME (TYPE_NAME (node));
+    }
+
+  return what ? IDENTIFIER_POINTER (what) : "(nil)";
+}
+#endif
+
 /* Warn about a use of an identifier which was marked deprecated.  */
 void
 warn_deprecated_use (tree node, tree attr)
@@ -12580,7 +12602,27 @@ warn_deprecated_use (tree node, tree attr)
     }
 
   if (attr)
-    attr = lookup_attribute ("deprecated", attr);
+    {
+#ifdef _BUILD_MCHP_
+      tree as_error = lookup_attribute("target_error", attr);
+      if (as_error)
+        {
+          error ("%qs : %s", get_node_name (node),
+                 TREE_STRING_POINTER (TREE_VALUE (TREE_VALUE (as_error))));
+          return;
+        }
+      tree unsupported = lookup_attribute("unsupported", attr);
+      if (unsupported)
+        {
+          // NOTE: wouldn't it be better to lose the " is unsupported" part here?
+          // (the message already contains this syntagm)
+          warning (0, "%qs is unsupported: %s", get_node_name (node),
+                   TREE_STRING_POINTER (TREE_VALUE (TREE_VALUE (unsupported))));
+          return;
+        }
+#endif
+      attr = lookup_attribute ("deprecated", attr);
+    }
 
   if (attr)
     msg = TREE_STRING_POINTER (TREE_VALUE (TREE_VALUE (attr)));

@@ -73,6 +73,17 @@ struct pic32_section
      if something is expected to be added to dinit. */
 };
 
+
+/* Section types for code coverage */
+#define SHT_XC_CODECOV_INFO     (SHT_LOUSER + 0xCC0)
+#define SHT_XC_CODECOV_INFO_HDR (SHT_LOUSER + 0xCC1)
+
+/* Section names for code coverage (taken from gcc/gcc/xc-coverage.h) */
+#define CODECOV_SECTION        ".codecov"
+#define CODECOV_INFO           ".codecov_info"
+#define CODECOV_INFO_HDR       ".codecov_info.hdr"
+
+
 #if 1
 /************************************************************************/
 /*   pic32-specific section flags                                       */
@@ -162,6 +173,8 @@ struct pic32_fill_option
   int range_size;
 };
 
+extern void pic32c_fake_sections (bfd *, Elf_Internal_Shdr *, asection *);
+
 /* an enum to represent the style of TCM that we are linking to */
 enum tcm_style
 {
@@ -204,6 +217,11 @@ struct region_info {
 
 /* global region_info, living in pic32c-allocate.c */
 extern struct region_info region_info;
+
+/* the canonical check for a valid memory region. */
+/* TODO: all uses of this should be unneccessary once we stop creating
+   bogus regions in region_lookup() */
+extern int valid_region(struct memory_region_struct *);
 
 #endif /* _ELF_PIC32_H */
 

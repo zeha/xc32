@@ -46,6 +46,8 @@ DESCRIPTION
 	<<errno>>.
 */
 
+extern int _open (const char *file, int flags, int mode);
+
 int
 _DEFUN (_open_r, (ptr, file, flags, mode),
      struct _reent *ptr _AND
@@ -60,6 +62,5 @@ _DEFUN (_open_r, (ptr, file, flags, mode),
     ptr->_errno = errno;
   return ret;
 }
-
 
 #endif /* ! defined (REENTRANT_SYSCALLS_PROVIDED) */

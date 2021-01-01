@@ -7680,6 +7680,7 @@ fail:
 int
 check_user_alignment (const_tree align, bool allow_zero)
 {
+  HOST_WIDE_INT ialign;
   int i;
 
   if (error_operand_p (align))
@@ -7692,8 +7693,9 @@ check_user_alignment (const_tree align, bool allow_zero)
     }
   else if (allow_zero && integer_zerop (align))
     return -1;
-  else if (tree_int_cst_sgn (align) == -1
-           || (i = tree_log2 (align)) == -1)
+  else if (!tree_fits_shwi_p (align)
+           || (ialign = tree_to_shwi (align),
+               i = exact_log2 (ialign < 0 && TARGET_CCI ? -ialign : ialign)) == -1)
     {
       error ("requested alignment is not a positive power of 2");
       return -1;
@@ -7703,6 +7705,8 @@ check_user_alignment (const_tree align, bool allow_zero)
       error ("requested alignment is too large");
       return -1;
     }
+  if (ialign < 0)
+    warning (0, "CCI negative alignment not supported (transformed into positive alignment)");
   return i;
 }
 

@@ -5287,11 +5287,16 @@ expand_function_start (tree subr)
 #endif
     }
 
+#ifdef TARGET_MCHP_PIC32C
+  /* I wonder why wasn't such a hook already provided by GCC... */
+  pic32c_expand_function_start (subr);
+#endif
+
   /* If we are doing generic stack checking, the probe should go here.  */
   if (flag_stack_check == GENERIC_STACK_CHECK)
     stack_check_probe_note = emit_note (NOTE_INSN_DELETED);
 }
-
+
 void
 pop_dummy_function (void)
 {

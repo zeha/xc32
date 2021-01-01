@@ -130,4 +130,18 @@ mallow-partial-config-words
 Target Var(mchp_allow_partial_config_words) Init(0)
 Allow (or disallow) config words to be partially specified using #pragma config directives.
 
+mcodecov=
+Target Report JoinedOrMissing RejectNegative ToLower Var(mchp_codecov) Init()
+-mcodecov=[sb]     Enable code coverage instrumentation
+
+mcodecov
+Target RejectNegative Alias(mcodecov=,)
+
+mcodecov-sb
+Target RejectNegative Alias(mcodecov=,sb) Undocumented
+
+mcci
+Target RejectNegative Var(TARGET_CCI)
+-mcci   Use CCI keywords
+
 ;

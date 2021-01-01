@@ -255,7 +255,7 @@ extern void pic32c_final_include_paths (struct cpp_dir *, struct cpp_dir *);
       if ((mchp_processor_string != NULL) && *mchp_processor_string)           \
 	{                                                                      \
 	  char *proc, *p;                                                      \
-	  gcc_assert (strlen (mchp_processor_string) < 18);                    \
+	  gcc_assert (strlen (mchp_processor_string) <= 32);                   \
 	  for (p = (char *) mchp_processor_string; *p; p++)                    \
 	    *p = TOUPPER (*p);                                                 \
 	  proc = (char *) alloca (strlen (mchp_processor_string) + 6);         \
@@ -326,6 +326,7 @@ extern void pic32c_final_include_paths (struct cpp_dir *, struct cpp_dir *);
 	  builtin_define_with_int_value ("__XC_VERSION",                       \
 					 pic32_compiler_version);              \
 	}                                                                      \
+      mchp_init_cci (pfile);                                                   \
     }                                                                          \
   while (0)
 
@@ -399,18 +400,25 @@ extern unsigned int g_ARM_BUILTIN_MAX;
     {"address", 1, 1, false, false, false, pic32c_address_attribute, false},   \
     {"keep", 0, 0, false, false, false, pic32c_keep_attribute, false},         \
     {"space", 1, 1, false, false, false, pic32c_space_attribute, false},       \
+    {"persistent", 0, 0, false, false, false, pic32c_persistent_attribute,     \
+      false },                                                                 \
     {"tcm", 0, 0, false, false, false, pic32c_tcm_attribute, false},           \
     {"unique_section", 0, 0, true, false, false,                               \
       pic32c_unique_section_attribute, false},                                 \
     {"noload", 0, 0, false, false, false, pic32c_noload_attribute, false},     \
+    {"nocodecov", 0, 0, false, true, true, NULL, false},                       \
     {"unsupported", 0, 1, false, false, false, pic32c_unsupported_attribute,   \
+      false},                                                                  \
+    {"target_error", 1, 1, false, false, false, pic32c_target_error_attribute, \
       false},
+
 
 /* The Microchip port has a few pragmas to define as well */
 #undef REGISTER_SUBTARGET_PRAGMAS
 #define REGISTER_SUBTARGET_PRAGMAS()                                           \
   {                                                                            \
     c_register_pragma (0, "config", mchp_handle_config_pragma);                \
+    c_register_pragma (0, "nocodecov", mchp_handle_nocodecov_pragma);          \
   }
 
 /* set path to linker for collect2 wrapper */
@@ -537,5 +545,62 @@ extern unsigned int g_ARM_BUILTIN_MAX;
   "%{mitcm=*: -Wl,-DITCM_LENGTH=%*,-itcm=%* -DENABLE_TCM -DITCM_LENGTH=%*}"    \
   "%{mdtcm=*: -Wl,-DDTCM_LENGTH=%*,-dtcm=%* -DENABLE_TCM -DDTCM_LENGTH=%*}"    \
   "%{mstack-in-tcm: -Wl,-stack-in-tcm -DENABLE_TCM}}"
+
+/* The Code Coverage target hooks -----> */
+#define TARGET_XCCOV_LIBEXEC_PATH pic32c_libexec_path
+#define TARGET_XCCOV_ADJ_INS_POS  pic32c_adjust_insert_pos
+#define TARGET_XCCOV_LD_CC_BITS   pic32c_ld_cc_bits
+#define TARGET_XCCOV_CC_BITS_OFS  1
+#define TARGET_XCCOV_SET_CC_BIT   pic32c_set_cc_bit
+#define TARGET_XCCOV_BEGIN_INSTMT pic32c_begin_cc_instrument
+#define TARGET_XCCOV_END_INSTMT   pic32c_end_cc_instrument
+#define TARGET_XCCOV_LICENSED     pic32c_licensed_xccov_p
+#define TARGET_XCCOV_EMIT_SECTION pic32c_emit_cc_section
+
+#undef SUBTARGET_OVERRIDE_INTERNAL_OPTIONS
+#define SUBTARGET_OVERRIDE_INTERNAL_OPTIONS                                    \
+  do {                                                                         \
+    /* Disable shrink-wrap if the RTL CC is used */                            \
+    if (opts->x_mchp_codecov)                                                  \
+      opts->x_flag_shrink_wrap = false;                                        \
+  } while (0)
+
+#undef SUBTARGET_CONDITIONAL_REGISTER_USAGE
+#define SUBTARGET_CONDITIONAL_REGISTER_USAGE pic32c_cond_reg_usage ()
+
+#undef TARGET_ASM_CODE_END
+#define TARGET_ASM_CODE_END pic32c_asm_code_end
+
+#undef SUBTARGET_SET_DEFAULT_TYPE_ATTRIBUTES
+#define SUBTARGET_SET_DEFAULT_TYPE_ATTRIBUTES pic32c_set_default_type_attributes
+/* <----- End of Code Coverage defines */
+
+/* By default, the C_INCLUDE_PATH_ENV is "C_INCLUDE_PATH", however
+   in a cross compiler, another environment variable might want to be used
+   to avoid conflicts with the host any host C_INCLUDE_PATH */
+#ifndef C_INCLUDE_PATH_ENV
+#define C_INCLUDE_PATH_ENV "XC32_C_INCLUDE_PATH"
+#endif
+
+/* By default, the COMPILER_PATH_ENV is "COMPILER_PATH", however
+   in a cross compiler, another environment variable might want to be used
+   to avoid conflicts with the host any host COMPILER_PATH */
+#ifndef COMPILER_PATH_ENV
+#define COMPILER_PATH_ENV "XC32_COMPILER_PATH"
+#endif
+
+/* By default, the LIBRARY_PATH_ENV is "LIBRARY_PATH", however
+   in a cross compiler, another environment variable might want to be used
+   to avoid conflicts with the host any host LIBRARY_PATH */
+#ifndef LIBRARY_PATH_ENV
+#define LIBRARY_PATH_ENV "XC32_LIBRARY_PATH"
+#endif
+
+/* By default, the GCC_EXEC_PREFIX_ENV prefix is "GCC_EXEC_PREFIX", however
+   in a cross compiler, another environment variable might want to be used
+   to avoid conflicts with the host any host GCC_EXEC_PREFIX */
+#ifndef GCC_EXEC_PREFIX_ENV
+#define GCC_EXEC_PREFIX_ENV "XC32_EXEC_PREFIX"
+#endif
 
 #endif /* __PIC32C_H */

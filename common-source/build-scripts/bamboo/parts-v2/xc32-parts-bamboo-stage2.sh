@@ -96,8 +96,7 @@ if [ ! -z $bamboo_XC32_PARTS_BUILD ]; then
   SCRIPTARGS=${SCRIPTARGS}" -b$bamboo_XC32_PARTS_BUILD"
 fi
 
-#echo "${SCRIPTROOT}/../../pic32-parts-upload.sh ${SCRIPTARGS}"
-#${SCRIPTROOT}/../../pic32-parts-upload.sh ${SCRIPTARGS}
-#checkexitcode $? "pic32-parts-upload.sh returned non-zero value, bailing out" $LINENO
-
+echo "${SCRIPTROOT}/../../pic32-parts-upload.sh ${SCRIPTARGS}"
+${SCRIPTROOT}/../../pic32-parts-upload.sh ${SCRIPTARGS}
+checkexitcode $? "pic32-parts-upload.sh returned non-zero value, bailing out" $LINENO
 

@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # This is a temporary script to generate SAM part-support
-# It will be replaced by DFP harvesting as soon as that is ready
 
 # Prerequisites
 # * brew install ant
@@ -13,8 +12,8 @@
 
 set -e
 SCRIPTROOT=$( cd "$( dirname "$0" )" && pwd )
-RELEASE_BRANCH=release/XC32_2.20
-#RELEASE_BRANCH=master
+#RELEASE_BRANCH=release/XC32_2.20
+RELEASE_BRANCH=master
 ROOT=`pwd`
 
 makecleandir ()
@@ -75,7 +74,7 @@ gitclone()
 getrepos ()
 {
 	pushd ./SAM-gen-temp
-	gitclone ssh://git@bitbucket.microchip.com/dtd earlydfpsoften
+	gitclone ssh://git@bitbucket.microchip.com/xc32 xc32-earlydfpsoften
 
 	gitclone ssh://git@bitbucket.microchip.com/xc32 pic32c-headers_generator dev_xc32_part_support feature/regenerate
 
@@ -90,10 +89,10 @@ getrepos ()
 
 getdfps ()
 {
-	pushd ./SAM-gen-temp/earlydfpsoften
+	pushd ./SAM-gen-temp/xc32-earlydfpsoften
 	./setup.sh
 	./clean.sh
-	ant latest-32bit-dfps
+	ant latest-xc32bit-dfps
 	# Remove PIC32M (MIPS) DFPs. PIC32M part support is currently handled separately.
 	cd ./packs/Microchip
 	rm -rf PIC32MK-GP_DFP
@@ -108,16 +107,14 @@ getdfps ()
 	rm -rf PIC32WK_DFP
 	rm -rf PIC32bit-Development-Only_DFP
 	rm -rf PIC32bit-Internal-Only_DFP
-
 	# The MECn2xx is a MIPS device. The MECn7xx is an ARM device.
 	rm -rf MECxxxx_DFP
+
 	
-	# Not for XC32 v2.20
-	rm -rf SAMA5D3_DEV_DFP
 	rm -rf *DEV_DFP
+
 	rm -rf SAMA5D3_DFP
 	rm -rf SAM4L_DFP
-	rm -rf SAMG_DFP
 	rm -rf SAMD09_DFP
 	rm -rf SAMD10_DFP
 	rm -rf SAMD11_DFP
@@ -128,7 +125,7 @@ getdfps ()
 
 copyatdffiles ()
 {
-	pushd ./SAM-gen-temp/earlydfpsoften/packs
+	pushd ./SAM-gen-temp/xc32-earlydfpsoften/packs
 	find . -name "*.atdf" -exec cp \{\} ../../atdf_source/ \;
 	cd ../../atdf_source
 	ATDF_SOURCE=`pwd`
@@ -150,7 +147,7 @@ copyatdffiles ()
 
 copypicfiles ()
 {
-	pushd ./SAM-gen-temp/earlydfpsoften/packs
+	pushd ./SAM-gen-temp/xc32-earlydfpsoften/packs
 	find . -name "*.PIC" -exec cp \{\} ../../pic_source/ \;
 	cd ../../pic_source
 	PIC_SOURCE=`pwd`
@@ -212,15 +209,9 @@ generatemcudefs ()
 
 copyheaderfiles ()
 {
-	pushd ./SAM-gen-temp/earlydfpsoften/packs
-
-        if [[ -z $(find . -type d -name "include_mcc") ]]; then
-          include_mcc_src=include
-          skip_include=yes
-        else
-          include_mcc_src=include_mcc
-          skip_include=""
-        fi
+	pushd ./SAM-gen-temp/xc32-earlydfpsoften/packs
+	include_mcc_src=include_mcc
+	skip_include=""
 	
 	find . -name ${include_mcc_src} > include_mcc.txt
 	for dir in `cat include_mcc.txt`; do
@@ -283,17 +274,22 @@ copyheaderfiles ()
 	done
 
         # hack here to account for newer DFPs putting the usual include_mcc content into just "include"
-        if [[ -z "${skip_include}" ]]; then
   	  find . -name "include" > include.txt
   	  for dir in `cat include.txt`; do
   		pushd ${dir} > /dev/null
+  		target_dir=include
+  		if [[ ! -d ../include_mcc ]] ; then
+  			target_dir=include_mcc
+  		fi
+
   		cd ..
   		family=$(basename `pwd`)
   		family_upper=$(echo $family | awk '{print toupper($0)}')
   		if [[ ${family_upper}[0] =~ ^[^0-9] ]] ; then
   			cd include
-  			find . -type d -exec mkdir -p ${PIC32C_LIBS_PATH}/include/proc/${family_upper}/\{\} \;
-  			find . -name "*.h" -exec cp \{\} ${PIC32C_LIBS_PATH}/include/proc/${family_upper}/\{\} \;
+  			echo Copying header files to ${PIC32C_LIBS_PATH}/$target_dir/proc/${family_upper}
+  			find . -type d -exec mkdir -p ${PIC32C_LIBS_PATH}/$target_dir/proc/${family_upper}/\{\} \;
+  			find . -name "*.h" -exec cp \{\} ${PIC32C_LIBS_PATH}/$target_dir/proc/${family_upper}/\{\} \;
   			popd > /dev/null
   		else :
   			version=$family_upper
@@ -306,16 +302,16 @@ copyheaderfiles ()
   			family_upper=${family_upper%'-DEV'}
   			family_upper=${family_upper%'_DEV'}
   			cd ${family_dir}/${version}/include
-  			echo Copying ${family_dir}/${version}/include to ${PIC32C_LIBS_PATH}/include/proc/${family_upper}/
-  			mkdir -p $PIC32C_LIBS_PATH/include/proc/$family_upper
-  			find . -type d -exec mkdir -p \{\} $PIC32C_LIBS_PATH/include/proc/$family_upper/{} \;
-  			find . -name "*.h" -exec cp \{\} $PIC32C_LIBS_PATH/include/proc/$family_upper/{} \;
+  			echo Copying ${family_dir}/${version}/include to ${PIC32C_LIBS_PATH}/$target_dir/proc/${family_upper}/
+  			mkdir -p $PIC32C_LIBS_PATH/$target_dir/proc/$family_upper
+  			find . -type d -exec mkdir -p \{\} $PIC32C_LIBS_PATH/$target_dir/proc/$family_upper/{} \;
+  			find . -name "*.h" -exec cp \{\} $PIC32C_LIBS_PATH/$target_dir/proc/$family_upper/{} \;
   			popd  > /dev/null
   		fi
   	  done
-  	  cd ${PIC32C_LIBS_PATH}/include
-  	  find . -name "*.h" -exec dos2unix \{\} \;
-        fi # end if -z $skip_include
+
+	cd ${PIC32C_LIBS_PATH}/include
+	find . -name "*.h" -exec dos2unix \{\} \;
 
 	cd ${PIC32C_LIBS_PATH}/include_mcc
 	find . -name "*.h" -exec dos2unix \{\} \;
@@ -383,15 +379,15 @@ commitchanges ()
 	pushd config_docs
 	find . -type f -exec git add {} \;
 	popd
-	git commit -a -m "Regnerate"
+	git commit -a -m "Regenerate"
 	git push --set-upstream origin feature/regenerate
 	popd
 
-    pushd pic32c-headers_generator
+	pushd pic32c-headers_generator
 	pushd xml2h/mchp/xc/pic32c/specs_gen/include/
 	find . -name "*.def" -exec git add {} \;
 	popd
-	git commit -a -m "Regnerate"
+	git commit -a -m "Regenerate"
 	git push --set-upstream origin feature/regenerate
 	popd
 
@@ -414,6 +410,10 @@ maketempdir
 getrepos
 
 getdfps
+
+echo copyheaderfiles
+copyheaderfiles
+
 copyatdffiles
 copypicfiles
 
@@ -425,14 +425,12 @@ echo generatexc
 generatexch
 echo generatemcudefs
 generatemcudefs
-echo copyheaderfiles
-copyheaderfiles
 
 echo generateconfigdata
 generateconfigdata
 
-echo commitchanges
-commitchanges
+#echo commitchanges
+#commitchanges
 
 echo
 echo 

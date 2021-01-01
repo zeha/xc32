@@ -78,6 +78,14 @@ struct four_ints
   int i[4];
 };
 
+/* Occasionally we may need to use some of the static functions from here into the PIC32C port
+ * PIC32C_STATIC will expand to "static" for other targets and to nothing for PIC32C */
+#ifdef TARGET_MCHP_PIC32C
+#define PIC32C_STATIC
+#else
+#define PIC32C_STATIC static
+#endif
+
 /* Forward function declarations.  */
 static bool arm_const_not_ok_for_debug_p (rtx);
 static bool arm_needs_doubleword_align (machine_mode, const_tree);
@@ -180,7 +188,7 @@ static int arm_register_move_cost (machine_mode, reg_class_t, reg_class_t);
 static int arm_memory_move_cost (machine_mode, reg_class_t, bool);
 static void emit_constant_insn (rtx cond, rtx pattern);
 static rtx_insn *emit_set_insn (rtx, rtx);
-static rtx emit_multi_reg_push (unsigned long, unsigned long);
+PIC32C_STATIC rtx emit_multi_reg_push (unsigned long, unsigned long);
 static int arm_arg_partial_bytes (cumulative_args_t, machine_mode,
 				  tree, bool);
 static rtx arm_function_arg (cumulative_args_t, machine_mode,
@@ -306,9 +314,13 @@ static unsigned HOST_WIDE_INT arm_asan_shadow_offset (void);
 static void arm_sched_fusion_priority (rtx_insn *, int, int *, int*);
 static section *arm_function_section (tree, enum node_frequency, bool, bool);
 static bool arm_asm_elf_flags_numeric (unsigned int flags, unsigned int *num);
+#ifndef TARGET_MCHP_PIC32C
 static unsigned int arm_elf_section_type_flags (tree decl, const char *name,
 						int reloc);
-
+#else
+unsigned pic32c_init_save_reg_mask (void);
+#define SUBTARGET_INIT_SAVE_REG_MASK pic32c_init_save_reg_mask()
+#endif
 
 /* Table of machine attributes.  */
 static const struct attribute_spec arm_attribute_table[] =
@@ -3322,6 +3334,14 @@ arm_option_override (void)
      software floating-point.  */
   if (TARGET_SOFT_FLOAT && !ARM_FSET_HAS_CPU1 (tune_flags, FL_MODE32))
     flag_schedule_insns = flag_schedule_insns_after_reload = 0;
+
+#if defined (TARGET_MCHP_PIC32C)
+  /* Disable scheduling after reload when doing code coverage with -fPIC
+   * (otherwise, the loading of the PIC register and consequently
+   * the codecov instrumentation code might end up in a wrong place) */
+  if (mchp_codecov && flag_pic)
+    flag_schedule_insns_after_reload = 0;
+#endif
 
   /* Use the cp15 method if it is available.  */
   if (target_thread_pointer == TP_AUTO)
@@ -6545,6 +6565,11 @@ arm_handle_isr_attribute (tree *node, tree name, tree args, int flags,
 	}
       /* FIXME: the argument if any is checked for type attributes;
 	 should it be checked for decl ones?  */
+      if (arm_isr_value (args) == ARM_FT_UNKNOWN)
+        {
+          warning (OPT_Wattributes, "%qE attribute ignored",
+                   name);
+        }
     }
   else
     {
@@ -6865,6 +6890,13 @@ arm_comp_type_attributes (const_tree type1, const_tree type2)
 static void
 arm_set_default_type_attributes (tree type)
 {
+#ifdef TARGET_MCHP_PIC32C
+  /* Note: Add the subtarget hook first b/c the ARM code below returns
+   * if arm_pragma_long_calls == OFF (default) */
+#ifdef SUBTARGET_SET_DEFAULT_TYPE_ATTRIBUTES
+  SUBTARGET_SET_DEFAULT_TYPE_ATTRIBUTES (type);
+#endif
+#endif
   /* Add __attribute__ ((long_call)) to all functions, when
      inside #pragma long_calls or __attribute__ ((short_call)),
      when inside #pragma no_long_calls.  */
@@ -6884,7 +6916,7 @@ arm_set_default_type_attributes (tree type)
       TYPE_ATTRIBUTES (type) = type_attr_list;
     }
 }
-
+
 /* Return true if DECL is known to be linked into section SECTION.  */
 
 static bool
@@ -7045,7 +7077,7 @@ legitimate_pic_operand_p (rtx x)
 /* Record that the current function needs a PIC register.  Initialize
    cfun->machine->pic_reg if we have not already done so.  */
 
-static void
+PIC32C_STATIC void
 require_pic_register (void)
 {
   /* A lot of the logic here is made obscure by the fact that this
@@ -9279,7 +9311,7 @@ arm_rtx_costs_1 (rtx x, enum rtx_code outer, int* total, bool speed)
 static inline int
 thumb1_size_rtx_costs (rtx x, enum rtx_code code, enum rtx_code outer)
 {
-  machine_mode mode = GET_MODE (x);
+  machine_mode mode = GET_MODE (x), const_mode;
   int words, cost;
 
   switch (code)
@@ -9323,6 +9355,32 @@ thumb1_size_rtx_costs (rtx x, enum rtx_code code, enum rtx_code outer)
       return COSTS_N_INSNS (1);
 
     case SET:
+      /* XC32E-341 - this estimate is too optimistic, in particular for
+         simple SETs of CONST_INTs, so we follow the approach of arm_new_rtx_cost
+         and check for that case outright. */
+      if (CONST_INT_P (SET_SRC (x)))
+	{
+	  /* Handle CONST_INT here, since the value doesn't have a mode
+	     and we would otherwise be unable to work out the true cost.  */
+	  cost = rtx_cost (SET_DEST (x), GET_MODE (SET_DEST (x)), SET,
+	     	           0, 0);
+          const_mode = GET_MODE (SET_DEST (x));
+
+	  /* Slightly lower the cost of setting a core reg to a constant.
+	     This helps break up chains and allows for better scheduling.  */
+	  if (REG_P (SET_DEST (x))
+	      && REGNO (SET_DEST (x)) <= LR_REGNUM)
+	    cost -= 1;
+	  x = SET_SRC (x);
+	  /* Immediate moves with an immediate in the range [0, 255] can be
+	     encoded in 16 bits in Thumb mode.  */
+	  if (TARGET_THUMB && GET_MODE (x) == SImode
+	      && INTVAL (x) >= 0 && INTVAL (x) <=255)
+	    cost >>= 1;
+
+          goto const_int_cost_thumb1;
+	}
+
       /* A SET doesn't have a mode, so let's look at the SET_DEST to get
 	 the mode.  */
       words = ARM_NUM_INTS (GET_MODE_SIZE (GET_MODE (SET_DEST (x))));
@@ -9341,19 +9399,24 @@ thumb1_size_rtx_costs (rtx x, enum rtx_code code, enum rtx_code outer)
     case CONST_INT:
       if (outer == SET)
         {
-          if ((unsigned HOST_WIDE_INT) INTVAL (x) < 256)
-            return COSTS_N_INSNS (1);
+          cost = 0;
+
+          /* we arrive here if mode has been determined in the SET case. */
+	const_int_cost_thumb1:
+
+	  if ((unsigned HOST_WIDE_INT) INTVAL (x) < 256)
+	    return cost + COSTS_N_INSNS (1);
 	  /* movw is 4byte long.  */
 	  if (TARGET_HAVE_MOVT && !(INTVAL (x) & 0xffff0000))
-	    return COSTS_N_INSNS (2);
+	    return cost + COSTS_N_INSNS (2);
 	  /* See split "TARGET_THUMB1 && satisfies_constraint_J".  */
 	  if (INTVAL (x) >= -255 && INTVAL (x) <= -1)
-            return COSTS_N_INSNS (2);
+	    return cost + COSTS_N_INSNS (2);
 	  /* See split "TARGET_THUMB1 && satisfies_constraint_K".  */
-          if (thumb_shiftable_const (INTVAL (x)))
-            return COSTS_N_INSNS (2);
-          return COSTS_N_INSNS (3);
-        }
+	  if (thumb_shiftable_const (INTVAL (x)))
+	    return cost + COSTS_N_INSNS (2);
+	  return cost + COSTS_N_INSNS (3);
+	}
       else if ((outer == PLUS || outer == COMPARE)
                && INTVAL (x) < 256 && INTVAL (x) > -256)
         return 0;
@@ -9444,6 +9507,7 @@ arm_size_rtx_costs (rtx x, enum rtx_code code, enum rtx_code outer_code,
     }
 
   /* FIXME: This makes no attempt to prefer narrow Thumb-2 instructions.  */
+  /* MCHP - fix this */
   switch (code)
     {
     case MEM:
@@ -19934,7 +19998,7 @@ static unsigned long
 arm_compute_save_reg0_reg12_mask (void)
 {
   unsigned long func_type = arm_current_func_type ();
-  unsigned long save_reg_mask = 0;
+  unsigned long save_reg_mask = SUBTARGET_INIT_SAVE_REG_MASK; /* MCHP PIC32C */
   unsigned int reg;
 
   if (IS_INTERRUPT (func_type))
@@ -20150,7 +20214,7 @@ thumb1_compute_save_reg_mask (void)
   unsigned long mask;
   unsigned reg;
 
-  mask = 0;
+  mask = SUBTARGET_INIT_SAVE_REG_MASK; /* MCHP PIC32C */
   for (reg = 0; reg < 12; reg ++)
     if (df_regs_ever_live_p (reg) && callee_saved_reg_p (reg))
       mask |= 1 << reg;
@@ -20995,7 +21059,7 @@ arm_emit_strd_push (unsigned long saved_regs_mask)
    of DWARF2 frame unwind information.  DWARF_REGS_MASK is a subset of
    MASK for registers that should be annotated for DWARF2 frame unwind
    information.  */
-static rtx
+PIC32C_STATIC rtx
 emit_multi_reg_push (unsigned long mask, unsigned long dwarf_regs_mask)
 {
   int num_regs = 0;
@@ -21150,7 +21214,7 @@ arm_add_cfa_adjust_cfa_note (rtx insn, int size, rtx dest, rtx src)
    Unfortunately, since this insn does not reflect very well the actual
    semantics of the operation, we need to annotate the insn for the benefit
    of DWARF2 frame unwind information.  */
-static void
+PIC32C_STATIC void
 arm_emit_multi_reg_pop (unsigned long saved_regs_mask)
 {
   int num_regs = 0;
@@ -28771,7 +28835,7 @@ arm_conditional_register_usage (void)
       if (TARGET_CALLER_INTERWORKING)
 	global_regs[ARM_HARD_FRAME_POINTER_REGNUM] = 1;
     }
-  SUBTARGET_CONDITIONAL_REGISTER_USAGE
+  SUBTARGET_CONDITIONAL_REGISTER_USAGE;
 }
 
 static reg_class_t
@@ -31208,7 +31272,7 @@ arm_insert_attributes (tree fndecl, tree * attributes)
   /* Nested definitions must inherit mode.  */
   if (current_function_decl)
    {
-     mode = TARGET_THUMB ? "thumb" : "arm";      
+     mode = TARGET_THUMB ? "thumb" : "arm";
      add_attribute (mode, attributes);
      return;
    }
@@ -31515,7 +31579,7 @@ arm_function_section (tree decl, enum node_frequency freq,
    then add the SFH_ARM_PURECODE attribute to the section flags.  NAME is the
    section's name and RELOC indicates whether the declarations initializer may
    contain runtime relocations.  */
-
+#ifndef TARGET_MCHP_PIC32C
 static unsigned int
 arm_elf_section_type_flags (tree decl, const char *name, int reloc)
 {
@@ -31526,6 +31590,7 @@ arm_elf_section_type_flags (tree decl, const char *name, int reloc)
 
   return flags;
 }
+#endif /* TARGET_MCHP_PIC32C */
 
 /*  This function checks for the availability of the coprocessor builtin passed
     in BUILTIN for the current target.  Returns true if it is available and

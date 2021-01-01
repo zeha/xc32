@@ -14,6 +14,10 @@ if [ $? != 0 ]; then
    echo "ERROR: xc32-full-bamboo-smoke-parts.sh - Extracting ${FULLIMAGE}.tar.gz"
    exit 1
 fi
+
+# pic32-libs may not be in the full image.
+mkdir -p ${FULLIMAGE}/pic32-libs
+
 cp -r ./image/pic32-libs/* ${FULLIMAGE}/pic32-libs/
 if [ $? != 0 ]; then
    echo "ERROR: xc32-full-bamboo-smoke-parts.sh - Failed to copy part-support files to ${FULLIMAGE}/pic32-libs"

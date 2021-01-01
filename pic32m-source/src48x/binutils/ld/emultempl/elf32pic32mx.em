@@ -2919,9 +2919,7 @@ gldelf32pic32mx_place_orphan (lang_input_statement_type *file,
     if (!unassigned_sections)
       pic32_init_section_list(&unassigned_sections);
 
-    /* co-resident lghica */
-    if ( (sec->flags & SEC_NEVER_LOAD) == 0)
-        pic32_append_section_to_list(unassigned_sections, file, sec);
+    pic32_append_section_to_list(unassigned_sections, file, sec);
 
     return 1;  /* and exit */
   }

@@ -241,7 +241,7 @@ object_block_hasher::hash (object_block *old)
 
 /* Return a new unnamed section with the given fields.  */
 section *
-get_unnamed_section (unsigned int flags, void (*callback) (const void *),
+get_unnamed_section (SECTION_FLAGS_INT flags, void (*callback) (const void *),
 		     const void *data)
 {
   section *sect;
@@ -258,7 +258,7 @@ get_unnamed_section (unsigned int flags, void (*callback) (const void *),
 
 /* Return a SECTION_NOSWITCH section with the given fields.  */
 static section *
-get_noswitch_section (unsigned int flags, noswitch_section_callback callback)
+get_noswitch_section (SECTION_FLAGS_INT flags, noswitch_section_callback callback)
 {
   section *sect;
 
@@ -272,7 +272,7 @@ get_noswitch_section (unsigned int flags, noswitch_section_callback callback)
 /* Return the named section structure associated with NAME.  Create
    a new section with the given fields if no such structure exists.  */
 section *
-get_section (const char *name, unsigned int flags, tree decl)
+get_section (const char *name, SECTION_FLAGS_INT flags, tree decl)
 {
   section *sect, **slot;
 
@@ -291,7 +291,7 @@ get_section (const char *name, unsigned int flags, tree decl)
     {
       
       sect = *slot;
-      if (((sect->common.flags & ~SECTION_DECLARED) != (unsigned int)flags)
+      if (((sect->common.flags & ~(SECTION_FLAGS_INT)SECTION_DECLARED) != flags)
 	  && ((sect->common.flags | flags) & SECTION_OVERRIDE) == 0)
 	{
 	  /* It is fine if one of the section flags is
@@ -304,8 +304,8 @@ get_section (const char *name, unsigned int flags, tree decl)
 	  if (((sect->common.flags ^ flags) & (SECTION_WRITE | SECTION_RELRO))
 	      == (SECTION_WRITE | SECTION_RELRO)
 	      && (sect->common.flags
-		  & ~(SECTION_DECLARED | SECTION_WRITE | SECTION_RELRO))
-		 == (flags & ~(SECTION_WRITE | SECTION_RELRO))
+		  & ~(SECTION_FLAGS_INT)(SECTION_DECLARED | SECTION_WRITE | SECTION_RELRO))
+		 == (flags & ~(SECTION_FLAGS_INT)(SECTION_WRITE | SECTION_RELRO))
 	      && ((sect->common.flags & SECTION_DECLARED) == 0
 		  || (sect->common.flags & SECTION_WRITE)))
 	    {
@@ -409,7 +409,7 @@ create_block_symbol (const char *label, struct object_block *block,
 section *
 get_named_section (tree decl, const char *name, int reloc)
 {
-  unsigned int flags;
+  SECTION_FLAGS_INT flags;
 
   if (name == NULL)
     {
@@ -6161,7 +6161,7 @@ decl_default_tls_model (const_tree decl)
 unsigned int
 default_section_type_flags (tree decl, const char *name, int reloc)
 {
-  unsigned int flags;
+  SECTION_FLAGS_INT flags;
 
   if (decl && TREE_CODE (decl) == FUNCTION_DECL)
     flags = SECTION_CODE;
@@ -7131,7 +7131,7 @@ int trampolines_created;
 void
 file_end_indicate_exec_stack (void)
 {
-  unsigned int flags = SECTION_DEBUG;
+  SECTION_FLAGS_INT flags = SECTION_DEBUG;
 
   if (trampolines_created)
     flags |= SECTION_CODE;
