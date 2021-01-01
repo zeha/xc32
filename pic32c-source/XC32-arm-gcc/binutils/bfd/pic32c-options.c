@@ -278,7 +278,7 @@ gldelf32pic32c_parse_args (int argc, char ** argv)
   pic32_debug_smartio = TRUE;
 #endif
 // the initializer for this didn't seem to work
-  pic32c_vectors_in_tcm = TRUE;
+//  pic32c_vectors_in_tcm = TRUE;
 
 
   
@@ -286,6 +286,7 @@ gldelf32pic32c_parse_args (int argc, char ** argv)
   lastoptind = optind;
   optc   = getopt_long_only (argc, argv, shortopts, longopts, & longind);
   opterr = prevopterr;
+  
   switch (optc)
     {
     default:
@@ -507,8 +508,12 @@ gldelf32pic32c_parse_args (int argc, char ** argv)
             printf("Note: Enabled stack in tcm\n");
         pic32c_stack_in_tcm = TRUE;
         break;
-
+	
     case VECTORS_IN_TCM_OPTION:
+        pic32c_vectors_in_tcm = TRUE;
+	break;
+ 
+    case NO_VECTORS_IN_TCM_OPTION:
         if (pic32_debug)
             printf("Note: Not placing interrupt vectors in tcm\n");
         pic32c_vectors_in_tcm = FALSE;

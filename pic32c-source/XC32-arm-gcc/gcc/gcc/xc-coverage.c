@@ -894,23 +894,15 @@ xccov_output_coverage_info (void)
     for (i = 0; i != lbls->size; ++i) {
       const BBLabels *const bbLbls = &lbls->bbLabels[i];
 
-      /* append ".L" to the start label number */
-      /* (if no CodeCov license, use 0 as the start addr) */
-      if (licensed_mode)
-        snprintf (buff, sizeof(buff), ".L%u", (unsigned)bbLbls->start_lbl);
-      else
-        buff[0] = '0', buff[1] = 0;
+      /* prepend ".L" to the start label number */
+      snprintf (buff, sizeof(buff), ".L%u", (unsigned)bbLbls->start_lbl);
 
       /* output the label to asm */
       dw2_asm_output_addr (4, buff, "fn %s bb %u label start",
                             bbLbls->fn_name, (unsigned)bbLbls->idx);
 
       /* same for the end label */
-      /* (if no CodeCov license, use the difference between the two labels (the range size in bytes) as the end addr) */
-      if (licensed_mode)
-        snprintf (buff, sizeof(buff), ".L%u", (unsigned)bbLbls->end_lbl);
-      else
-        snprintf (buff, sizeof(buff), ".L%u-.L%u", (unsigned)bbLbls->end_lbl, (unsigned)bbLbls->start_lbl);
+      snprintf (buff, sizeof(buff), ".L%u", (unsigned)bbLbls->end_lbl);
 
       dw2_asm_output_addr (4, buff, "fn %s bb %u label end",
                             bbLbls->fn_name, (unsigned)bbLbls->idx);

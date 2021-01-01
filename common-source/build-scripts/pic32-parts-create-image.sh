@@ -269,8 +269,13 @@ copypic32cparts2image ()
   cp -R ./proc ../../install-Linux/pic32c/include_mcc/
   popd > /dev/null
 
-  cp ./pic32c-libs/include/xc.h ./image/pic32c/include/xc.h
-  cp ./pic32c-libs/include_mcc/xc.h ./image/pic32c/include_mcc/xc.h
+  # Generate a new xc.h file for pic32c
+  echo ${SCRIPTROOT}/generate-pic32c-xc.h.sh ./image/pic32c/include > ./image/pic32c/include/xc.h
+  ${SCRIPTROOT}/generate-pic32c-xc.h.sh ./image/pic32c/include > ./image/pic32c/include/xc.h
+  cp -f ./image/pic32c/include/xc.h ./pic32c-libs/include/xc.h
+  echo ${SCRIPTROOT}/generate-pic32c-xc.h.sh ./image/pic32c/include_mcc > ./image/pic32c/include_mcc/xc.h
+  ${SCRIPTROOT}/generate-pic32c-xc.h.sh ./image/pic32c/include_mcc > ./image/pic32c/include_mcc/xc.h
+  cp -f ./image/pic32c/include_mcc/xc.h ./pic32c-libs/include_mcc/xc.h
 
   rm -rf ./image/pic32c/lib
   mkdir -p ./image/pic32c/lib
@@ -293,6 +298,8 @@ copypic32cparts2image ()
 
   echo ${SCRIPTROOT}/pic32c/build-pic32c-specs.sh
   ${SCRIPTROOT}/pic32c/build-pic32c-specs.sh
+  
+
 }
   
 # Script execuation starts here

@@ -188,6 +188,7 @@ SECTION_FLAGS_INT mchp_text_flags = SECTION_CODE;
 #define SECTION_SERIALMEM (MCHP_ULL (SECTION_MACH_DEP) << 11ull)
 #define SECTION_ITCM      (MCHP_ULL (SECTION_MACH_DEP) << 12ull)
 #define SECTION_DTCM      (MCHP_ULL (SECTION_MACH_DEP) << 13ull)
+#define SECTION_NOPA      (MCHP_ULL (SECTION_MACH_DEP) << 14ull)
 
 /* the attribute names from the assemblers point of view */
 #define SECTION_ATTR_ADDRESS   "address"
@@ -209,6 +210,7 @@ SECTION_FLAGS_INT mchp_text_flags = SECTION_CODE;
 #define SECTION_ATTR_REGION    "memory"
 #define SECTION_ATTR_CO_SHARED "shared"
 #define SECTION_ATTR_SERIALMEM "serial_mem"
+#define SECTION_ATTR_NOPA      "nopa"
 
 #define SECTION_NAME_BSS        ".bss"
 #define SECTION_NAME_NBSS       ".sbss"
@@ -286,6 +288,7 @@ struct valid_section_flags_
      {SECTION_ATTR_SERIALMEM, 'r', SECTION_READ_ONLY,
       SECTION_CODE | SECTION_WRITE | SECTION_BSS | SECTION_NEAR | SECTION_INFO
 	| SECTION_ITCM | SECTION_DTCM},
+     {SECTION_ATTR_NOPA, 0, SECTION_NOPA, 0},
      {0, 0, 0, 0}};
 static const int num_vsf
   = (sizeof (valid_section_flags) / sizeof (struct valid_section_flags_)) - 1;
@@ -423,6 +426,8 @@ static tree get_mchp_absolute_address (tree decl);
 static int mchp_persistent_p (tree func);
 
 static int mchp_keep_p (tree decl);
+
+static int mchp_nopa_p (tree decl);
 
 static const char *default_section_name (tree decl, SECTION_FLAGS_INT flags);
 
@@ -1000,6 +1005,16 @@ pic32c_keep_attribute (tree *decl, tree identifier ATTRIBUTE_UNUSED, tree args,
   return NULL_TREE;
 }
 
+/* nopa attribute to prevent PA on a specific section */
+tree
+pic32c_nopa_attribute (tree *decl, tree identifier ATTRIBUTE_UNUSED, tree args,
+		       int flags ATTRIBUTE_UNUSED, bool *no_add_attrs)
+{
+  DECL_COMMON (*decl) = 0;
+  DECL_UNIQUE_SECTION (*decl) = 1;
+  return NULL_TREE;
+}
+
 tree pic32c_persistent_attribute(tree *node, tree identifier ATTRIBUTE_UNUSED,
                                  tree args, int flags ATTRIBUTE_UNUSED,
                                  bool *no_add_attrs)
@@ -1048,33 +1063,47 @@ mchp_get_smartio_fndecl (int bx)
 {
   switch (bx)
     {
-    case BUILT_IN_FPRINTF:
+    case BUILT_IN_FPRINTF: 
+    case BUILT_IN_FPRINTF_INTEGER:
       return pic32c_builtin_decls[PIC32C_BUILTIN_FPRINTF_S];
-    case BUILT_IN_SPRINTF:
+    case BUILT_IN_SPRINTF: 
+    case BUILT_IN_SPRINTF_INTEGER:
       return pic32c_builtin_decls[PIC32C_BUILTIN_SPRINTF_S];
-    case BUILT_IN_SNPRINTF:
+    case BUILT_IN_SNPRINTF: 
+    case BUILT_IN_SNPRINTF_INTEGER:
       return pic32c_builtin_decls[PIC32C_BUILTIN_SNPRINTF_S];
-    case BUILT_IN_VFPRINTF:
+    case BUILT_IN_VFPRINTF: 
+    case BUILT_IN_VFPRINTF_INTEGER:
       return pic32c_builtin_decls[PIC32C_BUILTIN_VFPRINTF_S];
-    case BUILT_IN_VSPRINTF:
+    case BUILT_IN_VSPRINTF: 
+    case BUILT_IN_VSPRINTF_INTEGER:
       return pic32c_builtin_decls[PIC32C_BUILTIN_VSPRINTF_S];
-    case BUILT_IN_VSNPRINTF:
+    case BUILT_IN_VSNPRINTF: 
+    case BUILT_IN_VSNPRINTF_INTEGER:
       return pic32c_builtin_decls[PIC32C_BUILTIN_VSNPRINTF_S];
-    case BUILT_IN_FSCANF:
+    case BUILT_IN_FSCANF: 
+    case BUILT_IN_FSCANF_INTEGER:
       return pic32c_builtin_decls[PIC32C_BUILTIN_FSCANF_S];
-    case BUILT_IN_SSCANF:
+    case BUILT_IN_SSCANF: 
+    case BUILT_IN_SSCANF_INTEGER:
       return pic32c_builtin_decls[PIC32C_BUILTIN_SSCANF_S];
-    case BUILT_IN_VFSCANF:
+    case BUILT_IN_VFSCANF: 
+    case BUILT_IN_VFSCANF_INTEGER:
       return pic32c_builtin_decls[PIC32C_BUILTIN_VFSCANF_S];
-    case BUILT_IN_VSSCANF:
+    case BUILT_IN_VSSCANF: 
+    case BUILT_IN_VSSCANF_INTEGER:
       return pic32c_builtin_decls[PIC32C_BUILTIN_VSSCANF_S];
-    case BUILT_IN_PRINTF:
+    case BUILT_IN_PRINTF: 
+    case BUILT_IN_PRINTF_INTEGER:
       return pic32c_builtin_decls[PIC32C_BUILTIN_PRINTF_S];
-    case BUILT_IN_VPRINTF:
+    case BUILT_IN_VPRINTF: 
+    case BUILT_IN_VPRINTF_INTEGER:
       return pic32c_builtin_decls[PIC32C_BUILTIN_VPRINTF_S];
-    case BUILT_IN_SCANF:
+    case BUILT_IN_SCANF: 
+    case BUILT_IN_SCANF_INTEGER:
       return pic32c_builtin_decls[PIC32C_BUILTIN_SCANF_S];
-    case BUILT_IN_VSCANF:
+    case BUILT_IN_VSCANF: 
+    case BUILT_IN_VSCANF_INTEGER:
       return pic32c_builtin_decls[PIC32C_BUILTIN_VSCANF_S];
     default:
       gcc_unreachable ();
@@ -1409,6 +1438,13 @@ mchp_persistent_p (tree decl)
   }
 
   return a != NULL_TREE;
+}
+
+static int mchp_nopa_p (tree decl)
+{
+  tree a;
+  a = lookup_attribute ("nopa", DECL_ATTRIBUTES (decl));
+  return (a != NULL_TREE);
 }
 
 static tree
@@ -1833,11 +1869,17 @@ mchp_build_prefix (tree decl, int fnear, char *prefix)
       section_type_set = 1;
     }
 
+
   if ((flags & SECTION_KEEP) || mchp_keep_p (decl))
     {
       DECL_COMMON (decl) = 0;
       f += sprintf (f, MCHP_KEEP_FLAG);
     }
+
+  if ((flags & SECTION_NOPA) || mchp_nopa_p(decl)) {
+    DECL_COMMON(decl) = 0;
+    f += sprintf(f, MCHP_NOPA_FLAG);
+  }
 
   fnear |= (flags & SECTION_NEAR);
   if ((flags & SECTION_CODE)
@@ -1902,6 +1944,11 @@ mchp_build_prefix (tree decl, int fnear, char *prefix)
     {
       f += sprintf (f, MCHP_KEEP_FLAG);
     }
+  if (mchp_nopa_p (decl))
+    {
+      f += sprintf (f, MCHP_NOPA_FLAG);
+    }
+
     // TODO: "coherent" is N/A on PIC32C
 #if 0
   if (mchp_coherent_p (decl)
@@ -2071,7 +2118,12 @@ validate_identifier_flags (const char *prefix, tree decl)
 	  flags |= SECTION_DTCM;
 	  f += sizeof (MCHP_DTCM_FLAG) - 1;
 	}
-      else
+       else if (strncmp (f, MCHP_NOPA_FLAG, sizeof (MCHP_NOPA_FLAG) - 1) == 0)
+	{
+	  flags |= SECTION_NOPA;
+	  f += sizeof (MCHP_NOPA_FLAG) - 1;
+	}
+       else
 	{
 	  if (id)
 	    {
@@ -2952,6 +3004,10 @@ mchp_get_named_section_flags (const char *pszSectionName,
   if (flags & SECTION_DTCM)
     {
       f += sprintf (f, "," SECTION_ATTR_DTCM);
+    }
+  if (flags & SECTION_NOPA)
+    {
+      f += sprintf (f, "," SECTION_ATTR_NOPA);
     }
 
   return xstrdup (pszSectionFlag);

@@ -130,6 +130,8 @@ enum elfpic32c_options {
   DTCM_OPTION,
   STACK_IN_TCM_OPTION,
   VECTORS_IN_TCM_OPTION,
+  NO_VECTORS_IN_TCM_OPTION,
+
   /* lghica co-resident */
     MEMORY_USAGE,
     RESERVE_CONST,
@@ -168,6 +170,9 @@ static struct option longopts[] =
   { "dtcm",             required_argument, NULL,    DTCM_OPTION},
   { "stack-in-tcm",     no_argument,       NULL,    STACK_IN_TCM_OPTION},
   { "vectors-in-tcm",   no_argument,       NULL,    VECTORS_IN_TCM_OPTION},
+  /* need both of these for legacy reasons */
+  { "no-vectors-in-tcm",   no_argument,    NULL,    NO_VECTORS_IN_TCM_OPTION},
+  { "novectors-in-tcm",   no_argument,     NULL,    NO_VECTORS_IN_TCM_OPTION},
     /* lghica co-resident */
     { "memory-usage",           no_argument,        NULL, MEMORY_USAGE },
     { "reserve-const",          optional_argument,  NULL, RESERVE_CONST },

@@ -86,7 +86,16 @@ lib_a_AR = $(AR) $(ARFLAGS)
 @NEWLIB_NANO_FORMATTED_IO_FALSE@	lib_a-vsiprintf.$(OBJEXT) \
 @NEWLIB_NANO_FORMATTED_IO_FALSE@	lib_a-vsiscanf.$(OBJEXT) \
 @NEWLIB_NANO_FORMATTED_IO_FALSE@	lib_a-vsniprintf.$(OBJEXT)
-am__objects_2 = $(am__objects_1) lib_a-clearerr.$(OBJEXT) \
+am__objects_2 = $(am__objects_1) \
+        lib_a-__sprint.$(OBJEXT) \
+        lib_a-__ssprint.$(OBJEXT) \
+        lib_a-__sfputs.$(OBJEXT) \
+        lib_a-__ssputs.$(OBJEXT) \
+        lib_a-__ssrefill.$(OBJEXT) \
+        lib_a-__ssfputs.$(OBJEXT) \
+        lib_a-_sfread.$(OBJEXT) \
+        lib_a-_sungetc.$(OBJEXT) \
+        lib_a-clearerr.$(OBJEXT) \
 	lib_a-fclose.$(OBJEXT) lib_a-fdopen.$(OBJEXT) \
 	lib_a-feof.$(OBJEXT) lib_a-ferror.$(OBJEXT) \
 	lib_a-fflush.$(OBJEXT) lib_a-fgetc.$(OBJEXT) \
@@ -635,11 +644,16 @@ GENERAL_SOURCES = \
 @NEWLIB_NANO_FORMATTED_IO_TRUE@	$(lpfx)vfwscanf.$(oext)
 
 @SMART_IO_TRUE@SMART_IO = yes
+@SMART_IO_TRUE@SMART_IO_TARGET = smart-io
 @SMART_IO_FALSE@SMART_IO =
+@SMART_IO_FALSE@SMART_IO_TARGET =
 
 @SMART_IO_TRUE@SMART_IO_DIR = $(srcdir)/smartio
 @SMART_IO_TRUE@SMART_IO_OBJDIR = $(shell pwd)
-@SMART_IO_TRUE@SMART_IO_SRC = $(wildcard $(SMART_IO_DIR)/*.c)
+@SMART_IO_TRUE@SMART_IO_SRC := $(wildcard $(SMART_IO_DIR)/*.c)
+@SMART_IO_TRUE@@NEWLIB_NANO_FORMATTED_IO_FALSE@SMART_IO_SRC := $(filter-out $(SMART_IO_DIR)/nano-%, $(SMART_IO_SRC))
+@SMART_IO_TRUE@@NEWLIB_NANO_FORMATTED_IO_TRUE@SMART_IO_SRC := $(filter-out $(SMART_IO_DIR)/vfprintf.c, $(SMART_IO_SRC))
+@SMART_IO_TRUE@@NEWLIB_NANO_FORMATTED_IO_TRUE@SMART_IO_SRC := $(filter-out $(SMART_IO_DIR)/vfscanf.c, $(SMART_IO_SRC))
 @SMART_IO_TRUE@SMART_IO_SFX = \
 @SMART_IO_TRUE@            cdeEfFgGnopsuxX cdeEfFgGnopuxX cdeEfFnopsuxX cdeEfFnopuxX \
 @SMART_IO_TRUE@            cdeEgGnopsuxX cdeEgGnopuxX cdeEnopsuxX cdeEnopuxX \
@@ -648,7 +662,9 @@ GENERAL_SOURCES = \
 @SMART_IO_TRUE@            eE eEfF eEfFgG eEfFgGs eEfFs eEgG eEgGs eEs \
 @SMART_IO_TRUE@            fF fFgG fFgGs fFs gG gGs s
 @SMART_IO_TRUE@smart_io_sfx = $(strip $(lastword $(subst ., ,$(1:.$(oext)=))))
-@SMART_IO_TRUE@SMART_IO_OBJS = $(addprefix $(SMART_IO_OBJDIR)/,$(notdir $(foreach s,$(SMART_IO_SFX),$(foreach f,$(SMART_IO_SRC:.c=),$(addsuffix .$(s).$(oext),$(f))))))
+# NB: smart-io objects use _$(lpfx) (e.g. _lib-a_) because we want them earlier in the link order than non-smart-io objects.
+# this is simply to avoid -u _printf_float bringing in the nano definition.
+@SMART_IO_TRUE@SMART_IO_OBJS = $(addprefix $(SMART_IO_OBJDIR)/_$(lpfx),$(notdir $(foreach s,$(SMART_IO_SFX),$(foreach f,$(SMART_IO_SRC:.c=),$(addsuffix .$(s).$(oext),$(f))))))
 @SMART_IO_TRUE@LIBADD_OBJS += $(SMART_IO_OBJS)
 @SMART_IO_FALSE@SMART_IO_OBJS = 
 
@@ -825,8 +841,11 @@ mostlyclean-compile: clean-smartio
 distclean-compile:
 	-rm -f *.tab.c
 
-@SMART_IO_TRUE@$(SMART_IO_OBJS): %.o:
-@SMART_IO_TRUE@	$(MAKE) CC='$(LIB_COMPILE)' -C $(SMART_IO_DIR) OBJDIR=$(SMART_IO_OBJDIR) SMARTIO_SUFFIX=$(call smart_io_sfx,$(notdir $@)) $@
+@SMART_IO_TRUE@$(SMART_IO_TARGET): $(SMART_IO_OBJS)
+@SMART_IO_TRUE@$(SMART_IO_OBJS): $(SMART_IO_OBJDIR)/_$(lpfx)%.o: $(SMART_IO_OBJDIR)/stmp-smartio
+@SMART_IO_TRUE@	@$(MAKE) lpfx=_$(lpfx) oext=$(oext) CC='$(LIB_COMPILE)' -C $(SMART_IO_DIR) OBJDIR=$(SMART_IO_OBJDIR) SMARTIO_SUFFIX=$(call smart_io_sfx,$(notdir $@)) $@
+@SMART_IO_TRUE@$(SMART_IO_OBJDIR)/stmp-smartio:
+@SMART_IO_TRUE@	@$(MAKE) lpfx=_$(lpfx) oext=$(oext) CC='$(LIB_COMPILE)' -C $(SMART_IO_DIR) OBJDIR=$(SMART_IO_OBJDIR) $(SMART_IO_OBJDIR)/stmp-smartio
 
 .c.o:
 	$(COMPILE) -c $<
@@ -836,6 +855,54 @@ distclean-compile:
 
 .c.lo:
 	$(LTCOMPILE) -c -o $@ $<
+
+lib_a-__sprint.o: __sprint.c
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_a_CFLAGS) $(CFLAGS) -c -o lib_a-__sprint.o `test -f '__sprint.c' || echo '$(srcdir)/'`__sprint.c
+
+lib_a-__sprint.obj: __sprint.c
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_a_CFLAGS) $(CFLAGS) -c -o lib_a-__sprint.obj `if test -f '__sprint.c'; then $(CYGPATH_W) '__sprint.c'; else $(CYGPATH_W) '$(srcdir)/__sprint.c'; fi`
+
+lib_a-__ssprint.o: __ssprint.c
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_a_CFLAGS) $(CFLAGS) -c -o lib_a-__ssprint.o `test -f '__ssprint.c' || echo '$(srcdir)/'`__ssprint.c
+
+lib_a-__ssprint.obj: __ssprint.c
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_a_CFLAGS) $(CFLAGS) -c -o lib_a-__ssprint.obj `if test -f '__ssprint.c'; then $(CYGPATH_W) '__ssprint.c'; else $(CYGPATH_W) '$(srcdir)/__ssprint.c'; fi`
+
+lib_a-__sfputs.o: __sfputs.c
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_a_CFLAGS) $(CFLAGS) -c -o lib_a-__sfputs.o `test -f '__sfputs.c' || echo '$(srcdir)/'`__sfputs.c
+
+lib_a-__sfputs.obj: __sfputs.c
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_a_CFLAGS) $(CFLAGS) -c -o lib_a-__sfputs.obj `if test -f '__sfputs.c'; then $(CYGPATH_W) '__sfputs.c'; else $(CYGPATH_W) '$(srcdir)/__sfputs.c'; fi`
+
+lib_a-__ssputs.o: __ssputs.c
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_a_CFLAGS) $(CFLAGS) -c -o lib_a-__ssputs.o `test -f '__ssputs.c' || echo '$(srcdir)/'`__ssputs.c
+
+lib_a-__ssputs.obj: __ssputs.c
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_a_CFLAGS) $(CFLAGS) -c -o lib_a-__ssputs.obj `if test -f '__ssputs.c'; then $(CYGPATH_W) '__ssputs.c'; else $(CYGPATH_W) '$(srcdir)/__ssputs.c'; fi`
+
+lib_a-__ssrefill.o: __ssrefill.c
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_a_CFLAGS) $(CFLAGS) -c -o lib_a-__ssrefill.o `test -f '__ssrefill.c' || echo '$(srcdir)/'`__ssrefill.c
+
+lib_a-__ssrefill.obj: __ssrefill.c
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_a_CFLAGS) $(CFLAGS) -c -o lib_a-__ssrefill.obj `if test -f '__ssrefill.c'; then $(CYGPATH_W) '__ssrefill.c'; else $(CYGPATH_W) '$(srcdir)/__ssrefill.c'; fi`
+
+lib_a-__ssfputs.o: __ssfputs.c
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_a_CFLAGS) $(CFLAGS) -c -o lib_a-__ssfputs.o `test -f '__ssfputs.c' || echo '$(srcdir)/'`__ssfputs.c
+
+lib_a-__ssfputs.obj: __ssfputs.c
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_a_CFLAGS) $(CFLAGS) -c -o lib_a-__ssfputs.obj `if test -f '__ssfputs.c'; then $(CYGPATH_W) '__ssfputs.c'; else $(CYGPATH_W) '$(srcdir)/__ssfputs.c'; fi`
+
+lib_a-_sfread.o: _sfread.c
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_a_CFLAGS) $(CFLAGS) -c -o lib_a-_sfread.o `test -f '_sfread.c' || echo '$(srcdir)/'`_sfread.c
+
+lib_a-_sfread.obj: _sfread.c
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_a_CFLAGS) $(CFLAGS) -c -o lib_a-_sfread.obj `if test -f '_sfread.c'; then $(CYGPATH_W) '_sfread.c'; else $(CYGPATH_W) '$(srcdir)/_sfread.c'; fi`
+
+lib_a-_sungetc.o: _sungetc.c
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_a_CFLAGS) $(CFLAGS) -c -o lib_a-_sungetc.o `test -f '_sungetc.c' || echo '$(srcdir)/'`_sungetc.c
+
+lib_a-_sungetc.obj: _sungetc.c
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_a_CFLAGS) $(CFLAGS) -c -o lib_a-_sungetc.obj `if test -f '_sungetc.c'; then $(CYGPATH_W) '_sungetc.c'; else $(CYGPATH_W) '$(srcdir)/_sungetc.c'; fi`
 
 lib_a-fiprintf.o: fiprintf.c
 	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_a_CFLAGS) $(CFLAGS) -c -o lib_a-fiprintf.o `test -f 'fiprintf.c' || echo '$(srcdir)/'`fiprintf.c
@@ -1771,7 +1838,8 @@ install-strip:
 	fi
 
 clean-smartio:
-@SMART_IO_TRUE@	$(MAKE) -C $(SMART_IO_DIR) clean
+@SMART_IO_TRUE@	@rm -f stmp-smart-io $(SMART_IO_OBJS)
+@SMART_IO_TRUE@	@$(MAKE) -C $(SMART_IO_DIR) clean
 
 mostlyclean-generic:
 
@@ -1868,7 +1936,7 @@ uninstall-am:
 	installdirs maintainer-clean maintainer-clean-generic \
 	mostlyclean mostlyclean-compile mostlyclean-generic \
 	mostlyclean-libtool pdf pdf-am ps ps-am tags uninstall \
-	uninstall-am $(SMART_IO_OBJS)
+	uninstall-am $(SMART_IO_TARGET)
 
 objectlist.awk.in: $(noinst_LTLIBRARIES)
 	-rm -f objectlist.awk.in

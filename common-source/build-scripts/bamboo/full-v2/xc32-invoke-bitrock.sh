@@ -65,27 +65,27 @@ buildinstallers()
     if [[ $VAR =~ LINUX ]]; then
       cd ${!VAR}/install
       echo "Building Linux installer"
-      $BITRKPATH build $BITROCK_PROJECT linux --setvars project.version=$FULL_VERSION  
-      check_file xc32-${FULL_VERSION}-linux-installer.run
-      cp xc32-${FULL_VERSION}-linux-installer.run $WORK_DIR
+      $BITRKPATH build $BITROCK_PROJECT linux-x64 $BITROCK_FLAGS --setvars project.version=$FULL_VERSION
+      check_file xc32-${FULL_VERSION}-linux-x64-installer.run
+      cp xc32-${FULL_VERSION}-linux-x64-installer.run $WORK_DIR
       if [[ $BUILD_NAME =~ RC ]]; then 
-        mv $WORK_DIR/xc32-${FULL_VERSION}-linux-installer.run  $WORK_DIR/xc32-${FULL_VERSION}-${BUILD_NAME}-linux-installer.run
+        mv $WORK_DIR/xc32-${FULL_VERSION}-linux-x64-installer.run  $WORK_DIR/xc32-${FULL_VERSION}-${BUILD_NAME}-linux-installer.run
       fi 
     fi        
     if [[ $VAR =~ WIND ]]; then
       cd ${!VAR}/install
       echo "Building Windows installer"
-      $BITRKPATH build $BITROCK_PROJECT windows --setvars project.version=$FULL_VERSION      
-      check_file xc32-${FULL_VERSION}-windows-installer.exe
-      cp xc32-${FULL_VERSION}-windows-installer.exe $WORK_DIR
+      $BITRKPATH build $BITROCK_PROJECT windows-x64 $BITROCK_FLAGS --setvars project.version=$FULL_VERSION
+      check_file xc32-${FULL_VERSION}-windows-x64-installer.exe
+      cp xc32-${FULL_VERSION}-windows-x64-installer.exe $WORK_DIR
       if [[ $BUILD_NAME =~ RC ]]; then 
-        mv $WORK_DIR/xc32-${FULL_VERSION}-windows-installer.exe  $WORK_DIR/xc32-${FULL_VERSION}-${BUILD_NAME}-windows-installer.exe
+        mv $WORK_DIR/xc32-${FULL_VERSION}-windows-x64-installer.exe  $WORK_DIR/xc32-${FULL_VERSION}-${BUILD_NAME}-windows-installer.exe
       fi 
     fi
     if [[ $VAR =~ DARWIN ]]; then
       cd ${!VAR}/install
       echo "Building OS X installer"
-      $BITRKPATH build $BITROCK_PROJECT osx --setvars project.version=$FULL_VERSION  
+      $BITRKPATH build $BITROCK_PROJECT osx $BITROCK_FLAGS --setvars project.version=$FULL_VERSION  
       check_file xc32-${FULL_VERSION}-osx-installer.app
       if [ ! -e "xc32-${FULL_VERSION}-osx-installer.dmg" ]; then
         if [ "$HOST" == "Darwin" ]; then

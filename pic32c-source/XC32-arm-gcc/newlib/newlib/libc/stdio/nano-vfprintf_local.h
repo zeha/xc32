@@ -224,11 +224,20 @@ _printf_i (struct _reent *data, struct _prt_data_t *pdata, FILE *fp,
 
 /* Make _printf_float weak symbol, so it won't be linked in if target program
    does not need it.  */
+/* PIC32C: actually, we want to pull this in always, since smart-io is provided to
+   give the same benefits. */
+#ifndef __SMARTIOV2__
 extern int
 _printf_float (struct _reent *data,
-	       struct _prt_data_t *pdata,
-	       FILE *fp,
-	       int (*pfunc)(struct _reent *, FILE *,
-			    _CONST char *, size_t len),
-	       va_list *ap) _ATTRIBUTE((__weak__));
+ 	       struct _prt_data_t *pdata,
+ 	       FILE *fp,
+ 	       int (*pfunc)(struct _reent *, FILE *,
+ 			    _CONST char *, size_t len),
+	       va_list *ap) 
+#ifndef _BUILD_MCHP_
+    _ATTRIBUTE((__weak__))
+#endif
+    ;
+#endif
+
 #endif

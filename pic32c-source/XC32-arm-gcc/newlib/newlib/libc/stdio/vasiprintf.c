@@ -55,6 +55,7 @@ _DEFUN(_vasiprintf_r, (ptr, strp, fmt, ap),
   f._bf._base = f._p = NULL;
   f._bf._size = f._w = 0;
   f._file = -1;  /* No file. */
+  f._flags2 = 0; /* initialize flags2 as it will be used to check the __SWID flag */
   ret = _svfiprintf_r (ptr, &f, fmt, ap);
   if (ret >= 0)
     {

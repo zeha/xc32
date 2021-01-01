@@ -133,6 +133,10 @@
 #define PIC32_SET_DTCM_ATTR(sec) { \
   (sec)->dtcm = 1; }
 
+/* PA */
+#define PIC32_SET_NOPA_ATTR(sec) \
+  { (sec)->nopa = 1; }
+
 /*
 ** Macros used to query section attributes
 */
@@ -208,9 +212,14 @@
 #define PIC32_IS_DTCM_ATTR(sec) \
   ((sec)->dtcm == 1)
 
+/* pa */
+#define PIC32_IS_NOPA_ATTR(sec) \
+  ((sec)->nopa == 1)
+
 #define PIC32_IS_EVEN(value) (((value) & 0x1) == 0)
 
 #define EXT_ATTR_PREFIX "__ext_attr_"
+#define NOPA_EXT_ATTR_PREFIX "__nopa_"
 
 /*****************************************************************************/
 

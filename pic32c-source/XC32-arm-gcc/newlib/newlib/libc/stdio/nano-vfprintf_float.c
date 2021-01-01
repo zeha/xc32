@@ -48,11 +48,11 @@
 #include "vfieeefp.h"
 #include "nano-vfprintf_local.h"
 
-char *__cvt (struct _reent *data, _PRINTF_FLOAT_TYPE value, int ndigits,
+static char *__cvt (struct _reent *data, _PRINTF_FLOAT_TYPE value, int ndigits,
 	     int flags, char *sign, int *decpt, int ch, int *length,
 	     char *buf);
 
-int __exponent (char *p0, int exp, int fmtch);
+static int __exponent (char *p0, int exp, int fmtch);
 
 #ifdef FLOATING_POINT
 
@@ -160,7 +160,7 @@ __exponent (char *p0, int exp, int fmtch)
 }
 
 /* Decode and print floating point number specified by "eEfgG".  */
-int
+int 
 _printf_float (struct _reent *data,
 	       struct _prt_data_t *pdata,
 	       FILE * fp,

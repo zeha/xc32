@@ -21,7 +21,7 @@ for P in ./image/pic32mx/lib/proc/*
 do
    if [[ ! $P =~ GENERIC ]]; then
     PROC=`echo $P | sed -e "s/^.*proc\///"`
-    juLog -name="Smoke test ${PROC} support files" -ierror=warning -ierror=error -ierror=cannot ${FULLIMAGE}/bin/xc32-gcc -mprocessor=$PROC smoke.c
+    juLog -name="Smoke test ${PROC} support files" -ierror=warning -ierror=error -ierror=cannot ${FULLIMAGE}/bin/bin/pic32m-gcc -mprocessor=$PROC smoke.c
     rm a.out
    fi
 done

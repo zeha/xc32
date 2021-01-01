@@ -129,7 +129,7 @@ struct pic32_section
 #define STYP_SHARED         (1 << 17)   /* shared section among co-resident apps*/
 #define STYP_ITCM           (1 << 18)   /* ITCM section */
 #define STYP_DTCM           (1 << 19)   /* DTCM section */
-
+#define STYP_NOPA           (1 << 20)   /* NOPA */
 /************************************************************************/
 
 

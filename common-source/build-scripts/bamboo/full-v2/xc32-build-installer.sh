@@ -6,7 +6,7 @@ deletefiles ()
   fi
 }
 
-fossilopenup verifyinst
+fossilopenup verifyinst $bamboo_XC32_XC_INSTALLERS_BRANCH
 fossilopenup XC-installers $bamboo_XC32_XC_INSTALLERS_BRANCH
 
 deletefiles install
@@ -48,6 +48,9 @@ if [[ "x${bamboo_SKIP_DARWIN}" != "xtrue" && "x${bamboo_SKIP_DARWIN}" != "xTRUE"
   fi 
   cd ../../../
   find ./install-Darwin -name 'libstdc++*-gdb.py' -delete
+
+  echo "Code Signing OSX binaries"
+  ./build-scripts/bamboo/full-v2/xc_codesign.sh install-Darwin xc32
 fi
 
 #Replace readme, if required 

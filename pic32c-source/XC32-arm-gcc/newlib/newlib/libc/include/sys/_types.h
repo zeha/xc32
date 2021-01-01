@@ -183,7 +183,7 @@ typedef void *_iconv_t;
 #define	_CLOCK_T_	unsigned long	/* clock() */
 typedef	_CLOCK_T_	__clock_t;
 
-#define	_TIME_T_	long		/* time() */
+#define	_TIME_T_	unsigned long	/* time() */
 typedef	_TIME_T_	__time_t;
 
 #define	_CLOCKID_T_ 	unsigned long

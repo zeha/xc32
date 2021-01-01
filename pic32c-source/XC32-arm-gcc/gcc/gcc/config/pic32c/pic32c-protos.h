@@ -87,6 +87,10 @@ extern tree pic32c_keep_attribute(tree *decl, tree identifier ATTRIBUTE_UNUSED,
                                 tree args, int flags ATTRIBUTE_UNUSED,
                                 bool *no_add_attrs);
 
+extern tree pic32c_nopa_attribute(tree *decl, tree identifier ATTRIBUTE_UNUSED,
+                                tree args, int flags ATTRIBUTE_UNUSED,
+                                bool *no_add_attrs);
+
 extern tree pic32c_unique_section_attribute (tree *node, tree name ATTRIBUTE_UNUSED,
                           tree args ATTRIBUTE_UNUSED, int flags ATTRIBUTE_UNUSED,
                           bool *no_add_attrs);

@@ -418,7 +418,14 @@ generatedevicesupportxml ()
       echo "    <mp:device mp:name=\"$dev\"/>" >> ${IMAGEDIR}/bin/deviceSupport.xml
     done
   fi
-  
+  # Add the SAM names in addition to the ATSAM canonicalized names
+  if [ -e ${IMAGEDIR}/pic32c/lib/proc ] ; then
+    for dev in `ls ${IMAGEDIR}/pic32c/lib/proc`; do
+      dev=$(echo "$dev" | sed 's/^ATSAM/SAM/')
+      echo "    <mp:device mp:name=\"$dev\"/>" >> ${IMAGEDIR}/bin/deviceSupport.xml
+    done
+  fi
+
   echo "  </mp:family>" >> ${IMAGEDIR}/bin/deviceSupport.xml
 
   echo "</mp:deviceSupport>" >> ${IMAGEDIR}/bin/deviceSupport.xml

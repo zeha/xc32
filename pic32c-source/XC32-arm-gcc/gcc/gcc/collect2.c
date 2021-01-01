@@ -57,6 +57,10 @@ along with GCC; see the file COPYING3.  If not see
 #ifndef COLLECT2_RELATIVE_LD_FILE_NAME
 #error COLLECT2_RELATIVE_LD_FILE_NAME not defined
 #endif
+
+#ifndef COLLECT2_RELATIVE_PA_FILE_NAME
+#error COLLECT2_RELATIVE_PA_FILE_NAME not defined
+#endif
 
 /* On certain systems, we have code that works by scanning the object file
    directly.  But this code uses system-specific header files and library
@@ -882,6 +886,12 @@ main (int argc, char **argv)
       "ld.gold",
       "ld.bfd"
     };
+  bool pa_enabled = false;
+  const char* pa_file_name = NULL;
+  int8_t pa_ignored_objects_count = 0;
+  int8_t pa_ignored_functions_count = 0;
+  static const char *const pa_ignore_file_option = "-mno-pa-on-file=";
+  static const char *const pa_ignore_function_option = "-mno-pa-on-function=";
   static const char *const real_ld_suffix = "real-ld";
   static const char *const collect_ld_suffix = "collect-ld";
   static const char *const nm_suffix	= "nm";
@@ -1007,10 +1017,52 @@ main (int argc, char **argv)
   if (atexit (collect_atexit) != 0)
     fatal_error (input_location, "atexit failed");
 
+  /* Check COLLECT_GCC_OPTIONS to find if -mpa enabled.
+     Also, check the PA specific options.  */
+  obstack_begin (&temporary_obstack, 0);
+  temporary_firstobj = (char *) obstack_alloc (&temporary_obstack, 0);
+  p = getenv ("COLLECT_GCC_OPTIONS");
+  pa_ignored_objects_count = 0;
+  pa_ignored_functions_count = 0;
+  bool arm_isa = false;
+  while (p && *p)
+    {
+      const char *q = extract_string (&p);
+      if (!pa_enabled && !strcmp (q, "-mpa"))
+        pa_enabled = true;
+      else if (strncmp(q, pa_ignore_file_option,
+        strlen(pa_ignore_file_option) == 0))
+          pa_ignored_objects_count += 1;
+      else if (strncmp(q, pa_ignore_function_option,
+        strlen(pa_ignore_function_option) == 0))
+          pa_ignored_functions_count += 1;
+      else if (!arm_isa && !strcmp (q, "-marm"))
+        arm_isa = true;
+    }
+  obstack_free (&temporary_obstack, temporary_firstobj);
+
+  /* PA is currently not available for ARM ISA */
+  if (pa_enabled && arm_isa)
+    fatal_error (input_location, "-mpa is currently not supported with -marm");
+
+  /* Disable PA if LTO is enabled */
+  for (i = 1; argv[i] != NULL && pa_enabled == true; i++)
+    if (strncmp (argv[i], "-flto", 5) == 0)
+      pa_enabled = false;
+
   /* Do not invoke xcalloc before this point, since locale needs to be
      set first, in case a diagnostic is issued.  */
 
-  ld1_argv = XCNEWVEC (char *, argc + 4);
+  /*
+    Add number of args to be passed additionally to PA
+    pic32c-pa [-f <ignored_function_sym>]...[-i <ignored_file>]...[--] linker command
+  */
+  if (pa_enabled)
+    ld1_argv = XCNEWVEC (char *, argc + 4 + pa_ignored_objects_count 
+      + pa_ignored_functions_count + 2
+      + 2 /* for -x <xclmpath> */);
+  else
+    ld1_argv = XCNEWVEC (char *, argc + 4);
   ld1 = CONST_CAST2 (const char **, char **, ld1_argv);
   ld2_argv = XCNEWVEC (char *, argc + 11);
   ld2 = CONST_CAST2 (const char **, char **, ld2_argv);
@@ -1183,6 +1235,15 @@ main (int argc, char **argv)
       ld_file_name = find_a_file (&cpath, collect_ld_suffix, X_OK);
       use_collect_ld = ld_file_name != 0;
     }
+  /* Find PA tool  */
+  if (pa_enabled)
+    {
+      pa_file_name = find_a_file (&cpath, COLLECT2_RELATIVE_PA_FILE_NAME, X_OK);
+      if (pa_file_name == 0)
+        fatal_error (input_location, "can't find %s, check the compiler installation.",
+          "pic32c-pa");
+    }
+
   /* Search the compiler directories for `ld'.  We have protection against
      recursive calls in find_a_file.  */
   if (ld_file_name == 0)
@@ -1243,7 +1304,11 @@ main (int argc, char **argv)
   if (p)
     c_file_name = p;
 
-  *ld1++ = *ld2++ = ld_file_name;
+  /* Override linker with PA if -mpa enabled. */
+  if (pa_enabled)
+    *ld1++ = pa_file_name;
+  else
+    *ld1++ = *ld2++ = ld_file_name;
 
   /* Make temp file names.  */
   c_file = make_temp_file (".c");
@@ -1304,6 +1369,47 @@ main (int argc, char **argv)
   *c_ptr++ = "-fno-exceptions";
   *c_ptr++ = "-w";
   *c_ptr++ = "-fno-whole-program";
+
+  /* Add PA options to command line*/
+  if (pa_enabled)
+    {
+      obstack_begin (&temporary_obstack, 0);
+      temporary_firstobj = (char *) obstack_alloc (&temporary_obstack, 0);
+      p = getenv ("COLLECT_GCC_OPTIONS");
+      while (p && *p)
+        {
+          const char *q = extract_string (&p);
+          if (!strncmp(q, pa_ignore_file_option,
+            strlen(pa_ignore_file_option)))
+            {
+              const char *obj = q + strlen(pa_ignore_file_option);
+              char *i_option = XNEWVEC (char, 4 + strlen(obj));
+              sprintf (i_option, "%s %s", "-i", obj);
+              *ld1++ = i_option;
+            }
+          if (!strncmp(q, pa_ignore_function_option,
+            strlen(pa_ignore_function_option)))
+            {
+              const char *obj = q + strlen(pa_ignore_function_option);
+              char *f_option = XNEWVEC (char, 4 + strlen(obj));
+              sprintf (f_option, "%s %s", "-f", obj);
+              *ld1++ = f_option;
+            }
+        }
+      obstack_free (&temporary_obstack, temporary_firstobj);
+
+      /* Add path to XCLM binary */
+      *ld1++ = "-x";
+      /* After removing the prog-name (from the ld_file_name), "/../bin"
+        is attached to get the path to the xclm
+      */
+      *ld1++ = make_relative_prefix(ld_file_name,
+                                    "./bin",
+                                    "./bin/");
+      /* Add flag to denote linker command line.  */
+      *ld1++ = "--";
+      *ld1++ = ld_file_name;
+    }
 
   /* !!! When GCC calls collect2,
      it does not know whether it is calling collect2 or ld.
@@ -1635,6 +1741,12 @@ main (int argc, char **argv)
 	       (c_file ? c_file : "not found"));
       fprintf (stderr, "o_file              = %s\n",
 	       (o_file ? o_file : "not found"));
+
+      if (pa_enabled)
+        {
+          fprintf (stderr, "pa_file_name    = %s\n",
+            (pa_file_name ? pa_file_name : "not found"));
+        }
 
       ptr = getenv ("COLLECT_GCC_OPTIONS");
       if (ptr)

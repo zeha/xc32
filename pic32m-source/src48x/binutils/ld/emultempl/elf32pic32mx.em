@@ -1362,8 +1362,8 @@ bfd_pic32_collect_section_size (s, region )
   unsigned long actual = s->sec->size;
 
   if (PIC32_IS_COHERENT_ATTR(s->sec)) {
-    start &= 0xdfffffff;
-    load &= 0xdfffffff;
+    start &= 0xbfffffff;
+    load &= 0xbfffffff;
   }
     
   /*
@@ -1763,8 +1763,8 @@ bfd_pic32_report_sections (s, region, magic_sections, fp)
   size_t name_len = 0;
 
   if (PIC32_IS_COHERENT_ATTR(s->sec)) {
-    start &= 0xdfffffff;
-    load &= 0xdfffffff;
+    start &= 0xbfffffff;
+    load &= 0xbfffffff;
   }
     
   /*

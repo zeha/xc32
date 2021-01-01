@@ -75,13 +75,25 @@ mtcm=
 Target Report RejectNegative Joined Var(TARGET_MCHP_TCM) Undocumented
 -mtcm=VALUE	Enable tcm and set tcm size to VALUE for CMCC-style TCM
 
+mtcm
+Target RejectNegative Undocumented
+-mtcm           Enable tcm and set tcm size to device default.
+
 mitcm=
 Target Report RejectNegative Joined Var(TARGET_MCHP_ITCM)
 -mitcm=VALUE	Enable itcm and set itcm size to VALUE for devices with separate itcm & dtcm sizes
 
+mitcm
+Target RejectNegative Undocumented
+-mitcm          Enable itcm and set itcm size to device default.
+
 mdtcm=
 Target Report RejectNegative Joined Var(TARGET_MCHP_DTCM)
 -mdtcm=VALUE	Enable dtcm and set dtcm size to VALUE for devices with separate itcm & dtcm sizes
+
+mdtcm
+Target RejectNegative Undocumented
+-mdtcm          Enable dtcm and set dtcm size to device default.
 
 mstack-in-tcm
 Target Report Var(mchp_stack_in_tcm)
@@ -106,6 +118,10 @@ Target RejectNegative Var(TARGET_MCHP_DEBUGGER) Init(0) Undocumented
 mno-device-startup-code
 Target RejectNegative
 -mno-device-startup-code	Do not link the default device-specific startup code
+
+mnewlib-nano
+Target Report Init(1)
+-mnewlib-nano   Use newlib-nano implementation of standard C library
 
 msemihost
 Target RejectNegative VAR(TARGET_SEMIHOSTING) Init(0) Undocumented
@@ -143,5 +159,17 @@ Target RejectNegative Alias(mcodecov=,sb) Undocumented
 mcci
 Target RejectNegative Var(TARGET_CCI)
 -mcci   Use CCI keywords
+
+mpa
+Target Mask(PROCEDURAL_ABSTRACTION) Undocumented
+Enable procedural abstraction optimization.
+
+mno-pa-on-file=
+Target RejectNegative Joined MissingArgError(missing object or archive filename to be ignored for PA) Undocumented
+Ignore procedural abstraction optimization on specified object or archive file
+
+mno-pa-on-function=
+Target RejectNegative Joined MissingArgError(missing function name to be ignored for PA) Undocumented
+Ignore procedural abstraction optimization on specified function
 
 ;

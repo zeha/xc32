@@ -75,7 +75,7 @@ extern unsigned int         pic32c_tcm_size = 0;
 extern unsigned int         pic32c_itcm_size = 0;
 extern unsigned int         pic32c_dtcm_size = 0;
 extern bfd_boolean          pic32c_stack_in_tcm = FALSE;
- bfd_boolean          pic32c_vectors_in_tcm = TRUE;
+extern bfd_boolean          pic32c_vectors_in_tcm = TRUE;
 
 
 /* lghica co-resident*/

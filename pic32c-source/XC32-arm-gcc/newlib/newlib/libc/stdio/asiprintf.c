@@ -39,6 +39,7 @@ _DEFUN(_asiprintf_r, (ptr, strp, fmt),
   f._bf._base = f._p = NULL;
   f._bf._size = f._w = 0;
   f._file = -1;  /* No file. */
+  f._flags2 = 0; /* initialize flags2 as it will be used to check the __SWID flag */
   va_start (ap, fmt);
   ret = _svfiprintf_r (ptr, &f, fmt, ap);
   va_end (ap);
@@ -66,6 +67,7 @@ _DEFUN(asiprintf, (strp, fmt),
   f._bf._base = f._p = NULL;
   f._bf._size = f._w = 0;
   f._file = -1;  /* No file. */
+  f._flags2 = 0; /* initialize flags2 as it will be used to check the __SWID flag */
   va_start (ap, fmt);
   ret = _svfiprintf_r (_REENT, &f, fmt, ap);
   va_end (ap);

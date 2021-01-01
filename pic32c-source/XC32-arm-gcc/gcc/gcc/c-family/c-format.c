@@ -985,8 +985,11 @@ struct format_check_context
   format_check_results *res;
   function_format_info *info;
   tree params;
-  bool warn;    /* _BUILD_MCHP_: check for/issue format warnings */
-  bool annot;   /* _BUILD_MCHP_: annotate format string for smart-io */
+#ifdef _BUILD_MCHP_
+  bool warn;         /* _BUILD_MCHP_: check for/issue format warnings */
+  bool annot;        /* _BUILD_MCHP_: annotate format string for smart-io */
+  bool int_only;     /* _BUILD_MCHP_: assume level 2 for this function */
+#endif
 };
 
 /* Return the format name (as specified in the original table) for the format
@@ -1009,13 +1012,26 @@ format_flags (int format_num)
   gcc_unreachable ();
 }
 
-static void check_format_info (function_format_info *, tree, bool, bool);
+#ifdef _BUILD_MCHP_
+static void check_format_info (function_format_info *, tree, bool,
+			       bool annot_smartio, bool int_only);
 static void check_format_arg (void *, tree *, unsigned HOST_WIDE_INT);
 static tree check_format_info_main (format_check_results *,
 				    function_format_info *,
 				    const char *, int, tree,
-				    unsigned HOST_WIDE_INT, bool, bool, tree,
+				    unsigned HOST_WIDE_INT, 
+                                    bool warn, bool annot, bool int_only,
+                                    tree format_tree,
 				    object_allocator<format_wanted_type> &);
+#else
+static void check_format_info (function_format_info *, tree);
+static void check_format_arg (void *, tree, unsigned HOST_WIDE_INT);
+static void check_format_info_main (format_check_results *,
+				    function_format_info *,
+				    const char *, int, tree,
+				    unsigned HOST_WIDE_INT, 
+				    object_allocator<format_wanted_type> &);
+#endif
 
 static void init_dollar_format_checking (int, tree);
 static int maybe_read_dollar_number (const char **, int,
@@ -1062,7 +1078,11 @@ decode_format_type (const char *s)
    warn for calls to vprintf or vscanf in functions with no such format
    attribute themselves.  */
 void
-check_function_format (tree attrs, int nargs, tree *argarray, bool warn, bool annot)
+check_function_format (tree attrs, int nargs, tree *argarray
+#ifdef _BUILD_MCHP_
+		       , bool warn, bool annot, bool int_only
+#endif
+                       )
 {
   tree a;
 
@@ -1083,9 +1103,10 @@ check_function_format (tree attrs, int nargs, tree *argarray, bool warn, bool an
           for (i = nargs - 1; i >= 0; i--)
             params = tree_cons (NULL_TREE, argarray[i], params);
 
-          check_format_info (&info, params, warn, annot);
 
 #ifdef _BUILD_MCHP_
+          check_format_info (&info, params, warn, annot, int_only);
+
           /* smart-io: have to copy back in case we changed the root of the
              param. */
           for (i = 0; i < nargs; i++)
@@ -1093,6 +1114,8 @@ check_function_format (tree attrs, int nargs, tree *argarray, bool warn, bool an
               argarray[i] = TREE_VALUE (params);
               params = TREE_CHAIN (params);
             }
+#else
+          check_format_into (&info, params);
 #endif /* _BUILD_MCHP_ */
 
           if (warn && warn_suggest_attribute_format && info.first_arg_num == 0
@@ -1392,7 +1415,7 @@ get_flag_spec (const format_flag_spec *spec, int flag, const char *predicates)
    a negative value is returned.
    */
 static int
-smartio_invalid_format (const char * format_chars)
+smartio_invalid_format (const char * format_chars, bool int_only = 0)
 {
   /* The following table encodes conversion characters which are
      asserted to not be used by smart-io level. */
@@ -1403,9 +1426,8 @@ smartio_invalid_format (const char * format_chars)
       "eEfFgG" /* 2 (no floating point) */
     };
 
-  gcc_assert (TARGET_MCHP_SMARTIO_LEVEL <= 2);
-
-  const char * invalid_chars = smartio_invalid_chars[TARGET_MCHP_SMARTIO_LEVEL];
+  size_t level = int_only ? 2 : TARGET_MCHP_SMARTIO_LEVEL;
+  const char * invalid_chars = smartio_invalid_chars[level];
   const char *c;
 
   /* Explicit check for invalid identifier name characters,
@@ -1427,7 +1449,11 @@ smartio_invalid_format (const char * format_chars)
    INFO points to the function_format_info structure.
    PARAMS is the list of argument values.  */
 static void
-check_format_info (function_format_info *info, tree params, bool warn, bool annot)
+check_format_info (function_format_info *info, tree params
+#ifdef _BUILD_MCHP_
+		   , bool warn, bool annot, bool int_only
+#endif
+                   )
 {
   format_check_context format_ctx;
   unsigned HOST_WIDE_INT arg_num;
@@ -1465,24 +1491,24 @@ check_format_info (function_format_info *info, tree params, bool warn, bool anno
 
   /* _BUILD_MCHP_: control whether we are checking for warnings and/or
      annotating smart-io functions. */
+#ifdef _BUILD_MCHP_
   format_ctx.warn = warn;
   format_ctx.annot = annot;
+  format_ctx.int_only = int_only;
 
   check_function_arguments_recurse (check_format_arg, &format_ctx,
 				    &format_tree, arg_num);
 
-#ifdef _BUILD_MCHP_
   if (format_tree == TREE_VALUE (format_param))
     {
       /* If we failed due to an un-checkable format, assume the worst
          based on smart-io level. We add all conversion specs which contain *no*
          characters from the smartio_invalid_chars set for the level. */
-      if (TARGET_MCHP_SMARTIO_LEVEL > 1 && res.number_non_literal)
+      if ((TARGET_MCHP_SMARTIO_LEVEL > 1 || int_only) && res.number_non_literal)
         {
-          gcc_assert (TARGET_MCHP_SMARTIO_LEVEL <= 2);
-
-          const format_char_info *fci = format_types[info->format_type].conversion_specs;
-          char spec_str[MAX_PRINT_CHAR_LEN];
+	  const format_char_info *fci
+	    = format_types[info->format_type].conversion_specs;
+	  char spec_str[MAX_PRINT_CHAR_LEN];
           char *p = spec_str;
 
           /* Add all format_chars for supported standards which exclude all 
@@ -1490,7 +1516,7 @@ check_format_info (function_format_info *info, tree params, bool warn, bool anno
           for (; fci->format_chars != NULL; ++fci)
             {
               if (fci->std == STD_C89 &&
-                  !smartio_invalid_format (fci->format_chars))
+                  !smartio_invalid_format (fci->format_chars, int_only))
                 {
                   sprintf (p, "%s", fci->format_chars);
                   p += strlen (fci->format_chars);
@@ -1504,11 +1530,14 @@ check_format_info (function_format_info *info, tree params, bool warn, bool anno
 
   /* smart-io: copy in case format_tree was replaced. */
   TREE_VALUE (format_param) = format_tree;
-#endif /* _BUILD_MCHP_ */
 
   /* The rest of the work is only necessary if we need warnings. */
   if (!warn)
     return;
+#else
+  check_function_arguments_recurse (check_format_arg, &format_ctx,
+				    format_tree, arg_num);
+#endif /* _BUILD_MCHP_ */
 
   location_t loc = format_ctx.res->format_string_loc;
 
@@ -1583,14 +1612,21 @@ check_format_info (function_format_info *info, tree params, bool warn, bool anno
    format_check_context.  */
 
 static void 
+#ifdef _BUILD_MCHP_
 check_format_arg (void *ctx, tree *format_tree_p,
 		  unsigned HOST_WIDE_INT arg_num)
+#else
+check_format_arg (void *ctx, tree format_tree,
+		  unsigned HOST_WIDE_INT arg_num)
+#endif
 {
-  tree format_tree = *format_tree_p;
   format_check_context *format_ctx = (format_check_context *) ctx;
   format_check_results *res = format_ctx->res;
   function_format_info *info = format_ctx->info;
   tree params = format_ctx->params;
+#ifdef _BUILD_MCHP_
+  tree format_tree = *format_tree_p;
+#endif
 
   int format_length;
   HOST_WIDE_INT offset;
@@ -1777,10 +1813,16 @@ check_format_arg (void *ctx, tree *format_tree_p,
   res->number_other++;
   object_allocator <format_wanted_type> fwt_pool ("format_wanted_type pool");
 
-  *format_tree_p = 
-    check_format_info_main (res, info, format_chars, format_length,
-		 	    params, arg_num, format_ctx->warn, format_ctx->annot,
-                            *format_tree_p, fwt_pool);
+#ifdef _BUILD_MCHP_
+  *format_tree_p =
+#endif
+  check_format_info_main (res, info, format_chars, format_length, params,
+			  arg_num, 
+#ifdef _BUILD_MCHP_
+                          format_ctx->warn, format_ctx->annot, 
+                          format_ctx->int_only, *format_tree_p, 
+#endif
+                          fwt_pool);
 }
 
 /* Do the main part of checking a call to a format function.  FORMAT_CHARS
@@ -1793,13 +1835,18 @@ check_format_arg (void *ctx, tree *format_tree_p,
    tree whos first parameter is a list containing the set of all conversion
    specifiers found.
    */
-
+#ifdef _BUILD_MCHP_
 static tree 
+#else
+static void 
+#endif
 check_format_info_main (format_check_results *res,
 			function_format_info *info, const char *format_chars,
 			int format_length, tree params,
 			unsigned HOST_WIDE_INT arg_num,
-                        bool warn, bool annot, tree format_tree,
+#ifdef _BUILD_MCHP_
+                        bool warn, bool annot, bool int_only, tree format_tree,
+#endif
 			object_allocator <format_wanted_type> &fwt_pool)
 {
   const char *orig_format_chars = format_chars;
@@ -1854,7 +1901,9 @@ check_format_info_main (format_check_results *res,
 	continue;
       if (*format_chars == 0)
 	{
+#ifdef _BUILD_MCHP_
           if (warn)
+#endif
             warning_at (location_from_offset (format_string_loc,
                                               format_chars - orig_format_chars),
                         OPT_Wformat_,
@@ -1879,7 +1928,11 @@ check_format_info_main (format_check_results *res,
 					    first_fillin_param,
 					    &main_arg_params, fki);
 	  if (opnum == -1)
+#ifdef _BUILD_MCHP_
 	    return format_tree;
+#else
+            return;
+#endif
 	  else if (opnum > 0)
 	    {
 	      has_operand_number = 1;
@@ -1889,7 +1942,11 @@ check_format_info_main (format_check_results *res,
       else if (fki->flags & FMT_FLAG_USE_DOLLAR)
 	{
 	  if (avoid_dollar_number (format_chars))
+#ifdef _BUILD_MCHP_
 	    return format_tree;
+#else
+            return;
+#endif
 	}
 
       /* Read any format flags, but do not yet validate them beyond removing
@@ -1900,7 +1957,11 @@ check_format_info_main (format_check_results *res,
 	{
 	  const format_flag_spec *s = get_flag_spec (flag_specs,
 						     *format_chars, NULL);
-	  if (strchr (flag_chars, *format_chars) != 0 && warn)
+	  if (strchr (flag_chars, *format_chars) != 0
+#ifdef _BUILD_MCHP_
+              && warn
+#endif
+              )
 	    {
 	      warning_at (location_from_offset (format_string_loc,
 						format_chars + 1
@@ -1921,7 +1982,11 @@ check_format_info_main (format_check_results *res,
 		{
 		  warning_at (format_string_loc, OPT_Wformat_,
 			      "missing fill character at end of strfmon format");
+#ifdef _BUILD_MCHP_
 		  return format_tree;
+#else
+                  return;
+#endif
 		}
 	    }
 	  ++format_chars;
@@ -1946,7 +2011,11 @@ check_format_info_main (format_check_results *res,
 						    first_fillin_param,
 						    &params, fki);
 		  if (opnum == -1)
+#ifdef _BUILD_MCHP_
 		    return format_tree;
+#else
+                    return;
+#endif
 		  else if (opnum > 0)
 		    {
 		      has_operand_number = 1;
@@ -2009,7 +2078,11 @@ check_format_info_main (format_check_results *res,
 		  ++format_chars;
 		}
 	      if (found_width && !non_zero_width_char &&
-		  (fki->flags & (int) FMT_FLAG_ZERO_WIDTH_BAD) && warn)
+		  (fki->flags & (int) FMT_FLAG_ZERO_WIDTH_BAD) 
+#ifdef _BUILD_MCHP_
+                  && warn
+#endif
+                  )
 		warning_at (format_string_loc, OPT_Wformat_,
 			    "zero width in %s format", fki->name);
 	      if (found_width)
@@ -2028,7 +2101,11 @@ check_format_info_main (format_check_results *res,
 	  i = strlen (flag_chars);
 	  flag_chars[i++] = fki->left_precision_char;
 	  flag_chars[i] = 0;
-	  if (!ISDIGIT (*format_chars) && warn)
+	  if (!ISDIGIT (*format_chars) 
+#ifdef _BUILD_MCHP_
+              && warn
+#endif
+              )
 	    warning_at (location_from_offset (format_string_loc,
 					      format_chars - orig_format_chars),
 			OPT_Wformat_,
@@ -2057,7 +2134,11 @@ check_format_info_main (format_check_results *res,
 						    first_fillin_param,
 						    &params, fki);
 		  if (opnum == -1)
+#ifdef _BUILD_MCHP_
 		    return format_tree;
+#else
+                    return;
+#endif
 		  else if (opnum > 0)
 		    {
 		      has_operand_number = 1;
@@ -2069,7 +2150,11 @@ check_format_info_main (format_check_results *res,
 	      else
 		{
 		  if (avoid_dollar_number (format_chars))
+#ifdef _BUILD_MCHP_
 		    return format_tree;
+#else
+                    return;
+#endif
 		}
 	      if (info->first_arg_num != 0)
 		{
@@ -2180,7 +2265,11 @@ check_format_info_main (format_check_results *res,
 	  if (pedantic)
 	    {
 	      /* Warn if the length modifier is non-standard.  */
-	      if (ADJ_STD (length_chars_std) > C_STD_VER && warn)
+	      if (ADJ_STD (length_chars_std) > C_STD_VER 
+#ifdef _BUILD_MCHP_
+                  && warn
+#endif
+                  )
 		warning_at (format_string_loc, OPT_Wformat_,
 			    "%s does not support the %qs %s length modifier",
 			    C_STD_NAME (length_chars_std), length_chars,
@@ -2219,7 +2308,9 @@ check_format_info_main (format_check_results *res,
 	  || (!(fki->flags & (int) FMT_FLAG_FANCY_PERCENT_OK)
 	      && format_char == '%'))
 	{
+#ifdef _BUILD_MCHP_
           if (warn)
+#endif
             warning_at (location_from_offset (format_string_loc,
                                               format_chars - orig_format_chars),
                         OPT_Wformat_,
@@ -2236,7 +2327,9 @@ check_format_info_main (format_check_results *res,
         }
       if (fci->format_chars == 0)
 	{
+#ifdef _BUILD_MCHP_
           if (warn)
+#endif
             {
               if (ISGRAPH (format_char))
                 warning_at (location_from_offset (format_string_loc,
@@ -2260,7 +2353,10 @@ check_format_info_main (format_check_results *res,
           conv_set |= (1 << fcx);
         }
 #endif /* _BUILD_MCHP_ */
+
+#ifdef _BUILD_MCHP_
       if (warn)
+#endif
         {
           if (pedantic)
             {
@@ -2483,7 +2579,11 @@ check_format_info_main (format_check_results *res,
                     {
                       warning_at (format_string_loc, OPT_Wformat_,
                                   "missing $ operand number in format");
+#ifdef _BUILD_MCHP_
                       return format_tree;
+#else
+                      return;
+#endif
                     }
                   else
                     has_operand_number = 0;
@@ -2549,7 +2649,9 @@ check_format_info_main (format_check_results *res,
         } /* if (warn) */
     } /* while (format_chars != 0) */
 
+#ifdef _BUILD_MCHP_
   if (warn)
+#endif
     {
       if (format_chars - orig_format_chars != format_length)
         warning_at (location_from_offset (format_string_loc,
@@ -2586,10 +2688,13 @@ check_format_info_main (format_check_results *res,
 	if ((s & 0x1) && conv_specs[i].std == STD_C89
 	    && conv_specs[i].format_chars)
 	  {
-            int invalid = smartio_invalid_format (conv_specs[i].format_chars);
-            if (invalid) 
+	    int invalid
+	      = smartio_invalid_format (conv_specs[i].format_chars, int_only);
+	    if (invalid) 
               {
-                if (invalid > 0)
+                /* suppress the smart-io warning if int_only is set. 
+                   we should perhaps issue a warning about the function itself? */
+                if (invalid > 0 && !int_only)
 		  warning_at (
 		    format_string_loc, OPT_Wformat_,
 		    "conversion specifier(s) %s are not supported with "

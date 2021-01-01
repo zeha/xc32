@@ -61,6 +61,31 @@ pic32c_check_file ()
   fi
 }
 
+# Function to get a device name based on an atdf/pic file.
+# n.b. the device name is defined by the file, not the name,
+# but we rely on them corresponding exactly. 
+device_name()
+{
+  # strip path and extension, normalize to uppercase
+  local filename=$(basename ${1} | tr '[:lower:]' '[:upper:]')
+  filename=${filename%.*}
+
+  # Terrible, terrible hack: add AT prefix if missing. This is because the
+  # part support hacks on the AT prefix, which in turn is because the 
+  # XC shell enforces it.
+  if [[ ${filename} == "SAM"* ]]; then
+    echo "AT${filename}"
+  else
+    echo ${filename}
+  fi
+}
+
+# Function to convert all inputs to lowercase.
+to_lower()
+{
+  echo $@ | tr '[:upper:]' '[:lower:]'
+}
+
 # Function to check all files for given atdf input folder were generated
 # in <PACK_FOLDER>/xc32
 pic32c_check_part_files ()
@@ -70,17 +95,15 @@ pic32c_check_part_files ()
   DIR=${TMP_PACK_DIR}/xc32
   for ATDF_FILE in "${ATDF_FILELIST[@]}"
   do
-    ATDF_FILENAME=`basename ${ATDF_FILE}`
     # UDEVICENAME is extracted from ATDF_FILENAME which is supposed to have the
     # <part_name>.PIC format
     # LDEVICE name is the lower-case equivalent
-    UDEVICENAME=`echo $ATDF_FILENAME | tr '[:lower:]' '[:upper:]'`
-    UDEVICENAME=`echo $UDEVICENAME | sed -e "s/\.*ATDF//g"`
-    LDEVICENAME=`echo $UDEVICENAME | tr '[:upper:]' '[:lower:]'`
+    UDEVICENAME=$(device_name ${ATDF_FILE})
+    LDEVICENAME=$(to_lower ${UDEVICENAME})
     # echo $UDEVICENAME
     pic32c_check_file "${DIR}/${UDEVICENAME}/specs-${UDEVICENAME}"
     pic32c_check_file "${DIR}/${UDEVICENAME}/${UDEVICENAME}.ld"
-    pic32c_check_file "${DIR}/${UDEVICENAME}/startup_${LDEVICENAME}.c"
+    pic32c_check_file "${DIR}/${UDEVICENAME}/startup_${LDEVICENAME}.*"
     pic32c_check_file "${DIR}/${UDEVICENAME}/configuration.data"
   done
 
@@ -123,12 +146,9 @@ make_temp_packdirs()
   # create device dirs
   for ATDF_FILE in "${ATDF_FILELIST[@]}"
   do
-    ATDF_FILENAME=`basename ${ATDF_FILE}`
     # UDEVICENAME is extracted from ATDF_FILENAME which is supposed to have the
     # <part_name>.PIC format
-    # LDEVICE name is the lower-case equivalent
-    UDEVICENAME=`echo $ATDF_FILENAME | tr '[:lower:]' '[:upper:]'`
-    UDEVICENAME=`echo $UDEVICENAME | sed -e "s/\.*ATDF//g"`
+    UDEVICENAME=$(device_name ${ATDF_FILE})
     mkdir -p ${TMP_PACK_DIR}/xc32/${UDEVICENAME}
   done
 }
@@ -153,20 +173,19 @@ pic32c_gen_part_files()
 
   # generate xc.h file for DFP and copy to DFP
   log "Generating xc.h"
-  ATDF_PATH=${ATDF_PATH} OUTPUT_PATH=${OUTPUT_PATH} make -f Makefile-xc32 xc_h_dfp &> ${OUTPUT_PATH}/xc_h.log
-  cp ${OUTPUT_PATH}/xc32/xc.h ${TMP_PACK_DIR}/xc32/include/
+  rm -f ${OUTPUT_PATH}/xc32/xc.h
+  rm -f ${TMP_PACK_DIR}/xc32/include/xc.h
+  ${SCRIPTROOT}/generate-pic32c-xc.h.sh ${PACKSDIR}/include > ${TMP_PACK_DIR}/xc32/include/xc.h
 
   # specs files generate and copy
   log "Generating specs files"
   ATDF_PATH=${ATDF_PATH} OUTPUT_PATH=${OUTPUT_PATH} make -f Makefile-xc32 pic32c_specs &> ${OUTPUT_PATH}/specs.log
   for ATDF_FILE in "${ATDF_FILELIST[@]}"
   do
-    ATDF_FILENAME=`basename ${ATDF_FILE}`
     # UDEVICENAME is extracted from ATDF_FILENAME which is supposed to have the
     # <part_name>.ATDF format
     # LDEVICE name is the lower-case equivalent
-    UDEVICENAME=`echo $ATDF_FILENAME | tr '[:lower:]' '[:upper:]'`
-    UDEVICENAME=`echo $UDEVICENAME | sed -e "s/\.ATDF//g"`
+    UDEVICENAME=$(device_name ${ATDF_FILE})
 
     # copy specs file for this device
     cp ${OUTPUT_PATH}/xc32/device-specs/specs-${UDEVICENAME} ${TMP_PACK_DIR}/xc32/${UDEVICENAME}
@@ -178,18 +197,21 @@ pic32c_gen_part_files()
   log "Generating configuration.data files"
   for PIC in "${PIC_FILELIST[@]}"
   do
-    PIC_FILENAME=`basename ${PIC}`
-    # UDEVICENAME is extracted from PIC_FILENAME which is supposed to have the
-    # <part_name>.PIC format
-    # LDEVICE name is the lower-case equivalent
-    UDEVICENAME=`echo $PIC_FILENAME | tr '[:lower:]' '[:upper:]'`
-    UDEVICENAME=`echo $UDEVICENAME | sed -e "s/\.PIC//g"`
-
     if is_arm_picfile "$PIC"; then
       # run pic2cfg32.py on the PIC file
       python ${CROWNKING_PYDIR}/pic2cfg32.py $PIC &> ${OUTPUT_PATH}/configdata.log
       # copy configuration.data file to the DFP folder
-      cp ./32Family/${UDEVICENAME}/configuration.data ${TMP_PACK_DIR}/xc32/${UDEVICENAME}/
+      pushd ./32Family
+      # the crownking script may decide on its own device directory names. 
+      # 'normalize' them here.
+      for f in $(find . -type d -maxdepth 1); do
+        if [[ -f "${f}/configuration.data" ]]; then
+           UDEVICENAME=$(device_name ${f})
+           mkdir -p ${TMP_PACK_DIR}/xc32/${UDEVICENAME}
+           cp ${f}/configuration.data ${TMP_PACK_DIR}/xc32/${UDEVICENAME}
+        fi 
+      done
+      popd
     fi
   done
 }

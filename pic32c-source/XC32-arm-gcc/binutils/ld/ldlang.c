@@ -2677,6 +2677,7 @@ lang_add_section (lang_statement_list_type *ptr,
     
     section->output_section->itcm = section->itcm;
     section->output_section->dtcm = section->dtcm;
+    section->output_section->nopa = section->nopa;
 
     /* lghica co-resident */
     /* copy if the section has been linked before */

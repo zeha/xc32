@@ -70,6 +70,7 @@ along with GCC; see the file COPYING3.  If not see
 #define MCHP_REGION_FLAG MCHP_EXTENDED_FLAG "region" MCHP_EXTENDED_FLAG
 #define MCHP_ITCM_FLAG MCHP_EXTENDED_FLAG "itcm" MCHP_EXTENDED_FLAG
 #define MCHP_DTCM_FLAG MCHP_EXTENDED_FLAG "dtcm" MCHP_EXTENDED_FLAG
+#define MCHP_NOPA_FLAG MCHP_EXTENDED_FLAG "nopa" MCHP_EXTENDED_FLAG
 
 #define MCHP_IS_NAME_P(NAME, IS) (strncmp (NAME, IS, sizeof (IS) - 1) == 0)
 #define MCHP_HAS_NAME_P(NAME, HAS) (strstr (NAME, HAS))
@@ -410,7 +411,8 @@ extern unsigned int g_ARM_BUILTIN_MAX;
     {"unsupported", 0, 1, false, false, false, pic32c_unsupported_attribute,   \
       false},                                                                  \
     {"target_error", 1, 1, false, false, false, pic32c_target_error_attribute, \
-      false},
+      false},                                                                  \
+    {"nopa", 0, 0, false, false, false, pic32c_nopa_attribute, false},
 
 
 /* The Microchip port has a few pragmas to define as well */
@@ -424,6 +426,9 @@ extern unsigned int g_ARM_BUILTIN_MAX;
 /* set path to linker for collect2 wrapper */
 #undef COLLECT2_RELATIVE_LD_FILE_NAME
 #define COLLECT2_RELATIVE_LD_FILE_NAME "../../../../bin/xc32-ld"
+
+#undef COLLECT2_RELATIVE_PA_FILE_NAME
+#define COLLECT2_RELATIVE_PA_FILE_NAME "../../../../bin/bin/pic32c-pa"
 
 #undef TARGET_ATTRIBUTE_TAKES_IDENTIFIER_P
 #define TARGET_ATTRIBUTE_TAKES_IDENTIFIER_P pic32c_attribute_takes_identifier_p

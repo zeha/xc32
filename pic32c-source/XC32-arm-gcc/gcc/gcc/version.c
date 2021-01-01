@@ -36,7 +36,7 @@ const char bug_report_url[] = "<URL:http://www.microchip.com/support>";
    Makefile.  */
 
 #if defined(_BUILD_C32_) || defined(_BUILD_XC32_) || defined(TARGET_MCHP_PIC32C) || defined(TARGET_MCHP_PIC32MX)
-const char version_string[] = BASEVER " " "MPLAB XC32 Compiler v2.39 Functional Safety"; /* XC32 */
+const char version_string[] = BASEVER " " "MPLAB XC32 Compiler v2.40"; /* XC32 */
 
 #elif defined(_BUILD_C30_)
 #define version2(X) #X

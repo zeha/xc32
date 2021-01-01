@@ -50,6 +50,7 @@ _DEFUN(_vswprintf_r, (ptr, str, size, fmt, ap),
   f._bf._base = f._p = (unsigned char *) str;
   f._bf._size = f._w = (size > 0 ? (size - 1) * sizeof (wchar_t) : 0);
   f._file = -1;  /* No file. */
+  f._flags2 = 0; /* initialize flags2 as it will be used to check the __SWID flag */
   ret = _svfwprintf_r (ptr, &f, fmt, ap);
   /* _svfwprintf_r() does not put in a terminating NUL, so add one if
    * appropriate, which is whenever size is > 0.  _svfwprintf_r() stops

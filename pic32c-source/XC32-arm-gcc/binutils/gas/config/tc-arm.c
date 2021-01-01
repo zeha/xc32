@@ -39,6 +39,7 @@
 
 #ifdef TARGET_IS_PIC32C
 #include "pic32c-utils.h"
+#include "elf/pic32c.h"
 #include "struc-symbol.h"
 #endif
 
@@ -27201,20 +27202,47 @@ s_arm_change_section (int ignore)
     if (has_auto_name)
       PIC32_SET_UNORDERED_ATTR(sec);
 
+    valueT sym_val = pic32_extended_attribute_map(sec);
+
     /* encode any extended attributes in a symbol */
-    if (pic32_extended_attribute_map(sec)) {
+    if (sym_val) {
       char *name;
       symbolS * symbolp;
 
-      name = xmalloc (strlen(sec->name) + strlen(EXT_ATTR_PREFIX) + 1);
-      (void) sprintf(name, "%s%s", EXT_ATTR_PREFIX, sec->name);
-      if (!symbol_find(name)) {
-        symbolp = symbol_new (name, absolute_section,
-                              (valueT) pic32_extended_attribute_map(sec),
-                              &zero_address_frag);
-        symbol_table_insert (symbolp);
-        symbol_mark_resolved (symbolp);
+      /* for every extended attribute, an ABS symbol type is created.
+       * This isn't helpful for NOPA since we need to encode the flag
+       * in the symbol value instead of the VMA
+       */
+      if (PIC32_IS_NOPA_ATTR(sec)) {
+        name = xmalloc (strlen(sec->name) + strlen(NOPA_EXT_ATTR_PREFIX) + 1);
+        (void) sprintf(name, "%s%s", NOPA_EXT_ATTR_PREFIX, sec->name);
+
+        if (!symbol_find(name)) {
+          symbolp = symbol_new (name, sec,
+                                (valueT) STYP_NOPA,
+                                &zero_address_frag);
+          symbol_table_insert (symbolp);
+          symbol_mark_resolved (symbolp);
         }
+      }
+
+      /* remove the nopa flag from the symbol value
+       * and create the ABS symbol only if there are other
+       * extended attributes left for the section*/
+      sym_val = sym_val & (~STYP_NOPA);
+
+      if (sym_val) {
+        name = xmalloc (strlen(sec->name) + strlen(EXT_ATTR_PREFIX) + 1);
+        (void) sprintf(name, "%s%s", EXT_ATTR_PREFIX, sec->name);
+
+        if (!symbol_find(name)) {
+          symbolp = symbol_new (name, absolute_section,
+                                sym_val,
+                                &zero_address_frag);
+          symbol_table_insert (symbolp);
+          symbol_mark_resolved (symbolp);
+        }
+      }
     }
 
     /* .comment section flags should alwasy be READONLY & HAS_CONTENTS */

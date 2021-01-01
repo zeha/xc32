@@ -99,9 +99,11 @@
     "%(pic32c_lib)"
 
 #undef LINK_SPEC
-#define LINK_SPEC       \
-    "%(endianness)"     \
-    "%(linker_smartio)"
+#define LINK_SPEC                                                              \
+  "%(endianness)"                                                              \
+  "%(linker_smartio)"                                                          \
+  "%{!mno-newlib-nano: %:replace-outfile(-lc -lc_nano) %:replace-outfile(-lg " \
+  "-lg_nano) %:replace-outfile(-lm -lm_nano)}"
 
 /* Originally from gcc.c, but with added %(linker_script) */
 /* -u* was put back because both BSD and SysV seem to support it.  */
@@ -172,6 +174,7 @@
 #define SUBTARGET_CPP_SPEC                                                     \
   "%(pic32_cmsis_include)"                                                     \
   "%(mcc_include)"                                                             \
+  "%{!mno-newlib-nano: -isystem %R/include/newlib-nano }"                      \
   " -D__USES_INITFINI__"
 
 #undef CPLUSPLUS_CPP_SPEC
@@ -182,7 +185,9 @@
 
 /* Add -lm */
 #undef LIB_SPEC
-#define LIB_SPEC "%{!shared:%{g*:-lg} %{!p:%{!pg:-lc}}%{p:-lc_p}%{pg:-lc_p} -lm}"
+#define LIB_SPEC                                                               \
+  "%{!shared:%{g*:%{!mno-newlib-nano: -lg_nano;: -lg}}"                        \
+  "%{!mno-newlib-nano: -lm_nano;: -lm} %{!mno-newlib-nano: -lc_nano;: -lc}}"
 
 /* Output an element in the static constructor array.  */
 #undef TARGET_ASM_CONSTRUCTOR

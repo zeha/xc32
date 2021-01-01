@@ -270,6 +270,9 @@
 /* set to nonzero to control support for 'n' parameter to store string length */
 #define _SIO_n 0
 
+/* set to nonzero to control support for 'a' parameter for hex float */
+#define _SIO_aA (SIO_FLOAT)
+
 /* set to nonzero to enable unspecified 'extensions' */
 #define _SIO_EXT 0
 

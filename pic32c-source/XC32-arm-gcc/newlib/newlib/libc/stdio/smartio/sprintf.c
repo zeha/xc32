@@ -19,6 +19,7 @@ FUNC(sprintf)(char * str, const char * fmt, ...)
   f._bf._base = f._p = (unsigned char *) str;
   f._bf._size = f._w = INT_MAX;
   f._file = -1;  /* No file. */
+  f._flags2 = 0; /* initialize flags2 as it will be used to check the __SWID flag */
   va_start (ap, fmt);
   ret = FUNC(vfprintf)(&f, fmt, ap);
   va_end (ap);
