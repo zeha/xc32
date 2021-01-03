@@ -1523,6 +1523,9 @@ typedef struct bfd_section
   /* tcm */
   unsigned int itcm:1;
   unsigned int dtcm:1;
+
+  /* procedural abstraction */
+  unsigned int nopa:1;
 #else
   unsigned int sec_flg0:1;
   unsigned int sec_flg1:1;
@@ -1838,8 +1841,8 @@ extern asection _bfd_std_section[4];
   /* memory, heap, stack, ramfunc, coherent, serial_mem,           */  \
      0,        0,     0,       0,         0,          0,               \
                                                                        \
-  /* linked, shared, preserved, itcm, dtcm                         */  \
-     0,        0,       0,       0,    0,                              \
+  /* linked, shared, preserved, itcm, dtcm     nopa                */  \
+     0,        0,       0,       0,    0,      0,                      \
                                                                        \
   /* vma, lma, size, rawsize, compressed_size, relax, relax_count, */  \
      0,   0,   0,    0,       0,               0,     0,               \

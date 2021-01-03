@@ -253,12 +253,16 @@ int main(int argc, char **argv){
            (strncmp(r->fields[0]->v.s,"MEC",3) == 0)   ||
            (strncmp(r->fields[0]->v.s,"MTCH63",6) == 0)   ||
            (strncmp(r->fields[0]->v.s,"USB49",5) == 0) ||
+           (strncmp(r->fields[0]->v.s,"USB249",6) == 0) ||
            (strncmp(r->fields[0]->v.s,"USB7",4) == 0) ||
-           (strncmp(r->fields[0]->v.s,"IPS",3) == 0)) {
+           (strncmp(r->fields[0]->v.s,"IS",2) == 0) ||
+           (strncmp(r->fields[0]->v.s,"IPS",3) == 0) ||
+           (strncmp(r->fields[0]->v.s,"BT",2) == 0)) {
 #else
       if ( (strncmp(r->fields[0]->v.s,"24",2) == 0) ||
            (strncmp(r->fields[0]->v.s,"33",2) == 0) ||
-           (strncmp(r->fields[0]->v.s,"30",2) == 0)){
+           (strncmp(r->fields[0]->v.s,"30",2) == 0) ||
+           (r->fields[1]->v.i & IS_DEVICE_ID)) {
 #endif
         struct resource_data *last = 0;
         /*Create the device file*/
@@ -470,8 +474,8 @@ int main(int argc, char **argv){
     
     if (xml) {
 #ifdef PIC32
-      int families[] = {P32MX, P32MZ, P32MM, P32PR, P32WK, P32MK, PUSB49, PUSB7,  0};
-      char *family_names[] = { "PIC32MX","PIC32MZ","PIC32MM","PIC32PR","PIC32WK","PIC32MK","USB49", "USB7" };
+      int families[] = {P32MX, P32MZ, P32MM, P32PR, P32WK, P32MK, PUSB49, PUSB249, PUSB7, PIS22, PBT55, 0};
+      char *family_names[] = { "PIC32MX","PIC32MZ","PIC32MM","PIC32PR","PIC32WK","PIC32MK","USB49", "USB249", "USB7", "IS22", "BT55" };
 
       int f;
 
@@ -618,7 +622,7 @@ int main(int argc, char **argv){
 
 #ifdef PIC32
       int families[] = {
-        P32MX | P32MZ | P32MM | P32PR | P32WK | P32MK | PUSB49 | PUSB7, 
+        P32MX | P32MZ | P32MM | P32PR | P32WK | P32MK | PUSB49 | PUSB249 | PUSB7, 
         0
       };
 

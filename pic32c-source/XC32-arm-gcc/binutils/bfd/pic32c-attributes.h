@@ -90,6 +90,9 @@ ATTR( preserved, 0, PIC32_SET_PRESERVED_ATTR(sec))
 ATTR( itcm,      0, PIC32_SET_ITCM_ATTR(sec))
 ATTR( dtcm,      0, PIC32_SET_DTCM_ATTR(sec))
 
+/* nopa */
+ATTR( nopa,      0, PIC32_SET_NOPA_ATTR(sec))
+
 /*
  * ATTR_IS: Testing Section Attributes
  *
@@ -128,6 +131,8 @@ ATTR_IS( preserved, PIC32_IS_PRESERVED_ATTR(sec))
 ATTR_IS( itcm,      PIC32_IS_ITCM_ATTR(sec))
 ATTR_IS( dtcm,      PIC32_IS_DTCM_ATTR(sec))
 
+/* nopa */
+ATTR_IS( nopa,      PIC32_IS_NOPA_ATTR(sec))
 
 /*
  * MASK1: Attributes that represent section types
@@ -140,7 +145,7 @@ MASK1( code, data, bss, persist, heap, stack, ramfunc, serial_mem)
  *
  * MASK2( type, modifier1, ... modifier15 )
  */
-MASK2( code, address, 0, 0, align, noload, merge, info, 0, keep, 0, memory, shared, preserved, itcm)
+MASK2( code, address, 0, 0, align, noload, merge, info, nopa, keep, 0, memory, shared, preserved, itcm)
 MASK2( data, address, near, reverse, align, noload, merge, info, dma, keep, coherent, memory, shared, preserved, dtcm)
 MASK2( bss, address, near, reverse, align, noload, 0, info, dma, keep, coherent, memory, shared, preserved, dtcm)
 MASK2( persist, address, near, reverse, align, noload, 0, 0, dma, keep, coherent, 0, shared, preserved, 0)
@@ -163,14 +168,15 @@ MASK3( noload, address, near, reverse, align, 0, 0, dma, keep, coherent, memory,
 MASK3( merge, 0, near, reverse, align, 0, 0, info, keep, 0, 0, shared, preserved)
 MASK3( info, 0, 0, 0, 0, merge, 0, 0, keep, 0, 0, shared, preserved)
 MASK3( dma, address, 0, reverse, align, noload, 0, 0, keep, 0, memory, shared, preserved)
-MASK3( keep, address, near, reverse, align, noload, merge, info, dma, coherent, memory, shared, preserved)
+MASK3( keep, address, nopa, reverse, align, noload, merge, info, dma, coherent, memory, shared, preserved)
 MASK3( coherent, address, near, reverse, align, noload, 0, 0, 0, keep, memory, shared, preserved)
 MASK3( memory, address, near, 0, align, noload, 0, 0, dma, keep, coherent, shared, preserved)
 MASK3( ramfunc, address, 0, 0, align, 0, 0, 0, 0, 0, 0, memory, shared)
 /* lghica co-resident*/
 MASK3( shared, address, near, reverse, align, noload, merge, info, dma, keep, coherent, memory, preserved)
 MASK3( preserved, address, near, reverse, align, noload, merge, info, dma, keep, coherent, memory, shared)
-
+/* nopa attr */
+MASK3( nopa, address, keep, reverse, align, noload, merge, info, dma, coherent, memory, shared, preserved)
 
 /*
  * MASK4: Reserved section names with implied attributes

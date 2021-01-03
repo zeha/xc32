@@ -3403,6 +3403,49 @@ driver_wrong_lang_callback (const struct cl_decoded_option *decoded,
 		 &decoded->canonical_option[1], false, true);
 }
 
+#if defined(TARGET_MCHP_PIC32MX)
+/* helper for checking the "-Tbss", "-Tdata", "-Ttext" etc. linker arguments
+ * that don't specify linker scripts */
+static inline bool
+special_T_form (const char *arg, const char *name, bool last_arg)
+{
+  const size_t name_len = strlen (name);
+  /* the prefix must be exactly 'name', followed by either NUL (should not be the last arg in this case)
+   * or by '=' and at least another char (the value) */
+  return !strncmp (arg, name, name_len) &&
+           ((arg[name_len] == '\0' && !last_arg) ||
+            (arg[name_len] == '=' && arg[name_len + 1] != '\0'));
+}
+/* 'true' if the argument indicates the presence of a custom linker script */
+static bool
+denotes_custom_linker_script (const char *arg, bool last_arg)
+{
+  /* if the linker argument starts with "-T" */
+  if (arg[0] == '-' && arg[1] == 'T') {
+    arg += 2;
+
+    /* separate "-T" and not the last arg => linker script (no '=' form for this) */
+    if (!last_arg && *arg == '\0')
+      return true;
+
+    /* if "-Tbss" / "-Tbss=" or "-Tdata" or "-Tdata=" etc. => not a linker script; */
+    /* otherwise, it is assumed to be a "-Tscript" form */
+    return !(
+           special_T_form (arg, "bss", last_arg)
+        || special_T_form (arg, "data", last_arg)
+        || special_T_form (arg, "text", last_arg)
+        || special_T_form (arg, "text-segment", last_arg)
+        || special_T_form (arg, "rodata-segment", last_arg)
+        /*|| special_T_form (arg, "ldata-segment", last_arg)*/ /* I think this one is x86_64-specific */
+    );
+  }
+
+  /* another chance for this to denote a linker script would be to start
+   * with "--script="; this one doesn't have a separate (w/o '=') form */
+  return !strncmp (arg, "--script=", 9) && arg[9] != '\0';
+}
+#endif
+
 static const char *spec_lang = 0;
 static int last_language_n_infiles;
 
@@ -3598,11 +3641,9 @@ driver_handle_option (struct gcc_options *opts,
 	    {
 	      add_infile (save_string (arg + prev, j - prev), "*");
 #if defined(TARGET_MCHP_PIC32MX)
-                /* If we use the --script option, don't add the default script to the 
+                /* If we use the --script option, don't add the default script to the
                    LINK_COMMAND_SPEC */
-                if (strstr (infiles[n_infiles-1].name, "--script") != NULL)
-                  use_custom_linker_script++;
-                if (strstr (infiles[n_infiles-1].name, "-T") != NULL)
+                if (denotes_custom_linker_script (infiles[n_infiles-1].name, false))
                   use_custom_linker_script++;
 #endif
 	      prev = j + 1;
@@ -3610,8 +3651,8 @@ driver_handle_option (struct gcc_options *opts,
 	/* Record the part after the last comma.  */
 	add_infile (arg + prev, "*");
 #if defined(TARGET_MCHP_PIC32MX)
-       if (strstr (infiles[n_infiles-1].name, "--script") != NULL)
-           use_custom_linker_script++;
+        if (denotes_custom_linker_script (infiles[n_infiles-1].name, true))
+          use_custom_linker_script++;
 #endif
       }
       do_save = false;
@@ -4231,6 +4272,13 @@ process_command (unsigned int decoded_options_count,
       char *tmp_prefix = get_relative_prefix (decoded_options[0].arg,
 					      standard_bindir_prefix,
 					      target_system_root);
+#if defined(_BUILD_XC32_) && defined(__MINGW32__)
+      /* XC32-973: using slashes in 'target_system_root' avoids
+       * escaped/unescaped mismatches in composite paths on Windows */
+      for (char *s = tmp_prefix; *s; ++s)
+        if (*s == '\\')
+          *s = '/';
+#endif
       if (tmp_prefix && access_check (tmp_prefix, F_OK) == 0)
 	{
 	  target_system_root = tmp_prefix;
@@ -6378,20 +6426,22 @@ set_input (const char *filename)
       save_temps_length = org_save_temps_length;
       org_save_temps_prefix = NULL;
     }
-  /* If -save-temps=obj and -o were specified and dealing with a .S input file;
-     NOTE: the restriction on .S files can be removed to get, for example,
-     main.i/.s/.o files instead of elf_name.i/.s/.o which IMO is desirable */
-  if (save_temps_length && input_suffix[0] == 'S' && input_suffix[1] == '\0')
+  /* If -save-temps=obj and -o were specified */
+  /* NOTE: Although we could somehow detect the assembler and C startup files here
+   * and restrict this alternate behavior only to them, not doing that should also be ok
+   * (this is equiv. to -save-temps but using the output dir instead of the current one) */
+  if (save_temps_length)
     {
       /* Modify 'save_temps_prefix' to contain the input basename instead
          of the output basename but save the original string/length */
       org_save_temps_prefix = save_temps_prefix;
       org_save_temps_length = save_temps_length;
 
-      /* memrchr() was used initially here but it isn't available on MinGW;
-         also, the prefix_length could be computed once & cached, but... */
-      char *sep = (char *) strrchr (save_temps_prefix, DIR_SEPARATOR);
-      const int prefix_length = sep ? (sep - save_temps_prefix + 1) : 0;
+      /* The length of the directory part (including the separator) or 0, if missing */
+      size_t prefix_length = strlen (save_temps_prefix);
+      while (prefix_length
+               && !IS_DIR_SEPARATOR (save_temps_prefix[prefix_length - 1]))
+        --prefix_length;
 
       save_temps_length = prefix_length + basename_length;
       save_temps_prefix = XNEWVEC (char, save_temps_length + 1);

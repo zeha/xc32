@@ -24,6 +24,10 @@ cci.o: $(srcdir)/config/mchp-cci/cci.c $(srcdir)/config/mchp-cci/cci.h
 	$(COMPILER) -c $(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS) $(INCLUDES)\
 	  $(srcdir)/config/mchp-cci/cci.c
 
+cci-backend.o: $(srcdir)/config/mchp-cci/cci-backend.c $(srcdir)/config/mchp-cci/cci.h
+	$(COMPILER) -c $(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS) $(INCLUDES)\
+	  $(srcdir)/config/mchp-cci/cci-backend.c
+
 cci-pragmas.o: $(srcdir)/config/mchp-cci/cci-pragmas.c $(srcdir)/config/mchp-cci/cci-pragmas.h
 	$(COMPILER) -c $(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS) $(INCLUDES)\
 	  $(srcdir)/config/mchp-cci/cci-pragmas.c
@@ -51,12 +55,20 @@ pic32c.o: $(srcdir)/config/pic32c/pic32c.c $(CONFIG_H) $(SYSTEM_H) \
 	$(COMPILER) -c $(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) \
 		$(srcdir)/config/pic32c/pic32c.c
 
+pic32c-coverage.o: $(srcdir)/config/pic32c/pic32c-coverage.c $(CONFIG_H) $(SYSTEM_H) \
+        coretypes.h $(TARGET_H) $(RTL_H) output.h $(C_COMMON_H) \
+        $(srcdir)/config/pic32c/pic32c.h $(srcdir)/config/mchp-cci/xclm_public.h \
+        $(srcdir)/config/pic32c/pic32c-protos.h \
+        $(srcdir)/config/pic32c/pic32c-debug.h
+	$(COMPILER) -c $(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) \
+                $(srcdir)/config/pic32c/pic32c-coverage.c
+
 # Remove all objects dependent on SKIP_LICENSE_MANAGER flag
 clean-lm:
 	rm -f mchp-license-manager.o
 
 # Force license manager enablement
-force_lm = $(if $(XC32_ENABLE_LM),$(subst -DSKIP_LICENCE_MANAGER,,$(1)),$(1))
+force_lm = $(if $(XC32_ENABLE_LM),$(subst -DSKIP_LICENSE_MANAGER,,$(1)) $(XC32_LM_FLAGS),$(1))
 
 mchp-license-manager.o: $(srcdir)/config/pic32c/mchp-license-manager.c $(CONFIG_H) $(SYSTEM_H) \
 	coretypes.h $(TM_H) $(TREE_H) output.h $(C_COMMON_H) \

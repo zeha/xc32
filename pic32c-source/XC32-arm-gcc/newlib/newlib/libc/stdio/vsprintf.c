@@ -61,6 +61,7 @@ _DEFUN(_vsprintf_r, (ptr, str, fmt, ap),
   f._bf._base = f._p = (unsigned char *) str;
   f._bf._size = f._w = INT_MAX;
   f._file = -1;  /* No file. */
+  f._flags2 = 0; /* initialize flags2 as it will be used to check the __SWID flag */
   ret = _svfprintf_r (ptr, &f, fmt, ap);
   *f._p = 0;
   return ret;

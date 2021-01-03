@@ -46,6 +46,22 @@ compilation is specified by a string called a "spec".  */
 
 
 
+#ifdef _BUILD_XC32_
+/* By default, the GCC_EXEC_PREFIX_ENV prefix is "GCC_EXEC_PREFIX", however
+   in a cross compiler, another environment variable might want to be used
+   to avoid conflicts with the host any host GCC_EXEC_PREFIX */
+#ifndef GCC_EXEC_PREFIX_ENV
+#define GCC_EXEC_PREFIX_ENV "GCC_EXEC_PREFIX"
+#endif /*GCC_EXEC_PREFIX_ENV*/
+
+/* By default, the COMPILER_PATH_ENV is "COMPILER_PATH", however
+   in a cross compiler, another environment variable might want to be used
+   to avoid conflicts with the host any host COMPILER_PATH */
+#ifndef COMPILER_PATH_ENV
+#define COMPILER_PATH_ENV "COMPILER_PATH"
+#endif /*COMPILER_PATH_ENV*/
+#endif /*_BUILD_XC32_*/
+
 /* Manage the manipulation of env vars.
 
    We poison "getenv" and "putenv", so that all enviroment-handling is
@@ -3739,6 +3755,49 @@ handle_foffload_option (const char *arg)
     }
 }
 
+#if defined(TARGET_MCHP_PIC32MX) || defined(TARGET_MCHP_PIC32C)
+/* helper for checking the "-Tbss", "-Tdata", "-Ttext" etc. linker arguments
+ * that don't specify linker scripts */
+static inline bool
+special_T_form (const char *arg, const char *name, bool last_arg)
+{
+  const size_t name_len = strlen (name);
+  /* the prefix must be exactly 'name', followed by either NUL (should not be the last arg in this case)
+   * or by '=' and at least another char (the value) */
+  return !strncmp (arg, name, name_len) &&
+           ((arg[name_len] == '\0' && !last_arg) ||
+            (arg[name_len] == '=' && arg[name_len + 1] != '\0'));
+}
+/* 'true' if the argument indicates the presence of a custom linker script */
+static bool
+denotes_custom_linker_script (const char *arg, bool last_arg)
+{
+  /* if the linker argument starts with "-T" */
+  if (arg[0] == '-' && arg[1] == 'T') {
+    arg += 2;
+
+    /* separate "-T" and not the last arg => linker script (no '=' form for this) */
+    if (!last_arg && *arg == '\0')
+      return true;
+
+    /* if "-Tbss" / "-Tbss=" or "-Tdata" or "-Tdata=" etc. => not a linker script; */
+    /* otherwise, it is assumed to be a "-Tscript" form */
+    return !(
+           special_T_form (arg, "bss", last_arg)
+        || special_T_form (arg, "data", last_arg)
+        || special_T_form (arg, "text", last_arg)
+        || special_T_form (arg, "text-segment", last_arg)
+        || special_T_form (arg, "rodata-segment", last_arg)
+        /*|| special_T_form (arg, "ldata-segment", last_arg)*/ /* I think this one is x86_64-specific */
+    );
+  }
+
+  /* another chance for this to denote a linker script would be to start
+   * with "--script="; this one doesn't have a separate (w/o '=') form */
+  return !strncmp (arg, "--script=", 9) && arg[9] != '\0';
+}
+#endif
+
 /* Handle a driver option; arguments and return value as for
    handle_option.  */
 
@@ -3943,11 +4002,9 @@ driver_handle_option (struct gcc_options *opts,
 	    {
 	      add_infile (save_string (arg + prev, j - prev), "*");
 #if defined(TARGET_MCHP_PIC32MX) || defined(TARGET_MCHP_PIC32C)
-                /* If we use the --script option, don't add the default script to the 
+                /* If we use the --script option, don't add the default script to the
                    LIB_COMMAND_SPEC */
-                if (strstr (infiles[n_infiles-1].name, "--script") != NULL)
-                  use_custom_linker_script++;
-                if (strstr (infiles[n_infiles-1].name, "-T") != NULL)
+                if (denotes_custom_linker_script (infiles[n_infiles-1].name, false))
                   use_custom_linker_script++;
 #endif
 	      prev = j + 1;
@@ -3955,8 +4012,8 @@ driver_handle_option (struct gcc_options *opts,
 	/* Record the part after the last comma.  */
 	add_infile (arg + prev, "*");
 #if defined(TARGET_MCHP_PIC32MX) || defined(TARGET_MCHP_PIC32C)
-       if (strstr (infiles[n_infiles-1].name, "--script") != NULL)
-           use_custom_linker_script++;
+        if (denotes_custom_linker_script (infiles[n_infiles-1].name, true))
+          use_custom_linker_script++;
 #endif
       }
       do_save = false;
@@ -4186,7 +4243,11 @@ process_command (unsigned int decoded_options_count,
   struct cl_option_handlers handlers;
   unsigned int j;
 
+#ifdef _BUILD_XC32_
+  gcc_exec_prefix = env.get (GCC_EXEC_PREFIX_ENV);
+#else
   gcc_exec_prefix = env.get ("GCC_EXEC_PREFIX");
+#endif /*_BUILD_XC32_*/
 
   n_switches = 0;
   n_infiles = 0;
@@ -4236,7 +4297,12 @@ process_command (unsigned int decoded_options_count,
 					     standard_bindir_prefix,
 					     standard_libexec_prefix);
       if (gcc_exec_prefix)
+#ifdef _BUILD_XC32_
+	xputenv (concat (GCC_EXEC_PREFIX_ENV "=", gcc_exec_prefix, NULL));
+#else
 	xputenv (concat ("GCC_EXEC_PREFIX=", gcc_exec_prefix, NULL));
+#endif /*_BUILD_XC32_*/
+
     }
   else
     {
@@ -4291,7 +4357,11 @@ process_command (unsigned int decoded_options_count,
   /* COMPILER_PATH and LIBRARY_PATH have values
      that are lists of directory names with colons.  */
 
+#ifdef _BUILD_XC32_
+  temp = env.get (COMPILER_PATH_ENV);
+#else
   temp = env.get ("COMPILER_PATH");
+#endif /*_BUILD_XC32_*/
   if (temp)
     {
       const char *startp, *endp;
@@ -4578,6 +4648,13 @@ process_command (unsigned int decoded_options_count,
       char *tmp_prefix = get_relative_prefix (decoded_options[0].arg,
 					      standard_bindir_prefix,
 					      target_system_root);
+#if defined(_BUILD_XC32_) && defined(__MINGW32__)
+      /* XC32-973: using slashes in 'target_system_root' avoids
+       * escaped/unescaped mismatches in composite paths on Windows */
+      for (char *s = tmp_prefix; *s; ++s)
+        if (*s == '\\')
+          *s = '/';
+#endif
       if (tmp_prefix && access_check (tmp_prefix, F_OK) == 0)
 	{
 	  target_system_root = tmp_prefix;
@@ -4999,16 +5076,35 @@ do_self_spec (const char *spec)
 	      /* Specs should only generate options, not input
 		 files.  */
 	      if (strcmp (decoded_options[j].arg, "-") != 0)
-          {
+                {
 #ifdef _BUILD_XC32_
-              ///\ PIC32C: allow .c input files in specs
-              add_infile (decoded_options[j].arg, "c");
-#else
-              fatal_error (input_location,
-			     "switch %qs does not start with %<-%>",
-			     decoded_options[j].arg);
+		  ///\ PIC32C: allow .c/.S input files in specs
+                  int k = strlen (decoded_options[j].arg) - 1;
+                  
+                  if (k > 0 && decoded_options[j].arg[k-1] == '.')
+                    {
+                        switch (decoded_options[j].arg[k]) 
+                          {
+                          case 'c':
+                            add_infile(decoded_options[j].arg, "c");
+                            break;
+                          case 'S':
+                            add_infile(decoded_options[j].arg, 0);
+                            break;
+                          default:
+                            fatal_error (input_location,
+                                         "input file %qs has unsupported suffix",
+                                         decoded_options[j].arg);
+                          }
+                    }
+                  else
 #endif
-          }
+                    {
+                      fatal_error (input_location,
+                                   "switch %qs does not start with %<-%>",
+                                   decoded_options[j].arg);
+                    }
+                }
 	      else
 		fatal_error (input_location,
 			     "spec-generated switch is just %<-%>");
@@ -7114,6 +7210,50 @@ set_input (const char *filename)
      we will need to do a stat on the gcc_input_filename.  The
      INPUT_STAT_SET signals that the stat is needed.  */
   input_stat_set = 0;
+
+#ifdef _BUILD_XC32_
+  /* We may temporarily alter 'save_temps_prefix' and 'save_temps_length',
+     in which case we'll save the original values in these variables
+     NOTE: 'save_temps_prefix' is allocated once per execution and not
+     freed so we also won't bother freeing the last temp string
+     (all the other ones will be freed - see below) */
+  static char *org_save_temps_prefix = 0;
+  static size_t org_save_temps_length = 0;
+
+  /* If save_temps_prefix moded by a prev set_input() */
+  if (org_save_temps_prefix)
+    {
+      /* Restore save_temps_prefix/save_temps_length */
+      free (save_temps_prefix);
+      save_temps_prefix = org_save_temps_prefix;
+      save_temps_length = org_save_temps_length;
+      org_save_temps_prefix = NULL;
+    }
+  /* If -save-temps=obj and -o were specified */
+  /* NOTE: Although we could somehow detect the assembler and C startup files here
+   * and restrict this alternate behavior only to them, not doing that should also be ok
+   * (this is equiv. to -save-temps but using the output dir instead of the current one) */
+  if (save_temps_length)
+    {
+      /* Modify 'save_temps_prefix' to contain the input basename instead
+         of the output basename but save the original string/length */
+      org_save_temps_prefix = save_temps_prefix;
+      org_save_temps_length = save_temps_length;
+
+      /* The length of the directory part (including the separator) or 0, if missing */
+      size_t prefix_length = strlen (save_temps_prefix);
+      while (prefix_length
+               && !IS_DIR_SEPARATOR (save_temps_prefix[prefix_length - 1]))
+        --prefix_length;
+
+      save_temps_length = prefix_length + basename_length;
+      save_temps_prefix = XNEWVEC (char, save_temps_length + 1);
+
+      memcpy (save_temps_prefix, org_save_temps_prefix, prefix_length);
+      memcpy (save_temps_prefix + prefix_length, input_basename, basename_length);
+      save_temps_prefix[save_temps_length] = '\0';
+    }
+#endif /* _BUILD_XC32_ */
 }
 
 /* On fatal signals, delete all the temporary files.  */
@@ -8319,7 +8459,11 @@ driver::maybe_run_linker (const char *argv0) const
 
       /* Rebuild the COMPILER_PATH and LIBRARY_PATH environment variables
 	 for collect.  */
+#ifdef _BUILD_XC32_
+      putenv_from_prefixes (&exec_prefixes, COMPILER_PATH_ENV, false);
+#else
       putenv_from_prefixes (&exec_prefixes, "COMPILER_PATH", false);
+#endif /*_BUILD_XC32_*/
       putenv_from_prefixes (&startfile_prefixes, LIBRARY_PATH_ENV, true);
 
       if (print_subprocess_help == 1)

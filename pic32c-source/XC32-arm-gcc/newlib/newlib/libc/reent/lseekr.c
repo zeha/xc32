@@ -45,6 +45,8 @@ DESCRIPTION
 	<<errno>>.
 */
 
+extern _off_t _lseek (int fd, _off_t pos, int whence);
+
 _off_t
 _DEFUN (_lseek_r, (ptr, fd, pos, whence),
      struct _reent *ptr _AND

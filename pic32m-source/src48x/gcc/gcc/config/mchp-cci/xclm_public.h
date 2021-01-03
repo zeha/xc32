@@ -46,6 +46,14 @@
 #define MCHP_XCLM_VALID_CPP_FREE         0x5
 #define MCHP_XCLM_VALID_CPP_FULL         0x6
 
+/* New option used for FS licenses */
+#define MCHP_XCLM_VALID_FS_LICENSE       0x7
+
+/* New options used for ccov licnese */
+#define MCHP_XCLM_NO_CCOV_LICENSE        0x8
+#define MCHP_XCLM_VALID_CCOV_LICENSE     0x9
+
+
 /* diagnose problems */
 #define MCHP_XCLM_OPTION_ERROR		0x10	/* something bad in supplied options - refer to stderr for details */
 #define MCHP_XCLM_INTERNAL_ERROR	0x11	/* internal error - memory, filesystem, network, ? */

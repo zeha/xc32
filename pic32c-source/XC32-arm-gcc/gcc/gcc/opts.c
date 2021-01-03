@@ -521,7 +521,12 @@ static const struct default_options default_options_table[] =
     { OPT_LEVELS_2_PLUS, OPT_flra_remat, NULL, 1 },
 
     /* -O3 optimizations.  */
+#ifdef TARGET_MCHP_PIC32C
+    /* XC32E-465: enable -ftree-loop-distribute-patterns also with -Os */
+    { OPT_LEVELS_3_PLUS_AND_SIZE, OPT_ftree_loop_distribute_patterns, NULL, 1 },
+#else
     { OPT_LEVELS_3_PLUS, OPT_ftree_loop_distribute_patterns, NULL, 1 },
+#endif
     { OPT_LEVELS_3_PLUS, OPT_fpredictive_commoning, NULL, 1 },
     { OPT_LEVELS_3_PLUS, OPT_fsplit_paths, NULL, 1 },
     /* Inlining of functions reducing size is a good idea with -Os

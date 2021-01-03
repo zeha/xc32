@@ -25,6 +25,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "coretypes.h"
 #include "backend.h"
 #include "target.h"
+#include "c-family/c-common.h"
 #include "hash-table.h"
 #include "tm.h"
 #include "rtl.h"
@@ -114,6 +115,7 @@ along with GCC; see the file COPYING3.  If not see
 
 #include "dumpfile.h"
 #include "tree-pretty-print.h"
+#include "xc-coverage.h"
 
 #include "pic32c-protos.h"
 #include "pic32c.h"
@@ -173,59 +175,63 @@ SECTION_FLAGS_INT mchp_text_flags = SECTION_CODE;
 
 /* 0x100000 */
 #define SECTION_READ_ONLY (MCHP_ULL (SECTION_MACH_DEP))
-#define SECTION_CONST (MCHP_ULL (SECTION_MACH_DEP))
-#define SECTION_RAMFUNC (MCHP_ULL (SECTION_MACH_DEP) << 1ull)
-#define SECTION_NEAR (MCHP_ULL (SECTION_MACH_DEP) << 2ull)
-#define SECTION_PERSIST (MCHP_ULL (SECTION_MACH_DEP) << 3ull)
-#define SECTION_NOLOAD (MCHP_ULL (SECTION_MACH_DEP) << 4ull)
-#define SECTION_INFO (MCHP_ULL (SECTION_MACH_DEP) << 5ull)
-#define SECTION_ADDRESS (MCHP_ULL (SECTION_MACH_DEP) << 6ull)
-#define SECTION_ALIGN (MCHP_ULL (SECTION_MACH_DEP) << 7ull)
-#define SECTION_KEEP (MCHP_ULL (SECTION_MACH_DEP) << 8ull)
-#define SECTION_COHERENT (MCHP_ULL (SECTION_MACH_DEP) << 9ull)
-#define SECTION_REGION (MCHP_ULL (SECTION_MACH_DEP) << 10ull)
+#define SECTION_CONST     (MCHP_ULL (SECTION_MACH_DEP))
+#define SECTION_RAMFUNC   (MCHP_ULL (SECTION_MACH_DEP) << 1ull)
+#define SECTION_NEAR      (MCHP_ULL (SECTION_MACH_DEP) << 2ull)
+#define SECTION_PERSIST   (MCHP_ULL (SECTION_MACH_DEP) << 3ull)
+#define SECTION_NOLOAD    (MCHP_ULL (SECTION_MACH_DEP) << 4ull)
+#define SECTION_INFO      (MCHP_ULL (SECTION_MACH_DEP) << 5ull)
+#define SECTION_ADDRESS   (MCHP_ULL (SECTION_MACH_DEP) << 6ull)
+#define SECTION_ALIGN     (MCHP_ULL (SECTION_MACH_DEP) << 7ull)
+#define SECTION_KEEP      (MCHP_ULL (SECTION_MACH_DEP) << 8ull)
+#define SECTION_COHERENT  (MCHP_ULL (SECTION_MACH_DEP) << 9ull)
+#define SECTION_REGION    (MCHP_ULL (SECTION_MACH_DEP) << 10ull)
 #define SECTION_SERIALMEM (MCHP_ULL (SECTION_MACH_DEP) << 11ull)
-#define SECTION_ITCM (MCHP_ULL (SECTION_MACH_DEP) << 12ull)
-#define SECTION_DTCM (MCHP_ULL (SECTION_MACH_DEP) << 13ull)
+#define SECTION_ITCM      (MCHP_ULL (SECTION_MACH_DEP) << 12ull)
+#define SECTION_DTCM      (MCHP_ULL (SECTION_MACH_DEP) << 13ull)
+#define SECTION_NOPA      (MCHP_ULL (SECTION_MACH_DEP) << 14ull)
 
 /* the attribute names from the assemblers point of view */
-#define SECTION_ATTR_ADDRESS "address"
-#define SECTION_ATTR_ALIGN "align"
-#define SECTION_ATTR_BSS "bss"
-#define SECTION_ATTR_CODE "code"
-#define SECTION_ATTR_CONST "code"
-#define SECTION_ATTR_COHERENT "coherent"
-#define SECTION_ATTR_DATA "data"
-#define SECTION_ATTR_DTCM "dtcm"
-#define SECTION_ATTR_INFO "info"
-#define SECTION_ATTR_ITCM "itcm"
-#define SECTION_ATTR_KEEP "keep"
-#define SECTION_ATTR_NEAR "near"
-#define SECTION_ATTR_NOLOAD "noload"
-#define SECTION_ATTR_PERSIST "persist"
-#define SECTION_ATTR_RAMFUNC "ramfunc"
-#define SECTION_ATTR_DEFAULT "unused"
-#define SECTION_ATTR_REGION "memory"
+#define SECTION_ATTR_ADDRESS   "address"
+#define SECTION_ATTR_ALIGN     "align"
+#define SECTION_ATTR_BSS       "bss"
+#define SECTION_ATTR_CODE      "code"
+#define SECTION_ATTR_CONST     "code"
+#define SECTION_ATTR_COHERENT  "coherent"
+#define SECTION_ATTR_DATA      "data"
+#define SECTION_ATTR_DTCM      "dtcm"
+#define SECTION_ATTR_INFO      "info"
+#define SECTION_ATTR_ITCM      "itcm"
+#define SECTION_ATTR_KEEP      "keep"
+#define SECTION_ATTR_NEAR      "near"
+#define SECTION_ATTR_NOLOAD    "noload"
+#define SECTION_ATTR_PERSIST   "persist"
+#define SECTION_ATTR_RAMFUNC   "ramfunc"
+#define SECTION_ATTR_DEFAULT   "unused"
+#define SECTION_ATTR_REGION    "memory"
 #define SECTION_ATTR_CO_SHARED "shared"
 #define SECTION_ATTR_SERIALMEM "serial_mem"
+#define SECTION_ATTR_NOPA      "nopa"
 
-#define SECTION_NAME_BSS ".bss"
-#define SECTION_NAME_NBSS ".sbss"
-#define SECTION_NAME_SBSS ".sbss"
-#define SECTION_NAME_DATA ".data"
-#define SECTION_NAME_NDATA ".sdata"
-#define SECTION_NAME_SDATA ".sdata"
-#define SECTION_NAME_CONST ".rodata"
-#define SECTION_NAME_RAMFUNC ".ramfunc"
-#define SECTION_NAME_PBSS ".pbss"
-#define SECTION_NAME_INIT ".init"
-#define SECTION_NAME_FINI ".fini"
-#define SECTION_NAME_CTORS ".ctors"
-#define SECTION_NAME_DTORS ".dtors"
+#define SECTION_NAME_BSS        ".bss"
+#define SECTION_NAME_NBSS       ".sbss"
+#define SECTION_NAME_SBSS       ".sbss"
+#define SECTION_NAME_DATA       ".data"
+#define SECTION_NAME_NDATA      ".sdata"
+#define SECTION_NAME_SDATA      ".sdata"
+#define SECTION_NAME_CONST      ".rodata"
+#define SECTION_NAME_RAMFUNC    ".ramfunc"
+#define SECTION_NAME_PBSS       ".pbss"
+#define SECTION_NAME_PERSIST    ".persist"
+#define SECTION_NAME_INIT       ".init"
+#define SECTION_NAME_FINI       ".fini"
+#define SECTION_NAME_CTORS      ".ctors"
+#define SECTION_NAME_DTORS      ".dtors"
 #define SECTION_NAME_INIT_ARRAY ".init_array"
 #define SECTION_NAME_FINI_ARRAY ".fini_array"
-#define SECTION_NAME_SERIALMEM ".serial_mem"
-#define SECTION_NAME_ITCM ".text_itcm"
+#define SECTION_NAME_SERIALMEM  ".serial_mem"
+#define SECTION_NAME_ITCM       ".text_itcm"
+
 
 struct valid_section_flags_
 {
@@ -283,6 +289,7 @@ struct valid_section_flags_
      {SECTION_ATTR_SERIALMEM, 'r', SECTION_READ_ONLY,
       SECTION_CODE | SECTION_WRITE | SECTION_BSS | SECTION_NEAR | SECTION_INFO
 	| SECTION_ITCM | SECTION_DTCM},
+     {SECTION_ATTR_NOPA, 0, SECTION_NOPA, 0},
      {0, 0, 0, 0}};
 static const int num_vsf
   = (sizeof (valid_section_flags) / sizeof (struct valid_section_flags_)) - 1;
@@ -307,6 +314,7 @@ struct reserved_section_names_
   {".text", SECTION_CODE},
   {".text_itcm", SECTION_ITCM | SECTION_CODE},
   {".ramfunc", SECTION_RAMFUNC | SECTION_CODE},
+  {".codecov_info", SECTION_INFO},
   {".gnu.linkonce.d", SECTION_WRITE},
   {".gnu.linkonce.t", SECTION_CODE},
   {".gnu.linkonce.r", SECTION_READ_ONLY},
@@ -404,6 +412,10 @@ static smartio_fndesc smartio_fn_info[PIC32C_BUILTIN_SMARTIO_N] = {
 /*  Configuration specificiation data used by cci */
 struct mchp_config_specification *mchp_configuration_values;
 
+/* mchp_pragma_nocodecov is != 0 when #pragma nocodecov is in effect */
+int mchp_pragma_nocodecov = 0;
+
+
 /*
  *  Static function prototypes.
  */
@@ -412,7 +424,11 @@ static int ignore_attribute (const char *attribute, const char *attached_to,
 
 static tree get_mchp_absolute_address (tree decl);
 
+static int mchp_persistent_p (tree func);
+
 static int mchp_keep_p (tree decl);
+
+static int mchp_nopa_p (tree decl);
 
 static const char *default_section_name (tree decl, SECTION_FLAGS_INT flags);
 
@@ -448,6 +464,7 @@ static struct reserved_section_names_ *pic32c_find_in_rsn (const char *name);
 static valid_section_flags_ *pic32c_find_in_vsf (const char *name);
 
 extern bool bss_initializer_p (const_tree decl);
+
 
 /* Attributes processing */
 
@@ -605,6 +622,27 @@ pic32c_address_attribute (tree *decl, tree identifier ATTRIBUTE_UNUSED,
 }
 
 /*
+ *  "target_error" attribute.
+ */
+tree pic32c_target_error_attribute(tree *node, tree identifier ATTRIBUTE_UNUSED,
+                                   tree args, int flags ATTRIBUTE_UNUSED,
+                                   bool *no_add_attrs)
+{
+  if (!DECL_P (*node)) {
+    error("'target_error' attribute may be applied only to declarations");
+    return NULL_TREE;
+  }
+  const char *attached_to = IDENTIFIER_POINTER(DECL_NAME(*node));
+  if (TREE_CODE(TREE_VALUE(args)) != STRING_CST) {
+    error("invalid argument to 'target_error' attribute applied to '%s',"
+          " literal string expected", attached_to);
+    return NULL_TREE;
+  }
+  TREE_DEPRECATED(*node) = 1;
+  return NULL_TREE;
+}
+
+/*
  *  "unsupported" attribute.
  */
 tree
@@ -691,6 +729,14 @@ pic32c_noload_attribute (tree *decl, tree identifier ATTRIBUTE_UNUSED,
   if (ignore_attribute ("noload", attached_to, *decl))
     {
       *no_add_attrs = 1;
+      return NULL_TREE;
+    }
+
+  /* If the persistent attribute is specified, noload is implied, and
+     we can simply handle this as any other persistent data (i.e.
+     placed into noload section .pbss. */
+  if (mchp_persistent_p (*decl))
+    {
       return NULL_TREE;
     }
 
@@ -889,7 +935,7 @@ pic32c_tcm_attribute (tree *decl, tree identifier ATTRIBUTE_UNUSED, tree args,
   }
   else if (!(TARGET_MCHP_DTCM || TARGET_MCHP_TCM)) {
     warning (OPT_Wattributes, "Ignoring tcm attribute. "
-              "Pass -mditcm or -mtcm as appropriate for your target device to enable TCM usage.");
+              "Pass -mdtcm or -mtcm as appropriate for your target device to enable TCM usage.");
     return NULL_TREE;
   }
 
@@ -960,6 +1006,55 @@ pic32c_keep_attribute (tree *decl, tree identifier ATTRIBUTE_UNUSED, tree args,
   return NULL_TREE;
 }
 
+/* nopa attribute to prevent PA on a specific section */
+tree
+pic32c_nopa_attribute (tree *decl, tree identifier ATTRIBUTE_UNUSED, tree args,
+		       int flags ATTRIBUTE_UNUSED, bool *no_add_attrs)
+{
+  DECL_COMMON (*decl) = 0;
+  DECL_UNIQUE_SECTION (*decl) = 1;
+  return NULL_TREE;
+}
+
+tree pic32c_persistent_attribute(tree *node, tree identifier ATTRIBUTE_UNUSED,
+                                 tree args, int flags ATTRIBUTE_UNUSED,
+                                 bool *no_add_attrs)
+{
+  const char *attached_to = 0;
+
+  DECL_UNIQUE_SECTION (*node) = 1;
+
+  if (flag_pic || flag_pie)
+    {
+      warning (0, "'persistent' attribute cannot be specified with -fpic, -fPIC or -fpie option");
+      *no_add_attrs = 1;
+      return NULL_TREE;
+    }
+
+  if (DECL_P(*node))
+    {
+      attached_to = IDENTIFIER_POINTER(DECL_NAME(*node));
+    }
+    // TODO: "coherent" is N/A on PIC32C
+#if 0
+  /* The persistent attribute implies coherent for variables. */
+    // Don't worry about the initialization value specified for persistent,
+    // it will be et to NULL.
+    // TODO: The .pbss section will not be created now. Is it required?
+
+  if ((TREE_CODE(*node) == VAR_DECL) &&
+//       !DECL_INITIAL(*node) &&
+      (lookup_attribute ("coherent", DECL_ATTRIBUTES(*node)) == NULL) )
+    {
+      tree attrib_coherent = build_tree_list (get_identifier ("coherent"), NULL_TREE);
+      attrib_coherent = chainon (DECL_ATTRIBUTES(*node), attrib_coherent);
+      decl_attributes (node, attrib_coherent, 0);
+      DECL_COMMON (*node) = 0;
+    }
+#endif
+  return NULL_TREE;
+}
+
 /* PIC32C target specific builtin function registration */
 
 /* Get the smartio (_S) target builtin declaration from the given
@@ -969,33 +1064,47 @@ mchp_get_smartio_fndecl (int bx)
 {
   switch (bx)
     {
-    case BUILT_IN_FPRINTF:
+    case BUILT_IN_FPRINTF: 
+    case BUILT_IN_FPRINTF_INTEGER:
       return pic32c_builtin_decls[PIC32C_BUILTIN_FPRINTF_S];
-    case BUILT_IN_SPRINTF:
+    case BUILT_IN_SPRINTF: 
+    case BUILT_IN_SPRINTF_INTEGER:
       return pic32c_builtin_decls[PIC32C_BUILTIN_SPRINTF_S];
-    case BUILT_IN_SNPRINTF:
+    case BUILT_IN_SNPRINTF: 
+    case BUILT_IN_SNPRINTF_INTEGER:
       return pic32c_builtin_decls[PIC32C_BUILTIN_SNPRINTF_S];
-    case BUILT_IN_VFPRINTF:
+    case BUILT_IN_VFPRINTF: 
+    case BUILT_IN_VFPRINTF_INTEGER:
       return pic32c_builtin_decls[PIC32C_BUILTIN_VFPRINTF_S];
-    case BUILT_IN_VSPRINTF:
+    case BUILT_IN_VSPRINTF: 
+    case BUILT_IN_VSPRINTF_INTEGER:
       return pic32c_builtin_decls[PIC32C_BUILTIN_VSPRINTF_S];
-    case BUILT_IN_VSNPRINTF:
+    case BUILT_IN_VSNPRINTF: 
+    case BUILT_IN_VSNPRINTF_INTEGER:
       return pic32c_builtin_decls[PIC32C_BUILTIN_VSNPRINTF_S];
-    case BUILT_IN_FSCANF:
+    case BUILT_IN_FSCANF: 
+    case BUILT_IN_FSCANF_INTEGER:
       return pic32c_builtin_decls[PIC32C_BUILTIN_FSCANF_S];
-    case BUILT_IN_SSCANF:
+    case BUILT_IN_SSCANF: 
+    case BUILT_IN_SSCANF_INTEGER:
       return pic32c_builtin_decls[PIC32C_BUILTIN_SSCANF_S];
-    case BUILT_IN_VFSCANF:
+    case BUILT_IN_VFSCANF: 
+    case BUILT_IN_VFSCANF_INTEGER:
       return pic32c_builtin_decls[PIC32C_BUILTIN_VFSCANF_S];
-    case BUILT_IN_VSSCANF:
+    case BUILT_IN_VSSCANF: 
+    case BUILT_IN_VSSCANF_INTEGER:
       return pic32c_builtin_decls[PIC32C_BUILTIN_VSSCANF_S];
-    case BUILT_IN_PRINTF:
+    case BUILT_IN_PRINTF: 
+    case BUILT_IN_PRINTF_INTEGER:
       return pic32c_builtin_decls[PIC32C_BUILTIN_PRINTF_S];
-    case BUILT_IN_VPRINTF:
+    case BUILT_IN_VPRINTF: 
+    case BUILT_IN_VPRINTF_INTEGER:
       return pic32c_builtin_decls[PIC32C_BUILTIN_VPRINTF_S];
-    case BUILT_IN_SCANF:
+    case BUILT_IN_SCANF: 
+    case BUILT_IN_SCANF_INTEGER:
       return pic32c_builtin_decls[PIC32C_BUILTIN_SCANF_S];
-    case BUILT_IN_VSCANF:
+    case BUILT_IN_VSCANF: 
+    case BUILT_IN_VSCANF_INTEGER:
       return pic32c_builtin_decls[PIC32C_BUILTIN_VSCANF_S];
     default:
       gcc_unreachable ();
@@ -1006,7 +1115,7 @@ mchp_get_smartio_fndecl (int bx)
 void
 pic32c_subtarget_init_builtins ()
 {
-  extern void mchp_print_builtin_function (const_tree);
+  extern void mchp_print_builtin_function (tree);
   tree const_str_type = build_pointer_type (
     build_qualified_type (char_type_node, TYPE_QUAL_CONST));
   tree str_type = build_pointer_type (char_type_node);
@@ -1119,7 +1228,7 @@ pic32c_subtarget_init_builtins ()
 			      PIC32C_BUILTIN_VSCANF_S),
 			    BUILT_IN_MD, NULL, NULL_TREE);
 
-  if (TARGET_PRINT_BUILTINS)
+  if (TARGET_PRINT_BUILTINS || TARGET_WRITE_BUILTINS_H)
     {
       unsigned int i;
       for (i = 0; i != (unsigned int) PIC32C_BUILTIN_MAX; ++i)
@@ -1193,7 +1302,7 @@ pic32c_subtarget_expand_builtin (unsigned int fcode, tree exp, rtx target)
   switch (pic32c_fcode)
     {
     case PIC32C_BUILTIN_NOP:
-      emit_insn (gen_nop ());
+      emit_insn (gen_nopv ());
       return target;
 
     case PIC32C_BUILTIN_SOFTWARE_BREAKPOINT:
@@ -1300,7 +1409,7 @@ pic32c_final_include_paths (struct cpp_dir *quote, struct cpp_dir *bracket)
         {
             if (!p)
                 break;
-            fprintf (stderr, "Compiler:%s\n", p->name);
+            fprintf (stderr, "compiler:%s\n", p->name);
         }
     }
 }
@@ -1310,6 +1419,32 @@ mchp_keep_p (tree decl)
 {
   tree a;
   a = lookup_attribute ("keep", DECL_ATTRIBUTES (decl));
+  return (a != NULL_TREE);
+}
+
+static int
+mchp_persistent_p (tree decl)
+{
+  tree a;
+  const char *sname = NULL;
+
+  a = lookup_attribute ("persistent", DECL_ATTRIBUTES (decl));
+  if (a == NULL_TREE)
+  {
+    sname = DECL_SECTION_NAME(decl);
+    /* test user-specified ".pbss" or ".persist" attributes */
+    if (sname &&
+  (!strcmp (sname, SECTION_NAME_PERSIST) || !strcmp (sname, SECTION_NAME_PBSS)))
+      return 1;
+  }
+
+  return a != NULL_TREE;
+}
+
+static int mchp_nopa_p (tree decl)
+{
+  tree a;
+  a = lookup_attribute ("nopa", DECL_ATTRIBUTES (decl));
   return (a != NULL_TREE);
 }
 
@@ -1331,7 +1466,7 @@ get_mchp_space_attribute (tree decl)
 static tree
 get_pic32c_tcm_attribute (tree decl)
 {
-  if (!TARGET_MCHP_ITCM)
+  if (!(TARGET_MCHP_ITCM || TARGET_MCHP_TCM))
     return NULL_TREE;
 
   return lookup_attribute ("tcm", DECL_ATTRIBUTES (decl));
@@ -1661,6 +1796,28 @@ mchp_build_prefix (tree decl, int fnear, char *prefix)
 	{
 	  flags |= SECTION_READ_ONLY;
 	}
+
+      if ((flags & SECTION_PERSIST)  || (mchp_persistent_p(decl)))
+        {
+          f += sprintf(f, MCHP_PRST_FLAG);
+          section_type_set = 1;
+          DECL_COMMON (decl) = 0;
+          if (DECL_INITIAL(decl))
+            {
+                if (DECL_NAME(decl) != NULL_TREE)
+                  {
+                    ident = IDENTIFIER_POINTER(DECL_NAME(decl));
+                    warning(0, "Persistent variable '%s' will not be initialized",
+                            ident);
+                  }
+                else
+                  {
+                    warning(0, "Persistent variable will not be initialized");
+                  }
+                /* Persistent variables will not be initialized. So, make them as bss sections. */
+                DECL_INITIAL(decl) = NULL_TREE;
+            }
+        }
     }
 
   if (address_attr)
@@ -1713,11 +1870,17 @@ mchp_build_prefix (tree decl, int fnear, char *prefix)
       section_type_set = 1;
     }
 
+
   if ((flags & SECTION_KEEP) || mchp_keep_p (decl))
     {
       DECL_COMMON (decl) = 0;
       f += sprintf (f, MCHP_KEEP_FLAG);
     }
+
+  if ((flags & SECTION_NOPA) || mchp_nopa_p(decl)) {
+    DECL_COMMON(decl) = 0;
+    f += sprintf(f, MCHP_NOPA_FLAG);
+  }
 
   fnear |= (flags & SECTION_NEAR);
   if ((flags & SECTION_CODE)
@@ -1782,7 +1945,20 @@ mchp_build_prefix (tree decl, int fnear, char *prefix)
     {
       f += sprintf (f, MCHP_KEEP_FLAG);
     }
+  if (mchp_nopa_p (decl))
+    {
+      f += sprintf (f, MCHP_NOPA_FLAG);
+    }
 
+    // TODO: "coherent" is N/A on PIC32C
+#if 0
+  if (mchp_coherent_p (decl)
+    || (flags & SECTION_PERSIST) || mchp_persistent_p(decl))
+     /* add implicit coherent flag when persistent is specified */
+  {
+    f += sprintf(f, MCHP_COHERENT_FLAG);
+  }
+#endif
   return fnear;
 }
 
@@ -1943,7 +2119,12 @@ validate_identifier_flags (const char *prefix, tree decl)
 	  flags |= SECTION_DTCM;
 	  f += sizeof (MCHP_DTCM_FLAG) - 1;
 	}
-      else
+       else if (strncmp (f, MCHP_NOPA_FLAG, sizeof (MCHP_NOPA_FLAG) - 1) == 0)
+	{
+	  flags |= SECTION_NOPA;
+	  f += sizeof (MCHP_NOPA_FLAG) - 1;
+	}
+       else
 	{
 	  if (id)
 	    {
@@ -2306,7 +2487,8 @@ mchp_select_section (tree decl, int reloc,
   if ((TREE_CODE (decl) == FUNCTION_DECL) || (TREE_CODE (decl) == VAR_DECL))
     {
       if (IN_NAMED_SECTION (decl) || get_mchp_absolute_address (decl)
-	  || get_mchp_space_attribute (decl) || get_pic32c_tcm_attribute (decl))
+	  || get_mchp_space_attribute (decl) || get_pic32c_tcm_attribute (decl)
+          || mchp_persistent_p (decl))
 	{
 	  flags = section_flags_from_decl (decl);
 
@@ -2467,6 +2649,11 @@ default_section_name (tree decl, SECTION_FLAGS_INT flags)
 	}
       else if (TREE_CODE (decl) == VAR_DECL)
 	{
+	  if (mchp_persistent_p(decl))
+	    {
+	      if (!pszSectionName || strcmp(pszSectionName, SECTION_NAME_PERSIST) != 0)
+		pszSectionName = SECTION_NAME_PBSS;
+	    }
 	  if (pszSectionName
 	      && !(tcm_attr && flag_data_sections)) /* FIX ME: fix
 						       -fdata-sections on tcm
@@ -2799,7 +2986,7 @@ mchp_get_named_section_flags (const char *pszSectionName,
     {
       f += sprintf (f, "," SECTION_ATTR_NOLOAD);
     }
-  if (flags & SECTION_DEBUG)
+  if ((flags & SECTION_DEBUG) || (flags & SECTION_INFO))
     {
       f += sprintf (f, "," SECTION_ATTR_INFO);
     }
@@ -2818,6 +3005,10 @@ mchp_get_named_section_flags (const char *pszSectionName,
   if (flags & SECTION_DTCM)
     {
       f += sprintf (f, "," SECTION_ATTR_DTCM);
+    }
+  if (flags & SECTION_NOPA)
+    {
+      f += sprintf (f, "," SECTION_ATTR_NOPA);
     }
 
   return xstrdup (pszSectionFlag);
@@ -2870,6 +3061,41 @@ pic32c_attribute_takes_identifier_p (const_tree attr_id)
   return false;
 }
 
+/* Verify that all the settings in a configuration word have been
+   specified. */
+static bool
+pic32c_verify_configuration_word (struct mchp_config_word *word,
+                                  unsigned referenced_bits)
+{
+  struct mchp_config_setting *setting;
+  unsigned mask = 0;
+
+  for (setting = word->settings; setting != NULL; setting = setting->next)
+    {
+      mask |= setting->mask;
+    }
+
+  return (mask == referenced_bits);
+}
+
+/* Check that the aggregration of settings for a configuration word is
+   valid. */
+static void
+pic32c_check_configuration_word (struct mchp_config_word *word,
+                                 unsigned referenced_bits)
+{
+  if (mchp_allow_partial_config_words)
+    return;
+
+  if (!pic32c_verify_configuration_word (word, referenced_bits))
+    {
+      /* TODO: Can we make the location information more useful, or
+         ignore line/column information? */
+      error ("config word for address 0x%x not fully specified",
+             word->address);
+    }
+}
+
 static void
 pic32c_output_configuration_words (void)
 {
@@ -2885,6 +3111,8 @@ pic32c_output_configuration_words (void)
 	  /* if there are referenced bits in the word, output its value */
 	  if (spec->referenced_bits)
 	    {
+              pic32c_check_configuration_word (spec->word,
+                                               spec->referenced_bits);
 	      fprintf (asm_out_file, "@ Configuration word at address 0x%08x\n",
 		       spec->word->address);
 	      fprintf (
@@ -2911,12 +3139,72 @@ pic32c_file_end (void)
   pic32c_output_configuration_words ();
 }
 
+/* The following hooks were added for Code Coverage but they
+ * may prove useful for other purposes as well */
+void
+pic32c_expand_function_start (tree decl)
+{
+  pic32c_start_function (decl);
+}
+
+void
+pic32c_asm_code_end (void)
+{
+  xccov_code_end ();
+}
+
+void
+pic32c_cond_reg_usage (void)
+{
+  pic32c_reserve_registers ();
+}
+
+/* if 'mchp_pragma_nocodecov' is set, adds 'nocodecov' attribute to function types */
+void
+pic32c_set_default_type_attributes (tree type)
+{
+  if (mchp_pragma_nocodecov
+      && (TREE_CODE (type) == FUNCTION_TYPE || TREE_CODE (type) == METHOD_TYPE))
+    {
+      tree type_attr_list = TYPE_ATTRIBUTES (type);
+      tree attr_name = get_identifier ("nocodecov");
+
+      type_attr_list = tree_cons (attr_name, NULL_TREE, type_attr_list);
+      TYPE_ATTRIBUTES (type) = type_attr_list;
+    }
+}
+
+void
+pic32c_emit_cc_section (const char *name)
+{
+  gcc_assert (name);
+
+  SECTION_FLAGS_INT flags = 0;
+
+  if (!strcmp (name, CODECOV_SECTION))
+    {
+      flags = SECTION_BSS;
+    }
+  else if (!strcmp (name, CODECOV_INFO_HDR) || !strcmp (name, CODECOV_INFO))
+    {
+      flags = SECTION_INFO | SECTION_KEEP;
+    }
+  else
+    {
+      gcc_unreachable ();
+    }
+
+  switch_to_section (get_section (name, flags, NULL));
+}
+
+/* --- end of Code Coverage-related hooks */
+
 /* Build a TREE_LIST node encoding a format string and conversion specifier
    set for smart-io. */
 tree
 build_smartio_format (tree fmt, tree spec)
 {
-  tree result = tree_cons (get_identifier ("smartio-spec"), spec, NULL);
+    tree result = tree_cons (get_identifier ("smartio-spec"), spec, NULL);
   result = tree_cons (get_identifier ("smartio-fmt"), fmt, result);
   TREE_TYPE (result) = TREE_TYPE (fmt);
   TREE_CONSTANT (result) = 1;
@@ -3036,4 +3324,299 @@ pic32c_get_debug_option(const char *str)
 }
 
 #endif /* _BUILD_MCHP_DEVEL_ */
+
+/*  stuff for writing pic32c_builtins.h           */
+
+
+static FILE *builtins_h = 0;
+static bool initialised = 0;
+static  bool in_neon_or_crypto_section = false;
+static  bool in_float16_section = false;
+
+
+void decode_qualifier(tree type, char **buffer) {
+  int qualifiers;
+
+  qualifiers = TYPE_QUALS(type);
+  if (qualifiers & TYPE_QUAL_CONST)
+    *buffer += sprintf(*buffer,"const ");
+  if (qualifiers & TYPE_QUAL_VOLATILE)
+    *buffer += sprintf(*buffer,"volatile ");
+  if (qualifiers & TYPE_QUAL_RESTRICT)
+    *buffer += sprintf(*buffer, "%s ",
+                       flag_isoc99 ? "restrict" : "__restrict__");
+}
+
+
+bool decode_type(tree type, char **buffer) {
+/*  returms true unless an unrepresentable type is found */
+  int strune=0;
+  int type_precision = -1;
+  int simd_width_in_bits;
+  int precision;
+  bool retval = true;
+
+  decode_qualifier(type, buffer);
+  switch TREE_CODE(type) {
+    case POINTER_TYPE:
+      retval = decode_type(TREE_TYPE(type),buffer);
+      *buffer += sprintf(*buffer, " *");
+      return (retval);
+
+    case VOID_TYPE:
+      *buffer += sprintf(*buffer,"void");
+      return (true);
+      
+    case VECTOR_TYPE:
+	simd_width_in_bits = 8*int_size_in_bytes(type);
+	*buffer += sprintf(*buffer,"__simd%d_",simd_width_in_bits);
+	if (TREE_CODE(TREE_TYPE(type)) == REAL_TYPE) {
+	    // vectors of real types need to be handled specially because we don't have the base types float32_t available
+	    // we do have __simdxx_float16_t and simdxx_float32_t though.
+	    type_precision = TYPE_PRECISION(TREE_TYPE(type));
+	    if (type_precision <= 8) {
+		type_precision = 8;
+	    } else if (type_precision <= 16) {
+		type_precision = 16;
+	    } else if (type_precision <= 32) {
+		type_precision = 32;
+	    } else if (type_precision <= 64) {
+		type_precision = 64;
+	    } else type_precision = 0;
+	    
+	    *buffer += sprintf(*buffer,"float%d_t", type_precision);
+          
+	}
+	else {
+	    return (decode_type(TREE_TYPE(type),buffer));
+	}
+	return (true);
+	
+    case BOOLEAN_TYPE:
+    case INTEGER_TYPE:
+      type_precision = TYPE_PRECISION(type);
+      if (type_precision <= 8) {
+        type_precision = 8;
+      } else if (type_precision <= 16) {
+        type_precision = 16;
+      } else if (type_precision <= 32) {
+        type_precision = 32;
+      } else if (type_precision <= 64) {
+        type_precision = 64;
+      } else type_precision = 0;
+
+      if (type_precision) {
+        if (TYPE_UNSIGNED(type)) {
+          char *b = *buffer;
+          *b++ = 'u';
+          *buffer = b;
+        }
+        *buffer += sprintf(*buffer,"int%d_t", type_precision);
+        return (true);
+      }
+      /* FALLSTHROUGH */
+    case REAL_TYPE:
+      if (type_precision == -1) {
+        type_precision = TYPE_PRECISION(type);
+        switch (type_precision) {
+	case 16:    return(false); // not representable!
+          case 32:  *buffer += sprintf(*buffer, "float");
+                    return (true);
+          case 64:  *buffer += sprintf(*buffer, "long double");
+                    return (true);
+        }
+      }
+      /* FALLSTHROUGH */
+    case FIXED_POINT_TYPE:
+      if (type_precision == -1) {
+
+	  type_precision = TYPE_PRECISION(type);
+        if (TYPE_UNSIGNED(type)) {
+          *buffer += sprintf(*buffer,"unsigned ");
+        }
+        if (type_precision == 16) {
+          *buffer += sprintf(*buffer, "__Fract");
+          return (true);
+        } else if (type_precision == 40) {
+          *buffer += sprintf(*buffer, "__Accum");
+          return (true);
+        }
+      }
+      // oh - oh, we didn't find a type 
+      if (TYPE_NAME(type)) {
+        int prec = TYPE_PRECISION (type);
+        retval = decode_type(TYPE_NAME(type),buffer);
+        *buffer += sprintf(*buffer,":%d", prec);
+      } else {
+        int prec = TYPE_PRECISION (type);
+
+        if (TYPE_NAME (type)) {
+          retval = decode_type(TYPE_NAME(type),buffer);
+          if (TYPE_PRECISION (type) != prec)
+          {
+            *buffer += sprintf(*buffer,":%d", prec);
+          }
+        } else {
+ 	    return false;    
+         }
+      }
+      return (retval);
+
+    case TYPE_DECL:
+	if (DECL_NAME(type)) {
+	    if (strstr( IDENTIFIER_POINTER(DECL_NAME(type)), "builtin_neon_") != NULL) return (false);
+	    *buffer += sprintf(*buffer,"%s",
+                           IDENTIFIER_POINTER(DECL_NAME(type)));
+      } else {
+	    return false;    
+      }
+      break;
+
+    case UNION_TYPE:
+      *buffer += sprintf(*buffer,"union ");
+      strune=1;
+      /* FALLSTHROUGH */ 
+    case RECORD_TYPE:
+      if (strune == 0) {
+        *buffer += sprintf(*buffer,"struct ");
+        strune=1;
+      }
+      //FALLSTHROUGH 
+    case ENUMERAL_TYPE:
+      if (strune == 0) {
+        *buffer += sprintf(*buffer,"enum ");
+        strune=1;
+      }
+      if (TYPE_NAME(type)) {
+	  return(decode_type(TYPE_NAME(type),buffer));
+      } else {
+	  return(false);
+      }
+   }
+}
+
+
+// we need to write the trailing #endif and the just get out of here ...
+void close_builtins_h() {
+    fprintf(builtins_h,"#endif /* _PIC32C_BUILTINS_H */ \n");
+    fclose(builtins_h);
+    exit(1);
+}
+	
+void pretty_tree_with_prototype(tree fndecl_or_type) {
+  tree type,arg = 0;
+  int i = 0;
+  char name_buffer[1024];
+  char result_buffer[1024];
+  char args_buffer[1024];
+  char result_and_args[2048];
+  char *nbp = name_buffer;
+  char *rbp = result_buffer;
+  char *abp = args_buffer;
+  bool print_it = true;
+  int comma=0;
+  tree fndecl;
+  bool has_neon_or_crypto;
+  bool has_float16;
+  
+
+  
+  if (!initialised) {
+    initialised=1;
+    if (access("pic32c_builtins.h", F_OK) != -1)
+        builtins_h = fopen("pic32c_builtins.h","a");
+    else
+        builtins_h = fopen("pic32c_builtins.h","w");
+
+    if (builtins_h == NULL) {
+        warning(0,"Cannot open file for writing");
+    }
+    fprintf(builtins_h,"#ifndef _PIC32C_BUILTINS_H\n");
+    fprintf(builtins_h,"#define _PIC32C_BUILTINS_H 1\n\n");
+    fprintf(builtins_h,"#include <stdint.h>\n\n");
+  }
+
+    
+  if (TYPE_P(fndecl_or_type)) {
+    fndecl = 0;
+    type = fndecl_or_type;
+  }
+  else {
+    type = TREE_TYPE(fndecl_or_type);
+    fndecl = fndecl_or_type;
+    gcc_assert(TREE_CODE(fndecl) == FUNCTION_DECL);
+  }
+
+  
+
+  print_it &= decode_type(TREE_TYPE(type),&rbp);
+  
+  nbp += sprintf(nbp," %s",
+     fndecl && DECL_NAME(fndecl) ?
+	  IDENTIFIER_POINTER(DECL_NAME(fndecl)) : "!!unknown");
+
+  
+  arg = TYPE_ARG_TYPES(type);
+  if (arg == NULL)
+      abp += sprintf(abp,"void");
+  else
+      abp += sprintf(abp,"        ");
+  
+  while (arg) {
+
+    print_it &= decode_type(TREE_VALUE(arg),&abp);
+    arg = TREE_CHAIN(arg);
+    if ((arg != NULL) && (arg != void_list_node)) abp += sprintf(abp,",\n        ");
+    if (arg == void_list_node) break;
+  }
+
+  if (print_it)
+  {
+  
+  strcpy(result_and_args,args_buffer);
+  strcat(result_and_args,result_buffer);
+  has_float16 = strstr(result_and_args,"float16") != NULL;
+  has_neon_or_crypto = (strstr( name_buffer,"neon")  != NULL) || (strstr( name_buffer,"crypto")  != NULL);
+
+
+// do we need an arm_fp guard?
+
+  if (!in_neon_or_crypto_section && has_neon_or_crypto) {
+      in_neon_or_crypto_section = true;
+      fprintf(builtins_h,"#ifdef __ARM_FP\n");
+  }
+  
+  // do we to to end an arm_fp guard?
+  if (in_neon_or_crypto_section && !has_neon_or_crypto) {
+      in_neon_or_crypto_section = false;
+      fprintf(builtins_h,"#endif /* __ARM_FP */\n");
+  }
+
+  
+  
+  // do we need a float 16 guard?
+
+  if (!in_float16_section &&  has_float16) {
+      in_float16_section = true;
+      fprintf(builtins_h,"#if defined (__ARM_FP16_FORMAT_IEEE) || defined (__ARM_FP16_FORMAT_ALTERNATIVE)\n");
+  }
+  
+  // do we need to end a float16 guard?
+
+  if (in_float16_section &&  !has_float16) {
+      in_float16_section = false;
+      fprintf(builtins_h,"#endif /* __ARM_FP16_FORMAT ... */\n");
+  }
+
+  
+  // actually print the prototype here ...
+  fprintf(builtins_h,"%s %s(\n%s);\n",result_buffer,name_buffer,args_buffer);
+  }
+}
+
+
+
+
+
+
 

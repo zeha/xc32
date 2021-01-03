@@ -166,7 +166,9 @@ static tree fold_builtin_1 (location_t, tree, tree);
 static tree fold_builtin_2 (location_t, tree, tree, tree);
 static tree fold_builtin_3 (location_t, tree, tree, tree, tree);
 static tree fold_builtin_varargs (location_t, tree, tree*, int);
+#ifdef _BUILD_MCHP_
 static tree fold_builtin_smartio (location_t, tree, tree*, int, int);
+#endif
 
 static tree fold_builtin_strpbrk (location_t, tree, tree, tree);
 static tree fold_builtin_strstr (location_t, tree, tree, tree);
@@ -5408,8 +5410,10 @@ fold_builtin_atomic_always_lock_free (tree arg0, tree arg1)
 	 end before anything else has a chance to look at it.  The pointer
 	 parameter at this point is usually cast to a void *, so check for that
 	 and look past the cast.  */
-      if (CONVERT_EXPR_P (arg1) && POINTER_TYPE_P (ttype)
-	  && VOID_TYPE_P (TREE_TYPE (ttype)))
+      if (CONVERT_EXPR_P (arg1)
+	  && POINTER_TYPE_P (ttype)
+	  && VOID_TYPE_P (TREE_TYPE (ttype))
+	  && POINTER_TYPE_P (TREE_TYPE (TREE_OPERAND (arg1, 0))))
 	arg1 = TREE_OPERAND (arg1, 0);
 
       ttype = TREE_TYPE (arg1);
@@ -8077,16 +8081,21 @@ fold_builtin_1 (location_t loc, tree fndecl, tree arg0)
       if (integer_zerop (arg0))
 	return build_empty_stmt (loc);
       break;
-
+#ifdef _BUILD_MCHP_
     case BUILT_IN_PRINTF:
     case BUILT_IN_VPRINTF:
     case BUILT_IN_SCANF:
     case BUILT_IN_VSCANF:
+    case BUILT_IN_PRINTF_INTEGER:
+    case BUILT_IN_VPRINTF_INTEGER:
+    case BUILT_IN_SCANF_INTEGER:
+    case BUILT_IN_VSCANF_INTEGER:
         {
           tree argp[1] = {arg0};
           return fold_builtin_smartio (loc, fndecl, argp, 1, 0);
         }
         break;
+#endif
 
     default:
       break;
@@ -8186,6 +8195,7 @@ fold_builtin_2 (location_t loc, tree fndecl, tree arg0, tree arg1)
     case BUILT_IN_ATOMIC_IS_LOCK_FREE:
       return fold_builtin_atomic_is_lock_free (arg0, arg1);
 
+#ifdef _BUILD_MCHP_
     case BUILT_IN_FPRINTF:
     case BUILT_IN_SPRINTF:
     case BUILT_IN_VFPRINTF:
@@ -8194,6 +8204,14 @@ fold_builtin_2 (location_t loc, tree fndecl, tree arg0, tree arg1)
     case BUILT_IN_SSCANF:
     case BUILT_IN_VFSCANF:
     case BUILT_IN_VSSCANF:
+    case BUILT_IN_FPRINTF_INTEGER:
+    case BUILT_IN_SPRINTF_INTEGER:
+    case BUILT_IN_VFPRINTF_INTEGER:
+    case BUILT_IN_VSPRINTF_INTEGER:
+    case BUILT_IN_FSCANF_INTEGER:
+    case BUILT_IN_SSCANF_INTEGER:
+    case BUILT_IN_VFSCANF_INTEGER:
+    case BUILT_IN_VSSCANF_INTEGER:
         {
           tree argp[2] = {arg0, arg1};
           return fold_builtin_smartio (loc, fndecl, argp, 2, 1);
@@ -8204,11 +8222,16 @@ fold_builtin_2 (location_t loc, tree fndecl, tree arg0, tree arg1)
     case BUILT_IN_VPRINTF:
     case BUILT_IN_SCANF:
     case BUILT_IN_VSCANF:
+    case BUILT_IN_PRINTF_INTEGER:
+    case BUILT_IN_VPRINTF_INTEGER:
+    case BUILT_IN_SCANF_INTEGER:
+    case BUILT_IN_VSCANF_INTEGER:
         {
           tree argp[2] = {arg0, arg1};
           return fold_builtin_smartio (loc, fndecl, argp, 2, 0);
         }
         break;
+#endif
 
     default:
       break;
@@ -8288,6 +8311,7 @@ fold_builtin_3 (location_t loc, tree fndecl,
     case BUILT_IN_UMULLL_OVERFLOW:
       return fold_builtin_arith_overflow (loc, fcode, arg0, arg1, arg2);
 
+#ifdef _BUILD_MCHP_
     case BUILT_IN_FPRINTF:
     case BUILT_IN_SPRINTF:
     case BUILT_IN_VFPRINTF:
@@ -8296,6 +8320,14 @@ fold_builtin_3 (location_t loc, tree fndecl,
     case BUILT_IN_SSCANF:
     case BUILT_IN_VFSCANF:
     case BUILT_IN_VSSCANF:
+    case BUILT_IN_FPRINTF_INTEGER:
+    case BUILT_IN_SPRINTF_INTEGER:
+    case BUILT_IN_VFPRINTF_INTEGER:
+    case BUILT_IN_VSPRINTF_INTEGER:
+    case BUILT_IN_FSCANF_INTEGER:
+    case BUILT_IN_SSCANF_INTEGER:
+    case BUILT_IN_VFSCANF_INTEGER:
+    case BUILT_IN_VSSCANF_INTEGER:
         {
           tree argp[3] = {arg0, arg1, arg2};
           return fold_builtin_smartio (loc, fndecl, argp, 3, 1);
@@ -8306,6 +8338,10 @@ fold_builtin_3 (location_t loc, tree fndecl,
     case BUILT_IN_VPRINTF:
     case BUILT_IN_SCANF:
     case BUILT_IN_VSCANF:
+    case BUILT_IN_PRINTF_INTEGER:
+    case BUILT_IN_VPRINTF_INTEGER:
+    case BUILT_IN_SCANF_INTEGER:
+    case BUILT_IN_VSCANF_INTEGER:
         {
           tree argp[3] = {arg0, arg1, arg2};
           return fold_builtin_smartio (loc, fndecl, argp, 3, 0);
@@ -8314,11 +8350,14 @@ fold_builtin_3 (location_t loc, tree fndecl,
 
     case BUILT_IN_SNPRINTF:
     case BUILT_IN_VSNPRINTF:
+    case BUILT_IN_SNPRINTF_INTEGER:
+    case BUILT_IN_VSNPRINTF_INTEGER:
         {
           tree argp[3] = {arg0, arg1, arg2};
           return fold_builtin_smartio (loc, fndecl, argp, 3, 2);
         }
         break;
+#endif
 
     default:
       break;
@@ -9447,6 +9486,7 @@ fold_builtin_object_size (tree ptr, tree ost)
 /* 'Fold' a smartio-capable function. This folding inspects the format argument 
    for a smartio-format, smartio-spec list massages the call to use
    a target builtin with additional smartio-spec argument. */
+#ifdef _BUILD_MCHP_
 static tree
 fold_builtin_smartio (location_t loc, tree fndecl, tree *args, int nargs, int format_pos)
 {
@@ -9518,6 +9558,7 @@ fold_builtin_smartio (location_t loc, tree fndecl, tree *args, int nargs, int fo
     }
   return NULL_TREE;
 }
+#endif
 
 /* Builtins with folding operations that operate on "..." arguments
    need special handling; we need to store the arguments in a convenient
@@ -9537,6 +9578,7 @@ fold_builtin_varargs (location_t loc, tree fndecl, tree *args, int nargs)
       ret = fold_builtin_fpclassify (loc, args, nargs);
       break;
 
+#ifdef _BUILD_MCHP_
     case BUILT_IN_FPRINTF:
     case BUILT_IN_SPRINTF:
     case BUILT_IN_VFPRINTF:
@@ -9545,6 +9587,14 @@ fold_builtin_varargs (location_t loc, tree fndecl, tree *args, int nargs)
     case BUILT_IN_SSCANF:
     case BUILT_IN_VFSCANF:
     case BUILT_IN_VSSCANF:
+    case BUILT_IN_FPRINTF_INTEGER:
+    case BUILT_IN_SPRINTF_INTEGER:
+    case BUILT_IN_VFPRINTF_INTEGER:
+    case BUILT_IN_VSPRINTF_INTEGER:
+    case BUILT_IN_FSCANF_INTEGER:
+    case BUILT_IN_SSCANF_INTEGER:
+    case BUILT_IN_VFSCANF_INTEGER:
+    case BUILT_IN_VSSCANF_INTEGER:
       ret = fold_builtin_smartio (loc, fndecl, args, nargs, 1);
       break;
 
@@ -9552,13 +9602,20 @@ fold_builtin_varargs (location_t loc, tree fndecl, tree *args, int nargs)
     case BUILT_IN_VPRINTF:
     case BUILT_IN_SCANF:
     case BUILT_IN_VSCANF:
+    case BUILT_IN_PRINTF_INTEGER:
+    case BUILT_IN_VPRINTF_INTEGER:
+    case BUILT_IN_SCANF_INTEGER:
+    case BUILT_IN_VSCANF_INTEGER:
       ret = fold_builtin_smartio (loc, fndecl, args, nargs, 0);
       break;
 
     case BUILT_IN_SNPRINTF:
     case BUILT_IN_VSNPRINTF:
+    case BUILT_IN_SNPRINTF_INTEGER:
+    case BUILT_IN_VSNPRINTF_INTEGER:
       ret = fold_builtin_smartio (loc, fndecl, args, nargs, 2);
       break;
+#endif
 
     default:
       break;

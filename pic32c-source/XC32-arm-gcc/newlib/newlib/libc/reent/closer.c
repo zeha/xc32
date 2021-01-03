@@ -42,6 +42,8 @@ DESCRIPTION
 	<<errno>>.
 */
 
+extern int _close (int fd);
+
 int
 _close_r (ptr, fd)
      struct _reent *ptr;

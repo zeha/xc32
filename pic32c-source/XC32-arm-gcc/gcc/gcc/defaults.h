@@ -401,6 +401,13 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 #endif
 #endif
 
+#ifdef _BUILD_XC32_
+/* This controls the definition of __LIBGCC_JCR_SECTION_NAME__ but
+   will be set above so we undef it here. (Using the target header
+   won't work.) */
+#undef JCR_SECTION_NAME
+#endif /* _BUILD_XC32_ */
+
 /* This decision to use a .jcr section can be overridden by defining
    USE_JCR_SECTION to 0 in target file.  This is necessary if target
    can define JCR_SECTION_NAME but does not have crtstuff or
@@ -1490,6 +1497,13 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 
 #ifndef DWARF_GNAT_ENCODINGS_DEFAULT
 #define DWARF_GNAT_ENCODINGS_DEFAULT DWARF_GNAT_ENCODINGS_GDB
+#endif
+
+/* Type of section type flags */
+#ifdef _BUILD_MCHP_
+#ifndef SECTION_FLAGS_INT
+#define SECTION_FLAGS_INT unsigned long long
+#endif
 #endif
 
 #endif  /* ! GCC_DEFAULTS_H */

@@ -70,6 +70,7 @@ along with GCC; see the file COPYING3.  If not see
 #define MCHP_REGION_FLAG MCHP_EXTENDED_FLAG "region" MCHP_EXTENDED_FLAG
 #define MCHP_ITCM_FLAG MCHP_EXTENDED_FLAG "itcm" MCHP_EXTENDED_FLAG
 #define MCHP_DTCM_FLAG MCHP_EXTENDED_FLAG "dtcm" MCHP_EXTENDED_FLAG
+#define MCHP_NOPA_FLAG MCHP_EXTENDED_FLAG "nopa" MCHP_EXTENDED_FLAG
 
 #define MCHP_IS_NAME_P(NAME, IS) (strncmp (NAME, IS, sizeof (IS) - 1) == 0)
 #define MCHP_HAS_NAME_P(NAME, HAS) (strstr (NAME, HAS))
@@ -190,9 +191,16 @@ extern tree build_smartio_format (tree, tree);
 #endif /* !defined (IN_LIBCC2) */
 
 #ifndef TARGET_FINAL_INCLUDES
+struct cpp_dir;
 extern void pic32c_final_include_paths (struct cpp_dir *, struct cpp_dir *);
 #define TARGET_FINAL_INCLUDES pic32c_final_include_paths
 #endif
+
+/* This does not prevent the creation of a .jcr section in
+   crt{begin,end}.o, but is added to be consistent with what we have
+   in MIPS.  See defaults.h regarding JCR_SECTION_NAME. */
+#undef TARGET_USE_JCR_SECTION
+#define TARGET_USE_JCR_SECTION 0
 
 #undef TARGET_ASM_SELECT_SECTION
 #define TARGET_ASM_SELECT_SECTION mchp_select_section
@@ -248,7 +256,7 @@ extern void pic32c_final_include_paths (struct cpp_dir *, struct cpp_dir *);
       if ((mchp_processor_string != NULL) && *mchp_processor_string)           \
 	{                                                                      \
 	  char *proc, *p;                                                      \
-	  gcc_assert (strlen (mchp_processor_string) < 18);                    \
+	  gcc_assert (strlen (mchp_processor_string) <= 32);                   \
 	  for (p = (char *) mchp_processor_string; *p; p++)                    \
 	    *p = TOUPPER (*p);                                                 \
 	  proc = (char *) alloca (strlen (mchp_processor_string) + 6);         \
@@ -319,6 +327,7 @@ extern void pic32c_final_include_paths (struct cpp_dir *, struct cpp_dir *);
 	  builtin_define_with_int_value ("__XC_VERSION",                       \
 					 pic32_compiler_version);              \
 	}                                                                      \
+      mchp_init_cci (pfile);                                                   \
     }                                                                          \
   while (0)
 
@@ -392,23 +401,34 @@ extern unsigned int g_ARM_BUILTIN_MAX;
     {"address", 1, 1, false, false, false, pic32c_address_attribute, false},   \
     {"keep", 0, 0, false, false, false, pic32c_keep_attribute, false},         \
     {"space", 1, 1, false, false, false, pic32c_space_attribute, false},       \
+    {"persistent", 0, 0, false, false, false, pic32c_persistent_attribute,     \
+      false },                                                                 \
     {"tcm", 0, 0, false, false, false, pic32c_tcm_attribute, false},           \
     {"unique_section", 0, 0, true, false, false,                               \
       pic32c_unique_section_attribute, false},                                 \
     {"noload", 0, 0, false, false, false, pic32c_noload_attribute, false},     \
+    {"nocodecov", 0, 0, false, true, true, NULL, false},                       \
     {"unsupported", 0, 1, false, false, false, pic32c_unsupported_attribute,   \
-      false},
+      false},                                                                  \
+    {"target_error", 1, 1, false, false, false, pic32c_target_error_attribute, \
+      false},                                                                  \
+    {"nopa", 0, 0, false, false, false, pic32c_nopa_attribute, false},
+
 
 /* The Microchip port has a few pragmas to define as well */
 #undef REGISTER_SUBTARGET_PRAGMAS
 #define REGISTER_SUBTARGET_PRAGMAS()                                           \
   {                                                                            \
     c_register_pragma (0, "config", mchp_handle_config_pragma);                \
+    c_register_pragma (0, "nocodecov", mchp_handle_nocodecov_pragma);          \
   }
 
 /* set path to linker for collect2 wrapper */
 #undef COLLECT2_RELATIVE_LD_FILE_NAME
 #define COLLECT2_RELATIVE_LD_FILE_NAME "../../../../bin/xc32-ld"
+
+#undef COLLECT2_RELATIVE_PA_FILE_NAME
+#define COLLECT2_RELATIVE_PA_FILE_NAME "../../../../bin/bin/pic32c-pa"
 
 #undef TARGET_ATTRIBUTE_TAKES_IDENTIFIER_P
 #define TARGET_ATTRIBUTE_TAKES_IDENTIFIER_P pic32c_attribute_takes_identifier_p
@@ -435,7 +455,7 @@ extern unsigned int g_ARM_BUILTIN_MAX;
    but are not by default also passed to the assembler. */
 #define PIC32C_INST_SET_SPEC                                                   \
   "%{mcpu=*: -mcpu=%*; : %{march=*: -march=%*; : -" PIC32C_BASE_ARCH "}}"      \
-  " -mthumb "
+  "%{!marm: -mthumb}"
 
 /* Default FPU specs.
    float-abi defaults to soft, corresponding to MULTILIB_DEFAULTS. */
@@ -447,7 +467,7 @@ extern unsigned int g_ARM_BUILTIN_MAX;
 #undef MULTILIB_DEFAULTS
 #define MULTILIB_DEFAULTS                                                      \
   {                                                                            \
-    "mthumb", PIC32C_BASE_ARCH, "mlittle-endian", PIC32C_BASE_FLOAT_ABI        \
+    PIC32C_BASE_ARCH, "mthumb", "mlittle-endian", PIC32C_BASE_FLOAT_ABI        \
   }
 
 #undef CPLUSPLUS_CPP_SPEC
@@ -514,6 +534,13 @@ extern unsigned int g_ARM_BUILTIN_MAX;
 #undef SUBTARGET_LINKER_SCRIPT_SPEC
 #define SUBTARGET_LINKER_SCRIPT_SPEC ""
 
+/* We redefine these to keep crtbegin/crti but not crt0, which 
+   is replaced by device-specific startup. */
+#undef STARTFILE_SPEC
+#define STARTFILE_SPEC                                                         \
+  " crti%O%s crtbegin%O%s "                                                    \
+  "%{Ofast|ffast-math|funsafe-math-optimizations:crtfastmath.o%s} "
+
 /* FIXME: no-lto is a workaround for the broken lto library. */
 /* These are guarded with specs=* to avoid conflicts with device specs. */
 #undef SUBTARGET_DRIVER_SELF_SPECS
@@ -523,5 +550,62 @@ extern unsigned int g_ARM_BUILTIN_MAX;
   "%{mitcm=*: -Wl,-DITCM_LENGTH=%*,-itcm=%* -DENABLE_TCM -DITCM_LENGTH=%*}"    \
   "%{mdtcm=*: -Wl,-DDTCM_LENGTH=%*,-dtcm=%* -DENABLE_TCM -DDTCM_LENGTH=%*}"    \
   "%{mstack-in-tcm: -Wl,-stack-in-tcm -DENABLE_TCM}}"
+
+/* The Code Coverage target hooks -----> */
+#define TARGET_XCCOV_LIBEXEC_PATH pic32c_libexec_path
+#define TARGET_XCCOV_ADJ_INS_POS  pic32c_adjust_insert_pos
+#define TARGET_XCCOV_LD_CC_BITS   pic32c_ld_cc_bits
+#define TARGET_XCCOV_CC_BITS_OFS  1
+#define TARGET_XCCOV_SET_CC_BIT   pic32c_set_cc_bit
+#define TARGET_XCCOV_BEGIN_INSTMT pic32c_begin_cc_instrument
+#define TARGET_XCCOV_END_INSTMT   pic32c_end_cc_instrument
+#define TARGET_XCCOV_LICENSED     pic32c_licensed_xccov_p
+#define TARGET_XCCOV_EMIT_SECTION pic32c_emit_cc_section
+
+#undef SUBTARGET_OVERRIDE_INTERNAL_OPTIONS
+#define SUBTARGET_OVERRIDE_INTERNAL_OPTIONS                                    \
+  do {                                                                         \
+    /* Disable shrink-wrap if the RTL CC is used */                            \
+    if (opts->x_mchp_codecov)                                                  \
+      opts->x_flag_shrink_wrap = false;                                        \
+  } while (0)
+
+#undef SUBTARGET_CONDITIONAL_REGISTER_USAGE
+#define SUBTARGET_CONDITIONAL_REGISTER_USAGE pic32c_cond_reg_usage ()
+
+#undef TARGET_ASM_CODE_END
+#define TARGET_ASM_CODE_END pic32c_asm_code_end
+
+#undef SUBTARGET_SET_DEFAULT_TYPE_ATTRIBUTES
+#define SUBTARGET_SET_DEFAULT_TYPE_ATTRIBUTES pic32c_set_default_type_attributes
+/* <----- End of Code Coverage defines */
+
+/* By default, the C_INCLUDE_PATH_ENV is "C_INCLUDE_PATH", however
+   in a cross compiler, another environment variable might want to be used
+   to avoid conflicts with the host any host C_INCLUDE_PATH */
+#ifndef C_INCLUDE_PATH_ENV
+#define C_INCLUDE_PATH_ENV "XC32_C_INCLUDE_PATH"
+#endif
+
+/* By default, the COMPILER_PATH_ENV is "COMPILER_PATH", however
+   in a cross compiler, another environment variable might want to be used
+   to avoid conflicts with the host any host COMPILER_PATH */
+#ifndef COMPILER_PATH_ENV
+#define COMPILER_PATH_ENV "XC32_COMPILER_PATH"
+#endif
+
+/* By default, the LIBRARY_PATH_ENV is "LIBRARY_PATH", however
+   in a cross compiler, another environment variable might want to be used
+   to avoid conflicts with the host any host LIBRARY_PATH */
+#ifndef LIBRARY_PATH_ENV
+#define LIBRARY_PATH_ENV "XC32_LIBRARY_PATH"
+#endif
+
+/* By default, the GCC_EXEC_PREFIX_ENV prefix is "GCC_EXEC_PREFIX", however
+   in a cross compiler, another environment variable might want to be used
+   to avoid conflicts with the host any host GCC_EXEC_PREFIX */
+#ifndef GCC_EXEC_PREFIX_ENV
+#define GCC_EXEC_PREFIX_ENV "XC32_EXEC_PREFIX"
+#endif
 
 #endif /* __PIC32C_H */

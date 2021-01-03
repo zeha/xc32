@@ -6807,7 +6807,7 @@
    (match_operand:SI 1 "const_int_operand" "")
    (match_operand:SI 2 "const_int_operand" "")
    (match_operand:SI 3 "const_int_operand" "")]
-  "TARGET_32BIT"
+  "" ;; XC32E-640
 {
   if (arm_gen_setmem (operands))
     DONE;
@@ -6843,8 +6843,13 @@
     }
   else /* TARGET_THUMB1 */
     {
+#ifdef TARGET_MCHP_PIC32C
+      /* XC32E-642: changed threshold / moved decision to arm.c */
+      if (!thumb_expand_movmemqi_p (operands))
+#else
       if (   INTVAL (operands[3]) != 4
           || INTVAL (operands[2]) > 48)
+#endif
         FAIL;
 
       thumb_expand_movmemqi (operands);
@@ -8353,6 +8358,18 @@
 		      (const_int 4)))
    (set_attr "type" "mov_reg")]
 )
+
+(define_insn "nopv"
+  [(unspec_volatile [(const_int 0)] VUNSPEC_VOLATILE_NOP)]
+  "TARGET_EITHER"
+  "nop"
+  [(set (attr "length")
+	(if_then_else (eq_attr "is_thumb" "yes")
+		      (const_int 2)
+		      (const_int 4)))
+   (set_attr "type" "mov_reg")]
+)
+
 
 (define_insn "trap"
   [(trap_if (const_int 1) (const_int 0))]

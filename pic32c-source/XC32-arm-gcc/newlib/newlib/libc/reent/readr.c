@@ -45,6 +45,8 @@ DESCRIPTION
 	<<errno>>.
 */
 
+extern _ssize_t _read (int fd, _PTR buf, size_t cnt);
+
 _ssize_t
 _DEFUN (_read_r, (ptr, fd, buf, cnt),
      struct _reent *ptr _AND

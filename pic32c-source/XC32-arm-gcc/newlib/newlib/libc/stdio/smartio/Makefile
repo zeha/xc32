@@ -17,9 +17,9 @@ SMARTIO_SUFFIX := $(strip $(subst $(sp),,$(conversions)))
 # Define OBJDIR to set the object directory, required for newlib builds.
 OBJDIR := .
 
-# Define OBJEXT to set the object extension, required for newlib builds.
-OBJEXT := o
-oext    = $(strip $(OBJEXT))
+# stdio/Makefile sets these to the library object prefix and extension.
+oext=o
+lpfx=lib_a-
 
 # Common dependencies
 HEADERS := prefix.h
@@ -45,22 +45,24 @@ endif
 
 INCLUDES := -I. -I../ -I../../include
 
-WARN := -Wno-macro-redefined
+WARN := -Wno-builtin-macro-redefined
 EXTRA_FLAGS += -mno-smart-io
 
 # Common defines
-# TODO: uncover the mystery of _HOSTED
 DEFS := -D__SMARTIOV2__ -D_HOSTED -DPREFIX=_$(PDX) -DSUFFIX=_$(SMARTIO_SUFFIX) $(SMARTIO_DEFS)
 
 SRCS := $(wildcard *print*.c) $(wildcard *scan*.c)
-OBJS := $(SRCS:.c=.$(SMARTIO_SUFFIX).o)
+OBJS := $(addprefix $(OBJDIR)/$(lpfx),$(SRCS:.c=.$(SMARTIO_SUFFIX).$(oext)))
 
 default: all
 all: $(OBJS)
 
-$(OBJDIR)/%.$(SMARTIO_SUFFIX).o: %.c $(HEADERS)
+$(OBJDIR)/$(lpfx)%.$(SMARTIO_SUFFIX).$(oext): %.c $(HEADERS)
 	$(CC) $(CFLAGS) $(INCLUDES) $(WARN) $(EXTRA_FLAGS) $(DEFS) -c $< -o $@
 
+$(OBJDIR)/stmp-smartio: $(SRCS) $(HEADERS)
+	@touch $@
+
 clean:
-	@rm -f $(OBJDIR)/*.o
+	@rm -f $(OBJDIR)/*.o $(OBJDIR)/stmp-smartio
 

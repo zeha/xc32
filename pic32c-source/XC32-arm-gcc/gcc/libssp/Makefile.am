@@ -43,7 +43,7 @@ libsubincludedir = $(libdir)/gcc/$(target_noncanonical)/$(gcc_version)/include
 nobase_libsubinclude_HEADERS = ssp/ssp.h ssp/string.h ssp/stdio.h ssp/unistd.h
 
 libssp_la_SOURCES = \
-	ssp.c gets-chk.c memcpy-chk.c memmove-chk.c mempcpy-chk.c \
+	ssp.c ssp_fail.c gets-chk.c memcpy-chk.c memmove-chk.c mempcpy-chk.c \
 	memset-chk.c snprintf-chk.c sprintf-chk.c stpcpy-chk.c \
 	strcat-chk.c strcpy-chk.c strncat-chk.c strncpy-chk.c \
 	vsnprintf-chk.c vsprintf-chk.c

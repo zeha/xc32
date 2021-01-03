@@ -403,7 +403,11 @@ typedef __WINT_TYPE__ wint_t;
 #define NULL __null
 #else   /* G++ */
 #ifndef __cplusplus
+#ifndef __CCI__
 #define NULL ((void *)0)
+#else   /* CCI */
+#define NULL (0)
+#endif
 #else   /* C++ */
 #define NULL 0
 #endif  /* C++ */

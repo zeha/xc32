@@ -90,7 +90,7 @@ __guard_setup (void)
         }
       CryptReleaseContext(hprovider, 0);
     }
-#else
+#elif 0 /* XC32 - removed on purpose, as it doesn't fit bare-metal */
   fd = open ("/dev/urandom", O_RDONLY);
   if (fd != -1)
     {
@@ -99,8 +99,7 @@ __guard_setup (void)
       close (fd);
       if (size == sizeof(__stack_chk_guard) && __stack_chk_guard != 0)
         return;
-    }
-
+    }    
 #endif
   /* If a random generator can't be used, the protector switches the guard
      to the "terminator canary".  */
@@ -110,94 +109,4 @@ __guard_setup (void)
   p[0] = 0;
 }
 
-static void
-fail (const char *msg1, size_t msg1len, const char *msg3)
-{
-#ifdef __GNU_LIBRARY__
-  extern char * __progname;
-#else
-  static const char __progname[] = "";
-#endif
-  int fd;
 
-  /* Print error message directly to the tty.  This avoids Bad Things
-     happening if stderr is redirected.  */
-  fd = open (_PATH_TTY, O_WRONLY);
-  if (fd != -1)
-    {
-      static const char msg2[] = " terminated\n";
-      size_t progname_len, len;
-      char *buf, *p;
-
-      progname_len = strlen (__progname);
-      len = msg1len + progname_len + sizeof(msg2)-1 + 1;
-      p = buf = alloca (len);
-
-      memcpy (p, msg1, msg1len);
-      p += msg1len;
-      memcpy (p, __progname, progname_len);
-      p += progname_len;
-      memcpy (p, msg2, sizeof(msg2));
-
-      while (len > 0)
-        {
-          ssize_t wrote = write (fd, buf, len);
-          if (wrote < 0)
-            break;
-          buf += wrote;
-          len -= wrote;
-        }
-      close (fd);
-    }
-
-#ifdef HAVE_SYSLOG_H
-  /* Only send the error to syslog if there was no tty available.  */
-  else
-    syslog (LOG_CRIT, "%s", msg3);
-#endif /* HAVE_SYSLOG_H */
-
-  /* Try very hard to exit.  Note that signals may be blocked preventing
-     the first two options from working.  The use of volatile is here to
-     prevent optimizers from "knowing" that __builtin_trap is called first,
-     and that it doesn't return, and so "obviously" the rest of the code
-     is dead.  */
-  {
-    volatile int state;
-    for (state = 0; ; state++)
-      switch (state)
-        {
-        case 0:
-          __builtin_trap ();
-          break;
-        case 1:
-          *(volatile int *)-1L = 0;
-          break;
-        case 2:
-          _exit (127);
-          break;
-        }
-  }
-}
-
-void
-__stack_chk_fail (void)
-{
-  const char *msg = "*** stack smashing detected ***: ";
-  fail (msg, strlen (msg), "stack smashing detected: terminated");
-}
-
-void
-__chk_fail (void)
-{
-  const char *msg = "*** buffer overflow detected ***: ";
-  fail (msg, strlen (msg), "buffer overflow detected: terminated");
-}
-
-#ifdef HAVE_HIDDEN_VISIBILITY
-void
-__attribute__((visibility ("hidden")))
-__stack_chk_fail_local (void)
-{
-  __stack_chk_fail ();
-}
-#endif

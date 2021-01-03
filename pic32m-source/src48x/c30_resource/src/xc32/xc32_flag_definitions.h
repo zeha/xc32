@@ -16,10 +16,13 @@
 #define P32PR              (1<<1)
 #define PUSB49             (1<<1)
 #define PUSB7              (1<<1)
+#define PUSB249            (1<<1)
 
 #define P32MK              (1<<2)
 #define P32MM              (1<<3)
 #define P32WK              (1<<4)
+#define PIS22              (1<<4)
+#define PBT55              (1<<4)
 
 #define FAMILY_MASK        (0x000000FFu)
 #define RECORD_TYPE_MASK   (0xF0000000u)

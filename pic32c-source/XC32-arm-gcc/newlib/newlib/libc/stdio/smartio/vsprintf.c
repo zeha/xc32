@@ -18,6 +18,7 @@ FUNC(vsprintf)(char * str, const char * fmt, va_list ap)
   f._bf._base = f._p = (unsigned char *) str;
   f._bf._size = f._w = INT_MAX;
   f._file = -1;  /* No file. */
+  f._flags2 = 0; /* initialize flags2 as it will be used to check the __SWID flag */
   ret = FUNC(vfprintf)(&f, fmt, ap);
   *f._p = 0;
   return ret;

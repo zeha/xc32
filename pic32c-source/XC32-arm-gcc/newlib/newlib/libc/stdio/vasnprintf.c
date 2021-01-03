@@ -48,6 +48,7 @@ _DEFUN(_vasnprintf_r, (ptr, buf, lenp, fmt, ap),
     }
   f._bf._size = f._w = len;
   f._file = -1;  /* No file. */
+  f._flags2 = 0; /* initialize flags2 as it will be used to check the __SWID flag */
   ret = _svfprintf_r (ptr, &f, fmt, ap);
   if (ret < 0)
     return NULL;

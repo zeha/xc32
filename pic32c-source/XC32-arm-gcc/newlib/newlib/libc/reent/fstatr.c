@@ -50,6 +50,8 @@ DESCRIPTION
 	<<errno>>.
 */
 
+extern int _fstat (int fd, struct stat *st);
+
 int
 _fstat_r (ptr, fd, pstat)
      struct _reent *ptr;

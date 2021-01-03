@@ -1937,7 +1937,7 @@ check_overlapping_memory_regions (asection **asec_list, unsigned int asec_count)
     a = asec_list[i];
     b = asec_list[i+1];
     
-    if ( (a->vma + a->lma) >= b->vma )
+    if ( (a->vma + a->lma) > b->vma )
     {
         asec_name = a->name + strlen(memory_region_prefix) + 1;
         bsec_name = b->name + strlen(memory_region_prefix) + 1;

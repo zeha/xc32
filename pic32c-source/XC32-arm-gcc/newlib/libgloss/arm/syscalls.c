@@ -17,6 +17,12 @@
 #include <sys/wait.h>
 #include "swi.h"
 
+#if 1 /* defined(_BUILD_MCHP_) */
+#define __weakstub__ 
+#else
+#define __weakstub__ __attribute__((weak))
+#endif
+
 /* Forward prototypes.  */
 int     _system     _PARAMS ((const char *));
 int     _rename     _PARAMS ((const char *, const char *));
@@ -267,7 +273,7 @@ _swiread (int fh,
 /* fd, is a valid user file handle.
    Translates the return of _swiread into
    bytes read. */
-int __attribute__((weak))
+int __weakstub__
 _read (int fd,
        char * ptr,
        int len)
@@ -418,7 +424,7 @@ _swiwrite (
 }
 
 /* fd, is a user file descriptor. */
-int __attribute__((weak))
+int __weakstub__
 _write (int    fd,
 	char * ptr,
 	int    len)
@@ -581,7 +587,7 @@ _close (int fd)
   return res;
 }
 
-int __attribute__((weak))
+int __weakstub__
 _getpid (int n __attribute__ ((unused)))
 {
   return 1;
@@ -590,7 +596,10 @@ _getpid (int n __attribute__ ((unused)))
 /* Heap limit returned from SYS_HEAPINFO Angel semihost call.  */
 uint __heap_limit = 0xcafedead;
 
-caddr_t __attribute__((weak))
+#if 0 /* !defined(_BUILD_MCHP_) */
+/* MCHP target does not support this implementation. _sbrk is provided
+   in libpic32c.a/ */
+caddr_t __weakstub__
 _sbrk (int incr)
 {
   extern char end asm ("end"); /* Defined by the linker.  */
@@ -624,6 +633,7 @@ _sbrk (int incr)
 
   return (caddr_t) prev_heap_end;
 }
+#endif
 
 int 
 _swistat (int fd, struct stat * st)
@@ -658,14 +668,14 @@ _swistat (int fd, struct stat * st)
   return 0;
 }
 
-int __attribute__((weak))
+int __weakstub__
 _fstat (int fd, struct stat * st)
 {
   memset (st, 0, sizeof (* st));
   return _swistat (fd, st);
 }
 
-int __attribute__((weak))
+int __weakstub__
 _stat (const char *fname, struct stat *st)
 {
   int fd, res;
@@ -681,7 +691,7 @@ _stat (const char *fname, struct stat *st)
   return res;
 }
 
-int __attribute__((weak))
+int __weakstub__
 _link (void)
 {
   errno = ENOSYS;

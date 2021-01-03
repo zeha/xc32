@@ -7378,6 +7378,10 @@ _bfd_mips_elf_fake_sections (bfd *abfd, Elf_Internal_Shdr *hdr, asection *sec)
       hdr->sh_entsize = 8;
     }
 
+#if defined(TARGET_IS_PIC32MX)
+  pic32_fake_sections (abfd, hdr, sec);
+#endif
+
   /* The generic elf_fake_sections will set up REL_HDR using the default
    kind of relocations.  We used to set up a second header for the
    non-default kind of relocations here, but only NewABI would use
@@ -9702,6 +9706,21 @@ _bfd_mips_elf_size_dynamic_sections (bfd *output_bfd,
                  assert a DT_TEXTREL entry rather than testing whether
                  there exists a relocation to a read only section or
                  not.  */
+#ifdef TARGET_IS_PIC32MX
+        /*
+          XC32-1175
+	
+          As long as the SEC_EXCLUDE is excluded from the list of flags used
+          to create a ".rel.dyn" section (see mips_elf_rel_dyn_section), then
+          it is mandatory for the *.ld files to have a "/DISCARD/ : { *(.rel.dyn) }"
+          line.
+		  
+          In the absenced of SEC_EXCLUDE & "/DISCARD/ : { *(.rel.dyn) }" the 
+          s->output_section will point to NULL (with bfd_get_section_name
+          dereferencing it to extract the name).
+        */
+       BFD_ASSERT(s->output_section != NULL);
+#endif
 	      outname = bfd_get_section_name (output_bfd,
 					      s->output_section);
 	      target = bfd_get_section_by_name (output_bfd, outname + 4);

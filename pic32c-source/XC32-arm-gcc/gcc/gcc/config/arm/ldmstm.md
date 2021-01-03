@@ -80,7 +80,7 @@
 
 (define_insn "*thumb_ldm4_ia_update"
   [(match_parallel 0 "load_multiple_operation"
-    [(set (match_operand:SI 5 "s_register_operand" "+&l")
+    [(set (match_operand:SI 5 "s_register_operand" "+&lk")
           (plus:SI (match_dup 5) (const_int 16)))
      (set (match_operand:SI 1 "low_register_operand" "")
           (mem:SI (match_dup 5)))
@@ -522,7 +522,7 @@
 
 (define_insn "*thumb_ldm3_ia_update"
   [(match_parallel 0 "load_multiple_operation"
-    [(set (match_operand:SI 4 "s_register_operand" "+&l")
+    [(set (match_operand:SI 4 "s_register_operand" "+&lk")
           (plus:SI (match_dup 4) (const_int 12)))
      (set (match_operand:SI 1 "low_register_operand" "")
           (mem:SI (match_dup 4)))
@@ -900,9 +900,14 @@
    (set_attr "predicable" "yes")
    (set_attr "predicable_short_it" "no")])
 
+/*
+  LDMIA SP!, <regs> is a valid Thumb insn - equivalent LDM syntax of POP <regs>
+  TODO: modify arm-ldmstm.ml to generate the constraint "+&lk" instead of "+&l"
+        for all "*thumb_ldmX_ia_update" RTL instructions
+*/
 (define_insn "*thumb_ldm2_ia_update"
   [(match_parallel 0 "load_multiple_operation"
-    [(set (match_operand:SI 3 "s_register_operand" "+&l")
+    [(set (match_operand:SI 3 "s_register_operand" "+&lk")
           (plus:SI (match_dup 3) (const_int 8)))
      (set (match_operand:SI 1 "low_register_operand" "")
           (mem:SI (match_dup 3)))

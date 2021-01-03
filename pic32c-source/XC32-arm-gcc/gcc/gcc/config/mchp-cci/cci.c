@@ -60,14 +60,24 @@ along with GCC; see the file COPYING3.  If not see
 #include "c-family/c-pragma.h"
 #include "c/c-tree.h"
 #include "diagnostic.h"
+#include "config/pic32c/pic32c-protos.h"
 
 #define CCI_H "config/mchp-cci/cci.h"
 #include CCI_H
 
-void mchp_print_builtin_function (const_tree t)
+void mchp_print_builtin_function (tree t)
 {
-  if (t && DECL_P(t))
-    puts (IDENTIFIER_POINTER(DECL_NAME(t)));
+    if (TARGET_WRITE_BUILTINS_H && t && DECL_P(t))
+	pretty_tree_with_prototype(t);
+    
+    if (TARGET_PRINT_BUILTINS && t && DECL_P(t))
+	puts (IDENTIFIER_POINTER(DECL_NAME(t)));
+}
+
+
+void mchp_close_builtin_header ()
+{
+    close_builtins_h();
 }
 
 #endif /* _BUILD_MCHP_ */

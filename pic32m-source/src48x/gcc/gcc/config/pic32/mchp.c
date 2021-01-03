@@ -88,6 +88,8 @@ along with GCC; see the file COPYING3.  If not see
 #include "config/mips/mips-machine-function.h"
 #include "version.h"
 
+#include "xc-coverage.h"
+
 /* splitting for lto/non-lto causes beacoup problems */
 #include "../../../../c30_resource/src/xc32/resource_info.h"
 #include "config/mchp-cci/cci.h"
@@ -566,6 +568,9 @@ struct vector_dispatch_spec *vector_dispatch_list_head;
 
 struct mchp_config_specification *mchp_configuration_values;
 
+/* mchp_pragma_nocodecov is != 0 when #pragma nocodecov is in effect */
+int mchp_pragma_nocodecov = 0;
+
 #if !defined(MCHP_SKIP_RESOURCE_FILE)
 /* This will be called by the spec parser in gcc.c when it sees
    a %:local_cpu_detect(args) construct.
@@ -783,7 +788,7 @@ mchp_subtarget_override_options(void)
   if (TARGET_SKIP_LICENSE_CHECK) {
     TARGET_LICENSE_WARNING = 0;
   }
-  
+
   mask = validate_device_mask ((char*)mchp_processor_string, &mchp_target_cpu_id,
                               mchp_resource_file);
 #endif
@@ -822,877 +827,6 @@ mchp_subtarget_override_options1 (void)
       && mips_abi != ABI_EABI)
     target_flags |= MASK_ABICALLS;
 }
-
-#ifdef MCHP_USE_LICENSE_CONF
-/* get a line, and remove any line-ending \n or \r\n */
-static char *
-get_line (char *buf, size_t n, FILE *fptr)
-{
-  if (fgets (buf, n, fptr) == NULL)
-    return NULL;
-  while (buf [strlen (buf) - 1] == '\n'
-         || buf [strlen (buf) - 1] == '\r')
-    buf [strlen (buf) - 1] = '\0';
-  return buf;
-}
-#endif
-
-#ifndef SKIP_LICENSE_MANAGER
-
-#ifdef MCHP_USE_LICENSE_CONF
-#define MCHP_LICENSE_CONF_FILENAME "license.conf"
-#define MCHP_LICENSEPATH_MARKER "license_dir"
-#endif /* MCHP_USE_LICENSE_CONF */
-
-#ifdef __MINGW32__
-#define MCHP_MAX_LICENSEPATH_LINE_LENGTH 1024
-#define MCHP_XCLM_FILENAME "xclm.exe"
-#else
-#define MCHP_XCLM_FILENAME "xclm"
-#endif
-
-static char*
-get_license_manager_path (void)
-{
-  extern struct cl_decoded_option *save_decoded_options;
-  char *xclmpath = NULL;
-  FILE *fptr = NULL;
-  struct stat filestat;
-  int xclmpath_length;
-
-#ifdef MCHP_USE_LICENSE_CONF
-  char *conf_dir, *conf_fname;
-  FILE *fptr = NULL;
-  char line [MCHP_MAX_LICENSEPATH_LINE_LENGTH] = {0};
-
-  /* MCHP_LICENSE_CONF_FILENAME must reside in the same directory as pic32-gcc */
-  conf_dir = make_relative_prefix(save_decoded_options[0].arg,
-                                  "/pic32mx/bin/gcc/pic32mx/"
-                                  str(BUILDING_GCC_MAJOR) "."
-                                  str(BUILDING_GCC_MINOR) "."
-                                  str(BUILDING_GCC_PATCHLEVEL),
-                                  "/bin");
-
-  /* alloc space for the filename: directory + '/' + MCHP_LICENSE_CONF_FILENAME
-   */
-  conf_fname = (char*)alloca (strlen (conf_dir) + 1 +
-                              strlen (MCHP_LICENSE_CONF_FILENAME) + 1);
-  strcpy (conf_fname, conf_dir);
-  if (conf_fname [strlen (conf_fname) - 1] != '/'
-      && conf_fname [strlen (conf_fname) - 1] != '\\')
-    strcat (conf_fname, "/");
-  strcat (conf_fname, MCHP_LICENSE_CONF_FILENAME);
-
-  if ((fptr = fopen (conf_fname, "rb")) != NULL)
-    {
-      while (get_line (line, sizeof (line), fptr) != NULL)
-        {
-          char *pch0, *pch1;
-          /* Find the line with the license directory */
-          if (strstr (line, MCHP_LICENSEPATH_MARKER))
-            {
-              /* Find the quoted string on that line */
-              pch0 = strchr (line,'"') +1;
-              pch1 = strrchr (line,'"');
-              if ((pch1-pch0) > 2)
-                strncpy (xclmpath, pch0, pch1-pch0);
-              break;
-            }
-        }
-      /* Append the xclm executable name to the directory. */
-      if (xclmpath [strlen (xclmpath) - 1] != '/'
-          && xclmpath [strlen (xclmpath) - 1] != '\\')
-        strcat (xclmpath, "/");
-      strcat (xclmpath, MCHP_XCLM_FILENAME);
-
-    }
-
-  if (fptr != NULL)
-    {
-      fclose (fptr);
-      fptr = NULL;
-    }
-#endif /* MCHP_USE_LICENSE_CONF */
-
-#ifdef MCHP_USE_LICENSE_CONF
-  if (-1 == stat (xclmpath, &filestat))
-#endif /* MCHP_USE_LICENSE_CONF */
-    {
-      /*  Try the compiler bin directory.
-       *
-       */
-      char* bindir = make_relative_prefix(save_decoded_options[0].arg,
-                                          "/pic32mx/bin/gcc/pic32mx/"
-                                          str(BUILDING_GCC_MAJOR) "."
-                                          str(BUILDING_GCC_MINOR) "."
-                                          str(BUILDING_GCC_PATCHLEVEL),
-                                          "/bin");
-      xclmpath_length = strlen(bindir) + 1 + strlen(MCHP_XCLM_FILENAME) + 1;
-      xclmpath = (char*)xcalloc(xclmpath_length+1,sizeof(char));
-      strncpy (xclmpath, bindir, xclmpath_length);
-      /* Append the xclm executable name to the directory. */
-      if (xclmpath [strlen (xclmpath) - 1] != '/'
-          && xclmpath [strlen (xclmpath) - 1] != '\\')
-        strcat (xclmpath, "/");
-      strcat (xclmpath, MCHP_XCLM_FILENAME);
-
-      if (-1 == stat (xclmpath, &filestat))
-        {
-          free (xclmpath);
-          /*  Try the old common directory
-           */
-          xclmpath_length = strlen("/opt/Microchip/xclm/bin/") + strlen(MCHP_XCLM_FILENAME) + 1;
-          xclmpath = (char*)xcalloc(xclmpath_length+1,sizeof(char));
-          strncpy (xclmpath, "/opt/Microchip/xclm/bin/", xclmpath_length);
-          /* Append the xclm executable name to the directory. */
-          strcat (xclmpath, MCHP_XCLM_FILENAME);
-        }
-      if (-1 == stat (xclmpath, &filestat))
-        {
-          /*  Try the build directory
-           */
-          strncpy (xclmpath, "/build/xc32/xclm/bin/", xclmpath_length);
-          /* Append the xclm executable name to the directory. */
-          strcat (xclmpath, MCHP_XCLM_FILENAME);
-        }
-    }
-
-#if defined(__MINGW32__)
-  {
-    char *convert;
-    convert = xclmpath;
-    while (*convert != '\0')
-      {
-        if (*convert == '\\')
-          *convert = '/';
-        convert++;
-      }
-  }
-#endif
-  if (-1 == stat (xclmpath, &filestat))
-    return NULL;
-
-#if defined(MCHP_DEBUG)
-  fprintf (stderr, "%d Final xclmpath: %s\n", __LINE__, xclmpath);
-#endif
-  return xclmpath;
-}
-#ifdef MCHP_USE_LICENSE_CONF
-#undef MCHP_MAX_LICENSEPATH_LINE_LENGTH
-#undef MCHP_LICENSE_CONF_FILENAME
-#undef MCHP_LICENSEPATH_MARKER
-#endif /* MCHP_USE_LICENSE_CONF */
-#undef MCHP_XCLM_FILENAME
-#endif
-
-static int
-pic32_get_license ()
-{
-  /*
-   *  On systems where we have a licence manager, call it
-   */
-#ifdef TARGET_MCHP_PIC32MX
-
-/* Misc. Return Codes */
-#ifndef MCHP_XCLM_EXPIRED_DEMO
-#define MCHP_XCLM_EXPIRED_DEMO 0x10
-#endif
-
-#if defined(MCHP_XCLM_VALID_STANDARD_LICENSE)
-#define PIC32_EXPIRED_LICENSE        MCHP_XCLM_EXPIRED_DEMO
-#define PIC32_FREE_LICENSE           MCHP_XCLM_FREE_LICENSE
-#define PIC32_VALID_STANDARD_LICENSE MCHP_XCLM_VALID_STANDARD_LICENSE
-#define PIC32_VALID_PRO_LICENSE      MCHP_XCLM_VALID_PRO_LICENSE
-#else
-#define PIC32_EXPIRED_LICENSE        MCHP_XCLM_EXPIRED_DEMO
-#define PIC32_FREE_LICENSE           0
-#define PIC32_VALID_STANDARD_LICENSE 1
-#define PIC32_VALID_PRO_LICENSE      2
-#endif
-
-#ifndef SKIP_LICENSE_MANAGER
-  {
-    char *exec;
-#if XCLM_FULL_CHECKOUT
-    char kopt[] = "-fcfc";
-#else
-    char kopt[] = "-checkout";
-#endif
-    char productc[] = "swxc32";
-    char version[9] = "";
-    char date[] = __DATE__;
-
-#if XCLM_FULL_CHECKOUT
-    char * args[] = { NULL, NULL, NULL, NULL, NULL, NULL};
-#else
-    char * args[] = { NULL, NULL, NULL, NULL, NULL};
-#endif
-
-    char *err_msg=(char*)"", *err_arg=(char*)"";
-    const char *failure = NULL;
-    int status = 0;
-    int err = 0;
-    int major_ver =0, minor_ver=0;
-    extern struct cl_decoded_option *save_decoded_options;
-    struct stat filestat;
-    int found_xclm = 0, xclm_tampered = 1;
-
-    /* Get the version number string from the entire version string */
-    if ((version_string != NULL) && *version_string)
-      {
-        char *Microchip;
-        gcc_assert(strlen(version_string) < 80);
-        Microchip = strrchr ((char*)version_string, 'v');
-        if (Microchip)
-          {
-            while ((*Microchip) &&
-                   ((*Microchip < '0') ||
-                    (*Microchip > '9')))
-              {
-                Microchip++;
-              }
-            if (*Microchip)
-              {
-                major_ver = strtol (Microchip, &Microchip, 0);
-              }
-            if ((*Microchip) &&
-                ((*Microchip=='_') || (*Microchip=='.')))
-              {
-                Microchip++;
-                minor_ver = strtol(Microchip, &Microchip, 0);
-              }
-          }
-        snprintf (version, 6, "%d.%02d", major_ver, minor_ver);
-      }
-
-    /* Arguments to pass to xclm */
-    args[1] = kopt;
-    args[2] = productc;
-    args[3] = version;
-#if XCLM_FULL_CHECKOUT
-    args[4] = date;
-#endif
-    /* Get a path to the license manager to try */
-    exec = get_license_manager_path();
-    if (exec == NULL)
-      {
-         /*Set free edition if the license manager isn't available.*/
-        mchp_pic32_license_valid=PIC32_FREE_LICENSE;
-        warning (0, "Could not retrieve compiler license");
-        inform (input_location, "Please reinstall the compiler");
-      }
-    else if (-1 == stat (exec, &filestat))
-      {
-         /*Set free edition if the license manager execution fails. */
-        mchp_pic32_license_valid=PIC32_FREE_LICENSE;
-        warning (0, "Could not retrieve compiler license");
-        inform (input_location, "Please reinstall the compiler");
-      }
-    else
-      {
-        /* Found xclm */
-          found_xclm = 1;
-      }
-
-#undef xstr
-#undef str
-#undef MCHP_XCLM_SHA256_DIGEST_QUOTED
-#undef MCHP_XCLM64_SHA256_DIGEST_QUOTED
-#undef MCHP_FXCLM_SHA256_DIGEST_QUOTED
-#define xstr(s) str(s)
-#define str(s) #s
-#define MCHP_XCLM_SHA256_DIGEST_QUOTED xstr(MCHP_XCLM_SHA256_DIGEST)
-#define MCHP_XCLM64_SHA256_DIGEST_QUOTED xstr(MCHP_XCLM64_SHA256_DIGEST)
-#define MCHP_FXCLM_SHA256_DIGEST_QUOTED xstr(MCHP_FXCLM_SHA256_DIGEST)
-
-    /* Verify SHA sum and call xclm to determine the license */
-    if (found_xclm && mchp_pic32_license_valid==-1 && !TARGET_SKIP_LICENSE_CHECK)
-      {
-        /* Verify that xclm executable is untampered */
-        xclm_tampered = mchp_sha256_validate(exec, (const unsigned char*)MCHP_XCLM_SHA256_DIGEST_QUOTED);
-#ifdef __linux__
-        /*On linux, try to validate against 64-bit and fake xclm SHA if 32-bit xclm SHA does not match*/
-        if (xclm_tampered != 0)
-          { 
-            xclm_tampered = mchp_sha256_validate(exec, (const unsigned char*)MCHP_XCLM64_SHA256_DIGEST_QUOTED);
-          }
-        if (xclm_tampered != 0)
-          { 
-            xclm_tampered = mchp_sha256_validate(exec, (const unsigned char*)MCHP_FXCLM_SHA256_DIGEST_QUOTED);
-          }
-#endif 
-        if (xclm_tampered != 0)
-          {
-            /* Set free edition if the license manager SHA digest does not
-               match. The free edition disables optimization options without an
-               eval period. */
-            mchp_pic32_license_valid=PIC32_FREE_LICENSE;
-            warning (0, "Detected corrupt executable file");
-            inform (input_location, "Please reinstall the compiler");
-          }
-        else
-          {
-            args[0] = exec;
-            failure = pex_one(0, exec, args, "MPLAB XC32 Compiler", 0, 0, &status, &err);
-
-            if (failure != NULL)
-              {
-                /* Set free edition if the license manager isn't available.
-                   The free edition disables optimization options without an
-                   eval period. */
-                mchp_pic32_license_valid=PIC32_FREE_LICENSE;
-                warning (0, "Could not retrieve compiler license (%s)", failure);
-                inform (input_location, "Please reinstall the compiler");
-              }
-            else if (WIFEXITED(status))
-              {
-                mchp_pic32_license_valid = WEXITSTATUS(status);
-              }
-          }
-      }
-  }
-  if (mchp_mafrlcsj) {
-    mchp_pic32_license_valid = PIC32_VALID_PRO_LICENSE;
-  }
-  #undef xstr
-  #undef str
-  #undef MCHP_XCLM_SHA256_DIGEST_QUOTED
-  #undef MCHP_XCLM64_SHA256_DIGEST_QUOTED
-  #undef MCHP_FXCLM_SHA256_DIGEST_QUOTED
-#endif /* SKIP_LICENSE_MANAGER */
-  return mchp_pic32_license_valid;
-}
-
-static const char *disabled_option_message = NULL;
-static int message_displayed = 0;
-static int message_purchase_display = 0;
-static const char *invalid_license = "due to an invalid XC32 license";
-#define NULLIFY(X,S) \
-    if (X) { \
-      if ((S != NULL) && (disabled_option_message == NULL)) { \
-          disabled_option_message = S; \
-          message_displayed++;         \
-        } \
-    } \
-    X
-
-static int nullify_O2 = 0;
-static int nullify_Os = 0;
-static int nullify_O3 = 0;
-static int nullify_mips16 = 0;
-static int nullify_lto = 0;
-static char *invalid = (char*) "invalid";
-
-void mchp_override_options_after_change(void) {
-    if (nullify_Os)
-      {
-        /* Disable -Os optimization(s) */
-        /* flag_web and flag_inline_functions already disabled */
-        if (optimize_size)
-          {
-            optimize = 2;
-          }
-        NULLIFY(optimize_size, "Optimize for size") = 0;
-      }
-    if (nullify_O2)
-      {
-        int opt1_max;
-        /* Disable -O2 optimizations */
-        if (optimize > 1)
-          {
-            NULLIFY(optimize, "Optimization level > 1") = 1;
-          }
-        NULLIFY(flag_indirect_inlining, "indirect inlining") = 0;
-        NULLIFY(flag_thread_jumps, "thread jumps") = 0;
-        NULLIFY(flag_crossjumping, "crossjumping") = 0;
-        NULLIFY(flag_optimize_sibling_calls, "optimize sibling calls") = 0;
-        NULLIFY(flag_cse_follow_jumps, "cse follow jumps") = 0;
-        NULLIFY(flag_gcse, "gcse") = 0;
-        NULLIFY(flag_expensive_optimizations, "expensive optimizations") = 0;
-        NULLIFY(flag_rerun_cse_after_loop, "cse after loop") = 0;
-        NULLIFY(flag_caller_saves, "caller saves") = 0;
-        NULLIFY(flag_peephole2, "peephole2") = 0;
-#ifdef INSN_SCHEDULING
-        NULLIFY(flag_schedule_insns, "schedule insns") = 0;
-        NULLIFY(flag_schedule_insns_after_reload, "schedule insns after reload") = 0;
-#endif
-        NULLIFY(flag_regmove, "regmove") = 0;
-        NULLIFY(flag_strict_aliasing, "strict aliasing") = 0;
-        NULLIFY(flag_strict_overflow, "strict overflow") = 0;
-        NULLIFY(flag_reorder_blocks, "reorder blocks") = 0;
-        NULLIFY(flag_reorder_functions, "reorder functions") = 0;
-        NULLIFY(flag_tree_vrp, "tree vrp") = 0;
-        NULLIFY(flag_tree_builtin_call_dce, "tree builtin call dce") = 0;
-        NULLIFY(flag_tree_pre, "tree pre") = 0;
-        NULLIFY(flag_tree_switch_conversion, "tree switch conversion") = 0;
-        NULLIFY(flag_ipa_cp, "ipa cp") = 0;
-        NULLIFY(flag_ipa_sra, "ipa sra") = 0;
-
-        /* Just -O1/-O0 optimizations.  */
-        opt1_max = (optimize <= 1);
-        align_loops = opt1_max;
-        align_jumps = opt1_max;
-        align_labels = opt1_max;
-        align_functions = opt1_max;
-      }
-    if (nullify_O3)
-      {
-        if (optimize >= 3)
-          {
-            NULLIFY(optimize, "Optimization level > 2") = 2;
-          }
-        /* Disable -O3 optimizations */
-        NULLIFY(flag_predictive_commoning, "predictive commoning") = 0;
-        NULLIFY(flag_inline_functions, "inline functions") = 0;
-        NULLIFY(flag_unswitch_loops, "unswitch loops") = 0;
-        NULLIFY(flag_gcse_after_reload, "gcse after reload") = 0;
-        NULLIFY(flag_tree_vectorize, "tree vectorize") = 0;
-        NULLIFY(flag_ipa_cp_clone, "ipa cp clone") = 0;
-        flag_ipa_cp = 0;
-       }
-    if (nullify_mips16)
-      {
-        /* Disable -mips16 and -mips16e */
-        if ((mips_base_compression_flags & (MASK_MIPS16)) != 0)
-          {
-            /* Disable -mips16 and -mips16e */
-            NULLIFY(mips_base_compression_flags, "mips16 mode") = 0;
-          }
-        if ((mips_base_compression_flags & (MASK_MICROMIPS)) != 0 && 
-            mchp_subtarget_mips32_enabled())
-          {
-            /* Disable -mmicromips */
-            NULLIFY(mips_base_compression_flags, "micromips mode") = 0;
-          }
-      }
-    if (nullify_lto)
-      {
-        NULLIFY(flag_lto, "Link-time optimization") = 0;
-        NULLIFY(flag_whole_program, "Whole-program optimizations") = 0;
-        NULLIFY(flag_generate_lto, "Link-time optimization") = 0;
-      }
-}
-
-static void mchp_print_license_warning (void)
-{
-    switch (mchp_pic32_license_valid)
-      {
-      case PIC32_EXPIRED_LICENSE:
-        invalid_license = "because the XC32 evaluation period has expired";
-        break;
-      case PIC32_FREE_LICENSE:
-        invalid_license = "because the free XC32 compiler does not support this feature.";
-        break;
-      case PIC32_VALID_STANDARD_LICENSE:
-        invalid_license = "because this feature requires the MPLAB XC32 PRO compiler";
-        break;
-      default:
-        invalid_license = "due to an invalid XC32 license";
-        break;
-      }
-
-    if (message_displayed && TARGET_LICENSE_WARNING)
-      {
-        /* Display a warning for the Standard option first */
-        if (disabled_option_message != NULL)
-          warning (0,"Compiler option (%s) ignored %s",
-                   disabled_option_message, invalid_license);
-        disabled_option_message = NULL;
-        message_purchase_display++;
-      }
-#endif /* SKIP_LICENSE_MANAGER */
-}
-
-void
-mchp_subtarget_override_options2 (void)
-{
-  extern struct cl_decoded_option *save_decoded_options;
-
-    if (mchp_it_transport && *mchp_it_transport) {
-      if (strcasecmp(mchp_it_transport,"profile") == 0) {
-            mchp_profile_option = 1;
-      }
-    }
-
-#ifndef SKIP_LICENSE_MANAGER
-  nullify_O2     = 1;
-  nullify_O3     = 1;
-  nullify_Os     = 1;
-  nullify_mips16 = 1;
-  nullify_lto    = 1;
-#endif /* SKIP_LICENSE_MANAGER */
-
-  if (mchp_profile_option) {
-    flag_inline_small_functions = 0;
-    flag_inline_functions = 0;
-    flag_no_inline = 1;
-    flag_optimize_sibling_calls = 0;
-  }
-
-  if (TARGET_SKIP_LICENSE_CHECK) {
-    mchp_pic32_license_valid = PIC32_FREE_LICENSE;
-  }
-  else {
-    mchp_pic32_license_valid = pic32_get_license ();
-  }
-
-  if (mchp_pic32_license_valid == PIC32_VALID_PRO_LICENSE)
-    {
-      nullify_lto = nullify_mips16 = nullify_O2 =  nullify_O3 = nullify_Os = 0;
-    }
-  else if (mchp_pic32_license_valid == PIC32_VALID_STANDARD_LICENSE)
-    {
-      nullify_O2 = 0;
-    }
-  /*
-   *  On systems where we have a licence manager, call it
-   */
-#ifdef TARGET_MCHP_PIC32MX
-  {
-    /*
-     * Prior to v1.40 (gcc upgrade from 4.5.2 to 4.8.3),
-     * mchp_override_options_after_change() was called from optimization_option()
-     * through OPTIMIZATION_OPTION target macro which is poisoned in 4.8.3. Hence
-     * optimization_option() was removed. Call to  mchp_override_options_after_change()
-     * added here to fix XC32-546
-     */
-    mchp_override_options_after_change();
-    if (TARGET_LICENSE_WARNING) {
-      mchp_print_license_warning();
-    }
-
-    if (nullify_lto)
-      {
-        if (optimize_size)
-          {
-            optimize = 2;
-          }
-        if (optimize >= 3)
-          {
-            NULLIFY(optimize, "Optimization level > 2") = 2;
-          }
-        NULLIFY(optimize_size, "Optimize for size") = 0;
-
-        NULLIFY(flag_predictive_commoning, "predictive commoning") = 0;
-        NULLIFY(flag_inline_functions, "inline functions") = 0;
-        NULLIFY(flag_unswitch_loops, "unswitch loops") = 0;
-        NULLIFY(flag_gcse_after_reload, "gcse after reload") = 0;
-        NULLIFY(flag_tree_vectorize, "tree vectorize") = 0;
-        NULLIFY(flag_ipa_cp_clone, "ipa cp clone") = 0;
-        flag_ipa_cp = 0;
-
-        NULLIFY(flag_lto, "Link-time optimization") = 0;
-        NULLIFY(flag_whole_program, "Whole-program optimizations") = 0;
-        NULLIFY(flag_generate_lto, "Link-time optimization") = 0;
-
-        /* Disable -mips16 and -mips16e */
-        if ((mips_base_compression_flags & (MASK_MIPS16)) != 0)
-          {
-            /* Disable -mips16 and -mips16e */
-            NULLIFY(mips_base_compression_flags, "mips16 mode") = 0;
-          }
-
-        if (((mips_base_compression_flags & (MASK_MICROMIPS)) != 0 && mchp_subtarget_mips32_enabled()) ||
-           (target_flags & MASK_MICROMIPS))
-          {
-            /* If this device also supports mips32, disable -mmicromips */
-              NULLIFY(mips_base_compression_flags, "micromips mode") = 0;
-          }
-      }
-    if (message_displayed && TARGET_LICENSE_WARNING)
-      {
-         /*Now display a warning for the Pro option */
-        if (disabled_option_message != NULL)
-          warning (0,"Pro Compiler option (%s) ignored %s", disabled_option_message,
-                   invalid_license);
-        message_purchase_display++;
-        message_displayed=0;
-      }
-    if ((message_purchase_display > 0) && (TARGET_LICENSE_WARNING))
-      {
-        inform (0, "Disable the option or visit http://www.microchip.com/MPLABXCcompilers "
-                "to purchase a new MPLAB XC compiler license.");
-
-         /*If the --nofallback option was specified, abort compilation. */
-        if (TARGET_NO_FALLBACKLICENSE)
-          error ("Unable to find a valid license, aborting");
-
-        message_purchase_display = 0;
-      }
-
-     /*Require a Standard or Pro license */
-    if (TARGET_NO_FALLBACKLICENSE && 
-        (mchp_pic32_license_valid == PIC32_FREE_LICENSE))
-      error ("Unable to find a valid license, aborting");
-  }
-#undef PIC32_EXPIRED_LICENSE
-#undef PIC32_ACADEMIC_LICENSE
-#undef PIC32_VALID_STANDARD_LICENSE
-#undef PIC32_VALID_PRO_LICENSE
-#endif /* TARGET_MCHP_PIC32MX */
-}
-#if defined(TARGET_MCHP_PIC32MX)
-#undef NULLIFY
-#endif
-
-#if 0
-/* Moved to cci.c */
-
-/* Verify the header record for the configuration data file
- */
-static int
-verify_configuration_header_record (FILE *fptr)
-{
-  char header_record[MCHP_CONFIGURATION_HEADER_SIZE + 1];
-  /* the first record of the file is a string identifying
-     file and its format version number. */
-  if (get_line (header_record, MCHP_CONFIGURATION_HEADER_SIZE + 1, fptr)
-      == NULL)
-    {
-      warning (0, "malformed configuration word definition file.");
-      return 1;
-    }
-  /* verify that this file is a daytona configuration word file */
-  if (strncmp (header_record, MCHP_CONFIGURATION_HEADER_MARKER,
-               sizeof (MCHP_CONFIGURATION_HEADER_MARKER) - 1) != 0)
-    {
-      warning (0, "malformed configuration word definition file.");
-      return 1;
-    }
-  /* verify that the version number is one we can deal with */
-  if (strncmp (header_record + sizeof (MCHP_CONFIGURATION_HEADER_MARKER) - 1,
-               MCHP_CONFIGURATION_HEADER_VERSION,
-               sizeof (MCHP_CONFIGURATION_HEADER_VERSION) - 1))
-    {
-      warning (0, "configuration word definition file version mismatch.");
-      return 1;
-    }
-  return 0;
-}
-
-/* Load the configuration word definitions from the data file
- */
-int
-mchp_load_configuration_definition (const char *fname)
-{
-  int retval = 0;
-  FILE *fptr;
-  char line [MCHP_MAX_CONFIG_LINE_LENGTH];
-
-  if ((fptr = fopen (fname, "rb")) == NULL)
-    return 1;
-
-  if (verify_configuration_header_record (fptr))
-    return 1;
-
-  while (get_line (line, sizeof (line), fptr) != NULL)
-    {
-      /* parsing the file is very straightforward. We check the record
-         type and transition our state based on it:
-
-          CWORD       Add a new word to the word list and make it the
-                        current word
-          SETTING     If there is no current word, diagnostic and abort
-                      Add a new setting to the current word and make
-                        it the current setting
-          VALUE       If there is no current setting, diagnostic and abort
-                      Add a new value to the current setting
-          other       Diagnostic and abort
-        */
-      if (!strncmp (MCHP_WORD_MARKER, line, MCHP_WORD_MARKER_LEN))
-        {
-          struct mchp_config_specification *spec;
-
-          /* This is a fixed length record. we validate the following:
-              - total record length
-              - delimiters in the expected locations */
-          if (strlen (line) != (MCHP_WORD_MARKER_LEN
-                                + 24   /* two 8-byte hex value fields */
-                                + 2)   /* two ':' delimiters */
-              || line [MCHP_WORD_MARKER_LEN + 8] != ':'
-              || line [MCHP_WORD_MARKER_LEN + 17] != ':')
-            {
-              warning (0, "malformed configuration word definition file. bad config word record");
-              break;
-            }
-
-          spec = (struct mchp_config_specification *)xmalloc (sizeof (struct mchp_config_specification));
-          spec->next = mchp_configuration_values;
-
-          spec->word = (struct mchp_config_word *)xcalloc (sizeof (struct mchp_config_word), 1);
-          spec->word->address = strtoul (line + MCHP_WORD_MARKER_LEN, NULL, 16);
-          spec->word->mask = strtoul (line + MCHP_WORD_MARKER_LEN + 9, NULL, 16);
-          spec->word->default_value =
-            strtoul (line + MCHP_WORD_MARKER_LEN + 18, NULL, 16);
-
-          /* initialize the value to the default with no bits referenced */
-          spec->value = spec->word->default_value;
-          spec->referenced_bits = 0;
-
-          mchp_configuration_values = spec;
-        }
-      else if (!strncmp (MCHP_SETTING_MARKER, line, MCHP_SETTING_MARKER_LEN))
-        {
-          struct mchp_config_setting *setting;
-          size_t len;
-
-          if (!mchp_configuration_values)
-            {
-              warning (0, "malformed configuration word definition file. setting record without preceding word record");
-              break;
-            }
-
-          /* Validate the fixed length portion of the record by checking
-             that the record length is >= the size of the minimum valid
-             record (empty description and one character name) and that the
-             ':' delimiter following the mask is present. */
-          if (strlen (line) < (MCHP_SETTING_MARKER_LEN
-                               + 8     /* 8-byte hex mask field */
-                               + 2     /* two ':' delimiters */
-                               + 1)    /* non-empty setting name */
-              || line [MCHP_SETTING_MARKER_LEN + 8] != ':')
-            {
-              warning (0, "malformed configuration word definition file. bad setting record");
-              break;
-            }
-
-          setting = (struct mchp_config_setting *)xcalloc (sizeof (struct mchp_config_setting), 1);
-          setting->next = mchp_configuration_values->word->settings;
-
-          setting->mask = strtoul (line + MCHP_SETTING_MARKER_LEN, NULL, 16);
-          len = strcspn (line + MCHP_SETTING_MARKER_LEN + 9, ":");
-          /* Validate that the name is not empty */
-          if (len == 0)
-            {
-              warning (0, "malformed configuration word definition file. bad setting record");
-              break;
-            }
-          setting->name = (char*)xmalloc (len + 1);
-          strncpy (setting->name, line + MCHP_SETTING_MARKER_LEN + 9, len);
-          setting->name [len] = '\0';
-          setting->description =
-            (char*)xmalloc (strlen (line + MCHP_SETTING_MARKER_LEN + len + 10) + 2);
-          strcpy (setting->description,
-                  line + MCHP_SETTING_MARKER_LEN + len + 10);
-
-          mchp_configuration_values->word->settings = setting;
-        }
-      else if (!strncmp (MCHP_VALUE_MARKER, line, MCHP_VALUE_MARKER_LEN))
-        {
-          struct mchp_config_value *value;
-          size_t len;
-          if (!mchp_configuration_values
-              || !mchp_configuration_values->word->settings)
-            {
-              warning (0, "malformed configuration word definition file.");
-              break;
-            }
-          /* Validate the fixed length portion of the record by checking
-             that the record length is >= the size of the minimum valid
-             record (empty description and one character name) and that the
-             ':' delimiter following the mask is present. */
-          if (strlen (line) < (MCHP_VALUE_MARKER_LEN
-                               + 8     /* 8-byte hex mask field */
-                               + 2     /* two ':' delimiters */
-                               + 1)    /* non-empty setting name */
-              || line [MCHP_VALUE_MARKER_LEN + 8] != ':')
-            {
-              warning (0, "malformed configuration word definition file. bad value record");
-              break;
-            }
-
-          value = (struct mchp_config_value *)xcalloc (sizeof (struct mchp_config_value), 1);
-          value->next = mchp_configuration_values->word->settings->values;
-
-          value->value = strtoul (line + MCHP_VALUE_MARKER_LEN, NULL, 16);
-          len = strcspn (line + MCHP_VALUE_MARKER_LEN + 9, ":");
-          /* Validate that the name is not empty */
-          if (len == 0)
-            {
-              warning (0, "malformed configuration word definition file. bad setting record");
-              break;
-            }
-          value->name = (char*)xmalloc (len + 1);
-          strncpy (value->name, line + MCHP_VALUE_MARKER_LEN + 9, len);
-          value->name [len] = '\0';
-          value->description =
-            (char*)xmalloc (strlen (line + MCHP_VALUE_MARKER_LEN + len + 10) + 2);
-          strcpy (value->description,
-                  line + MCHP_VALUE_MARKER_LEN + len + 10);
-
-          mchp_configuration_values->word->settings->values = value;
-        }
-      else
-        {
-          warning (0, "malformed configuration word definition file.");
-          break;
-        }
-    }
-  /* if we didn't exit the loop because of end of file, we have an
-     error of some sort. */
-  if (!feof (fptr))
-    {
-      warning (0, "malformed configuration word definition file.");
-      retval = 1;
-    }
-
-
-  fclose (fptr);
-  return retval;
-}
-
-void
-mchp_handle_configuration_setting (const char *name, const unsigned char *value_name)
-{
-  struct mchp_config_specification *spec;
-
-  /* Look up setting in the definitions for the configuration words */
-  for (spec = mchp_configuration_values ; spec ; spec = spec->next)
-    {
-      struct mchp_config_setting *setting;
-      for (setting = spec->word->settings ; setting ; setting = setting->next)
-        {
-          if (strcmp (setting->name, name) == 0)
-            {
-              struct mchp_config_value *value;
-
-              /* If we've already specified this setting, that's an
-                 error, even if the new value and the old value match */
-              if (spec->referenced_bits & setting->mask)
-                {
-                  error ("multiple definitions for configuration setting '%s'",
-                         name);
-                  return;
-                }
-
-              /* look up the value */
-              for (value = setting->values ;
-                   value ;
-                   value = value->next)
-                {
-                  if (strcmp (value->name, (const char*)value_name) == 0)
-                    {
-                      /* mark this setting as having been specified */
-                      spec->referenced_bits |= setting->mask;
-                      /* update the value of the word with the value
-                         indicated */
-                      spec->value = (spec->value & ~setting->mask)
-                                    | value->value;
-                      return;
-                    }
-                }
-              /* If we got here, we didn't match the value name */
-              error ("unknown value for configuration setting '%s': '%s'",
-                     name, value_name);
-              return;
-            }
-        }
-    }
-  /* if we got here, we didn't find the setting, which is an error */
-  error ("unknown configuration setting: '%s'", name);
-}
-
-#endif /* Moved to cci */
 
 static void
 mchp_output_configuration_words (void)
@@ -1736,6 +870,56 @@ mchp_output_ext_region_memory_info (void)
       fprintf(asm_out_file, "\n\n");
     }
 }
+
+/* --- Code Coverage-related hooks */
+
+/* Implement TARGET_ASM_CODE_END.  */
+void
+mchp_asm_code_end (void)
+{
+  xccov_code_end ();
+}
+
+/* if 'mchp_pragma_nocodecov' is set, adds 'nocodecov' attribute to function types */
+void
+mchp_set_default_type_attributes (tree type)
+{
+  if (mchp_pragma_nocodecov
+      && (TREE_CODE (type) == FUNCTION_TYPE || TREE_CODE (type) == METHOD_TYPE))
+    {
+      tree type_attr_list = TYPE_ATTRIBUTES (type);
+      tree attr_name = get_identifier ("nocodecov");
+
+      type_attr_list = tree_cons (attr_name, NULL_TREE, type_attr_list);
+      TYPE_ATTRIBUTES (type) = type_attr_list;
+    }
+}
+
+void
+pic32_emit_cc_section (const char *name)
+{
+  gcc_assert (name);
+
+  SECTION_FLAGS_INT flags = 0;
+
+  if (!strcmp (name, CODECOV_SECTION))
+    {
+      flags = SECTION_BSS;
+    }
+  else if (!strcmp (name, CODECOV_INFO_HDR) || !strcmp (name, CODECOV_INFO))
+    {
+      flags = SECTION_INFO | SECTION_KEEP;
+    }
+  else
+    {
+      gcc_unreachable ();
+    }
+
+  switch_to_section (get_section (name, flags, NULL));
+}
+
+/* --- end of Code Coverage-related hooks */
+
 void mchp_file_end (void)
 {
   if (!(flag_pic || flag_pie)) 
@@ -3143,6 +2327,33 @@ mchp_expand_prologue_end (const struct mips_frame_info *frame)
     }
 }
 
+/* NOTE: I would've used
+ *          mips_deallocate_stack (stack_pointer_rtx, GEN_INT (step2), 0);
+ *       instead of the various
+ *          emit_insn (gen_add3_insn (stack_pointer_rtx,
+ *                                    stack_pointer_rtx,
+ *                                    GEN_INT (step2)));
+ *       calls in mchp_expand_epilogue_restoreregs() below, but
+ *       mips_deallocate_stack() is also calling mips_frame_barrier() and
+ *       mips_epilogue_set_cfa(), which were intentionally removed from the MIPS16
+ *       code path in mchp_expand_epilogue_restoreregs() (see mips_expand_epilogue()
+ *       for the original form); as I don't know the rationale for that, I've opted for
+ *       only adding the 'frame-related' bit to the SP-modifying instruction
+ *       with this function.
+ */
+static inline void
+mchp_deallocate_stack (HOST_WIDE_INT step2)
+{
+  rtx insn;
+
+  if (step2 > 0)
+    {
+      insn = emit_insn (gen_add3_insn (stack_pointer_rtx,
+                                       stack_pointer_rtx, GEN_INT (step2)));
+      RTX_FRAME_RELATED_P (insn) = 1;
+    }
+}
+
 void
 mchp_expand_epilogue_restoreregs (HOST_WIDE_INT step1 ATTRIBUTE_UNUSED,
                                   HOST_WIDE_INT step2)
@@ -3187,6 +2398,8 @@ mchp_expand_epilogue_restoreregs (HOST_WIDE_INT step1 ATTRIBUTE_UNUSED,
 
       /* Restore the remaining registers and deallocate the final bit
       of the frame.  */
+      /* NOTE: why were the mips_frame_barrier() and mips_epilogue_set_cfa() calls removed here?
+       * At least 'restore' has the 'frame-related' bit set from mips16e_build_save_restore()...*/
       emit_insn (restore);
     }
   else
@@ -3262,12 +2475,7 @@ mchp_expand_epilogue_restoreregs (HOST_WIDE_INT step1 ATTRIBUTE_UNUSED,
                   offset -= UNITS_PER_WORD;
                 }
               /* If we don't use shadow register set, we need to update SP.  */
-              if (step2 > 0)
-                {
-                  emit_insn (gen_add3_insn (stack_pointer_rtx,
-                                            stack_pointer_rtx,
-                                            GEN_INT (step2)));
-                }
+              mchp_deallocate_stack (step2);
 
               if (mchp_save_srsctl)
                 {
@@ -3379,12 +2587,8 @@ mchp_expand_epilogue_restoreregs (HOST_WIDE_INT step1 ATTRIBUTE_UNUSED,
                     }
                 }
               /* Update SP.  */
-              if (step2 > 0)
-                {
-                  emit_insn (gen_add3_insn (stack_pointer_rtx,
-                                            stack_pointer_rtx,
-                                            GEN_INT (step2)));
-                }
+              mchp_deallocate_stack (step2);
+
               emit_insn (gen_mips_wrpgpr (stack_pointer_rtx, stack_pointer_rtx));
               /* Restore previously loaded Status.  */
               emit_insn (gen_cop0_move (gen_rtx_REG (SImode, COP0_STATUS_REG_NUM),
@@ -3479,12 +2683,7 @@ mchp_expand_epilogue_restoreregs (HOST_WIDE_INT step1 ATTRIBUTE_UNUSED,
                   offset -= UNITS_PER_WORD;
                 }
               /* we need to update SP.  */
-              if (step2 > 0)
-                {
-                  emit_insn (gen_add3_insn (stack_pointer_rtx,
-                                            stack_pointer_rtx,
-                                            GEN_INT (step2)));
-                }
+              mchp_deallocate_stack (step2);
 
               if (mchp_save_srsctl)
                 {
@@ -3598,12 +2797,7 @@ mchp_expand_epilogue_restoreregs (HOST_WIDE_INT step1 ATTRIBUTE_UNUSED,
                   offset -= UNITS_PER_WORD;
                 }
               /* If we don't use shadow register set, we need to update SP.  */
-              if (step2 > 0)
-                {
-                  emit_insn (gen_add3_insn (stack_pointer_rtx,
-                                            stack_pointer_rtx,
-                                            GEN_INT (step2)));
-                }
+              mchp_deallocate_stack (step2);
 
               if (mchp_save_srsctl)
                 {
@@ -3653,21 +2847,21 @@ mchp_expand_epilogue_restoreregs (HOST_WIDE_INT step1 ATTRIBUTE_UNUSED,
                   mips_emit_move (gen_rtx_REG (word_mode, K0_REG_NUM), mem);
                   offset -= UNITS_PER_WORD;
               }
-              
+
               /* Load the original Status.  */
               gcc_assert (mchp_offset_status >= 0);
               mem = gen_frame_mem (word_mode,
                                    plus_constant (word_mode,stack_pointer_rtx, mchp_offset_status));
               mips_emit_move (gen_rtx_REG (word_mode, K1_REG_NUM), mem);
               offset -= UNITS_PER_WORD;
-              
+
               if (cfun->machine->interrupt_priority < 7)
               {
                   /* Restore the original EPC.  */
                   emit_insn (gen_cop0_move (gen_rtx_REG (SImode, COP0_EPC_REG_NUM),
                                             gen_rtx_REG (SImode, K0_REG_NUM)));
               }
-              
+
               if (mchp_save_srsctl)
               {
                   /* Load the original SRSCTL.  */
@@ -3678,13 +2872,8 @@ mchp_expand_epilogue_restoreregs (HOST_WIDE_INT step1 ATTRIBUTE_UNUSED,
                   offset -= UNITS_PER_WORD;
               }
               /* If we don't use shadow register set, we need to update SP.  */
-              if (step2 > 0)
-              {
-                  emit_insn (gen_add3_insn (stack_pointer_rtx,
-                                            stack_pointer_rtx,
-                                            GEN_INT (step2)));
-              }
-              
+              mchp_deallocate_stack (step2);
+
               if (mchp_save_srsctl)
               {
                   /* Restore previously loaded SRSCTL.  */
@@ -3695,7 +2884,7 @@ mchp_expand_epilogue_restoreregs (HOST_WIDE_INT step1 ATTRIBUTE_UNUSED,
               /* Restore previously loaded Status.  */
               emit_insn (gen_cop0_move (gen_rtx_REG (SImode, COP0_STATUS_REG_NUM),
                                         gen_rtx_REG (SImode, K1_REG_NUM)));
-              
+
           } /* SAVEALL_CONTEXT_SAVE */
           else /* unknown context-saving mechanism */
             {
@@ -3710,10 +2899,7 @@ mchp_expand_epilogue_restoreregs (HOST_WIDE_INT step1 ATTRIBUTE_UNUSED,
           mips_for_each_saved_gpr_and_fpr (frame->total_size - step2,
                                            mips_restore_reg, NULL_RTX);
           /* Deallocate the final bit of the frame.  */
-          if (step2 > 0)
-            emit_insn (gen_add3_insn (stack_pointer_rtx,
-                                      stack_pointer_rtx,
-                                      GEN_INT (step2)));
+          mchp_deallocate_stack (step2);
         }
     }
 
@@ -4106,23 +3292,27 @@ mchp_subtarget_save_reg_p (unsigned int regno)
     return true;
 
   if (cfun->machine->current_function_type == SAVEALL_CONTEXT_SAVE)
-  {
-        if (regno >= GP_REG_FIRST && regno <= GP_REG_LAST)
+    {
+      if (regno >= GP_REG_FIRST && regno <= GP_REG_LAST)
+        return true;
+
+      if (TARGET_HARD_FLOAT)
+        {
+          if (regno >= FP_REG_FIRST && regno <= FP_REG_LAST)
             return true;
-        
-        if (TARGET_HARD_FLOAT)
-        {
-            if (regno >= FP_REG_FIRST && regno <= FP_REG_LAST)
-                return true;
         }
-        
-        if (TARGET_DSPR2)
+
+      if (TARGET_DSPR2)
         {
-            if (regno >= DSP_ACC_REG_FIRST && regno <= DSP_ACC_REG_LAST)
-                return true;
+          if (regno >= DSP_ACC_REG_FIRST && regno <= DSP_ACC_REG_LAST)
+            return true;
         }
-  }
-    
+    }
+
+  /* Code coverage could also use this register */
+  if (pic32_ccov_save_reg_p (regno))
+    return true;
+
   return false;
 }
 
@@ -6301,9 +5491,7 @@ static int mchp_build_prefix(tree decl, int fnear, char *prefix)
           f += sprintf(f, MCHP_NEAR_FLAG);
         }
     }
-  if (mchp_keep_p(decl)) {
-    f += sprintf(f, MCHP_KEEP_FLAG);
-  }
+
   if (mchp_coherent_p(decl) 
     || (flags & SECTION_PERSIST)  || mchp_persistent_p(decl)) 
                /* add implicit coherent flag when persistent is specified */
@@ -6825,7 +6013,7 @@ char * mchp_get_named_section_flags (const char *pszSectionName,
     {
       f += sprintf(f, "," SECTION_ATTR_NOLOAD);
     }
-  if (flags & SECTION_DEBUG)
+  if ((flags & SECTION_DEBUG) || (flags & SECTION_INFO))
     {
       f += sprintf(f, "," SECTION_ATTR_INFO);
     }

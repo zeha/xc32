@@ -783,17 +783,33 @@ extern tree fname_decl (location_t, unsigned, tree);
 
 extern int check_user_alignment (const_tree, bool);
 
-/* _BUILD_MCHP_: add last parameter to control smart-io annotations */
-extern void check_function_arguments (location_t loc, const_tree, int, tree *, bool = 0);
+/* _BUILD_MCHP_: add parameters to control smart-io annotations */
+#ifdef _BUILD_MCHP_
+extern void check_function_arguments (location_t loc, const_tree, int, tree *,
+				      bool annot_smartio = 0,
+				      bool int_only = 0);
 extern void check_function_arguments_recurse (void (*)
 					      (void *, tree *,
 					       unsigned HOST_WIDE_INT),
 					      void *, tree *,
 					      unsigned HOST_WIDE_INT);
+#else
+extern void check_function_arguments (location_t loc, const_tree, int, tree *);
+extern void check_function_arguments_recurse (void (*)
+					      (void *, tree,
+					       unsigned HOST_WIDE_INT),
+					      void *, tree,
+					      unsigned HOST_WIDE_INT);
+#endif
 extern bool check_builtin_function_arguments (tree, int, tree *);
 
-/* _BUILD_MCHP_: add last parameter to control smart-io annotations */
-extern void check_function_format (tree, int, tree *, bool, bool = 0);
+/* _BUILD_MCHP_: add parameters to control smart-io annotations */
+#ifdef _BUILD_MCHP_
+extern void check_function_format (tree, int, tree *, bool warn,
+				   bool annot_smartio = 0, bool int_only = 0);
+#else
+extern void check_function_format (tree, int, tree *);
+#endif
 
 extern tree handle_format_attribute (tree *, tree, tree, int, bool *);
 extern tree handle_format_arg_attribute (tree *, tree, tree, int, bool *);

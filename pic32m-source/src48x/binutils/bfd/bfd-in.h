@@ -37,6 +37,7 @@ extern "C" {
 #include "ansidecl.h"
 #include "symcat.h"
 #include <sys/stat.h>
+#include <stdint.h>
 
 #if defined (__STDC__) || defined (ALMOST_STDC) || defined (HAVE_STRINGIZE)
 #ifndef SABER
@@ -155,19 +156,19 @@ typedef BFD_HOST_U_64_BIT symvalue;
 /* Represent a target address.  Also used as a generic unsigned type
    which is guaranteed to be big enough to hold any arithmetic types
    we need to deal with.  */
-typedef unsigned long bfd_vma;
+typedef uint32_t bfd_vma;
 
 /* A generic signed type which is guaranteed to be big enough to hold any
    arithmetic types we need to deal with.  Can be assumed to be compatible
    with bfd_vma in the same way that signed and unsigned ints are compatible
    (as parameters, in assignment, etc).  */
-typedef long bfd_signed_vma;
+typedef int32_t bfd_signed_vma;
 
-typedef unsigned long symvalue;
-typedef unsigned long bfd_size_type;
+typedef uint32_t symvalue;
+typedef uint32_t bfd_size_type;
 
 /* Print a bfd_vma x on stream s.  */
-#define BFD_VMA_FMT "l"
+#define BFD_VMA_FMT ""
 #define fprintf_vma(s,x) fprintf (s, "%08" BFD_VMA_FMT "x", x)
 #define sprintf_vma(s,x) sprintf (s, "%08" BFD_VMA_FMT "x", x)
 

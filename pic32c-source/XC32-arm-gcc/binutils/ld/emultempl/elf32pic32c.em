@@ -52,15 +52,28 @@ fragment <<EOF
 #include "../bfd/pic32c-options.h"
 #include "../bfd/pic32c-utils.h"
 
-#ifndef SMARTIO_DUMP
+#ifdef NO_SMARTIO_DUMP
 #define DEBUG_SMARTIO(...)
 #else
 #define DEBUG_SMARTIO(...) do { if (pic32_debug_smartio) fprintf (stderr, __VA_ARGS__); } while(0)
 #endif
 
+/* controls code for supporting user memory region declarations by pragma.
+   turning this on will require refactoring of the code to use the region_info
+   structure. it's unclear if this feature will ever get ported. */
+//#define ENABLE_USER_MEMORY 1
+#undef ENABLE_USER_MEMORY
+
 #undef DATA_RECORD_HEADER_SIZE
 #define DATA_RECORD_HEADER_SIZE 12
 
+/* FIXME: fix_cortex_a8 is disabled explicitly here. this may create a stub
+   after allocation leading to a possible section overlap, and the stub creation
+   is triggered by branches spanning a 4k page which is unpredictable.
+   Turning it off now is okay because we do not support the cortex-a8 yet, even 
+   though the fix will be applied for any armv7-a arch.
+   If we do have to turn this on, it will require some care to ensure that 
+   the BFA plays well with the code to add __stub sections for that fix. */
 static struct elf32_arm_params params =
 {
   NULL,                         /* thumb_entry_symbol */
@@ -74,7 +87,7 @@ static struct elf32_arm_params params =
   0,                            /* no_enum_size_warning */
   0,                            /* no_wchar_size_warning */
   0,                            /* pic_veneer */
-  -1,                           /* fix_cortex_a8 */
+  0,                            /* fix_cortex_a8 */
   1,                            /* fix_arm1176 */
   -1,                           /* merge_exidx_entries */
   0,                            /* cmse_implib */
@@ -92,6 +105,15 @@ char *altNameforSplim = NULL;
 char *altNamefor_dtcm_Stack = NULL;
 char *altNamefor_dtcm_Splim = NULL;
 
+/* helper(s) to deal with missing regions that pass region_lookup.
+   these get a length of -1. the default region is expected to 
+   have this length, so we handle it by name. */
+int 
+valid_region(lang_memory_region_type *region) {
+    return (region && (region->length > 0) && 
+            ((region->length != ~(bfd_size_type)0) ||
+             (strcmp (region->name_list.name, DEFAULT_MEMORY_REGION) == 0)));
+}
 
 static void
 gld${EMULATION_NAME}_before_parse (void)
@@ -133,7 +155,10 @@ arm_elf_before_allocation (void)
   bfd_elf32_arm_set_stm32l4xx_fix (link_info.output_bfd, &link_info);
 
   /* Auto-select Cortex-A8 erratum fix if it wasn't explicitly specified.  */
+  /* FIXME: see comment the params structure. */
+#if 0
   bfd_elf32_arm_set_cortex_a8_fix (link_info.output_bfd, &link_info);
+#endif
 
   /* Ensure the output sections of veneers needing a dedicated one is not
      removed.  */
@@ -203,8 +228,10 @@ struct pic32_symbol
 
 bfd_boolean need_layout;
 
+#ifdef ENABLE_USER_MEMORY
 static void bfd_pic32_report_memory_sections
    (const char *, asection *, FILE *);
+#endif
 
 void bfd_pic32_report_memory_usage
    (FILE *);
@@ -241,13 +268,13 @@ static void bfd_pic32_add_bfd_to_link
    (bfd *, const char *);
 
 static void bfd_pic32_scan_data_section
-   (asection *, PTR);
+   (struct pic32_section*, PTR);
 
 static void bfd_pic32_scan_code_section
-   (asection *, PTR);
+   (struct pic32_section*, PTR);
 
 static void bfd_pic32_skip_data_section
-   (asection *, PTR);
+   (struct pic32_section *, PTR);
 
 static void pic32_strip_sections
   (bfd *);
@@ -257,7 +284,7 @@ static asection * bfd_pic32_create_section
 
 static void pic32_append_section_to_list
    (struct pic32_section *, asection *);
-
+     
 static void pic32_free_section_list
    (struct pic32_section **);
 
@@ -282,10 +309,19 @@ static void pic32_add_to_memory_list
 static void pic32_remove_from_memory_list
    (struct pic32_memory *, struct pic32_memory *);
 
+static int pic32_init_region_info
+   (struct region_info *);
+
+static void pic32_free_region_info
+   (struct region_info *);
+
 static void build_alloc_section_list
    (unsigned int);
 
 static void allocate_memory
+   (void);
+
+static int allocate_tcm_memory
    (void);
 
 static int allocate_program_memory
@@ -301,28 +337,30 @@ static int allocate_user_memory
    (void);
 
 static void build_free_block_list
-   (struct memory_region_struct *, unsigned int);
+   (struct pic32_region*, unsigned int);
 
 static int locate_sections
-   (unsigned int, unsigned int, struct memory_region_struct *);
+   (unsigned int, unsigned int, struct pic32_region *);
 
 static void update_section_info
-   (bfd_vma,
-           struct pic32_section *, struct memory_region_struct *);
+   (bfd_vma, struct pic32_section *, struct pic32_region *);
 
 static void update_group_section_info
    (bfd_vma alloc_addr,
-                    struct pic32_section *g,
-                    struct memory_region_struct *region);
+    struct pic32_section *g,
+    struct pic32_region *region);
 
 static struct pic32_memory * select_free_block
-   (struct pic32_section *, unsigned int);
+   (struct pic32_region *, struct pic32_section *, unsigned int);
 
 static void create_remainder_blocks
    (struct pic32_memory *, struct pic32_memory *, unsigned int);
 
 static void remove_free_block
-   (struct pic32_memory *);
+   (struct pic32_memory *, struct pic32_memory *);
+
+static void align_free_blocks
+   (struct pic32_memory *, unsigned int alignment_power);
 
 static void pic32_free_memory_list
    (struct pic32_memory **);
@@ -368,7 +406,7 @@ struct bfd_link_hash_entry *bfd_pic32_is_defined_global_symbol
    (const char *const);
 
 static void allocate_default_stack
-   (void);
+   (struct pic32_region *);
 // coherent section processing functions
 
 static int locate_coherent_sections
@@ -428,6 +466,9 @@ int pic32_max_symbols;
 /* defined in ldlang.c */
 extern lang_statement_list_type statement_list;
 
+/* defined in elf32-pic32c.c */
+extern bfd_boolean pic32c_relocate_vectors;
+
 /* Dynamic Memory Info */
 static unsigned int stack_base, stack_limit;
 static unsigned int heap_base, heap_limit;
@@ -447,8 +488,6 @@ extern struct pic32_section *code_sections;
 static asymbol **symtab;
 static int symptr;
 
-static struct pic32_memory *free_blocks, *data_memory_free_blocks;
-
 /* symbols for stack in DTCM*/
 static bfd_vma dtcm_stack_limit = 0;
 static bfd_vma dtcm_stack_base = 0;
@@ -456,6 +495,8 @@ static bfd_vma dtcm_stack_base = 0;
 
 static bfd_boolean elf_link_check_archive_element
    (char *, bfd *, struct bfd_link_info *);
+
+static bfd_boolean is_cmse_implib (void);
 
 /* Declare functions used by various EXTRA_EM_FILEs.  */
 
@@ -585,10 +626,12 @@ static bfd_size_type region_data_memory_used = 0;
 static bfd_size_type external_memory_used = 0;
 
 /* User-defined memory regions */
+#ifdef ENABLE_USER_MEMORY
 static bfd_boolean has_user_defined_memory = FALSE;
 const char *memory_region_prefix = "__memory_";
 static struct pic32_section *memory_region_list;
 static struct pic32_section *user_memory_sections;
+#endif
 
 /* Section Lists */
 static struct pic32_section *pic32_section_list;
@@ -1083,7 +1126,21 @@ smartio_add_symbols (struct bfd_link_info *sec_info)
 
       while (hlist != NULL)
         {
-          if (use_smartio)
+          /* xc32-981 - we must also do a lookup for user-defined equivalents and
+             faithfully use them. */
+          long user_defined = 0;
+          struct bfd_link_hash_entry *hf
+            = bfd_link_hash_lookup (sec_info->hash, smartio_funcs[hlist->index].name, 0, 0, 0);
+
+          if (hf && (hf->type == bfd_link_hash_defined)) 
+            {
+              user_defined = 1;
+              DEBUG_SMARTIO("using user-defined %s for %s\n",
+                            smartio_funcs[hlist->index].name, hlist->h->root.string);
+
+            }
+
+          if (use_smartio && !user_defined)
 	    sprintf (buf, "_%s_%s", smartio_funcs[hlist->index].name,
 		     suffix_info[index].suffix);
 	  else
@@ -1173,7 +1230,27 @@ smartio_merge_symbols (void)
 
 	  /* remap all calls to the covering symbol and discard unused syms. */
 	  struct bfd_link_hash_entry *h
-	    = bfd_pic32_is_defined_global_symbol (buf);
+            = bfd_link_hash_lookup (link_info.hash, buf, FALSE, FALSE, TRUE);
+
+          /* XC32-981 - if the covering symbol is not defined, we chose
+             not to add it in smartio_add_symbols. so complete the handshake and
+             fall back to the plain symbol. */
+	  if (!h
+	      || !(h->type == bfd_link_hash_defined
+		   || h->type == bfd_link_hash_defweak))
+	    {
+	      DEBUG_SMARTIO (
+		"-- covering symbol not found, using vanilla function\n");
+
+	      /* XC32-1138 the lookup for the vanilla function now sets the
+		 'create' flag so that we can proceed with an undefined
+		 reference. */
+	      h = bfd_link_hash_lookup (link_info.hash,
+					smartio_funcs[hlist->index].name, TRUE,
+					FALSE, TRUE);
+	    }
+	  /* NB: if the covering symbol was not found, h should point to a
+             valid hash entry (possibly undefined) for the vanilla function. */
 	  ASSERT(h);
 
 	  if (hlist->h->type == bfd_link_hash_undefined
@@ -1186,13 +1263,26 @@ smartio_merge_symbols (void)
               struct elf_link_hash_entry *from
                 = (struct elf_link_hash_entry *) hlist->h;
 
-              from->root.type = bfd_link_hash_defweak;
-              from->root.u.def.value = to->root.u.def.value;
-              from->root.u.def.section = to->root.u.def.section;
 
-              /* fix up references in elf link entry */
+              /* XC32-1138: h may be undefined, which will only happen when
+                 the vanilla function is not found. leave the from entry 
+                 alone in this case. */
+	      if (h->type == bfd_link_hash_defined
+		  || h->type == bfd_link_hash_defweak)
+		{
+		  from->root.type = bfd_link_hash_defweak;
+		  from->root.u.def.value = to->root.u.def.value;
+		  from->root.u.def.section = to->root.u.def.section;
+		}
+
+	      /* fix up references in elf link entry */
               to->ref_regular = to->ref_regular_nonweak = 1;
               from->ref_regular = from->ref_regular_nonweak = 0;
+
+              /* XC32-1136: also inherit the target_internal value. Otherwise
+                 we may get the relocation wrong when doing indirect calls. */
+              from->target_internal = to->target_internal;
+
             }
 
 	  hlist = hlist->next;
@@ -1388,6 +1478,11 @@ bfd_pic32_report_sections (s, region, magic_sections, fp)
     start &= 0xdfffffff;
     load &= 0xdfffffff;
   }
+
+  /* TODO: this is probably indicative of serious issues, if we want
+     to report on a fake region. */
+  if (!valid_region(region))
+    return 0;
     
   /*
   ** report SEC_ALLOC sections in memory
@@ -1568,8 +1663,8 @@ bfd_pic32_process_bfd_after_open (abfd, info)
 
         pic32_add_to_symbol_list(&pic32_symbol_list, sec_name, attr);
         if (pic32_debug)
-          printf("    extended attributes for section %s: 0x%lx\n",
-                 sec_name, attr);
+          fprintf(stderr,"    extended attributes for section %s: 0x%lx %s\n",
+                 sec_name, attr, bfd_asymbol_name(symbols[i]));
       }
   }
 
@@ -1609,7 +1704,7 @@ bfd_pic32_process_bfd_after_open (abfd, info)
     const char *region_name = 0;
 
     /* If section represents a memory region, record it */
-
+#ifdef ENABLE_USER_MEMORY
     if (PIC32_IS_INFO_ATTR(sec) &&
         strncmp(sec->name, memory_region_prefix, 
                 strlen(memory_region_prefix)) == 0 &&
@@ -1622,7 +1717,7 @@ bfd_pic32_process_bfd_after_open (abfd, info)
       if (h == NULL) 
       {
         if (pic32_debug)
-          printf("  ..creating global symbol for user-defined memory %s\n",
+          fprintf(stderr,"  ..creating global symbol for user-defined memory %s\n",
                  region_name);
 
         _bfd_generic_link_add_one_symbol (info, abfd,
@@ -1630,8 +1725,9 @@ bfd_pic32_process_bfd_after_open (abfd, info)
                                           bfd_abs_section_ptr, region_index,
                                           region_name, 1, 0, 0);
       }
-    }
-    
+  }
+#endif
+
     /* process input section flags here, if necessary */
     if ((sec->flags & (SEC_ALLOC | SEC_LOAD | SEC_DATA)) ==
          (SEC_ALLOC | SEC_LOAD | SEC_DATA))
@@ -1639,8 +1735,9 @@ bfd_pic32_process_bfd_after_open (abfd, info)
 
     /* report if flags were changed */
     if ((pic32_debug) && (sec->flags != old_flags))
-      printf("   adjust flags: %s %x --> %x\n", sec->name, old_flags, sec->flags);
+      fprintf(stderr,"   adjust flags: %s %x --> %x\n", sec->name, old_flags, sec->flags);
 
+#ifdef ENABLE_USER_MEMORY
     if (PIC32_IS_INFO_ATTR(sec) &&
         strncmp(sec->name, memory_region_prefix, 
                 strlen(memory_region_prefix)) == 0 &&
@@ -1676,6 +1773,7 @@ bfd_pic32_process_bfd_after_open (abfd, info)
 
 	free(ext_mem_sec_region_name); 
     }
+#endif
   }
   if (symbols) free(symbols);
     return(TRUE);
@@ -1902,6 +2000,9 @@ bfd_pic32_create_ram_usage_bfd (parent)
 
 #endif
 
+/* Create the .dinit section describing sections that require
+   runtime relocation/initialization, e.g. are located in an output
+   region that is not loaded. */
 void pic32_create_data_init_template(void)
 {
   struct pic32_section *s;
@@ -1919,24 +2020,34 @@ void pic32_create_data_init_template(void)
        /* Compute size of data init template */
       for (s = data_sections; s != NULL; s = s->next)
         if ((s->sec) && ((s->sec->flags & SEC_EXCLUDE) == 0)) 
-          bfd_pic32_scan_data_section(s->sec, &total_data);
+          bfd_pic32_scan_data_section(s, &total_data);
 
-     ///\ place in dinit .text sections that should run from itcm
-        for (s = code_sections; s != NULL; s = s->next)
+      ///\ place in dinit .text sections that should run from itcm
+      for (s = code_sections; s != NULL; s = s->next)
         {
-            if ((s->sec) && ((s->sec->flags & SEC_EXCLUDE) == 0))
-                if ((pic32c_itcm_size > 0) && (strstr(s->sec->name, ".vectors") != NULL))
-                        total_data += ((s->sec->size % 4) ?
-                                (s->sec->size + (4 - s->sec->size % 4))
-                                : s->sec->size)
-                                + DATA_RECORD_HEADER_SIZE;
+          if ((s->sec) && ((s->sec->flags & SEC_EXCLUDE) == 0)) {
+              if (pic32c_relocate_vectors &&
+                  (strstr(s->sec->name, ".vectors") != NULL)) {
+                      total_data += ((s->sec->size % 4) ?
+                              (s->sec->size + (4 - s->sec->size % 4))
+                              : s->sec->size)
+                              + DATA_RECORD_HEADER_SIZE;
 
-                else
-                    if (s->sec->itcm)
-                        bfd_pic32_scan_code_section(s->sec, &total_data);
-}
+                  /* indicate this will be in template (scan_code_section normally
+                     sets this) */
+                  s->init = 1; 
+                  s->sec->flags &= ~ SEC_LOAD;
 
-      total_data += 8; /* zero terminated -> 64-bit value*/
+                  if (pic32_debug)
+                    fprintf(stderr, "marking .vectors as requiring initialization\n");
+              }
+              else
+                  if (s->sec->itcm)
+                      bfd_pic32_scan_code_section(s, &total_data);
+          }
+        }
+
+        total_data += 8; /* zero terminated -> 64-bit value*/
 
     ///\ reserve space for entry_address
     //if (pic32_code_in_dinit)
@@ -1996,9 +2107,10 @@ void pic32_create_data_init_template(void)
          }
 #endif
         }
-     else
+     else {
         if (pic32_debug)
-          printf("after_open: section .dinit not found\n");
+          fprintf(stderr,"after_open: section .dinit not found\n");
+     }
 
     } /* if (pic32_data_init) */
 
@@ -2007,7 +2119,11 @@ void pic32_create_data_init_template(void)
       /* warn if initial data values will be ignored */
       for (s = data_sections; s != NULL; s = s->next)
         if (s->sec)
-          bfd_pic32_skip_data_section(s->sec, &total_data);
+          bfd_pic32_skip_data_section(s, &total_data);
+    }
+
+    if (pic32_debug) {
+        pic32_print_section_list(data_sections, "data sections after scan");
     }
 }
 
@@ -2323,6 +2439,10 @@ bfd_pic32_is_defined_global_symbol (name)
       return (struct bfd_link_hash_entry *) NULL;
 }
 
+static bfd_boolean is_cmse_implib (void)
+{
+  return (params.cmse_implib == 1);
+}
 
 static bfd_boolean
 elf_link_check_archive_element (name, abfd, sec_info)
@@ -2344,6 +2464,7 @@ elf_link_check_archive_element (name, abfd, sec_info)
 }
 
 
+bfd_boolean (*mchp_is_cmse_implib)(void) = is_cmse_implib;
 
 bfd_boolean (*mchp_elf_link_check_archive_element)(char *name, bfd *abfd,
                                                     struct bfd_link_info *) =
@@ -2424,6 +2545,9 @@ pic32_append_section_to_list (struct pic32_section *lst,
   new->sec  = sec;
   new->attributes = pic32_attribute_map(sec);
   new->file = NULL;
+  new->use_vma = 0;
+  new->init = 0;
+  new->region = NULL;
 
   /* find the tail */
   for (s = lst; s != NULL; s = s->next)
@@ -2504,19 +2628,20 @@ pic32_print_section_list (lst, name)
   unsigned int opb = bfd_octets_per_byte (link_info.output_bfd);
   struct pic32_section *s, *prev, *next;
 
-  printf("\nContents of %s section list at %lx:\n", name, (bfd_vma) lst);
+  fprintf(stderr,"\nContents of %s section list at %lx:\n", name, (bfd_vma) lst);
   prev = lst;
   for (s = prev; s != NULL; s = next)
     {
       next = s->next;
-      printf("  name = %s, addr = %lx, len = %lx, attr = %x\n",
+      fprintf(stderr,"  name = %s, addr = %lx, len = %lx, attr = %x vma = %d init = %d ptr = %8x\n",
              s->sec ? s->sec->name : "(none)",
              s->sec ? s->sec->lma : 0,
              s->sec ? s->sec->rawsize / opb : 0,
-             s->attributes);
+             s->attributes,
+             s->use_vma, s->init, (unsigned) s->sec);
       prev = s;
     }
-  printf("\n");
+  fprintf(stderr,"\n");
 
 } /* pic32_print_section_list (..) */
 
@@ -2611,7 +2736,7 @@ pic32_remove_from_section_list (lst, sec)
     }
 
   if (pic32_debug && (done == 0))
-    printf("    !Could not remove section \"%s\" from list at %lx\n",
+    fprintf(stderr,"    !Could not remove section \"%s\" from list at %lx\n",
            sec->sec->name, (long unsigned int) &lst);
 
 } /* pic32_remove_from_section_list (..) */
@@ -2751,8 +2876,8 @@ pic32_free_memory_list(lst)
 {
   struct pic32_memory *s, *next;
 
-  if (!(*lst))
-    return;
+  if (lst == NULL) return;
+  if (*lst == NULL)return;
 
   for (s = *lst; s != NULL; s = next)
     {
@@ -2801,156 +2926,6 @@ bfd_pic32_add_bfd_to_link (abfd, name)
 } /* static void bfd_pic32_add_bfd_to_link (...)*/
 
 /*
-** This routine is called by before_allocation().
-**
-** Scan a DATA or BSS section and accumulate
-** the data template size.
-*/
-static void
-bfd_pic32_scan_data_section (sect, p)
-     asection *sect;
-     PTR p;
-{
-   int *data_size = (int *) p;
-
-  if (p == (int *) NULL)
-    return;
-
-  /*
-  ** skip persistent or noload data sections
-  */
-  if (PIC32_IS_PERSIST_ATTR(sect) || PIC32_IS_NOLOAD_ATTR(sect))
-  {
-      /*
-      ** issue a warning if DATA values are present
-      */
-      if ((sect->flags & SEC_DATA) && (sect->size > 0))
-        einfo(_("%P: Warning: initial values were specified for a non-loadable"
-                " data section (%s). These values will be ignored.\n"),
-              sect->name);
-
-      if (pic32_debug)
-        printf("  %s (skipped), size = %x bytes\n",
-               sect->name, (unsigned int) sect->size);
-      return;
-  }
-
-   /*
-  ** process BSS-type sections
-  */
-  if ((PIC32_SECTION_IS_BSS_TYPE(sect) || PIC32_IS_BSS_ATTR_WITH_MEMORY_ATTR(sect)) &&
-      (sect->size > 0))
-  {
-      *data_size += DATA_RECORD_HEADER_SIZE;
-      if (pic32_debug)
-        printf("  %s (bss), size = %x bytes, template += %x bytes\n",
-               sect->name, (unsigned int) sect->size,
-               DATA_RECORD_HEADER_SIZE);
-  }
-
-  /*
-  ** process DATA-type sections
-  */
-  if ((PIC32_IS_DATA_ATTR(sect) || PIC32_IS_DATA_ATTR_WITH_MEMORY_ATTR(sect) || PIC32_IS_RAMFUNC_ATTR(sect)) && (sect->size > 0))
-  {
-    /* Analyze initialization data now and find out what the after compression
-       size of the data initialization template */
-          /* account for 0-padding so that new dinit records always start at a 
-          ** new memory location 
-          */
-	  int count = (sect->size % 4) ? (sect->size + (4 - sect->size % 4)) \
-                                       : sect->size;
-          int delta = DATA_RECORD_HEADER_SIZE + count;
-          *data_size += delta;
-      /*
-      ** make section not LOADable
-      */
-      sect->flags &= ~ SEC_LOAD;
-
-      if (pic32_debug)
-        printf("  %s (data), size = %x bytes, template += %x bytes\n",
-               sect->name, (unsigned int) sect->size, delta);
-  }
-} /*static void bfd_pic32_scan_data_section (...)*/
-
-/*
-** This routine is called by bfd_pic32_create_data_init_template().
-**
-** Scan a CODE  sections and accumulate
-** the data template size.
-*/
-static void
-bfd_pic32_scan_code_section (sect, p)
-     asection *sect;
-     PTR p;
-{
-   int *data_size = (int *) p;
-
-  if (p == (int *) NULL)
-    return;
-
-  /*
-  ** process CODE-type sections
-  */
-  if (PIC32_IS_CODE_ATTR(sect) && (sect->size > 0))
-  {
-    /* Analyze initialization data now and find out what the after compression
-       size of the data initialization template */
-          /* account for 0-padding so that new dinit records always start at a
-          ** new memory location
-          */
-          int count = (sect->size % 4) ? (sect->size + (4 - sect->size % 4)) \
-                                       : sect->size;
-          int delta = DATA_RECORD_HEADER_SIZE + count;
-          *data_size += delta;
-      /*
-      ** make section not LOADable
-      */
-      sect->flags &= ~ SEC_LOAD;
-
-      if (pic32_debug)
-        printf("  %s (data), size = %x bytes, template += %x bytes\n",
-               sect->name, (unsigned int) sect->size, delta);
-  }
-} /*static void bfd_pic32_scan_code_section (...)*/
-
-
-/*
-** This routine is called by before_allocation()
-** when the --no-data-init option is specified.
-**
-** Scan for loadable DATA sections...if found,
-** mark them NEVER_LOAD and issue a warning.
-*/
-static void
-bfd_pic32_skip_data_section (sect, p)
-     asection *sect;
-     PTR p ATTRIBUTE_UNUSED ;
-{
-  /*
-  ** process DATA-type sections
-  */
-  if (((sect->flags & SEC_DATA) == SEC_DATA) && (sect->size > 0))
-  {
-      /*
-      ** make section not LOADable
-      */
-      sect->flags &= ~ SEC_LOAD;
-      sect->flags |= SEC_NEVER_LOAD;
-
-      /*
-      ** issue a warning
-      */
-      einfo(_("%P: Warning: data initialization has been turned off,"
-              " therefore section %s will not be initialized using .dinit template.\n"), sect->name);
-
-      if (pic32_debug)
-        printf("  %s (skipped), size = %x\n",
-               sect->name, (unsigned int) sect->size);
-  }
-}
-
-/*
 ** Create a new section
 */
 static asection *
@@ -2964,7 +2939,7 @@ bfd_pic32_create_section (abfd, name, flags, align)
   asymbol *sym;
 
   if (pic32_debug)
-    printf("\nCreating input section \"%s\"\n", name);
+    fprintf(stderr,"\nCreating input section \"%s\"\n", name);
 
   /* do NOT call bfd_make_section_old_way(), its buggy! */
   sec = bfd_make_section_anyway (abfd, name);
@@ -2996,7 +2971,7 @@ pic32_strip_sections (abfd)
   asection *sec, *prev;
 
   if (pic32_debug)
-    printf("\nLooking for zero-length sections:\n");
+    fprintf(stderr,"\nLooking for zero-length sections:\n");
 
   sec = abfd->sections;
   if ((sec == NULL) || (sec->next == NULL))
@@ -3021,11 +2996,25 @@ pic32_strip_sections (abfd)
                                        last section.*/
         abfd->section_count -= 1;
         if (pic32_debug)
-          printf("  Stripping section %s\n", sec->name);
-        }
+          fprintf(stderr,"  Stripping section %s\n", sec->name);
+      }
     }
   return;
 } /* static void pic32_strip_sections (...)*/
+
+/* include the improved memory allocation functions */
+#include "../bfd/pic32c-allocate.c"
+
+/* anything here may depend on stuff in pic32c-allocate.c. that's just how it is. */
+
+/* pic32_init_alloc()
+ * perform initialization steps for the allocator. this should be called 
+ * in ldlang before any BFA-related work is done to identify the 
+ * memory configuration. */
+void
+pic32_init_alloc(void) {
+  pic32_allocate = pic32_allocate && pic32_init_region_info(&region_info);
+}
 
 void
 bfd_pic32_finish(void)
@@ -3080,26 +3069,25 @@ bfd_pic32_finish(void)
 
   /* If a stack was not defined as a section, or by symbols,
      allocate one from remaining memory */
-  if (!user_defined_stack) {
-    allocate_default_stack();
-
+  if (!user_defined_stack && pic32_allocate) {
+    allocate_default_stack(region_info.data);
 
   /*
   ** Set stack symbols for the runtime library
   */
       if (pic32_debug)
-        printf("Creating _heap = %x\n", heap_base);
+        fprintf(stderr,"Creating _heap = %x\n", heap_base);
       _bfd_generic_link_add_one_symbol (&link_info, link_info.output_bfd, "_heap",
                                         BSF_GLOBAL, bfd_abs_section_ptr,
                                         heap_base, "_heap", 1, 0, 0);
       if (pic32_debug)
-        printf("Creating _eheap = %x\n", heap_limit);
+        fprintf(stderr,"Creating _eheap = %x\n", heap_limit);
       _bfd_generic_link_add_one_symbol (&link_info, link_info.output_bfd, "_eheap",
                                         BSF_GLOBAL, bfd_abs_section_ptr,
                                         heap_limit, "_eheap", 1, 0, 0);
 
       if (pic32_debug)
-        printf("Creating _splim = %x\n", stack_base);
+        fprintf(stderr,"Creating _splim = %x\n", stack_base);
       _bfd_generic_link_add_one_symbol (&link_info, link_info.output_bfd, "_splim",
                                         BSF_GLOBAL, bfd_abs_section_ptr,
                                         stack_base, "_splim", 1, 0, 0);
@@ -3127,7 +3115,7 @@ bfd_pic32_finish(void)
             addr_tree->value.value = stack_sec->vma;
             os->addr_tree = addr_tree;
             if (pic32_debug)
-              printf("Creating _stack = %x\n", stack_limit);
+              fprintf(stderr,"Creating _stack = %x\n", stack_limit);
             _bfd_generic_link_add_one_symbol (&link_info, stack_sec->owner, "_stack",
                                               BSF_GLOBAL, bfd_abs_section_ptr,
                                               stack_limit, "_stack", 1, 0, 0);
@@ -3137,12 +3125,13 @@ bfd_pic32_finish(void)
             fprintf( stderr, "Link Error: Unable to allocate stack\n");
         }
   }
+
   /* was there a PROVIDE in the linker script to give an alternate name for _stack and _splim? */
   /* see ldexp.c for details */
   if (altNameforStack != NULL) {
       
       if (pic32_debug)
-	  printf("Creating symbol %s equivalent to _stack\n", altNameforStack);
+	  fprintf(stderr,"Creating symbol %s equivalent to _stack\n", altNameforStack);
       _bfd_generic_link_add_one_symbol (&link_info, stack_sec->owner, altNameforStack,
 					BSF_GLOBAL, bfd_abs_section_ptr,
 					stack_limit, altNameforStack, 1, 0, 0);
@@ -3152,16 +3141,16 @@ bfd_pic32_finish(void)
   if (altNameforSplim != NULL) {
       
       if (pic32_debug)
-	  printf("Creating symbol %s equivalent to _splim\n", altNameforSplim);
+	  fprintf(stderr,"Creating symbol %s equivalent to _splim\n", altNameforSplim);
       _bfd_generic_link_add_one_symbol (&link_info, stack_sec->owner, altNameforSplim,
 					BSF_GLOBAL, bfd_abs_section_ptr,
 					stack_base, altNameforSplim, 1, 0, 0);
       free(altNameforSplim);
       
   }
-  
- 
-  
+
+  /* if we don't understand the stack, we shouldn't check it. */
+  if (stack_limit && stack_base) {
 
   /* Range check the stack, no matter how it was created */
   if ( (unsigned int) (stack_limit - stack_base) < (unsigned int) pic32c_stack_size)
@@ -3173,27 +3162,31 @@ bfd_pic32_finish(void)
     }
 
   if (pic32_debug)
-    printf("Creating __MIN_STACK_SIZE = %x\n", pic32c_stack_size);
+    fprintf(stderr,"Creating __MIN_STACK_SIZE = %x\n", pic32c_stack_size);
   _bfd_generic_link_add_one_symbol (&link_info, link_info.output_bfd, "__MIN_STACK_SIZE",
                                     BSF_GLOBAL, bfd_abs_section_ptr,
                                     pic32c_stack_size, "__MIN_STACK_SIZE", 1, 0, 0);
   if (pic32_debug)
-    printf("Creating _min_stack_size = %x\n", pic32c_stack_size);
+    fprintf(stderr,"Creating _min_stack_size = %x\n", pic32c_stack_size);
   _bfd_generic_link_add_one_symbol (&link_info, link_info.output_bfd, "_min_stack_size",
                                     BSF_GLOBAL, bfd_abs_section_ptr,
                                     pic32c_stack_size, "_min_stack_size", 1, 0, 0);
 
   if (pic32_debug)
-    printf("Creating __MIN_HEAP_SIZE = %x\n", pic32c_heap_size);
+    fprintf(stderr,"Creating __MIN_HEAP_SIZE = %x\n", pic32c_heap_size);
   _bfd_generic_link_add_one_symbol (&link_info, link_info.output_bfd, "__MIN_HEAP_SIZE",
                                     BSF_GLOBAL, bfd_abs_section_ptr,
                                     pic32c_heap_size, "__MIN_HEAP_SIZE", 1, 0, 0);
   if (pic32_debug)
-    printf("Creating _min_heap_size = %x\n", pic32c_heap_size);
+    fprintf(stderr,"Creating _min_heap_size = %x\n", pic32c_heap_size);
   _bfd_generic_link_add_one_symbol (&link_info, link_info.output_bfd, "_min_heap_size",
                                     BSF_GLOBAL, bfd_abs_section_ptr,
                                     pic32c_heap_size, "_min_heap_size", 1, 0, 0);
 
+  }
+
+  /* this will be 0 if there's no user stack or BFA-allocated stack .. good thing
+     it does not appear to be used. */
   end_data_mem = stack_limit;
 
 
@@ -3203,11 +3196,9 @@ bfd_pic32_finish(void)
     if (pic32c_stack_in_tcm)
     {
         if (pic32_debug)
-        printf("Creating _sdtcm_stack\n");
+        fprintf(stderr,"Creating _sdtcm_stack\n");
         
-        region = region_lookup("dtcm");
-        if (region != NULL)
-        {
+        if (pic32_valid_region(region_info.data_tcm)) {
             ///\ generate _sdtcm_stack
             _bfd_generic_link_add_one_symbol (&link_info, link_info.output_bfd, "_sdtcm_stack",
                                     BSF_GLOBAL, bfd_abs_section_ptr,
@@ -3219,6 +3210,8 @@ bfd_pic32_finish(void)
         }
         ///\ emit symbols with abs address 0
         else {
+            // DZ - is this guaranteed to work if there is no DTCM region? or should it
+            // be an error?
             _bfd_generic_link_add_one_symbol (&link_info, link_info.output_bfd, "_sdtcm_stack",
                                     BSF_GLOBAL, bfd_abs_section_ptr,
                                     0x0, "_sdtcm_stack", 1, 0, 0);
@@ -3233,7 +3226,7 @@ bfd_pic32_finish(void)
 	if (altNamefor_dtcm_Stack != NULL) {
 	    
 	    if (pic32_debug)
-		printf("Creating symbol %s equivalent to _sdtcm_stack\n", altNamefor_dtcm_Stack);
+		fprintf(stderr,"Creating symbol %s equivalent to _sdtcm_stack\n", altNamefor_dtcm_Stack);
 	    _bfd_generic_link_add_one_symbol (&link_info, stack_sec->owner, altNamefor_dtcm_Stack,
 					      BSF_GLOBAL, bfd_abs_section_ptr,
 					      dtcm_stack_limit, altNamefor_dtcm_Stack, 1, 0, 0);
@@ -3243,7 +3236,7 @@ bfd_pic32_finish(void)
 	if (altNamefor_dtcm_Splim != NULL) {
 	    
 	    if (pic32_debug)
-		printf("Creating symbol %s equivalent to _sdtcm_splim\n", altNamefor_dtcm_Splim);
+		fprintf(stderr,"Creating symbol %s equivalent to _sdtcm_splim\n", altNamefor_dtcm_Splim);
 	    _bfd_generic_link_add_one_symbol (&link_info, stack_sec->owner, altNamefor_dtcm_Splim,
 					      BSF_GLOBAL, bfd_abs_section_ptr,
 					      dtcm_stack_base, altNamefor_dtcm_Splim, 1, 0, 0);
@@ -3254,13 +3247,13 @@ bfd_pic32_finish(void)
     }
 
 
-    //\ LG to change lookup for Writeable
-  region= region_lookup ("ram");
-
-
-  if (region)
-    end_data_mem = region->origin + region->length;
-  
+  //\ LG to change lookup for Writeable
+  // DZ - use the identified data region, which is probably "ram", but
+  // definitely writeable.
+  if (pic32_valid_region(region_info.data)) {
+      region = region_info.data->region;
+      end_data_mem = region->origin + region->length;
+  }
 
   if (!bfd_pic32_is_defined_global_symbol("_ramfunc_begin"))
   {
@@ -3286,26 +3279,212 @@ bfd_pic32_finish(void)
           unsigned int dinit_addr_masked = dinit_addr & 0xFFFFFFFFul;
 
           if (pic32_debug)
-            printf("Creating _dinit_addr= %x\n", dinit_addr_masked);
+            fprintf(stderr,"Creating _dinit_addr= %x\n", dinit_addr_masked);
           _bfd_generic_link_add_one_symbol (&link_info, link_info.output_bfd,
                                             "_dinit_addr", BSF_GLOBAL,
                                             bfd_abs_section_ptr, dinit_addr_masked,
                                             "_dinit_addr", 1, 0, 0);
           if (pic32_debug)
-            printf("Creating _dinit_size= %x\n", dinit_size);
+            fprintf(stderr,"Creating _dinit_size= %x\n", dinit_size);
           _bfd_generic_link_add_one_symbol (&link_info, link_info.output_bfd,
                                             "_dinit_size", BSF_GLOBAL,
                                             bfd_abs_section_ptr, dinit_size,
                                             "_dinit_size", 1, 0, 0);
         }
     }
+
+    pic32_free_region_info(&region_info);
 }
 
-/* include the improved memory allocation functions */
-#include "../bfd/pic32c-allocate.c"
+/*
+** This routine is called by before_allocation().
+**
+** Scan a DATA or BSS section and accumulate
+** the data template size.
+**
+** This function must be consistent with bfd_pic32_process_data_section
+** in bfd/elf32-pic32c.c, or the size of the dinit template will
+** be incorrect.
+*/
+static void
+bfd_pic32_scan_data_section (section, p)
+     struct pic32_section *section;
+     PTR p;
+{
+  int *data_size = (int *) p;
+  asection *sect = section->sec;
+
+  if (p == (int *) NULL)
+    return;
+
+  /*
+  ** skip persistent or noload data sections
+  */
+  if (PIC32_IS_PERSIST_ATTR(sect) || PIC32_IS_NOLOAD_ATTR(sect))
+  {
+      /*
+      ** issue a warning if DATA values are present
+      */
+      if ((sect->flags & SEC_DATA) && (sect->size > 0))
+        einfo(_("%P: Warning: initial values were specified for a non-loadable"
+                " data section (%s). These values will be ignored.\n"),
+              sect->name);
+
+      if (pic32_debug)
+        fprintf(stderr,"scan_data_section %s (skipped, persist/noload), size = %x bytes\n",
+               sect->name, (unsigned int) sect->size);
+      return;
+  }
+
+  /*
+  ** process BSS-type sections
+  */
+  if ((PIC32_SECTION_IS_BSS_TYPE(sect) || PIC32_IS_BSS_ATTR_WITH_MEMORY_ATTR(sect)) &&
+      (sect->size > 0))
+  {
+      /* skip bss sections if the target region is zeroed. */ 
+      if (section->region != NULL && section->region->flags.is_cleared) {
+          if (pic32_debug)
+            fprintf(stderr,"scan_data_section %s (skipped, bss in is_cleared region), size = %x bytes\n",
+                   sect->name, (unsigned int) sect->size);
+      } 
+      else {
+        *data_size += DATA_RECORD_HEADER_SIZE;
+        section->init = 1;
+        if (pic32_debug)
+          fprintf(stderr,"scan_data_section %s (bss), size = %x bytes, template += %x bytes\n",
+                 sect->name, (unsigned int) sect->size,
+                 DATA_RECORD_HEADER_SIZE);
+      }
+  }
+
+  /*
+  ** process DATA-type sections
+  */
+  if ((PIC32_IS_DATA_ATTR(sect) || PIC32_IS_DATA_ATTR_WITH_MEMORY_ATTR(sect) || PIC32_IS_RAMFUNC_ATTR(sect)) && (sect->size > 0))
+  {
+    /* Analyze initialization data now and find out what the after compression
+       size of the data initialization template */
+    /* account for 0-padding so that new dinit records always start at a 
+    ** new memory location 
+    */
+    int count = (sect->size % 4) ? (sect->size + (4 - sect->size % 4)) \
+                                       : sect->size;
+    int delta = DATA_RECORD_HEADER_SIZE + count;
+    *data_size += delta;
+    /*
+    ** make section not LOADable
+    */
+    sect->flags &= ~ SEC_LOAD;
+    section->init = 1;
+
+    if (pic32_debug)
+      fprintf(stderr,"scan_data_section %s (data), size = %x bytes, template += %x bytes\n",
+             sect->name, (unsigned int) sect->size, delta);
+  }
+
+} /*static void bfd_pic32_scan_data_section (...)*/
+
+/*
+** This routine is called by bfd_pic32_create_data_init_template().
+**
+** Scan a CODE  sections and accumulate
+** the data template size, setting the init flag for things that will
+** require initialization.
+*/
+static void
+bfd_pic32_scan_code_section (section, p)
+     struct pic32_section *section;
+     PTR p;
+{
+  int *data_size = (int *) p;
+  asection *sect = section->sec;
+
+  if (p == (int *) NULL)
+    return;
+
+  /*
+  ** process CODE-type sections
+  */
+  if (PIC32_IS_CODE_ATTR(sect) && (sect->size > 0))
+  { 
+    /* skip sections whose target region is initialized */
+    if (section->region != NULL && !section->region->flags.init_needed) {
+      if (pic32_debug)
+        fprintf(stderr,"  %s (skipped, init_needed = 0), size = %x bytes\n",
+               sect->name, (unsigned int) sect->size);
+      return;
+    }
+
+    /* Analyze initialization data now and find out what the after compression
+       size of the data initialization template */
+    /* account for 0-padding so that new dinit records always start at a
+    ** new memory location
+    */
+    int count = (sect->size % 4) ? (sect->size + (4 - sect->size % 4)) \
+                                 : sect->size;
+    int delta = DATA_RECORD_HEADER_SIZE + count;
+    *data_size += delta;
+
+    /*
+    ** make section not LOADable
+    */
+    sect->flags &= ~ SEC_LOAD;
+
+    /* mark for dinit template creation */
+    section->init = 1;
+
+    if (pic32_debug)
+      fprintf(stderr,"  %s (data), size = %x bytes, template += %x bytes\n",
+             sect->name, (unsigned int) sect->size, delta);
+  }
+} /*static void bfd_pic32_scan_code_section (...)*/
 
 
+/*
+** This routine is called by before_allocation()
+** when the --no-data-init option is specified.
+**
+** Scan for loadable DATA sections...if found,
+** mark them NEVER_LOAD and issue a warning.
+*/
+static void
+bfd_pic32_skip_data_section (section, p)
+     struct pic32_section *section;
+     PTR p ATTRIBUTE_UNUSED ;
+{
+  asection *sect = section->sec;
 
+  /*
+  ** process DATA-type sections
+  */
+  if (((sect->flags & SEC_DATA) == SEC_DATA) && (sect->size > 0))
+  {
+      /* no warning if this doesn't even need a template */
+      if (section->region != NULL && !section->region->flags.init_needed) {
+          if (pic32_debug)
+            fprintf(stderr,"  %s (skipped, init_needed = 0), size = %x\n",
+                   sect->name, (unsigned int) sect->size);
+          return;
+      }
+
+      /*
+      ** make section not LOADable
+      */
+      sect->flags &= ~ SEC_LOAD;
+      sect->flags |= SEC_NEVER_LOAD;
+
+      /*
+      ** issue a warning
+      */
+      einfo(_("%P: Warning: data initialization has been turned off,"
+              " therefore section %s will not be initialized using .dinit template.\n"), sect->name);
+
+      if (pic32_debug)
+        fprintf(stderr,"  %s (skipped), size = %x\n",
+               sect->name, (unsigned int) sect->size);
+  }
+}
 
 #if 0
 // maybe don't need this one
@@ -3418,7 +3597,7 @@ bfd_pic32_create_data_init_bfd (parent)
 void pic32_create_fill_templates(void)
 {
   struct pic32_fill_option *o;
-  if (program_memory_free_blocks)
+  if (region_info.code->free_blocks)
     {
       if (pic32_fill_option_list)
         {
@@ -3445,12 +3624,11 @@ static void pic32_create_unused_program_sections
   bfd *fill_bfd;
   unsigned char *fill_data;
   struct pic32_section *s;
-  struct memory_region_struct *region;
   bfd_vma size = 0;
   bfd_vma addr = 0;
   int sec_align = 2;
 
-  for (b = program_memory_free_blocks; b != NULL; b = next)
+  for (b = region_info.code->free_blocks; b != NULL; b = next)
     {
      next = b->next;
      if ((b->addr == 0) && (b->size == 0))
@@ -3496,19 +3674,18 @@ static void pic32_create_unused_program_sections
        bfd_set_section_size (fill_bfd, sec, size);
        fill_bfd->sections = sec;  /* save a copy for later */
       }
- else
+     else {
        if (pic32_debug)
-         printf("after_open: section %s not found\n", sec->name);
+         fprintf(stderr,"after_open: section %s not found\n", sec->name);
+     }
 
-    ///\ LG to change looking for execute flag!!!
-     region = region_lookup ("rom");
-
-     update_section_info(addr, s, region);
+     ///\ LG to change looking for execute flag!!!
+     // DZ - use identified code region instead
+     update_section_info(addr, s, region_info.code);
 
      pic32_append_section_to_list(opt->fill_section_list, sec);
-     pic32_remove_from_memory_list(program_memory_free_blocks, b);
-    }
-
+     pic32_remove_from_memory_list(region_info.code->free_blocks, b);
+   }
 }
 
 void pic32_create_specific_fill_sections(void)
@@ -3567,9 +3744,10 @@ void pic32_create_specific_fill_sections(void)
         bfd_set_section_size (fill_bfd, sec, size);
         fill_bfd->sections = sec;  /* save a copy for later */
        }
-      else
+      else {
         if (pic32_debug)
-          printf("after_open: section %s not found\n", sec->name);
+          fprintf(stderr,"after_open: section %s not found\n", sec->name);
+      }
 
       pic32_append_section_to_list(o->fill_section_list, sec);
    }
@@ -3817,7 +3995,11 @@ bfd_pic32_report_memory_usage (fp)
   {
      if (!lang_memory_region_exist(pmregions_to_report[region_index].name))
        continue;
-     region = region_lookup(pmregions_to_report[region_index].name);
+     region = lang_memory_region_lookup(pmregions_to_report[region_index].name, FALSE);
+
+     /* could have a bogus region due to region_lookup's strangeness. */
+     if (!valid_region(region)) 
+       continue;
 
      /* print code header */
      fprintf( fp, "\n\n%s\n", pmregions_to_report[region_index].title);
@@ -3858,7 +4040,12 @@ bfd_pic32_report_memory_usage (fp)
      if (!lang_memory_region_exist(dmregions_to_report[region_index].name))
        continue;
 
-     region = region_lookup(dmregions_to_report[region_index].name);
+     region = lang_memory_region_lookup(dmregions_to_report[region_index].name, FALSE);
+
+     /* could have a bogus region due to region_lookup's strangeness. */
+     if (!valid_region(region))
+       continue;
+
      /* print data header */
      fprintf( fp, "\n\n%s\n", dmregions_to_report[region_index].title);
      fprintf( fp, "section                    address  length [bytes]      (dec)  Description\n");
@@ -3921,7 +4108,7 @@ bfd_pic32_report_memory_usage (fp)
      They require some extra effort to organize by
      external memory region 
    */
-
+#ifdef ENABLE_USER_MEMORY
   if (has_user_defined_memory) {
     struct pic32_section *r, *rnext;
     const char *region_name;
@@ -3960,6 +4147,7 @@ bfd_pic32_report_memory_usage (fp)
       fprintf( fp, "\n        --------------------------------------------------------------------------\n");
     }
   }
+#endif /* 0 */
 
   fflush (fp);
 #undef NAME_MAX_LEN
@@ -3992,6 +4180,7 @@ void pic32_report_crypto_sections()
 #endif
 }
 
+#ifdef ENABLE_USER_MEMORY
 static void
 bfd_pic32_report_memory_regions (FILE *memory_summary_file,
                                  const char memory_name[],
@@ -4008,9 +4197,9 @@ bfd_pic32_report_memory_regions (FILE *memory_summary_file,
     if (!lang_memory_region_exist (*region_names))
       continue;
 
-    region = region_lookup (*region_names);
+    region = lang_memory_region_lookup (*region_names, FALSE);
 
-    if (region->length == ~(bfd_size_type) 0)
+    if (!valid_region(region))
       continue;
 
     for (s = pic32_section_list; s != NULL; s = s->next)
@@ -4035,13 +4224,10 @@ bfd_pic32_report_memory_regions (FILE *memory_summary_file,
       memory_name, total_size, used_size, total_size - used_size);
   }
 }
+#endif
 
 void bfd_pic32_memory_summary(char *arg)
 {
-  const char *pm_region_names[] = { "rom", 0 };
-  const char *dm_region_names[] = { "ram", 0 };
-  const char *tcm_region_names[] = { "tcm", "itcm", "dtcm", 0 };
-
   FILE *memory_summary_file = fopen (arg, "w");
   if (memory_summary_file == NULL) {
     fprintf (stderr, "Warning: Could not open %s.\n", arg );
@@ -4058,14 +4244,9 @@ void bfd_pic32_memory_summary(char *arg)
                                 "  <executable name=\"%s\">\n", output_filename ); 
 
   /*Calculate and output memory summary file*/
-  bfd_pic32_report_memory_regions (memory_summary_file, "program", pm_region_names);
-  bfd_pic32_report_memory_regions (memory_summary_file, "data", dm_region_names);
-
   /*For now, generate the TCM info only when doing the PRO comparison (i.e. not
     for the regular builds because it messes the memory display in the IDE */
-  if (pic32_mafrlcsj || pic32_mafrlcsj2) {
-    bfd_pic32_report_memory_regions (memory_summary_file, "tcm", tcm_region_names);
-  }
+  pic32_report_region_info (memory_summary_file, pic32_mafrlcsj || pic32_mafrlcsj2);
 
   fprintf (memory_summary_file, "  </executable>\n"
                                 "</project>\n");
@@ -4073,6 +4254,7 @@ void bfd_pic32_memory_summary(char *arg)
 }
 
 
+#ifdef ENABLE_USER_MEMORY
 /*
 ** Utility routine: bfd_pic32_report_memory_sections()
 **
@@ -4117,6 +4299,7 @@ bfd_pic32_report_memory_sections (region, sect, fp)
   }
   return;
 } /* static void bfd_pic32_report_memory_sections (...)*/
+#endif
 
 /*
 ** Utility routine: bfd_pic32_collect_section_size()
@@ -4137,12 +4320,12 @@ bfd_pic32_collect_section_size (s, region )
     start &= 0xdfffffff;
     load &= 0xdfffffff;
   }
-    
+   
   /*
   ** report SEC_ALLOC sections in memory
   */
-  if ((s->sec->flags & SEC_ALLOC)
-  &&  (s->sec->size > 0))
+  if (valid_region(region) &&
+      ((s->sec->flags & SEC_ALLOC) && (s->sec->size > 0)))
     {
       if ((start >= region->origin) &&
           ((start + actual) <= (region->origin + region->length)))
@@ -4233,8 +4416,8 @@ bfd_mchp_remove_archive_module (name)
       {
           if (pic32_debug)
           {
-              printf("\nRemoving %s\n", name);
-              printf("  %s had %d symbols\n", name , is->the_bfd->symcount);
+              fprintf(stderr,"\nRemoving %s\n", name);
+              fprintf(stderr,"  %s had %d symbols\n", name , is->the_bfd->symcount);
           }
 
           /*
@@ -4427,14 +4610,11 @@ pic32_init_section_list(lst)
 {
   *lst = ((struct pic32_section *)
          xmalloc(sizeof(struct pic32_section)));
-  if (NULL == lst) {
+  if (NULL == *lst) {
     fprintf( stderr, "Fatal Error: Not enough memory to initialize section list\n");
     abort();
   }
-  (*lst)->next = 0;
-  (*lst)->sec = 0;
-  (*lst)->attributes = 0;
-  (*lst)->file = 0;
+  memset(*lst, 0, sizeof(struct pic32_section));
 }
 
 
@@ -4468,6 +4648,8 @@ pic32_build_section_list_vma (abfd, sect, fp)
   new->attributes = pic32_attribute_map(sect);
   new->file = 0;
   new->use_vma = 1;
+  new->init = 0;
+  new->region = NULL;
 
   /* insert it at the right spot */
   prev = pic32_section_list;
@@ -4478,7 +4660,7 @@ pic32_build_section_list_vma (abfd, sect, fp)
           prev->next = new;
           new->next = s;
           if (pic32_debug)
-            printf("pic32_build_section_list_vma: Adding %s LMA:%x VMA:%x\n", new->sec->name, (unsigned int)new->sec->lma, (unsigned int)new->sec->vma);
+            fprintf(stderr,"pic32_build_section_list_vma: Adding %s LMA:%x VMA:%x\n", new->sec->name, (unsigned int)new->sec->lma, (unsigned int)new->sec->vma);
           done++;
           break;
         }
@@ -4487,9 +4669,15 @@ pic32_build_section_list_vma (abfd, sect, fp)
 
   if (!done)
     {
-      prev->next = new;
+      if (prev) 
+        prev->next = new;
+      else {
+        if (pic32_debug) 
+          fprintf(stderr,"internal error: build_section_list called on uninitialized list\n");
+      }
       new->next = NULL;
     }
+
 } /* static void pic32_build_section_list_vma (...) */
 
 static void
@@ -4501,9 +4689,9 @@ pic32_build_section_list (abfd, sect, fp)
   struct pic32_section *new, *s, *prev;
   int done = 0;
 
-    /* the list is used by BFA, so we are interested only in allocatable sections */
-    if (!(sect->flags & (SEC_LOAD | SEC_ALLOC)))
-        return;
+  /* the list is used by BFA, so we are interested only in allocatable sections */
+  if (!(sect->flags & (SEC_LOAD | SEC_ALLOC)))
+    return;
 
   /* create a new element */
   new = ((struct pic32_section *)
@@ -4516,6 +4704,8 @@ pic32_build_section_list (abfd, sect, fp)
   new->attributes = pic32_attribute_map(sect);
   new->file = 0;
   new->use_vma = 0;
+  new->init = 0;
+  new->region = NULL;
 
   /* insert it at the right spot */
   prev = pic32_section_list;
@@ -4526,7 +4716,7 @@ pic32_build_section_list (abfd, sect, fp)
           prev->next = new;
           new->next = s;
           if (pic32_debug)
-            printf("pic32_build_section_list: Adding %s LMA:%x VMA:%x\n", new->sec->name, (unsigned int)new->sec->lma, (unsigned int)new->sec->vma);
+            fprintf(stderr,"pic32_build_section_list: Adding %s LMA:%x VMA:%x\n", new->sec->name, (unsigned int)new->sec->lma, (unsigned int)new->sec->vma);
           done++;
           break;
         }
@@ -4587,7 +4777,7 @@ pic32c_after_open(void)
   if (pic32_smart_io)
     {
       if (pic32_debug)
-        printf("\nMerging smart-io functions:\n");
+        fprintf(stderr,"\nMerging smart-io functions:\n");
 
       smartio_merge_symbols ();
 
@@ -4596,10 +4786,11 @@ pic32c_after_open(void)
     gld${EMULATION_NAME}_after_open();
 
     /* Prepare a list for sections in user-defined regions */
+#ifdef ENABLE_USER_MEMORY
     if (user_memory_sections)
       pic32_free_section_list(&user_memory_sections);
     pic32_init_section_list(&user_memory_sections);
-
+#endif
   {
     /* loop through all of the input bfds */
     LANG_FOR_EACH_INPUT_STATEMENT (is)
@@ -4612,59 +4803,59 @@ pic32c_after_open(void)
   }
 
    /* init list of input data sections */
-    pic32_init_section_list(&data_sections);
+   pic32_init_section_list(&data_sections);
 
    /* init list of input code sections */
    pic32_init_section_list(&code_sections);
 
-  /*
-   * Loop through all input sections and
-   * build a list of DATA or BSS type.
-   */
-  {
-    asection * sec;
-    LANG_FOR_EACH_INPUT_STATEMENT (f)
-      {
-        for (sec = f->the_bfd->sections;
-             sec != (asection *) NULL;
-             sec = sec->next)
-        {
-            ///\ set CODE flag for RODATA sections, even if they are 0 sized
-            if (PIC32_IS_DATA_ATTR(sec) &&
-                    pic32c_is_const_data_section(sec)) {
-                sec->flags &= ~SEC_DATA;
-                PIC32_SET_CODE_ATTR(sec);
+   /*
+    * Loop through all input sections and
+    * build a list of DATA or BSS type.
+    */
+   {
+     asection * sec;
+     LANG_FOR_EACH_INPUT_STATEMENT (f)
+     {
+       for (sec = f->the_bfd->sections;
+           sec != (asection *) NULL;
+           sec = sec->next)
+       {
+         ///\ set CODE flag for RODATA sections, even if they are 0 sized
+         if (PIC32_IS_DATA_ATTR(sec) &&
+             pic32c_is_const_data_section(sec)) {
+           sec->flags &= ~SEC_DATA;
+           PIC32_SET_CODE_ATTR(sec);
 #if 0 /* Disable this warning for now because it gets generated due to assembly code like crt0.S */
-                if (sec->owner->my_archive) {
-                    einfo(_("%P: Warning: %s (%s) of %s needs to be compiled"
-                            " with MPLAB XC32\n"),
-                            sec->owner->filename, sec->name, sec->owner->my_archive->filename);
-                }
-                else {
-                    einfo(_("%P: Warning: %s (%s) needs to be compiled"
-                            " with MPLAB XC32\n"), sec->owner->filename, sec->name);
-                }
+           if (sec->owner->my_archive) {
+             einfo(_("%P: Warning: %s (%s) of %s needs to be compiled"
+                   " with MPLAB XC32\n"),
+                 sec->owner->filename, sec->name, sec->owner->my_archive->filename);
+           }
+           else {
+             einfo(_("%P: Warning: %s (%s) needs to be compiled"
+                   " with MPLAB XC32\n"), sec->owner->filename, sec->name);
+           }
 #endif
-            }
+         }
 
-          if (((sec->size > 0) && (sec->linked == 0) && (PIC32_IS_DATA_ATTR(sec)))
-              || (PIC32_IS_BSS_ATTR(sec)) || PIC32_IS_RAMFUNC_ATTR(sec)
-              || ((sec->size > 0) && (PIC32_IS_DATA_ATTR_WITH_MEMORY_ATTR(sec)))
-              || (PIC32_IS_BSS_ATTR_WITH_MEMORY_ATTR(sec)))
-        {
+         if (((sec->size > 0) && (sec->linked == 0) && (PIC32_IS_DATA_ATTR(sec)))
+             || (PIC32_IS_BSS_ATTR(sec)) || PIC32_IS_RAMFUNC_ATTR(sec)
+             || ((sec->size > 0) && (PIC32_IS_DATA_ATTR_WITH_MEMORY_ATTR(sec)))
+             || (PIC32_IS_BSS_ATTR_WITH_MEMORY_ATTR(sec)))
+         {
 #if 0
-                if (sec->shared == 1)
-                    pic32_append_section_to_list(shared_data_sections, sec);
-                else
+           if (sec->shared == 1)
+             pic32_append_section_to_list(shared_data_sections, sec);
+           else
 #endif
-                    pic32_append_section_to_list(data_sections, sec);
-            
-        }
+             pic32_append_section_to_list(data_sections, sec);
+
+         }
          else if ((sec->size > 0) && PIC32_IS_CODE_ATTR(sec))
-              pic32_append_section_to_list(code_sections, sec);
-      }
-    }
-  }
+           pic32_append_section_to_list(code_sections, sec);
+       }
+     }
+   }
 
   /*
   ** If a heap is required, but not provided
@@ -4676,7 +4867,7 @@ pic32c_after_open(void)
   if (!(bfd_link_pic(&link_info)) && 
        !stack_section_defined && (pic32c_stack_size > 0)) {
     if (pic32_debug)
-      printf("\nCreating stack of size %x\n", pic32c_stack_size);
+      fprintf(stderr,"\nCreating stack of size %x\n", pic32c_stack_size);
     stack_bfd = bfd_pic32_create_stack_bfd (link_info.output_bfd);
     bfd_pic32_add_bfd_to_link (stack_bfd, stack_bfd->filename);
     stack_section_defined = TRUE;
@@ -4689,9 +4880,9 @@ pic32c_after_open(void)
    sections in the right segment.  */
 
 static lang_output_section_statement_type
-*gldelf32pic32c_place_orphan ( asection *sec,
-                              const char *secname ATTRIBUTE_UNUSED,
-                              int constraint ATTRIBUTE_UNUSED)
+*arm_elf_place_orphan ( asection *sec,
+                        const char *secname ATTRIBUTE_UNUSED,
+                        int constraint ATTRIBUTE_UNUSED)
 {
 
   if (pic32_allocate) {  /* if best-fit allocator enabled */
@@ -4699,38 +4890,44 @@ static lang_output_section_statement_type
     /* if this section represents a memory region,
        we don't want it allocated or its relocations
        processed. */
+#ifdef ENABLE_USER_MEMORY
     if ( PIC32_IS_INFO_ATTR(sec) &&
-         strncmp(sec->name, memory_region_prefix, strlen(memory_region_prefix)) == 0 &&
-         strchr(sec->name, '@') == NULL) {
+        strncmp(sec->name, memory_region_prefix, strlen(memory_region_prefix)) == 0 &&
+        strchr(sec->name, '@') == NULL) {
 
-    if (pic32_debug)
-    {
-        printf("LG - memory region - %s \n", sec->name);
-    }
+      if (pic32_debug)
+      {
+        fprintf(stderr,"LG - memory region - %s \n", sec->name);
+      }
 
       if (!memory_region_list)
         pic32_init_section_list(&memory_region_list);
 
-//fixme  what is user defined memory?
+      //fixme  what is user defined memory?
+      // DZ: it is any memory region created automagically by a MIPS pragma, which
+      // appears to create a section with name __memory_XXX to represent the memory region.
+      // We don't have the pragma on ARM.
       if (!pic32_name_in_section_list(memory_region_list, sec->name))
         pic32_append_section_to_list(memory_region_list, sec);
       has_user_defined_memory = TRUE;
       return NULL;
     }
-
-   if (((sec->flags & SEC_DEBUGGING) == SEC_DEBUGGING)
+#endif
+    
+    if (((sec->flags & SEC_DEBUGGING) == SEC_DEBUGGING)
         || ((sec->flags & SEC_ALLOC) == 0))
       return NULL; /* let the base code handle non-alloc sections */
 
     if (!unassigned_sections)
       pic32_init_section_list(&unassigned_sections);
-      
+    
     pic32_append_section_to_list(unassigned_sections, sec);
-
+    
     return 1;  /* and exit */
   }
-// downstream this return value is ignored so just give NULL all the time
-   return NULL;
+  else {
+    return gld${EMULATION_NAME}_place_orphan(sec, secname, constraint);
+  }
 } /*static lang_output_section_statement_type* gldelf32pic32c_place_orphan () */
 
 EOF
@@ -4971,11 +5168,14 @@ LDEMUL_EXTRA_MAP_FILE_TEXT=arm_extra_map_file_text
 
 LDEMUL_AFTER_OPEN=pic32c_after_open
 
+# FIXME? these fail to include or handle any of the existing
+# arm-specific emulation options.
 LDEMUL_PARSE_ARGS=gldelf32pic32c_parse_args
 LDEMUL_LIST_OPTIONS=gldelf32pic32c_list_options
 # fixme:  not sure next one is right or even needed
 #LDEMUL_AFTER_PARSE=arm_after_parse    
 
-LDEMUL_PLACE_ORPHAN=gldelf32pic32c_place_orphan
+# Renamed because we may need to call the standard place_orphan.
+LDEMUL_PLACE_ORPHAN=arm_elf_place_orphan
 
 LDEMUL_AFTER_ALLOCATION=gldelf32pic32c_after_allocation

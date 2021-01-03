@@ -168,11 +168,15 @@ extern int
 _scanf_i (struct _reent *rptr,
 	  struct _scan_data_t *pdata,
 	  FILE *fp, va_list *ap);
+
+/* This declaration should only be used outside of smart-io. */
+#ifndef __SMARTIOV2__
 /* Make _scanf_float weak symbol, so it won't be linked in if target program
    does not need it.  */
 extern int
 _scanf_float (struct _reent *rptr,
 	      struct _scan_data_t *pdata,
 	      FILE *fp, va_list *ap) _ATTRIBUTE((__weak__));
+#endif
 
 #endif

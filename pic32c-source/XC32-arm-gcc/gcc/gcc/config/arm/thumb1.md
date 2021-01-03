@@ -1964,4 +1964,13 @@
   }"
   [(set_attr "type" "mov_reg")]
 )
-
+
+;; Pop a single register - needed for PIC32C code coverage
+(define_insn "*thumb1_pop_single"
+  [(set (match_operand:SI 0 "low_register_operand" "=r")
+        (mem:SI (post_inc:SI (reg:SI SP_REGNUM))))]
+  "TARGET_THUMB1 && (reload_in_progress || reload_completed)"
+  "pop\t{%0}"
+  [(set_attr "type" "load1")
+   (set_attr "length" "2")]
+)

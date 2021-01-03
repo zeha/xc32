@@ -170,6 +170,7 @@ extern int pic32_is_valid_attributes
 extern void pic32_create_data_init_template(void);
 extern void pic32_create_specific_fill_sections(void);
 extern void pic32_create_stack_section(void);
+extern void pic32_init_alloc(); 
 bfd_boolean lang_memory_region_exist(const char *);
 static bfd_boolean issue_warning = TRUE;
 extern bfd_boolean pic32_has_code_in_dinit_option;
@@ -1461,11 +1462,14 @@ lang_memory_region_lookup (const char *const name, bfd_boolean create)
 	  return r;
 	}
 
-#if !defined(TARGET_IS_PIC32C)
-  if (!create && strcmp (name, DEFAULT_MEMORY_REGION))
+  if (!create && strcmp (name, DEFAULT_MEMORY_REGION)) {
+#if defined(TARGET_IS_PIC32C)
+    return NULL;
+#else
     einfo (_("%P:%S: warning: memory region `%s' not declared\n"),
 	   NULL, name);
 #endif
+  }
 
   new_region = (lang_memory_region_type *)
       stat_alloc (sizeof (lang_memory_region_type));
@@ -2270,6 +2274,10 @@ lang_map (void)
       char buf[100];
       int len;
 
+      /* PIC32C: we may have created useless regions as a side effect
+         of looking up specific names. */
+      if (!valid_region(m)) continue;
+
       fprintf (config.map_file, "%-16s ", m->name_list.name);
 
       sprintf_vma (buf, m->origin);
@@ -2568,22 +2576,40 @@ lang_add_section (lang_statement_list_type *ptr,
       init_os (output, flags);
 #endif
     }
+    else if ((flags & SEC_IN_MEMORY) && (output->bfd_section->contents == NULL)) {
+      /* Identify the 'error earlier in the link process' from bfd_get_section_contents.
+         This occurs when a SEC_IN_MEMORY input section is added to an output section
+         which is not SEC_IN_MEMORY. The flag will propagate to the output section, 
+         and it's not clear that avoiding setting that flag will yield correct results
+         (that is, the whether the contents of the added SEC_IN_MEMORY section will be 
+         present in the contents of the output section. */
+      if (pic32_debug) {
+        fprintf(stderr, "warning: input section '%s' is marked SEC_IN_MEMORY "
+                        " but mapped to output section '%s' not in memory. flags for "
+                        " the output section will be incorrect.\n",
+                        section->name, output->bfd_section->name);
+      }
+    }
 
 #ifdef TARGET_IS_PIC32C
-      /* Validate the attributes for this input section */
-	{
+    /* Validate the attributes for this input section */
+    {
         unsigned int input_map  = pic32_attribute_map(section);
         unsigned int output_map = pic32_attribute_map(output->bfd_section);
 	
-        if (!pic32_is_valid_attributes(input_map, 0))
+        if (!pic32_is_valid_attributes(input_map, 0)) {
+            if (pic32_debug) 
+                fprintf(stderr, "is_valid_attributes failed for section \'%s\', map %x, %x\n",
+                        section->name, input_map, output_map);
 	    einfo (_("%P%F: Link Error: invalid attributes for section \'%s\'\n"),
-	    section->name);
-	
-        else if (!pic32_is_valid_attributes((input_map | output_map), 0))
-	    einfo (_("%P%F: Link Error: attributes for input section \'%s\'"
-	    " conflict with output section \'%s\'\n"),
-	    section->name, output->bfd_section->name);
+                   section->name);
+        }
+        else if (!pic32_is_valid_attributes((input_map | output_map), 0)) {
+            fprintf(stderr, "warning: ignoring attribute conflict %s, %s\n", 
+                    section->name, output->bfd_section->name);
+        }
     }
+
 #endif
 	
 
@@ -2651,6 +2677,7 @@ lang_add_section (lang_statement_list_type *ptr,
     
     section->output_section->itcm = section->itcm;
     section->output_section->dtcm = section->dtcm;
+    section->output_section->nopa = section->nopa;
 
     /* lghica co-resident */
     /* copy if the section has been linked before */
@@ -5102,9 +5129,13 @@ lang_check_section_addresses (void)
      might overflow a 32-bit integer.  There is, alas, no way to print
      a bfd_vma quantity in decimal.  */
   for (m = lang_memory_region_list; m; m = m->next)
-    if (m->had_full_message)
-      einfo (_("%X%P: region `%s' overflowed by %ld bytes\n"),
-	     m->name_list.name, (long)(m->current - (m->origin + m->length)));
+    {
+      /* PIC32C: again deal with garbage region_lookup artifacts */
+      if (!valid_region(m)) continue;
+      if (m->had_full_message)
+        einfo (_("%X%P: region `%s' overflowed by %ld bytes\n"),
+               m->name_list.name, (long)(m->current - (m->origin + m->length)));
+    }
 }
 
 /* Make sure the new address is within the region.  We explicitly permit the
@@ -6513,8 +6544,8 @@ ldlang_place_orphan (asection *s)
 
       if (os == NULL)
 	{
-	  if (pic32_debug)
-	    printf ("Not ldemul place orphan, lookup %s", name);
+	  if (pic32_debug && 0)
+	    printf ("Not ldemul place orphan, lookup %s\n", name);
 
 	  os = lang_output_section_statement_lookup (name, constraint, TRUE);
 	  if (os->addr_tree == NULL
@@ -6548,7 +6579,7 @@ lang_place_orphans (void)
 	    {
 	      /* This section of the file is not attached, root
 		 around for a sensible place for it to go.  */
-            if (pic32_debug)
+            if (pic32_debug && 0)
             {
                 printf("LG - Place orphan without output section %s ----\n", s->name);
             }
@@ -7264,9 +7295,11 @@ lang_process (void)
 
   /* Check relocations.  */
   lang_check_relocs ();
- /* Create Data initialization Template*/
+
+  /* Create Data initialization Template*/
 #ifdef TARGET_IS_PIC32C
-   pic32_create_data_init_template();
+  pic32_init_alloc();
+  pic32_create_data_init_template();
 #if 0
     /* lghica co-resident */
     if (!pic32_is_empty_list(shared_dinit_sections)
@@ -7341,8 +7374,8 @@ lang_process (void)
 
 #if TARGET_IS_PIC32C
   /* If the emulation added new output statements, size them now. */
-    lang_reset_memory_regions ();
-    lang_size_sections (NULL, ! RELAXATION_ENABLED);
+  lang_reset_memory_regions ();
+  lang_size_sections (NULL, ! RELAXATION_ENABLED);
 #endif
 
   /* Fix any .startof. or .sizeof. symbols.  */
@@ -8734,6 +8767,9 @@ lang_print_memory_usage (void)
     {
       bfd_vma used_length = r->current - r->origin;
       double percent;
+
+      /* PIC32C: again deal with garbage region_lookup artifacts */
+      if (!valid_region(r)) continue;
 
       printf ("%16s: ",r->name_list.name);
       lang_print_memory_size (used_length);

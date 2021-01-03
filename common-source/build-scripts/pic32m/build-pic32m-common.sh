@@ -71,8 +71,7 @@ function status_update ()
   elif [ ! -z "${GROWL_SEND:-}" ] ; then
     $GROWL_SEND -p low -n build-pic32m -m "$MESSAGE"
   fi
-  echo "status: $MESSAGE"
-  #echo `date` "status: $MESSAGE" >> $LOGFILE
+  echo `date` "status: $MESSAGE" | tee -a $LOGFILE
   
 }
 
@@ -94,8 +93,7 @@ function assert_success ()
   elif [ ! -z "${GROWL_SEND:-}" ] ; then
     $GROWL_SEND -p high -n build-pic32m -sm "XC32 Build Error: $MESSAGE"
   fi
-  echo "NOTIFY: $MESSAGE ($RESULT)" >> $LOGFILE
-  echo "NOTIFY: $MESSAGE ($RESULT)"
+  echo "NOTIFY: $MESSAGE ($RESULT)" | tee -a $LOGFILE
   echo "$'\e]9;$MESSAGE ($RESULT)\007'"
 
   error_handler

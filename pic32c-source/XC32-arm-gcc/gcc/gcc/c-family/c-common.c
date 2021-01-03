@@ -7680,6 +7680,7 @@ fail:
 int
 check_user_alignment (const_tree align, bool allow_zero)
 {
+  HOST_WIDE_INT ialign;
   int i;
 
   if (error_operand_p (align))
@@ -7692,8 +7693,9 @@ check_user_alignment (const_tree align, bool allow_zero)
     }
   else if (allow_zero && integer_zerop (align))
     return -1;
-  else if (tree_int_cst_sgn (align) == -1
-           || (i = tree_log2 (align)) == -1)
+  else if (!tree_fits_shwi_p (align)
+           || (ialign = tree_to_shwi (align),
+               i = exact_log2 (ialign < 0 && TARGET_CCI ? -ialign : ialign)) == -1)
     {
       error ("requested alignment is not a positive power of 2");
       return -1;
@@ -7703,6 +7705,8 @@ check_user_alignment (const_tree align, bool allow_zero)
       error ("requested alignment is too large");
       return -1;
     }
+  if (ialign < 0)
+    warning (0, "CCI negative alignment not supported (transformed into positive alignment)");
   return i;
 }
 
@@ -9699,10 +9703,15 @@ handle_designated_init_attribute (tree *node, tree name, tree, int,
    There are NARGS arguments in the array ARGARRAY.  LOC should be used for
    diagnostics.  */
 /* _BUILD_MCHP_: when annot is true, smart-io annotations will be added when
-   applicable. */
+   applicable. when int_only is set, smart-io level will be effectively '2'
+   when handling this function. */
 void
 check_function_arguments (location_t loc, const_tree fntype, int nargs,
-			  tree *argarray, bool annot)
+			  tree *argarray
+#ifdef _BUILD_MCHP_
+                          , bool annot, bool int_only
+#endif
+                          )
 {
   /* Check for null being passed in a pointer argument that must be
      non-null.  We also need to do this if format checking is enabled.  */
@@ -9712,10 +9721,15 @@ check_function_arguments (location_t loc, const_tree fntype, int nargs,
 
   /* Check for errors in format strings.  */
   /* smart-io: also do this check to annotate with conversion specs for smart-io candidates. */
+#ifdef _BUILD_MCHP_
   if (warn_format || warn_suggest_attribute_format || annot)
     check_function_format (TYPE_ATTRIBUTES (fntype), nargs, argarray,
                            (warn_format || warn_suggest_attribute_format),
-                           annot);
+                           annot, int_only);
+#else
+  if (warn_format || warn_suggest_attribute_format)
+    check_function_format (TYPE_ATTRIBUTES (fntype), nargs, argarray);
+#endif
 
   if (warn_format)
     check_function_sentinel (fntype, nargs, argarray);
@@ -9743,7 +9757,7 @@ check_function_arguments_recurse (void (*callback)
 					&TREE_OPERAND (param, 0), param_num);
 
 #ifdef _BUILD_MCHP_
-      /* smart-io: pass the coercion through into the format part. */
+      /* smartio: pass the coercion through into the format part. */
       if (SMARTIO_FORMAT_P (TREE_OPERAND (param, 0)))
         {
           gcc_assert (SMARTIO_SPEC_P (TREE_CHAIN (TREE_OPERAND (param, 0))));

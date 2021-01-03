@@ -25,6 +25,10 @@ endif
 
 GENERAL_SOURCES = \
 	$(GENERAL_INT_FORMATTED_IO_SOURCES) \
+        __sfputs.c                      \
+        __sprint.c                      \
+        __ssprint.c                     \
+        __ssputs.c                      \
 	clearerr.c			\
 	fclose.c			\
 	fdopen.c			\

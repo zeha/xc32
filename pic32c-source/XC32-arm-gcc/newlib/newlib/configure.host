@@ -106,7 +106,9 @@ case "${host_cpu}" in
   arm* | pic32c*)
 	machine_dir=arm
 	libm_machine_dir=arm
-	newlib_cflags="${newlib_cflags} -mno-smart-io -DSMALL_MEMORY"
+        # disable newlib-nano for library builds. this avoids picking up
+        # a newlib.h from include/newlib-nano from a previous build.
+	newlib_cflags="${newlib_cflags} -mno-smart-io -mno-newlib-nano -ffunction-sections -fdata-sections -DPREFER_SIZE_OVER_SPEED -DSMALL_MEMORY -D_BUILD_MCHP_"
 	;;
   avr*)
 	newlib_cflags="${newlib_cflags} -DPREFER_SIZE_OVER_SPEED -mcall-prologues"
@@ -632,7 +634,8 @@ case "${host}" in
 	syscall_dir=syscalls
 	;;
   arm*-*-* | pic32c*-*-*)
-	syscall_dir=syscalls
+# XC32-1037 - these syscalls are unneccessary and conflict with libpic32c. exclude them.
+	syscall_dir=
 # If newlib is supplying syscalls, select which debug protocol is being used.
 # ARM_RDP_MONITOR selects the Demon monitor.
 # ARM_RDI_MONITOR selects the Angel monitor.

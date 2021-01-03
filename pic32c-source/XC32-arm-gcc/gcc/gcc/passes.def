@@ -444,6 +444,9 @@ along with GCC; see the file COPYING3.  If not see
 	  NEXT_PASS (pass_postreload_cse);
 	  NEXT_PASS (pass_gcse2);
 	  NEXT_PASS (pass_split_after_reload);
+#ifdef _BUILD_MCHP_
+	  NEXT_PASS (pass_xc_rm_unn_sets);
+#endif
 	  NEXT_PASS (pass_ree);
 	  NEXT_PASS (pass_compare_elim_after_reload);
 	  NEXT_PASS (pass_branch_target_load_optimize1);
@@ -471,6 +474,9 @@ along with GCC; see the file COPYING3.  If not see
       POP_INSERT_PASSES ()
       NEXT_PASS (pass_late_compilation);
       PUSH_INSERT_PASSES_WITHIN (pass_late_compilation)
+#ifdef _BUILD_MCHP_
+          NEXT_PASS (pass_xc_coverage);
+#endif
 	  NEXT_PASS (pass_compute_alignments);
 	  NEXT_PASS (pass_variable_tracking);
 	  NEXT_PASS (pass_free_cfg);

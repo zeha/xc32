@@ -1362,8 +1362,8 @@ bfd_pic32_collect_section_size (s, region )
   unsigned long actual = s->sec->size;
 
   if (PIC32_IS_COHERENT_ATTR(s->sec)) {
-    start &= 0xdfffffff;
-    load &= 0xdfffffff;
+    start &= 0xbfffffff;
+    load &= 0xbfffffff;
   }
     
   /*
@@ -1763,8 +1763,8 @@ bfd_pic32_report_sections (s, region, magic_sections, fp)
   size_t name_len = 0;
 
   if (PIC32_IS_COHERENT_ATTR(s->sec)) {
-    start &= 0xdfffffff;
-    load &= 0xdfffffff;
+    start &= 0xbfffffff;
+    load &= 0xbfffffff;
   }
     
   /*
@@ -2919,9 +2919,7 @@ gldelf32pic32mx_place_orphan (lang_input_statement_type *file,
     if (!unassigned_sections)
       pic32_init_section_list(&unassigned_sections);
 
-    /* co-resident lghica */
-    if ( (sec->flags & SEC_NEVER_LOAD) == 0)
-        pic32_append_section_to_list(unassigned_sections, file, sec);
+    pic32_append_section_to_list(unassigned_sections, file, sec);
 
     return 1;  /* and exit */
   }

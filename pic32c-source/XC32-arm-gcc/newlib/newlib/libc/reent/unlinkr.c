@@ -43,6 +43,8 @@ DESCRIPTION
 	<<errno>>.
 */
 
+extern int _unlink (const char *file);
+
 int
 _DEFUN (_unlink_r, (ptr, file),
      struct _reent *ptr _AND

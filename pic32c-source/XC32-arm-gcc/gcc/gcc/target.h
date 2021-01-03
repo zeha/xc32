@@ -68,6 +68,13 @@ union cumulative_args_t { void *p; };
 
 #endif /* !CHECKING_P */
 
+/* Type of section type flags */
+#ifdef _BUILD_MCHP_
+#ifndef SECTION_FLAGS_INT
+#define SECTION_FLAGS_INT unsigned long long
+#endif
+#endif
+
 /* Types used by the record_gcc_switches() target function.  */
 enum print_switch_type
 {

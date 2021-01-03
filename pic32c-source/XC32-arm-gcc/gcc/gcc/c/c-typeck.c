@@ -2955,7 +2955,7 @@ build_function_call_vec (location_t loc, vec<location_t> arg_loc,
   tree tem;
   int nargs;
   tree *argarray;
-  bool annot_stdio = 0;
+  bool annot_stdio = 0, int_only = 0;
   
   /* Strip NON_LVALUE_EXPRs, etc., since we aren't using as an lvalue.  */
   STRIP_TYPE_NOPS (function);
@@ -3057,9 +3057,27 @@ build_function_call_vec (location_t loc, vec<location_t> arg_loc,
         return error_mark_node;
 
 #ifdef _BUILD_MCHP_
-      /* MCHP smart-io: enable annotation of candidate builtins */
+      /* MCHP smartio: enable annotation of candidate builtins */
       switch (DECL_FUNCTION_CODE (fundecl))
         {
+        default:
+          break;
+        case BUILT_IN_FPRINTF_INTEGER:
+        case BUILT_IN_SPRINTF_INTEGER:
+        case BUILT_IN_VFPRINTF_INTEGER:
+        case BUILT_IN_VSPRINTF_INTEGER:
+        case BUILT_IN_FSCANF_INTEGER:
+        case BUILT_IN_SSCANF_INTEGER:
+        case BUILT_IN_VFSCANF_INTEGER:
+        case BUILT_IN_VSSCANF_INTEGER:
+        case BUILT_IN_PRINTF_INTEGER:
+        case BUILT_IN_VPRINTF_INTEGER:
+        case BUILT_IN_SCANF_INTEGER:
+        case BUILT_IN_VSCANF_INTEGER:
+        case BUILT_IN_SNPRINTF_INTEGER:
+        case BUILT_IN_VSNPRINTF_INTEGER:
+          int_only = 1;
+          /* fallthrough */
         case BUILT_IN_FPRINTF:
         case BUILT_IN_SPRINTF:
         case BUILT_IN_VFPRINTF:
@@ -3090,7 +3108,11 @@ build_function_call_vec (location_t loc, vec<location_t> arg_loc,
     }
 
   /* Check that the arguments to the function are valid. */
-  check_function_arguments (loc, fntype, nargs, argarray, annot_stdio);
+#ifdef _BUILD_MCHP_
+  check_function_arguments (loc, fntype, nargs, argarray, annot_stdio, int_only);
+#else
+  check_function_arguments (loc, fntype, nargs, argarray);
+#endif
 
   if (name != NULL_TREE
       && !strncmp (IDENTIFIER_POINTER (name), "__builtin_", 10))

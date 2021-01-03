@@ -699,6 +699,11 @@ mchp_handle_config_pragma (struct cpp_reader *pfile)
             snprintf((char *)value_name, MAX_VALUE_NAME_LENGTH, "%u", i);
             #undef MAX_VALUE_NAME_LENGTH
           }
+          else
+            {
+              error ("config-setting value must be a valid integer constant");
+              break;
+            }
         }
       else
         {

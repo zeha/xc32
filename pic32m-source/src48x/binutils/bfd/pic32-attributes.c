@@ -71,13 +71,38 @@ char * pic32_section_size_string
   ((strlen(sec->name) == strlen(#s)) && \
            strcmp(sec->name, (#s)) == 0)
 
-#define FIRST_EXT_ATTRIBUTE serial_mem
+/*
+ * FIRST_EXT_ATTRIBUTE denotes the first value from the above-generated enum
+ * corresponding to an extended section attribute.
+ *
+ * pic32_extended_attribute_map() below returns a bit map corresponding
+ * to the set of extended attributes for a section.
+ *
+ * An '__ext_attr_<sec-name>' symbol is created by the assembler (see
+ * s_change_section () in gas/config/tc-mips.c) with this bit map as its value.
+ *
+ * objdump (dump_bfd() in binutils/objdump.c) and the linker
+ * (bfd_pic32_process_bfd_after_open() in ld/emultempl/elf32pic32mx.em)
+ * read the value of the ext_attr symbol and update the bfd section flags
+ * by calling pic32_set_extended_attributes () (also below in this file).
+ *
+ * NOTE 1: Some of the attributes in this enum are handled by elf_fake_sections()
+ * in binutils/bfd/elf.c (i.e. converted to ELF section flags) and don't need
+ * to be passed as extended attrs, 'info' being the first one which isn't handled
+ * this way, hence its choice as FIRST_EXT_ATTRIBUTE.
+ *
+ * NOTE 2: I think there are attrs coming after the 'info' attr that don't need
+ * to be treated as extended attributes, so we should look into ordering the enum
+ * values (along with the definitions in pic32-attributes.h) accordingly i.e.
+ * to minimize the number of cases in which the __ext_attr_ syms will be created.
+ */
+#define FIRST_EXT_ATTRIBUTE info
 
 /*
  * This function builds a bit map that represents all
  * standard section attributes as well as pic32-specific
  * attributes. The bit map is derived from a bfd section,
- * which is the cannonical representation.
+ * which is the canonical representation.
  *
  */
 unsigned int pic32_attribute_map(asection *sec)
@@ -106,7 +131,7 @@ unsigned int pic32_attribute_map(asection *sec)
 /*
  * This function creates a bit map that represents
  * only the extended attributes. The bit map is derived
- * from a bfd section, which is the cannoical representation.
+ * from a bfd section, which is the canonical representation.
  *
  */
 unsigned int pic32_extended_attribute_map(asection *sec)

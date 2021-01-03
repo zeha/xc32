@@ -25,6 +25,38 @@
 #ifndef _ELF_PIC32_H
 #define _ELF_PIC32_H
 
+/* type associating a memory region with flags describing special 
+   semantics which may not be representable in the language.
+   these flags are to be set by pic32_init_region_info, hopefully
+   being explicit about why it does what it does. */
+
+struct pic32_memory;
+struct memory_region_struct;
+
+struct pic32_region {
+  /* the region proper */
+  struct memory_region_struct *region;
+
+  /* free block list, potentially shared (i.e. combined code/data) */
+  struct pic32_memory *free_blocks;
+
+  struct region_bits {
+      /* true if intialized/bss data allocated to this region must
+         be initialized at runtime, i.e. .dinit required. */
+      unsigned int init_needed : 1;
+
+      /* true if this region is zeroed on load */
+      unsigned int is_cleared : 1;
+
+      /* true if this region can contain executable code */
+      unsigned int is_exec : 1;
+
+      /* true if this region is tightly coupled (thus not cacheable) */
+      unsigned int is_tcm : 1;
+  } flags;
+};
+
+
 /* Section Lists */
 struct pic32_section
 {
@@ -32,8 +64,25 @@ struct pic32_section
   unsigned int attributes;
   PTR *file;
   asection *sec;
-  unsigned int use_vma;
+  struct pic32_region *region;
+  struct {
+    unsigned int use_vma : 1; /* choose lma/vma when computing section bounds */
+    unsigned int init    : 1; /* dinit required */
+  };
+  /* DZ - init flag added as I am not sure if we can trust !SEC_LOAD to determine
+     if something is expected to be added to dinit. */
 };
+
+
+/* Section types for code coverage */
+#define SHT_XC_CODECOV_INFO     (SHT_LOUSER + 0xCC0)
+#define SHT_XC_CODECOV_INFO_HDR (SHT_LOUSER + 0xCC1)
+
+/* Section names for code coverage (taken from gcc/gcc/xc-coverage.h) */
+#define CODECOV_SECTION        ".codecov"
+#define CODECOV_INFO           ".codecov_info"
+#define CODECOV_INFO_HDR       ".codecov_info.hdr"
+
 
 #if 1
 /************************************************************************/
@@ -80,7 +129,7 @@ struct pic32_section
 #define STYP_SHARED         (1 << 17)   /* shared section among co-resident apps*/
 #define STYP_ITCM           (1 << 18)   /* ITCM section */
 #define STYP_DTCM           (1 << 19)   /* DTCM section */
-
+#define STYP_NOPA           (1 << 20)   /* NOPA */
 /************************************************************************/
 
 
@@ -123,6 +172,56 @@ struct pic32_fill_option
   int fill_width;
   int range_size;
 };
+
+extern void pic32c_fake_sections (bfd *, Elf_Internal_Shdr *, asection *);
+
+/* an enum to represent the style of TCM that we are linking to */
+enum tcm_style
+{
+    TCM_NONE = 0,    // no tcm:   M0 and M1 cores
+    TCM_SEPARATE,    // separate itcm, dtcm spaces:  Canopus, Capella, M7 cores
+    TCM_COMBINED     // a single combined tcm for code and data: Jubilee, M4 cores
+};
+
+/* struct to record and classify the available memory regions in
+   which to allocate. A NULL pointer indicates no such region is available. 
+
+   how this is populated is currently based on names of regions in agreement with
+   the linker script definitions. the 'pic32c_init_regions' function should
+   be the single point where any special magic happens.
+
+   pic32_section entries allocated within these regions will contain an index
+   used to access the pic32_region used.
+*/
+struct region_info {
+
+  /* Regions for vanilla code and data, but maybe the same. */
+  struct pic32_region *code;
+  struct pic32_region *data;
+
+  /* TCM regions: separated by code and data, but maybe the same.
+     see tcm_style definition. */
+  struct pic32_region *code_tcm;
+  struct pic32_region *data_tcm;
+
+  /* Pointers to the relocation targets for vectors and stack. NULL
+     if no relocation is required. Each of these may alias one of the
+     above regions. */
+  struct pic32_region *vectors;
+  struct pic32_region *stack;
+  struct pic32_region *ramfunc;
+
+  /*  The flavour of TCM in use */
+  enum tcm_style tcm_style;
+};
+
+/* global region_info, living in pic32c-allocate.c */
+extern struct region_info region_info;
+
+/* the canonical check for a valid memory region. */
+/* TODO: all uses of this should be unneccessary once we stop creating
+   bogus regions in region_lookup() */
+extern int valid_region(struct memory_region_struct *);
 
 #endif /* _ELF_PIC32_H */
 

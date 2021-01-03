@@ -173,6 +173,7 @@
 ;; UNSPEC_VOLATILE for PIC32C
 (define_c_enum "unspecv" [
   VUNSPEC_SOFTWARE_BREAKPOINT
+  VUNSPEC_VOLATILE_NOP
 ])
 
 ;; Enumerators for NEON unspecs.

@@ -78,6 +78,14 @@ struct four_ints
   int i[4];
 };
 
+/* Occasionally we may need to use some of the static functions from here into the PIC32C port
+ * PIC32C_STATIC will expand to "static" for other targets and to nothing for PIC32C */
+#ifdef TARGET_MCHP_PIC32C
+#define PIC32C_STATIC
+#else
+#define PIC32C_STATIC static
+#endif
+
 /* Forward function declarations.  */
 static bool arm_const_not_ok_for_debug_p (rtx);
 static bool arm_needs_doubleword_align (machine_mode, const_tree);
@@ -180,7 +188,7 @@ static int arm_register_move_cost (machine_mode, reg_class_t, reg_class_t);
 static int arm_memory_move_cost (machine_mode, reg_class_t, bool);
 static void emit_constant_insn (rtx cond, rtx pattern);
 static rtx_insn *emit_set_insn (rtx, rtx);
-static rtx emit_multi_reg_push (unsigned long, unsigned long);
+PIC32C_STATIC rtx emit_multi_reg_push (unsigned long, unsigned long);
 static int arm_arg_partial_bytes (cumulative_args_t, machine_mode,
 				  tree, bool);
 static rtx arm_function_arg (cumulative_args_t, machine_mode,
@@ -306,9 +314,13 @@ static unsigned HOST_WIDE_INT arm_asan_shadow_offset (void);
 static void arm_sched_fusion_priority (rtx_insn *, int, int *, int*);
 static section *arm_function_section (tree, enum node_frequency, bool, bool);
 static bool arm_asm_elf_flags_numeric (unsigned int flags, unsigned int *num);
+#ifndef TARGET_MCHP_PIC32C
 static unsigned int arm_elf_section_type_flags (tree decl, const char *name,
 						int reloc);
-
+#else
+unsigned pic32c_init_save_reg_mask (void);
+#define SUBTARGET_INIT_SAVE_REG_MASK pic32c_init_save_reg_mask()
+#endif
 
 /* Table of machine attributes.  */
 static const struct attribute_spec arm_attribute_table[] =
@@ -3322,6 +3334,14 @@ arm_option_override (void)
      software floating-point.  */
   if (TARGET_SOFT_FLOAT && !ARM_FSET_HAS_CPU1 (tune_flags, FL_MODE32))
     flag_schedule_insns = flag_schedule_insns_after_reload = 0;
+
+#if defined (TARGET_MCHP_PIC32C)
+  /* Disable scheduling after reload when doing code coverage with -fPIC
+   * (otherwise, the loading of the PIC register and consequently
+   * the codecov instrumentation code might end up in a wrong place) */
+  if (mchp_codecov && flag_pic)
+    flag_schedule_insns_after_reload = 0;
+#endif
 
   /* Use the cp15 method if it is available.  */
   if (target_thread_pointer == TP_AUTO)
@@ -6545,6 +6565,11 @@ arm_handle_isr_attribute (tree *node, tree name, tree args, int flags,
 	}
       /* FIXME: the argument if any is checked for type attributes;
 	 should it be checked for decl ones?  */
+      if (arm_isr_value (args) == ARM_FT_UNKNOWN)
+        {
+          warning (OPT_Wattributes, "%qE attribute ignored",
+                   name);
+        }
     }
   else
     {
@@ -6865,6 +6890,13 @@ arm_comp_type_attributes (const_tree type1, const_tree type2)
 static void
 arm_set_default_type_attributes (tree type)
 {
+#ifdef TARGET_MCHP_PIC32C
+  /* Note: Add the subtarget hook first b/c the ARM code below returns
+   * if arm_pragma_long_calls == OFF (default) */
+#ifdef SUBTARGET_SET_DEFAULT_TYPE_ATTRIBUTES
+  SUBTARGET_SET_DEFAULT_TYPE_ATTRIBUTES (type);
+#endif
+#endif
   /* Add __attribute__ ((long_call)) to all functions, when
      inside #pragma long_calls or __attribute__ ((short_call)),
      when inside #pragma no_long_calls.  */
@@ -6884,7 +6916,7 @@ arm_set_default_type_attributes (tree type)
       TYPE_ATTRIBUTES (type) = type_attr_list;
     }
 }
-
+
 /* Return true if DECL is known to be linked into section SECTION.  */
 
 static bool
@@ -7045,7 +7077,7 @@ legitimate_pic_operand_p (rtx x)
 /* Record that the current function needs a PIC register.  Initialize
    cfun->machine->pic_reg if we have not already done so.  */
 
-static void
+PIC32C_STATIC void
 require_pic_register (void)
 {
   /* A lot of the logic here is made obscure by the fact that this
@@ -9279,7 +9311,7 @@ arm_rtx_costs_1 (rtx x, enum rtx_code outer, int* total, bool speed)
 static inline int
 thumb1_size_rtx_costs (rtx x, enum rtx_code code, enum rtx_code outer)
 {
-  machine_mode mode = GET_MODE (x);
+  machine_mode mode = GET_MODE (x), const_mode;
   int words, cost;
 
   switch (code)
@@ -9323,6 +9355,32 @@ thumb1_size_rtx_costs (rtx x, enum rtx_code code, enum rtx_code outer)
       return COSTS_N_INSNS (1);
 
     case SET:
+      /* XC32E-341 - this estimate is too optimistic, in particular for
+         simple SETs of CONST_INTs, so we follow the approach of arm_new_rtx_cost
+         and check for that case outright. */
+      if (CONST_INT_P (SET_SRC (x)))
+	{
+	  /* Handle CONST_INT here, since the value doesn't have a mode
+	     and we would otherwise be unable to work out the true cost.  */
+	  cost = rtx_cost (SET_DEST (x), GET_MODE (SET_DEST (x)), SET,
+	     	           0, 0);
+          const_mode = GET_MODE (SET_DEST (x));
+
+	  /* Slightly lower the cost of setting a core reg to a constant.
+	     This helps break up chains and allows for better scheduling.  */
+	  if (REG_P (SET_DEST (x))
+	      && REGNO (SET_DEST (x)) <= LR_REGNUM)
+	    cost -= 1;
+	  x = SET_SRC (x);
+	  /* Immediate moves with an immediate in the range [0, 255] can be
+	     encoded in 16 bits in Thumb mode.  */
+	  if (TARGET_THUMB && GET_MODE (x) == SImode
+	      && INTVAL (x) >= 0 && INTVAL (x) <=255)
+	    cost >>= 1;
+
+          goto const_int_cost_thumb1;
+	}
+
       /* A SET doesn't have a mode, so let's look at the SET_DEST to get
 	 the mode.  */
       words = ARM_NUM_INTS (GET_MODE_SIZE (GET_MODE (SET_DEST (x))));
@@ -9341,19 +9399,24 @@ thumb1_size_rtx_costs (rtx x, enum rtx_code code, enum rtx_code outer)
     case CONST_INT:
       if (outer == SET)
         {
-          if ((unsigned HOST_WIDE_INT) INTVAL (x) < 256)
-            return COSTS_N_INSNS (1);
+          cost = 0;
+
+          /* we arrive here if mode has been determined in the SET case. */
+	const_int_cost_thumb1:
+
+	  if ((unsigned HOST_WIDE_INT) INTVAL (x) < 256)
+	    return cost + COSTS_N_INSNS (1);
 	  /* movw is 4byte long.  */
 	  if (TARGET_HAVE_MOVT && !(INTVAL (x) & 0xffff0000))
-	    return COSTS_N_INSNS (2);
+	    return cost + COSTS_N_INSNS (2);
 	  /* See split "TARGET_THUMB1 && satisfies_constraint_J".  */
 	  if (INTVAL (x) >= -255 && INTVAL (x) <= -1)
-            return COSTS_N_INSNS (2);
+	    return cost + COSTS_N_INSNS (2);
 	  /* See split "TARGET_THUMB1 && satisfies_constraint_K".  */
-          if (thumb_shiftable_const (INTVAL (x)))
-            return COSTS_N_INSNS (2);
-          return COSTS_N_INSNS (3);
-        }
+	  if (thumb_shiftable_const (INTVAL (x)))
+	    return cost + COSTS_N_INSNS (2);
+	  return cost + COSTS_N_INSNS (3);
+	}
       else if ((outer == PLUS || outer == COMPARE)
                && INTVAL (x) < 256 && INTVAL (x) > -256)
         return 0;
@@ -9444,6 +9507,7 @@ arm_size_rtx_costs (rtx x, enum rtx_code code, enum rtx_code outer_code,
     }
 
   /* FIXME: This makes no attempt to prefer narrow Thumb-2 instructions.  */
+  /* MCHP - fix this */
   switch (code)
     {
     case MEM:
@@ -14989,6 +15053,18 @@ arm_block_move_unaligned_loop (rtx dest, rtx src, HOST_WIDE_INT length,
     arm_block_move_unaligned_straight (dest, src, leftover, interleave_factor);
 }
 
+#if defined (TARGET_MCHP_PIC32C)
+
+/* XC32E-642: various thresholds used by the "movmemqi" pattern expansion
+ * functions (Thumb1/2) and by the arm_init_const_by_pieces_p () estimator */
+
+#define OPTSIZE_MOVMEM_MAX_SIZE_THUMB1    12
+#define OPTSIZE_MOVMEM_MAX_SIZE_THUMB2    24
+#define OPTSIZE_MOVMEM_LOOP_LIMIT_ALIGN   OPTSIZE_MOVMEM_MAX_SIZE_THUMB2
+#define OPTSIZE_MOVMEM_LOOP_LIMIT_UNALIGN 16
+
+#endif
+
 /* Emit a block move when either the source or destination is unaligned (not
    aligned to a four-byte boundary).  This may need further tuning depending on
    core type, optimize_size setting, etc.  */
@@ -14997,7 +15073,7 @@ static int
 arm_movmemqi_unaligned (rtx *operands)
 {
   HOST_WIDE_INT length = INTVAL (operands[2]);
-  
+
   if (optimize_size)
     {
       bool src_aligned = MEM_ALIGN (operands[1]) >= BITS_PER_WORD;
@@ -15008,8 +15084,16 @@ arm_movmemqi_unaligned (rtx *operands)
 	 resulting code can be smaller.  */
       unsigned int interleave_factor = (src_aligned || dst_aligned) ? 2 : 1;
       HOST_WIDE_INT bytes_per_iter = (src_aligned || dst_aligned) ? 8 : 4;
-      
+#if defined (TARGET_MCHP_PIC32C)
+      /* XC32E-680: determined threshold to minimize code size,
+       *            for aligned and unaligned cases */
+      HOST_WIDE_INT loop_threshold = (src_aligned || dst_aligned)
+        ? OPTSIZE_MOVMEM_LOOP_LIMIT_ALIGN : OPTSIZE_MOVMEM_LOOP_LIMIT_UNALIGN;
+
+      if (length > loop_threshold)
+#else
       if (length > 12)
+#endif
 	arm_block_move_unaligned_loop (operands[0], operands[1], length,
 				       interleave_factor, bytes_per_iter);
       else
@@ -15042,7 +15126,13 @@ arm_gen_movmemqi (rtx *operands)
 
   if (!CONST_INT_P (operands[2])
       || !CONST_INT_P (operands[3])
+#if defined(TARGET_MCHP_PIC32C)
+      /* XC32E-642: use a smaller threshold when optimizing for size */
+      || INTVAL (operands[2]) > ((optimize_size && !TARGET_ARM)
+                                   ? OPTSIZE_MOVMEM_MAX_SIZE_THUMB2 : 64))
+#else
       || INTVAL (operands[2]) > 64)
+#endif
     return 0;
 
   if (unaligned_access && (INTVAL (operands[3]) & 3) != 0)
@@ -15067,12 +15157,21 @@ arm_gen_movmemqi (rtx *operands)
 
   for (i = 0; in_words_to_go >= 2; i+=4)
     {
+#if defined (TARGET_MCHP_PIC32C)
+      /* XC32E-681: If optimizing for size, use the 16-bit write-back forms
+       * of the LDM/STM insns (except for the first/possibly single 'chunk') */
+      const int force_write_back = optimize_size && i;
+#endif
       if (in_words_to_go > 4)
 	emit_insn (arm_gen_load_multiple (arm_regs_in_sequence, 4, src,
 					  TRUE, srcbase, &srcoffset));
       else
 	emit_insn (arm_gen_load_multiple (arm_regs_in_sequence, in_words_to_go,
+#if defined (TARGET_MCHP_PIC32C)
+					  src, force_write_back, srcbase,
+#else
 					  src, FALSE, srcbase,
+#endif
 					  &srcoffset));
 
       if (out_words_to_go)
@@ -15083,8 +15182,12 @@ arm_gen_movmemqi (rtx *operands)
 	  else if (out_words_to_go != 1)
 	    emit_insn (arm_gen_store_multiple (arm_regs_in_sequence,
 					       out_words_to_go, dst,
+#if defined (TARGET_MCHP_PIC32C)
+					       last_bytes || force_write_back,
+#else
 					       (last_bytes == 0
 						? FALSE : TRUE),
+#endif
 					       dstbase, &dstoffset));
 	  else
 	    {
@@ -15179,6 +15282,219 @@ arm_gen_movmemqi (rtx *operands)
 
   return 1;
 }
+
+#if defined(TARGET_MCHP_PIC32C)
+
+/* returns true if the input value can be encoded as a
+ * Thumb-2 modified immediate value */
+static bool
+thumb2_modified_imm_p (unsigned x)
+{
+  /* 0000x 00000000 00000000 00000000 abcdefgh */
+  if (x < 256)
+    return true;
+
+  /* 0001x 00000000 abcdefgh 00000000 abcdefgh */
+  const unsigned b0 = x & 0xff;
+  if (x == (b0 + (b0 << 16)))
+    return true;
+
+  /* 0010x abcdefgh 00000000 abcdefgh 00000000 */
+  const unsigned b3 = x >> 24;
+  if (x == ((b3 << 24) + (b3 << 8)))
+    return true;
+
+  /* 0011x abcdefgh abcdefgh abcdefgh abcdefgh */
+  if (x == 0x01010101 * b0)
+    return true;
+
+  /* 11111 00000000 00000000 00000001 bcdefgh0 */
+  /* 11110 00000000 00000000 0000001b cdefgh00 */
+  /* ...                                       */
+  /* 01000 1bcdefgh 00000000 00000000 00000000 */
+  for (unsigned cnt = 1; cnt <= 24; ++cnt)
+    if (!(x & ~(0xFF << cnt)))
+      return true;
+
+  /* not a valid encoding */
+  return false;
+}
+
+/* the cost (in bytes) of loading the input value into a register (Thumb1/2) */
+static unsigned
+thumb_load_val_to_reg_cost (unsigned val)
+{
+  /* encoding T1 */
+  if (val < 256)
+    return 2;
+
+  if (TARGET_THUMB1)
+    {
+      /* on Thumb-1, movs+lsls pairs are used to synthesize some values */
+      if ((val >> __builtin_ctz (val)) < 256)
+        return 4;
+    }
+  else
+    {
+      /* encoding T3 or T2 on Thumb-2 */
+      if ((val < 65536) || thumb2_modified_imm_p (val))
+        return 4;
+    }
+
+  /* ldr from rodata */
+  return 6;
+}
+
+/* returns true if initialization 'by pieces' is preferable
+ * to a 'movememqi' expansion / memcpy () call */
+bool
+arm_init_const_by_pieces_p (
+  HOST_WIDE_INT size,        /* obj/data size in bytes  */
+  unsigned int  align,       /* obj alignment in bits   */
+  bool          static_p,    /* true for static/globals */
+  HOST_WIDE_INT **val_cnt,   /* (val,cnt) pairs for     */
+                             /* 1,2,4 and 8-bytes data  */
+  HOST_WIDE_INT *n_val_cnt)  /* num entries in corresp. */
+                             /* val_cnt[] entry         */
+{
+  /* estimated cost of 'by pieces' initialization */
+  unsigned init_by_pieces_cost = static_p ? 6 : 2; /* ldr/adds + opt. rodata */
+
+  /* the short integers (8- and 16-bit) stores (STRB and STRH) have
+   * 32-bit forms when used with the SP register */
+  const unsigned store_short_int_cost =
+    TARGET_THUMB1 || static_p || !flag_omit_frame_pointer ? 2 : 4;
+
+  /* 8-/16-bit values (chars and shorts) */
+  for (unsigned i = 0; i != 2; ++i)
+    for (HOST_WIDE_INT *v = val_cnt[i], *end_v = v + n_val_cnt[i] * 2;
+         v != end_v; v += 2)
+      {
+        init_by_pieces_cost += thumb_load_val_to_reg_cost (v[0]);
+        init_by_pieces_cost += v[1] * store_short_int_cost;
+      }
+
+  /* 32-bit values (ints and floats) */
+  for (HOST_WIDE_INT *v = val_cnt[2], *end_v = v + n_val_cnt[2] * 2;
+       v != end_v; v += 2)
+    {
+      init_by_pieces_cost += thumb_load_val_to_reg_cost (v[0]);
+      init_by_pieces_cost += v[1] * 2; /* STR is usually 2 bytes even w/ SP */
+    }
+
+  /* 64-bit values (long longs and doubles) */
+  for (HOST_WIDE_INT *v = val_cnt[3], *end_v = v + n_val_cnt[3] * 2;
+       v != end_v; v += 2)
+    {
+      /* basically handle each 64-bit as a 32-bit pair *without* considering
+       * duplicates (this seems like a current compiler limitation/issue) */
+      const unsigned v0 = (unsigned)v[0];
+      const unsigned v1 = (unsigned)((unsigned HOST_WIDE_INT)v[0] >> 32);
+
+      init_by_pieces_cost += thumb_load_val_to_reg_cost (v0);
+      init_by_pieces_cost += thumb_load_val_to_reg_cost (v1);
+      init_by_pieces_cost += v[1] * 4; /* STRD on Thumb-2, 2xSTR on Thumb-1 */
+    }
+
+  /* estimated cost of movmemqi/memcpy() */
+  unsigned movmemqi_cost = 0;
+
+  /* the move costs are different for Thumb1/2; see define_expand "movmemqi" */
+  /* NOTE: these estimates are somewhat optimistic, so that we'll prefer */
+  /*       the alternate "initialization by pieces" only when there's a */
+  /*       good chance for it to yield a smaller code size */
+  if (TARGET_THUMB1)
+    {
+      /* at the moment, Thumb-1 only considers expanding 'movmemqi'
+       * for aligned operations */
+      if (align >= 32 && size <= OPTSIZE_MOVMEM_MAX_SIZE_THUMB1)
+        {
+          /* thumb_expand_movmemqi () */
+          movmemqi_cost = 8;  /* 2xldr + ldm/stm pair with 2/3 regs */
+        }
+    }
+  else
+    {
+      if (size <= OPTSIZE_MOVMEM_MAX_SIZE_THUMB2)
+        {
+          if (align >= 32)
+            {
+              /* arm_gen_movmemqi () - aligned  */
+              movmemqi_cost = 4          /* 2xldr for addresses */
+                + 4 * ((size + 15) / 16) /* ldm/stm pair to move up to 16 bytes */
+                + 4 * ((size & 2) != 0)  /* strh.w */
+                + 4 * ((size & 1) != 0); /* strb.w */
+            }
+          else
+            {
+              /* arm_movmemqi_unaligned () */
+              if (static_p)
+                {
+                  /* both src and dst unaligned here */
+                  movmemqi_cost = 4          /* 2xldr for addresses */
+                    + (size > OPTSIZE_MOVMEM_LOOP_LIMIT_UNALIGN
+                         ? 16                /* inline loop has const size */
+                         : 4 * (size / 4))   /* ldr/str pair to move 4 bytes */
+                    + 4 * ((size & 2) != 0)  /* ldrh/strh */
+                    + 4 * ((size & 1) != 0); /* ldrb/strb */
+                }
+              else
+                {
+                  /* partially aligned (src is unaligned, dst is aligned) */
+                  /* the assumption, based on the current limits, is that in */
+                  /* this case we won't generate/need to estimate for a loop */
+                  gcc_assert (size <= OPTSIZE_MOVMEM_LOOP_LIMIT_ALIGN);
+
+                  movmemqi_cost = 4          /* 2xldr for addresses */
+                    + 6 * (size / 8)         /* 2xldr+stmia to move 8 bytes */
+                    + 4 * ((size & 4) != 0)  /* ldr/str */
+                    + 4 * ((size & 2) != 0)  /* ldrh/strh */
+                    + 4 * ((size & 1) != 0); /* ldrb/strb */
+                }
+            }
+        }
+    }
+
+  /* if the cost is zero at this point, then a memcpy() libcall is used so
+   * use its estimated cost to compare with the 'init by pieces' one */
+  const bool memcpy_used = !movmemqi_cost;
+  if (memcpy_used)
+    {
+      /* optimally, 6 bytes to set up the params + 4 bytes for the BL insn */
+      const unsigned CALL_COST = 10;
+
+      /* the Thumb-1 version of memcpy () is slightly smaller */
+      const unsigned MEMCPY_COST = TARGET_THUMB1 ? 18 : 22;
+
+      /* the cost of memcpy () would be split over all its uses in the program
+       * but we can't determine that at this point, so adjust heuristically */
+      const unsigned MEMCPY_USES = 4;
+
+      movmemqi_cost = CALL_COST + MEMCPY_COST / MEMCPY_USES;
+    }
+
+  /* always include the size of the constant / read-only data
+   * (regardless of the movmemqi/memcpy() choice) */
+  movmemqi_cost += size;
+
+  /* if -fverbose-asm is specified, dump params and costs to the asm output */
+  if (flag_verbose_asm)
+    {
+      fprintf (asm_out_file,
+               "%s XC32E-462 %s size: %2u, align: %u, static: %d, "
+               "by_pieces_cost: %u, %s %u\n", ASM_COMMENT_START,
+               current_function_name (), (unsigned)size, align >> 3,
+               static_p, init_by_pieces_cost,
+               memcpy_used ? "movmemqi_cost:" : "memcpy_cost:  ",
+               movmemqi_cost);
+    }
+
+  /* finally, provided we estimated the costs accurately, the decision
+   * for preferring the initialization 'by pieces' is simple */
+  return init_by_pieces_cost < movmemqi_cost;
+}
+
+#endif /* TARGET_MCHP_PIC32C */
 
 /* Helper for gen_movmem_ldrd_strd. Increase the address of memory rtx
 by mode size.  */
@@ -19934,7 +20250,7 @@ static unsigned long
 arm_compute_save_reg0_reg12_mask (void)
 {
   unsigned long func_type = arm_current_func_type ();
-  unsigned long save_reg_mask = 0;
+  unsigned long save_reg_mask = SUBTARGET_INIT_SAVE_REG_MASK; /* MCHP PIC32C */
   unsigned int reg;
 
   if (IS_INTERRUPT (func_type))
@@ -20150,7 +20466,7 @@ thumb1_compute_save_reg_mask (void)
   unsigned long mask;
   unsigned reg;
 
-  mask = 0;
+  mask = SUBTARGET_INIT_SAVE_REG_MASK; /* MCHP PIC32C */
   for (reg = 0; reg < 12; reg ++)
     if (df_regs_ever_live_p (reg) && callee_saved_reg_p (reg))
       mask |= 1 << reg;
@@ -20995,7 +21311,7 @@ arm_emit_strd_push (unsigned long saved_regs_mask)
    of DWARF2 frame unwind information.  DWARF_REGS_MASK is a subset of
    MASK for registers that should be annotated for DWARF2 frame unwind
    information.  */
-static rtx
+PIC32C_STATIC rtx
 emit_multi_reg_push (unsigned long mask, unsigned long dwarf_regs_mask)
 {
   int num_regs = 0;
@@ -21150,7 +21466,7 @@ arm_add_cfa_adjust_cfa_note (rtx insn, int size, rtx dest, rtx src)
    Unfortunately, since this insn does not reflect very well the actual
    semantics of the operation, we need to annotate the insn for the benefit
    of DWARF2 frame unwind information.  */
-static void
+PIC32C_STATIC void
 arm_emit_multi_reg_pop (unsigned long saved_regs_mask)
 {
   int num_regs = 0;
@@ -26820,6 +27136,17 @@ thumb_call_via_reg (rtx reg)
   return "";
 }
 
+#if defined(TARGET_MCHP_PIC32C)
+bool
+thumb_expand_movmemqi_p (rtx *operands)
+{
+  /* XC32E-642: use a smaller threshold when optimizing for size */
+  return INTVAL (operands[3]) >= 4  /* 4th op is the alignment in bytes */
+           && INTVAL (operands[2])  /* 3rd op is the size in bytes */
+                <= (optimize_size ? OPTSIZE_MOVMEM_MAX_SIZE_THUMB1 : 48);
+}
+#endif
+
 /* Routines for generating rtl.  */
 void
 thumb_expand_movmemqi (rtx *operands)
@@ -28771,7 +29098,7 @@ arm_conditional_register_usage (void)
       if (TARGET_CALLER_INTERWORKING)
 	global_regs[ARM_HARD_FRAME_POINTER_REGNUM] = 1;
     }
-  SUBTARGET_CONDITIONAL_REGISTER_USAGE
+  SUBTARGET_CONDITIONAL_REGISTER_USAGE;
 }
 
 static reg_class_t
@@ -31208,7 +31535,7 @@ arm_insert_attributes (tree fndecl, tree * attributes)
   /* Nested definitions must inherit mode.  */
   if (current_function_decl)
    {
-     mode = TARGET_THUMB ? "thumb" : "arm";      
+     mode = TARGET_THUMB ? "thumb" : "arm";
      add_attribute (mode, attributes);
      return;
    }
@@ -31515,7 +31842,7 @@ arm_function_section (tree decl, enum node_frequency freq,
    then add the SFH_ARM_PURECODE attribute to the section flags.  NAME is the
    section's name and RELOC indicates whether the declarations initializer may
    contain runtime relocations.  */
-
+#ifndef TARGET_MCHP_PIC32C
 static unsigned int
 arm_elf_section_type_flags (tree decl, const char *name, int reloc)
 {
@@ -31526,6 +31853,7 @@ arm_elf_section_type_flags (tree decl, const char *name, int reloc)
 
   return flags;
 }
+#endif /* TARGET_MCHP_PIC32C */
 
 /*  This function checks for the availability of the coprocessor builtin passed
     in BUILTIN for the current target.  Returns true if it is available and

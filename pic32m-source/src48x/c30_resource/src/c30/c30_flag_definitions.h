@@ -43,70 +43,75 @@
 */
 
 /* IS_DEVICE_ID flags */
-#define HAS_DSP            1 << 8
-#define HAS_EEDATA         1 << 9
-#define HAS_DMA            1 << 10
-#define HAS_CODEGUARD      1 << 11
-#define HAS_PMP            1 << 12
-#define HAS_EDS            1 << 13
-#define HAS_PMPV2          1 << 14
-#define HAS_ECORE          1 << 15
-#define HAS_DMAV2          1 << 16
-#define HAS_AUXFLASH       1 << 17
-#define HAS_5VOLTS         1 << 18
-#define HAS_GIE            1 << 19
-#define HAS_DUALPARTITION  1 << 20
-#define HAS_DATAFLASH      1 << 21
-#define HAS_ALTREGS        1 << 22
-#define HAS_DUALCORE       1 << 23
-#define HAS_ISAV4          1 << 24 /* may be the same as HAS_DUALCORE? */
-#define HAS_EXTENDED_DEVID 1 << 27 /* when we get here, use a 2nd word */
+#define HAS_DSP              (1 << 8)
+#define HAS_EEDATA           (1 << 9)
+#define HAS_DMA              (1 << 10)
+#define HAS_CODEGUARD        (1 << 11)
+#define HAS_PMP              (1 << 12)
+#define HAS_EDS              (1 << 13)
+#define HAS_PMPV2            (1 << 14)
+#define HAS_ECORE            (1 << 15)
+#define HAS_DMAV2            (1 << 16)
+#define HAS_AUXFLASH         (1 << 17)
+#define HAS_5VOLTS           (1 << 18)
+#define HAS_GIE              (1 << 19)
+#define HAS_DUALPARTITION    (1 << 20)
+#define HAS_DATAFLASH        (1 << 21)
+#define HAS_ALTREGS          (1 << 22)
+#define HAS_DUALCORE         (1 << 23)
+#define HAS_ISAV4            (1 << 24) /* may be the same as HAS_DUALCORE? */
+#define HAS_ISA32V0          (1 << 25)
+#define HAS_ALTACCUM         (1 << 26)
+#define ALL_DEVICE_ID_FLAGS  ((1 << 27)-1)
+#define HAS_EXTENDED_DEVID   (1 << 27) /* when we get here, use a 2nd word */
 
 /* EXTENDED_DEVICE_ID flags - bits [0 - 31] */
 
 /* IS_CODEGUARD_ID flags */
-#define FLASH         1 << 8
-#define RAM           1 << 9
-#define EEPROM        1 << 10
-#define NONE          1 << 11
-#define SMALL         1 << 12
-#define MEDIUM        1 << 13
-#define LARGE         1 << 14
-#define BOOT          1 << 15
-#define SECURE        1 << 16
-#define GENERAL       1 << 17
-#define CODE_PROTECT  1 << 18
-#define WRITE_PROTECT 1 << 19
-#define STANDARD      1 << 20
-#define HIGH          1 << 21
-#define ON            1 << 22
-#define OFF           1 << 23
+#define FLASH                (1 << 8)
+#define RAM                  (1 << 9)
+#define EEPROM               (1 << 10)
+#define NONE                 (1 << 11)
+#define SMALL                (1 << 12)
+#define MEDIUM               (1 << 13)
+#define LARGE                (1 << 14)
+#define BOOT                 (1 << 15)
+#define SECURE               (1 << 16)
+#define GENERAL              (1 << 17)
+#define CODE_PROTECT         (1 << 18)
+#define WRITE_PROTECT        (1 << 19)
+#define STANDARD             (1 << 20)
+#define HIGH                 (1 << 21)
+#define ON                   (1 << 22)
+#define OFF                  (1 << 23)
 
-#define ENHANCED      1 << 24
-#define CONFIG        1 << 25
-#define PARTITIONED   1 << 26
+#define ENHANCED             (1 << 24)
+#define CONFIG               (1 << 25)
+#define PARTITIONED          (1 << 26)
+#define ALL_CODEGUARD_ID_FLAGS ((1<<27)-1)
 
 /* IS_VECTOR_ID flags */
-#define VECTOR_ALT_VECTOR 1 << 8
-#define VECTOR_IDX_SHIFT  9
-#define VECTOR_IDX_WIDTH  9
-#define VECTOR_INDEX(X) (((X) & ((1 << (VECTOR_IDX_WIDTH+1))-1)) << VECTOR_IDX_SHIFT) 
+#define VECTOR_ALT_VECTOR    (1 << 8)
+#define VECTOR_IDX_SHIFT     (9)
+#define VECTOR_IDX_WIDTH     (9)
+#define VECTOR_INDEX(X)      (((X) & ((1 << (VECTOR_IDX_WIDTH+1))-1)) << VECTOR_IDX_SHIFT) 
 
 /* IS_MEM_ID flags */
-#define MEM_FLASH           1 << 8
-#define MEM_RAM             1 << 9
-#define MEM_EEPROM          1 << 10
-#define MEM_DATAFLASH       1 << 11
-#define MEM_PARTITIONED     1 << 12 /* if set - 
+#define MEM_FLASH            (1 << 8)
+#define MEM_RAM              (1 << 9)
+#define MEM_EEPROM           (1 << 10)
+#define MEM_DATAFLASH        (1 << 11)
+#define MEM_PARTITIONED      (1 << 12)/* if set - 
                                          entry belongs to partitioned memory */
-#define MEM_IS_AIVT_ENABLED 1 << 13 /* identifies fuse location + bit to check
+#define MEM_IS_AIVT_ENABLED  (1 << 13)/* identifies fuse location + bit to check
                                          validity of floating AIVT */
-#define MEM_AIVT_LOCATION   1 << 14 /* identifies fuse location for AIVT */
-#define MEM_SFR             1 << 15 /* length of the SFR */
-#define MEM_CONFIG_WORD     1 << 16 /* name and address of fuse */
-#define MEM_FIXED_IVT       1 << 17 /* loc of fixed IVT table (start,end) */
-#define MEM_FIXED_AIVT      1 << 18 /* loc of fixed IVT table (start,end) */
-#define MEM_PAGESIZE        1 << 19 /* (erasepagesize, pagesize) */
+#define MEM_AIVT_LOCATION    (1 << 14)/* identifies fuse location for AIVT */
+#define MEM_SFR              (1 << 15)/* length of the SFR */
+#define MEM_CONFIG_WORD      (1 << 16)/* name and address of fuse */
+#define MEM_FIXED_IVT        (1 << 17)/* loc of fixed IVT table (start,end) */
+#define MEM_FIXED_AIVT       (1 << 18)/* loc of fixed IVT table (start,end) */
+#define MEM_PAGESIZE         (1 << 19)/* (erasepagesize, pagesize) */
+#define ALL_MEM_ID_FLAGS     ((1<<20)-1)
 
 /*
 ** Values that identify record types - bits [28-31]

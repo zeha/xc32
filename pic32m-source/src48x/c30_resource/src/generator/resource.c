@@ -60,37 +60,77 @@ char *resource_pack_string(char *s) {
   return s;
 }
 
+#if !defined(_GNU_SOURCE) && !defined(IN_GCC)
+static char *xstrdup(const char *s) {
+  char *result = 0;
+  int len;
+  
+  len = strlen(s)+1;
+  result = (char *)malloc(len);
+  if (result) {
+    *result = 0;
+    strncpy(result,s,len);
+  }
+  return result;
+}
+#endif
+
 struct resource_introduction_block *read_device_rib(const char *name, 
                                                     char * device) {
   unsigned int buffer_size = 80;
   unsigned char *buffer;
   unsigned int i;
   int status = -1;
+  char *base_dir = 0,*base_dir2 = 0;
+  int device_len = 80;
   
   char *match;
   char *device_buf = 0;
+  if (device) device_len = strlen(device);
+#if defined(TARGET_IS_PIC32MX) || defined(__BUILD_C32__)
+#else   /* make a base_dir, removing the .info file */
+  base_dir = xstrdup(name);
+  base_dir2 = xstrdup(name);
+  match = strstr(base_dir,"c30_device.info");
+  if (match) {
+    *match = 0;
+  } else {
+    free(base_dir);
+    base_dir = 0;
+  }
+  /* make a base_dir2, removing the bin/.info file */
+  match = strstr(base_dir2,"bin/c30_device.info");
+  if (match) {
+    *match = 0;
+  } else {
+    free(base_dir2);
+    base_dir2 = 0;
+  }
+#endif
+
+  device_buf = (char *)xcalloc(strlen(name)+strlen("device_files/")+
+                               device_len+strlen(".info")+1,1);
   if (device != NULL) { 
-    device_buf = (char *)xcalloc(strlen(name)+strlen("device_files/")+
-                                 strlen(device)+strlen(".info")+1,1);
-    match = (char *)xcalloc(80,1);
-    strcpy(device_buf, name);
 #if defined(TARGET_IS_PIC32MX) || defined(_BUILD_C32_)
+    strcpy(device_buf, name);
     match = strstr(device_buf,"xc32_device.info");
 #else
-    match = strstr(device_buf,"c30_device.info");
+    match = (char *) xcalloc(strlen("device_files/")+
+                                 strlen(device)+strlen(".info")+1,1);
 #endif
 
     strcpy(match, "device_files/");
     { 
-      char * temp, * place;
-      place = (char *)xcalloc(80,1);
-      temp = place;
-      for (*temp = TOUPPER(*device++);*temp++;) 
+      char *place,*temp;
+      place = xstrdup(device);
+      for (temp = place; *temp; temp++)
         *temp = TOUPPER(*device++);
       strcat(match, place);
       free(place);
     }
     strcat(match, ".info");
+
+#if defined(TARGET_IS_PIC32MX) || defined(_BUILD_C32_)
     status = stat(device_buf, &fileinfo);
   
     if (status == -1) {
@@ -114,14 +154,11 @@ struct resource_introduction_block *read_device_rib(const char *name,
       temp = (char *)xcalloc(strlen(ultimate)+1,1);
       strcpy(temp, ultimate);
       strcpy(penultimate,ultimate);
-#if 0
-      status = stat(name,&fileinfo);
-#endif
+      status = stat(device_buf,&fileinfo);
     } else {
       name = device_buf;
     }
   }
-  status = stat(name,&fileinfo);
   if ((status == -1) && 
       ((device_buf == 0) || (stat(device_buf,&fileinfo) == -1))) {
     /* device_buf cannot be statted */
@@ -143,6 +180,31 @@ struct resource_introduction_block *read_device_rib(const char *name,
     strcpy(penultimate,temp);
     stat(name,&fileinfo);
   } 
+#else
+    /* check for device specific file */
+    if (base_dir) {
+      sprintf(device_buf,"%s/%s",base_dir,match);
+      status = stat(device_buf,&fileinfo);
+    }
+    if (status == -1) {
+      if (base_dir2) {
+        sprintf(device_buf,"%s/%s",base_dir2,match);
+        status = stat(device_buf,&fileinfo);
+      }
+    }
+  }
+  if (status == -1) {
+    /* check for platform specific file */
+    sprintf(device_buf,"%s/c30_device.info", base_dir);
+    status = stat(device_buf,&fileinfo);
+    if (status == -1) {
+      sprintf(device_buf,"%s/c30_device.info",base_dir2);
+      status = stat(device_buf,&fileinfo);
+    }
+  }
+  if (status == 0) name = device_buf;
+#endif
+
 
   /* under WINDOZE, the "b" is required because text files are subject to
      translation and ftell and fseek might not agree */

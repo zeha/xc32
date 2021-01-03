@@ -36,6 +36,10 @@ mprint-builtins
 Target RejectNegative Var(TARGET_PRINT_BUILTINS)
 -mprint-builtins	Print a list of enabled builtin functions
 
+mprint-protos
+Target RejectNegative Var(TARGET_WRITE_BUILTINS_H) Undocumented
+-mprint-protos  write a builtins.h file containing prototypes for all builtins
+
 
 mlicense-warning
 Target Var Var(TARGET_LICENSE_WARNING) Undocumented Init(1)
@@ -75,13 +79,25 @@ mtcm=
 Target Report RejectNegative Joined Var(TARGET_MCHP_TCM) Undocumented
 -mtcm=VALUE	Enable tcm and set tcm size to VALUE for CMCC-style TCM
 
+mtcm
+Target RejectNegative Undocumented
+-mtcm           Enable tcm and set tcm size to device default.
+
 mitcm=
 Target Report RejectNegative Joined Var(TARGET_MCHP_ITCM)
 -mitcm=VALUE	Enable itcm and set itcm size to VALUE for devices with separate itcm & dtcm sizes
 
+mitcm
+Target RejectNegative Undocumented
+-mitcm          Enable itcm and set itcm size to device default.
+
 mdtcm=
 Target Report RejectNegative Joined Var(TARGET_MCHP_DTCM)
 -mdtcm=VALUE	Enable dtcm and set dtcm size to VALUE for devices with separate itcm & dtcm sizes
+
+mdtcm
+Target RejectNegative Undocumented
+-mdtcm          Enable dtcm and set dtcm size to device default.
 
 mstack-in-tcm
 Target Report Var(mchp_stack_in_tcm)
@@ -107,6 +123,10 @@ mno-device-startup-code
 Target RejectNegative
 -mno-device-startup-code	Do not link the default device-specific startup code
 
+mnewlib-nano
+Target Report Init(1)
+-mnewlib-nano   Use newlib-nano implementation of standard C library
+
 msemihost
 Target RejectNegative VAR(TARGET_SEMIHOSTING) Init(0) Undocumented
 -msemihost      Use rdimon semihosting
@@ -125,5 +145,39 @@ Target Report RejectNegative Joined Var(mchp_pic32c_dfp_path) Init(0)
 minclude-legacy-headers
 Target RejectNegative
 -minclude-legacy-headers	Include legacy device headers, not MCC ones which are default for XC32.
+
+mallow-partial-config-words
+Target Var(mchp_allow_partial_config_words) Init(0)
+Allow (or disallow) config words to be partially specified using #pragma config directives.
+
+mcodecov=
+Target Report JoinedOrMissing RejectNegative ToLower Var(mchp_codecov) Init()
+-mcodecov=[sb]     Enable code coverage instrumentation
+
+mcodecov
+Target RejectNegative Alias(mcodecov=,)
+
+mcodecov-sb
+Target RejectNegative Alias(mcodecov=,sb) Undocumented
+
+mcci
+Target RejectNegative Var(TARGET_CCI)
+-mcci   Use CCI keywords
+
+mpa
+Target Mask(PROCEDURAL_ABSTRACTION) Undocumented
+Enable procedural abstraction optimization.
+
+mno-pa-on-file=
+Target RejectNegative Joined MissingArgError(missing object or archive filename to be ignored for PA) Undocumented
+Ignore procedural abstraction optimization on specified object or archive file
+
+mno-pa-on-function=
+Target RejectNegative Joined MissingArgError(missing function name to be ignored for PA) Undocumented
+Ignore procedural abstraction optimization on specified function
+
+mremove-unnecessary-sets
+Target Var(mchp_remove_unnecessary_sets) Init(1)
+Performs an extra opt pass to remove the unnecessary set/move insns introduced by the split2 opt pass.
 
 ;
