@@ -189,7 +189,7 @@ Target RejectNegative Var(mchp_stack_usage) Init(0)
 -mchp-stack-usage     Enable Microchip-specific stack usage reporting
 
 moptimize_imm_offset_addressing
-Target Var(optimize_imm_offset_addressing) Init(1)
+Target Var(optimize_imm_offset_addressing) Init(0)
 Reduce the immediate offset value for load / store instructions that use the [areg, #imm_offset] addressing mode
 
 ;
