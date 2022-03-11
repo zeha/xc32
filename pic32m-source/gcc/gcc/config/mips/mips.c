@@ -18744,6 +18744,18 @@ pic32_output_bcsc0_32 (rtx target, int opclr, int opset, rtx opreg, rtx opsel)
 
 #if defined(TARGET_MCHP_PIC32MX)
 
+const char *
+pic32_output_unique_id (rtx operands[])
+{
+  static char buffer[80];
+
+  char *label = (char *) (INTVAL (operands[1]));
+  sprintf (buffer, ".global %s\n%s:\n\tli %%0,%ld",
+           label, label, INTVAL (operands[2]));
+
+  return buffer;
+}
+
 /* Expand unique_id */
 /* pic32_expand_unique_id for unsigned int __builtin_unique_id(const char *fmt, int id) */
 static rtx
@@ -18803,7 +18815,7 @@ pic32_expand_unique_id (rtx target,
       error("__builtin_unique_id requires integer literal for argument 1");
       return GEN_INT(0);
     }
-  sprintf(label_name,"%s_%lld", fmt, INTVAL(r1));
+  sprintf(label_name,"%s_%ld", fmt, INTVAL(r1));
 
   if (!target || !register_operand(target, SImode))
     {
@@ -22464,9 +22476,6 @@ mips_option_override (void)
   mips_base_align_jumps = align_jumps;
   mips_base_align_functions = align_functions;
 
-#ifdef MIPS_SUBTARGET_OVERRIDE_OPTIONS2
-  MIPS_SUBTARGET_OVERRIDE_OPTIONS2();
-#endif
   /* Now select the ISA mode.
 
      Do all CPP-sensitive stuff in uncompressed mode; we'll switch modes

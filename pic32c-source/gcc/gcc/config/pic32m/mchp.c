@@ -861,21 +861,6 @@ mchp_asm_code_end (void)
     xc_output_stack_usage_header ();
 }
 
-/* if 'mchp_pragma_nocodecov' is set, adds 'nocodecov' attribute to function types */
-void
-mchp_set_default_type_attributes (tree type)
-{
-  if (mchp_pragma_nocodecov
-      && (TREE_CODE (type) == FUNCTION_TYPE || TREE_CODE (type) == METHOD_TYPE))
-    {
-      tree type_attr_list = TYPE_ATTRIBUTES (type);
-      tree attr_name = get_identifier ("nocodecov");
-
-      type_attr_list = tree_cons (attr_name, NULL_TREE, type_attr_list);
-      TYPE_ATTRIBUTES (type) = type_attr_list;
-    }
-}
-
 void
 pic32_emit_cc_section (const char *name)
 {
@@ -1255,6 +1240,10 @@ mchp_target_insert_attributes (tree decl, tree *attr_ptr)
                                      *attr_ptr);
             }
         }
+
+      /* #pragma nocodecov was seen => add 'nocodecov' attribute */
+      if (mchp_pragma_nocodecov)
+        *attr_ptr = tree_cons (get_identifier ("nocodecov"), NULL, *attr_ptr);
     }
 }
 
@@ -2152,6 +2141,19 @@ mchp_noload_attribute (tree *decl, tree identifier ATTRIBUTE_UNUSED,
   DECL_COMMON (*decl) = 0;
   DECL_UNIQUE_SECTION (*decl) = 1;
 
+  return NULL_TREE;
+}
+
+/* 'nocodecov' attribute prevents its function from being codecov-instrumented */
+tree
+mchp_nocodecov_attribute (tree *decl, tree name, tree args ATTRIBUTE_UNUSED,
+                          int flags ATTRIBUTE_UNUSED, bool *no_add_attrs)
+{
+  if (TREE_CODE (*decl) != FUNCTION_DECL)
+    {
+      warning (OPT_Wattributes, "%qE attribute ignored", name);
+      *no_add_attrs = true;
+    }
   return NULL_TREE;
 }
 
@@ -3411,17 +3413,26 @@ pragma_vector2func_decl (const struct vector_dispatch_spec *dispatch_entry)
 
   static char fname[128];
   static char sname[128];
+  static char dispatch[128];
 
-  if (!dispatch_entry->emit_dispatch)
-    return;
   /*
   mchp_output_vector_dispatch_table output for dispatch_entry->emit_dispatch==0
 
-  .globl  __vector_dispatch_%d\n
-  __vector_dispatch_%d = 0
+  XC32-1908: Generate _vector_dispatch_# symbol so the linker can set the
+  vector offset
 
-  Should we generate smth similar ?
+  This may be better implemented with gimple by generating a function
+  pointer initialized to null.
   */
+  if (!dispatch_entry->emit_dispatch)
+    {
+      sprintf(dispatch, ".globl __vector_dispatch_%d", dispatch_entry->vector_number);
+      symtab->finalize_toplevel_asm (build_string(strlen(dispatch), dispatch));
+
+      sprintf(dispatch, "__vector_dispatch_%d = 0", dispatch_entry->vector_number);
+      symtab->finalize_toplevel_asm (build_string(strlen(dispatch), dispatch));
+      return;
+    }
 
   gcc_assert (dispatch_entry);
   gcc_assert (dispatch_entry->target);
@@ -3447,9 +3458,16 @@ pragma_vector2func_decl (const struct vector_dispatch_spec *dispatch_entry)
   // XC32-1659: also no code coverage instrumentation for dispatch routines
   tree nocodecov_attrib
       = build_tree_list (get_identifier ("nocodecov"), NULL_TREE);
+  // XC32-1913: we must mark these __vector_dispatch_# as used (to avoid
+  //  having them considered dead-code and removed from the final elf)
+  //  https://bugs.launchpad.net/gcc-arm-embedded/+bug/1747966
+  tree used_attrib = build_tree_list (get_identifier ("used"), NULL_TREE);
 
-  decl_attributes (&fndecl, chainon (chainon (naked_attrib, nomips16_attrib),
-                                     nocodecov_attrib), 0, NULL);
+  decl_attributes (&fndecl,
+                   chainon (chainon (chainon (naked_attrib, nomips16_attrib),
+                                     nocodecov_attrib),
+                            used_attrib),
+                   0, NULL);
   DECL_ARTIFICIAL (fndecl) = 1;
   DECL_IGNORED_P (fndecl) = 1;
   /* fndecl is not external, body is generated.  */
@@ -5580,6 +5598,41 @@ mchp_select_section (tree decl, int reloc,
   return get_named_section (decl, sname, reloc);
 }
 
+tree ultimate_transparent_alias_target (tree *); /* implem. in varasm.c */
+
+/* XC32-1788: the declaration name used to form unique section names
+ * (consistent with default_unique_section());
+ * NOTE: this function and the next one (mchp_annotate_section_name_p) should
+ * be common for PIC32C and PIC32M, but for now each config has its copies */
+
+const char *
+mchp_decl_asm_name (tree decl)
+{
+  tree id = DECL_ASSEMBLER_NAME (decl);
+  ultimate_transparent_alias_target (&id);
+
+  const char *name = IDENTIFIER_POINTER (id);
+  return targetm.strip_name_encoding (name);
+}
+
+/* returns: true,  when ok to append ".<varname>" (w/o duplicates) to the section name
+ *                 to generate unique section names (as when the -ffunctions/data-sections
+ *                 options and/or the "unique section" attribute are used)
+ *          false, otherwise
+ *
+ * note: a declaration such as
+ *   int z __attribute__((section(".z"), unique_section));
+ * would get a ".z.z" section name (that's the only instance when suffix duplication is allowed)
+ */
+int
+mchp_annotate_section_name_p (const char *sectionName, const char *declAsmName)
+{
+  const size_t secname_len = strlen (sectionName), suffix_len = strlen (declAsmName) + 1;
+  return secname_len <= suffix_len
+          || memcmp (sectionName + secname_len - suffix_len,
+                     ACONCAT ((".", declAsmName, NULL)), suffix_len) != 0;
+}
+
 static const char *default_section_name(tree decl, SECTION_FLAGS_INT flags)
 {
   static char result[1024];
@@ -5646,11 +5699,13 @@ static const char *default_section_name(tree decl, SECTION_FLAGS_INT flags)
                          (long unsigned int)TREE_INT_CST_LOW(TREE_VALUE(TREE_VALUE(a))));
           else
             {
-              if (((TREE_CODE(decl) == VAR_DECL) && flag_data_sections) ||
+              if ((((TREE_CODE(decl) == VAR_DECL) && flag_data_sections) ||
                   ((TREE_CODE(decl) == FUNCTION_DECL) && flag_function_sections))
+                  && mchp_annotate_section_name_p (pszSectionName, /* XC32-1788: consistent with default_unique_section() */
+                                                   mchp_decl_asm_name (decl)))
                 f += sprintf(result, "%s.%s,%s(0x%lx)",
                              pszSectionName,
-                             IDENTIFIER_POINTER(DECL_NAME(decl)),
+                             mchp_decl_asm_name (decl),
                              SECTION_ATTR_ADDRESS,
                              (long unsigned int)TREE_INT_CST_LOW(TREE_VALUE(TREE_VALUE(a))));
               else
@@ -5698,11 +5753,13 @@ static const char *default_section_name(tree decl, SECTION_FLAGS_INT flags)
             }
           if (pszSectionName)
             {
-	      if (flag_data_sections
-		  || (DECL_UNIQUE_SECTION (decl) && !mchp_persistent_p (decl)))
-		{
+              if ((flag_data_sections
+                    || (DECL_UNIQUE_SECTION (decl) && !mchp_persistent_p (decl)))
+                  && mchp_annotate_section_name_p (pszSectionName, /* XC32-1788: consistent with default_unique_section() */
+                                                   mchp_decl_asm_name (decl)))
+                {
                   f += sprintf (result, "%s.%s", pszSectionName,
-                                IDENTIFIER_POINTER(DECL_NAME(decl)));
+                                                 mchp_decl_asm_name (decl));
                 }
               else
                 {
@@ -6457,6 +6514,20 @@ mchp_section_type_flags(tree decl, const char *name,
     }
   }
 
+  // XC32-1758 - volatile const __attribute((space(prog))) variables should not
+  // reside in the .data section
+  if (decl && (TREE_CODE (decl) == VAR_DECL) && TREE_SIDE_EFFECTS (decl)
+      && lookup_attribute ("space", DECL_ATTRIBUTES (decl)))
+    {
+      if (get_identifier ("prog")
+          == (TREE_VALUE (TREE_VALUE (get_mchp_space_attribute (decl)))))
+        {
+          gcc_assert (TREE_READONLY (decl));
+          gcc_assert ((flags & SECTION_WRITE));
+          flags &= ~(SECTION_FLAGS_INT)SECTION_WRITE;
+        }
+    }
+
   if (decl)
     flags = section_flags_from_decl (decl, flags);
 
@@ -6473,6 +6544,14 @@ mchp_section_type_flags(tree decl, const char *name,
    * the ramfunc type set.
    */
   if (flags & SECTION_RAMFUNC)
+    flags = flags & ~(SECTION_FLAGS_INT)SECTION_CODE;
+
+  /* XC32-1807 - info sections that have code flag are not discarded
+   * The code flag is added by default_section_type_flags but it is
+   * never removed for info sections. This confuses the linker and we
+   * end up with info sections in the final elf
+   */
+  if ((flags & (SECTION_INFO | SECTION_CODE)) == (SECTION_INFO | SECTION_CODE))
     flags = flags & ~(SECTION_FLAGS_INT)SECTION_CODE;
 
   return flags;

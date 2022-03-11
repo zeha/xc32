@@ -37,13 +37,15 @@ extern section *mchp_select_section
 extern void mchp_write_encoded_name(FILE *, const char *);
 
 // TODO: May not need to be exposed.
-extern const char *mchp_strip_name_encoding 
+extern const char *mchp_strip_name_encoding
                   (const char *symbol_name);
 
 extern void mchp_asm_named_section
                   (const char *pszSectionName, SECTION_FLAGS_INT flags, tree decl ATTRIBUTE_UNUSED);
 
-extern void mchp_subtarget_encode_section_info 
+extern int mchp_annotate_section_name_p (const char *sectionName, const char *fnVarName);
+
+extern void mchp_subtarget_encode_section_info
                   (tree decl, rtx rtl, int first_seen ATTRIBUTE_UNUSED);
 
 extern SECTION_FLAGS_INT mchp_section_type_flags
@@ -81,13 +83,13 @@ extern tree pic32c_tcm_attribute (tree *, tree, tree, int, bool *);
 
 extern tree pic32c_noload_attribute (tree *, tree, tree, int, bool *);
 
+extern tree pic32c_nocodecov_attribute (tree *, tree, tree, int, bool *);
+
+extern tree pic32c_nopa_attribute (tree *, tree, tree, int, bool *);
+
 extern bool pic32c_attribute_takes_identifier_p (const_tree attr_id);
 
 extern tree pic32c_keep_attribute(tree *decl, tree identifier ATTRIBUTE_UNUSED,
-                                tree args, int flags ATTRIBUTE_UNUSED,
-                                bool *no_add_attrs);
-
-extern tree pic32c_nopa_attribute(tree *decl, tree identifier ATTRIBUTE_UNUSED,
                                 tree args, int flags ATTRIBUTE_UNUSED,
                                 bool *no_add_attrs);
 
@@ -100,6 +102,11 @@ extern tree pic32c_unique_section_attribute (tree *node, tree name ATTRIBUTE_UNU
                           bool *no_add_attrs);
 
 extern void pic32c_set_default_type_attributes (tree type);
+extern void pic32c_insert_attributes (tree decl, tree *attrs);
+extern bool pic32c_function_attribute_inlinable_p (const_tree decl);
+
+extern tree get_pic32c_tcm_attribute (tree);
+
 
 /* Builtin functions */
 extern void pic32c_subtarget_init_builtins (void);
@@ -112,6 +119,7 @@ extern void close_builtins_h();
 /* pragmas */
 extern void mchp_handle_config_pragma(struct cpp_reader *);
 extern void mchp_handle_nocodecov_pragma(struct cpp_reader *);
+extern void mchp_handle_nopa_pragma(struct cpp_reader *);
 
 /* CCI extensions */
 extern void mchp_init_cci (struct cpp_reader *);

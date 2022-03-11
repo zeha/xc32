@@ -1556,7 +1556,7 @@ check_format_info (function_format_info *info, tree params,
              of invalid_chars. */
           for (; fci->format_chars != NULL; ++fci)
             {
-              if (fci->std == STD_C89 &&
+              if ((fci->std == STD_C89 || fci->std == STD_C99) &&
                   !smartio_invalid_format (fci->format_chars, int_only))
                 {
                   sprintf (p, "%s", fci->format_chars);
@@ -3243,9 +3243,9 @@ check_format_info_main (format_check_results *res,
       spec_str[0] = '\0';
 
       /* Collect all specs into a single string literal, ignoring those
-         unsupported by smartio (i.e. C89 only). */
+         unsupported by smartio (i.e. C89 & C99 only). */
       for (s = conv_set, i = 0; s != 0; s = s >> 1, i++)
-	if ((s & 0x1) && conv_specs[i].std == STD_C89
+	if ((s & 0x1) && (conv_specs[i].std == STD_C89 || conv_specs[i].std == STD_C99)
 	    && conv_specs[i].format_chars)
 	  {
 	    int invalid

@@ -130,7 +130,6 @@ maybe_unlink (const char *file)
 static void
 get_options_from_collect_gcc_options (const char *collect_gcc,
 				      const char *collect_gcc_options,
-				      unsigned int lang_mask,
 				      struct cl_decoded_option **decoded_options,
 				      unsigned int *decoded_options_count)
 {
@@ -172,8 +171,7 @@ get_options_from_collect_gcc_options (const char *collect_gcc,
   argc = obstack_object_size (&argv_obstack) / sizeof (void *) - 1;
   argv = XOBFINISH (&argv_obstack, const char **);
 
-  decode_cmdline_options_to_array (argc, (const char **)argv,
-				   lang_mask,
+  decode_cmdline_options_to_array (argc, (const char **)argv, CL_DRIVER,
 				   decoded_options, decoded_options_count);
   obstack_free (&argv_obstack, NULL);
 }
@@ -998,8 +996,7 @@ find_and_merge_options (int fd, off_t file_offset, const char *prefix,
     {
       struct cl_decoded_option *f2decoded_options;
       unsigned int f2decoded_options_count;
-      get_options_from_collect_gcc_options (collect_gcc,
-					    fopts, CL_LANG_ALL,
+      get_options_from_collect_gcc_options (collect_gcc, fopts,
 					    &f2decoded_options,
 					    &f2decoded_options_count);
       if (!fdecoded_options)
@@ -1022,6 +1019,93 @@ find_and_merge_options (int fd, off_t file_offset, const char *prefix,
   *opt_count = fdecoded_options_count;
   return true;
 }
+
+#ifdef TARGET_IS_PIC32C
+
+/* XC32-1559: Cherry-picked XC8 AVR's commit 1cea37b5176
+ *            "Warn if arg of -mno-pa-on-file is a file with LTO data."
+ */
+
+static bool
+ends_with(const char *haystack, const char *needle)
+{
+  int haystack_len = strlen (haystack);
+  int needle_len = strlen (needle);
+  if (haystack_len < needle_len)
+    return false;
+
+  return strcmp(haystack + (haystack_len - needle_len), needle) == 0;
+}
+
+static void
+emit_lto_pa_ignore_warning (const char *lto_file,
+                            const char *ignore_pattern)
+{
+  warning (input_location,
+           "-mno-pa-on-file=%qs may not exclude file %qs from procedural"
+           " abstraction in LTO mode", ignore_pattern, lto_file);
+  inform (input_location, "the source file should be compiled without -flto"
+                          " (or use #pragma nopa)");
+  fflush (stderr);
+}
+
+static void
+warn_if_lto_file_in_pa_ignore (const char *lto_file,
+                               const char *ignore_pattern)
+{
+  const char *at_ptr = strchr (lto_file, '@');
+  bool lto_file_in_archive_p = (at_ptr != NULL);
+
+  // About to be LTO'ed file is not a file inside an archive. Warn
+  // if its suffix matches the ignore pattern.
+  if (!lto_file_in_archive_p)
+    {
+      if (ends_with (lto_file, ignore_pattern))
+        emit_lto_pa_ignore_warning (lto_file, ignore_pattern);
+      return;
+    }
+
+  // Otherwise, warn if an ignore pattern references this archive.
+  // LTO for object files in archives can be done only with
+  // -fuse-linker-plugin, and in that case, the cref output does not
+  // indicate where the object file came from. Therefore, it does not
+  // matter if the ignore pattern specifies an object file in the
+  // archive (like libc.a(foo.o)), or the whole archive (like libc.a)
+  // - in either case, warn.
+
+  int ignore_len = strlen(ignore_pattern);
+  const char *paren_ptr = strchr (ignore_pattern, '(');
+
+  bool ignore_pattern_has_archive_p
+    = (paren_ptr != NULL
+       || (ignore_len > 2
+           && ignore_pattern[ignore_len - 2] == '.'
+           && ignore_pattern[ignore_len - 1] == 'a'));
+
+  if (!ignore_pattern_has_archive_p)
+    return;
+
+  char *lto_archive_name = XNEWVEC (char, at_ptr - lto_file + 1);
+  memcpy (lto_archive_name, lto_file, at_ptr - lto_file);
+  lto_archive_name[at_ptr - lto_file] = '\0';
+
+  char *ignore_archive_name = NULL;
+  if (paren_ptr != NULL)
+    {
+      ignore_archive_name = XNEWVEC (char, paren_ptr - ignore_pattern + 1);
+      memcpy (ignore_archive_name, ignore_pattern, paren_ptr - ignore_pattern);
+      ignore_archive_name[paren_ptr - ignore_pattern] = '\0';
+    }
+  else
+    {
+      ignore_archive_name = const_cast<char *> (ignore_pattern);
+    }
+
+  if (ends_with (lto_archive_name, ignore_archive_name))
+    emit_lto_pa_ignore_warning (lto_file, ignore_pattern);
+}
+
+#endif /* TARGET_IS_PIC32C */
 
 /* Copy early debug info sections from INFILE to a new file whose name
    is returned.  Return NULL on error.  */
@@ -1130,7 +1214,6 @@ run_gcc (unsigned argc, char *argv[])
     fatal_error (input_location,
 		 "environment variable COLLECT_GCC_OPTIONS must be set");
   get_options_from_collect_gcc_options (collect_gcc, collect_gcc_options,
-					CL_LANG_ALL,
 					&decoded_options,
 					&decoded_options_count);
 
@@ -1181,6 +1264,12 @@ run_gcc (unsigned argc, char *argv[])
 	{
 	  have_lto = true;
 	  ltoobj_argv[ltoobj_argc++] = argv[i];
+#ifdef TARGET_IS_PIC32C
+          for (unsigned int j = 0; j<decoded_options_count; ++j)
+            if (decoded_options[j].opt_index == OPT_mno_pa_on_file_
+                && decoded_options[j].arg != NULL)
+              warn_if_lto_file_in_pa_ignore (argv[i], decoded_options[j].arg);
+#endif /* TARGET_IS_PIC32C */
 	}
       close (fd);
     }

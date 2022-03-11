@@ -124,7 +124,7 @@ add_env_var_paths (const char *env_var, incpath_kind chain)
 /* Append the standard include chain defined in cppdefault.c.  */
 static void
 add_standard_paths (const char *sysroot, const char *iprefix,
-		    const char *imultilib, int cxx_stdinc)
+		    const char *imultilib, int cxx_stdinc, unsigned char cplusplus)
 {
   const struct default_include *p;
   int relocated = cpp_relocated ();
@@ -140,6 +140,14 @@ add_standard_paths (const char *sysroot, const char *iprefix,
     sfx = "newlib";
   else if (TARGET_LEGACY_LIBC)
     sfx = "lega-c";
+#endif
+
+#ifdef TARGET_MCHP_PIC32C
+  const char *sfx = NULL;
+  char *saved;
+
+  if (TARGET_NEWLIB_LIBC || cplusplus)
+    sfx = "newlib";
 #endif
 
   if (iprefix && (len = cpp_GCC_INCLUDE_DIR_len) != 0)
@@ -238,7 +246,7 @@ add_standard_paths (const char *sysroot, const char *iprefix,
 	      str = reconcat (str, str, dir_separator_str, imultiarch, NULL);
 	    }
 
-#ifdef TARGET_IS_PIC32MX
+#if defined(TARGET_IS_PIC32MX) || defined(TARGET_MCHP_PIC32C)
 	  if (sfx != NULL && !strcmp (p->fname, cpp_NATIVE_SYSTEM_HEADER_DIR))
 	    {
 	      saved = xstrdup (str);
@@ -519,7 +527,7 @@ register_include_chains (cpp_reader *pfile, const char *sysroot,
 
   /* Finally chain on the standard directories.  */
   if (stdinc)
-    add_standard_paths (sysroot, iprefix, imultilib, cxx_stdinc);
+    add_standard_paths (sysroot, iprefix, imultilib, cxx_stdinc, cpp_opts->cplusplus);
 
   target_c_incpath.extra_includes (sysroot, iprefix, stdinc);
 

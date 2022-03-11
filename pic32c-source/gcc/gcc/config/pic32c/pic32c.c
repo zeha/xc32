@@ -406,6 +406,9 @@ static smartio_fndesc smartio_fn_info[PIC32C_BUILTIN_SMARTIO_N] = {
 /* mchp_pragma_nocodecov is != 0 when #pragma nocodecov is in effect */
 int mchp_pragma_nocodecov = 0;
 
+/* similarly, mchp_pragma_nopa is != 0 when #pragma nopa is in effect */
+int mchp_pragma_nopa = 0;
+
 
 /*
  *  Static function prototypes.
@@ -1003,13 +1006,34 @@ pic32c_keep_attribute (tree *decl, tree identifier ATTRIBUTE_UNUSED,
   return NULL_TREE;
 }
 
-/* nopa attribute to prevent PA on a specific section */
+/* 'nocodecov' attribute prevents its function from being codecov-instrumented */
 tree
-pic32c_nopa_attribute (tree *decl, tree identifier ATTRIBUTE_UNUSED, tree args,
+pic32c_nocodecov_attribute (tree *decl, tree name, tree args ATTRIBUTE_UNUSED,
+		            int flags ATTRIBUTE_UNUSED, bool *no_add_attrs)
+{
+  if (TREE_CODE (*decl) != FUNCTION_DECL)
+    {
+      warning (OPT_Wattributes, "%qE attribute ignored", name);
+      *no_add_attrs = true;
+    }
+  return NULL_TREE;
+}
+
+/* 'nopa' attribute to prevent PA on a specific section */
+tree
+pic32c_nopa_attribute (tree *decl, tree name, tree args ATTRIBUTE_UNUSED,
 		       int flags ATTRIBUTE_UNUSED, bool *no_add_attrs)
 {
-  DECL_COMMON (*decl) = 0;
-  DECL_UNIQUE_SECTION (*decl) = 1;
+  if (TREE_CODE (*decl) != FUNCTION_DECL)
+    {
+      warning (OPT_Wattributes, "%qE attribute ignored", name);
+      *no_add_attrs = true;
+    }
+  else
+    {
+      DECL_COMMON (*decl) = 0;
+      DECL_UNIQUE_SECTION (*decl) = 1;
+    }
   return NULL_TREE;
 }
 
@@ -1455,7 +1479,7 @@ get_mchp_space_attribute (tree decl)
   return lookup_attribute ("space", DECL_ATTRIBUTES (decl));
 }
 
-static tree
+tree
 get_pic32c_tcm_attribute (tree decl)
 {
   if (!(TARGET_MCHP_ITCM || TARGET_MCHP_TCM))
@@ -1740,6 +1764,14 @@ mchp_build_prefix (tree decl, int fnear, char *prefix, SECTION_FLAGS_INT flags)
 		f += sprintf (f, MCHP_BSS_FLAG);
 	      else
 		f += sprintf (f, MCHP_DATA_FLAG);
+	    }
+
+	  // XC32-1852: make sure that, despite the read-only variables,
+	  // the TCM section doesn't get/have the read-only flag
+	  if (TREE_READONLY (decl))
+	    {
+	      flags |= SECTION_WRITE;
+	      flags &= ~(SECTION_FLAGS_INT) SECTION_READ_ONLY;
 	    }
 
 	  f += sprintf (f, MCHP_DTCM_FLAG);
@@ -2265,6 +2297,20 @@ mchp_section_type_flags (tree decl, const char *name, int reloc)
 	  }
   }
 
+  // XC32-1758 - volatile const __attribute((space(prog))) variables should not
+  // reside in the .data section
+  if (decl && (TREE_CODE (decl) == VAR_DECL) && TREE_SIDE_EFFECTS (decl)
+      && lookup_attribute ("space", DECL_ATTRIBUTES (decl)))
+    {
+      if (get_identifier ("prog")
+          == (TREE_VALUE (TREE_VALUE (get_mchp_space_attribute (decl)))))
+        {
+          gcc_assert (TREE_READONLY (decl));
+          gcc_assert ((flags & SECTION_WRITE));
+          flags &= ~(SECTION_FLAGS_INT)SECTION_WRITE;
+        }
+    }
+
   if (decl)
     flags = section_flags_from_decl (decl, flags);
 
@@ -2277,6 +2323,14 @@ mchp_section_type_flags (tree decl, const char *name, int reloc)
    * the ramfunc type set.
    */
   if (flags & SECTION_RAMFUNC)
+    flags = flags & ~(SECTION_FLAGS_INT)SECTION_CODE;
+
+  /* XC32-1807 - info sections that have code flag are not discarded
+   * The code flag is added by default_section_type_flags but it is
+   * never removed for info sections. This confuses the linker and we
+   * end up with info sections in the final elf
+   */
+  if ((flags & (SECTION_INFO | SECTION_CODE)) == (SECTION_INFO | SECTION_CODE))
     flags = flags & ~(SECTION_FLAGS_INT)SECTION_CODE;
 
   return flags;
@@ -2456,6 +2510,41 @@ mchp_select_section (tree decl, int reloc,
   return get_named_section (decl, sname, reloc);
 }
 
+tree ultimate_transparent_alias_target (tree *); /* implem. in varasm.c */
+
+/* XC32-1788: the declaration name used to form unique section names
+ * (consistent with default_unique_section());
+ * NOTE: this function and the next one (mchp_annotate_section_name_p) should
+ * be common for PIC32C and PIC32M, but for now each config has its copies */
+
+const char *
+mchp_decl_asm_name (tree decl)
+{
+  tree id = DECL_ASSEMBLER_NAME (decl);
+  ultimate_transparent_alias_target (&id);
+
+  const char *name = IDENTIFIER_POINTER (id);
+  return targetm.strip_name_encoding (name);
+}
+
+/* returns: true,  when ok to append ".<varname>" (w/o duplicates) to the section name
+ *                 to generate unique section names (as when the -ffunctions/data-sections
+ *                 options and/or the "unique section" attribute are used)
+ *          false, otherwise
+ *
+ * note: a declaration such as
+ *   int z __attribute__((section(".z"), unique_section));
+ * would get a ".z.z" section name (that's the only instance when suffix duplication is allowed)
+ */
+int
+mchp_annotate_section_name_p (const char *sectionName, const char *declAsmName)
+{
+  const size_t secname_len = strlen (sectionName), suffix_len = strlen (declAsmName) + 1;
+  return secname_len <= suffix_len
+          || memcmp (sectionName + secname_len - suffix_len,
+                     ACONCAT ((".", declAsmName, NULL)), suffix_len) != 0;
+}
+
 static const char *
 default_section_name (tree decl, SECTION_FLAGS_INT flags)
 {
@@ -2522,69 +2611,80 @@ default_section_name (tree decl, SECTION_FLAGS_INT flags)
       else
 #endif
 	if (addr_attr)
-	{
-	  if (!pszSectionName
-	      || (strcmp (pszSectionName, mchp_default_section) == 0))
-	    f += sprintf (result, "%s,%s(0x%lx)", this_default_name,
-			  SECTION_ATTR_ADDRESS,
-			  (long unsigned int) TREE_INT_CST_LOW (
-			    TREE_VALUE (TREE_VALUE (addr_attr))));
-	  else
-	    {
-	      if (((TREE_CODE (decl) == VAR_DECL) && flag_data_sections)
-		  || ((TREE_CODE (decl) == FUNCTION_DECL)
-		      && flag_function_sections))
-		f += sprintf (result, "%s,%s(0x%lx)", pszSectionName,
-			      SECTION_ATTR_ADDRESS,
-			      (long unsigned int) TREE_INT_CST_LOW (
-				TREE_VALUE (TREE_VALUE (addr_attr))));
-	      else
-		f += sprintf (result, "%s,%s(0x%lx)", pszSectionName,
-			      SECTION_ATTR_ADDRESS,
-			      (long unsigned int) TREE_INT_CST_LOW (
-				TREE_VALUE (TREE_VALUE (addr_attr))));
-	    }
-	}
-      else if (TREE_CODE (decl) == VAR_DECL)
-	{
-	  if (mchp_persistent_p(decl))
-	    {
-	      if (!pszSectionName || strcmp(pszSectionName, SECTION_NAME_PERSIST) != 0)
-		pszSectionName = SECTION_NAME_PBSS;
-	    }
-	  if (pszSectionName
-	      && !(tcm_attr && flag_data_sections)) /* FIX ME: fix
-						       -fdata-sections on tcm
-						       consts */
-	    {
-	      f += sprintf (result, "%s", pszSectionName);
-	    }
-	  else
-	    {
-	      if (!is_aligned)
-		is_default = 1;
-	      f += sprintf (result, "%s", this_default_name);
-	    }
-	}
-      else if (TREE_CODE (decl) == FUNCTION_DECL)
-	{
-	  if (pszSectionName)
-	    {
-              f += sprintf (result, "%s", pszSectionName);
-	    }
-	  else
-	    {
-	      if (!is_aligned)
-		is_default = 1;
-	      f += sprintf (result, "%s", this_default_name);
-	    }
-	}
+    {
+      if (!pszSectionName
+          || (strcmp (pszSectionName, mchp_default_section) == 0))
+        f += sprintf (result, "%s,%s(0x%lx)", this_default_name,
+          SECTION_ATTR_ADDRESS,
+          (long unsigned int) TREE_INT_CST_LOW (
+            TREE_VALUE (TREE_VALUE (addr_attr))));
       else
-	{
-	  if (!is_aligned)
-	    is_default = 1;
-	  f += sprintf (result, "%s", this_default_name);
-	}
+        {
+          if ((((TREE_CODE (decl) == VAR_DECL) && flag_data_sections)
+        || ((TREE_CODE (decl) == FUNCTION_DECL)
+            && flag_function_sections))
+          && mchp_annotate_section_name_p (pszSectionName, /* XC32-1788: consistent with default_unique_section() */
+                                           mchp_decl_asm_name (decl)))
+      f += sprintf (result, "%s.%s,%s(0x%lx)", pszSectionName,
+              mchp_decl_asm_name(decl),
+              SECTION_ATTR_ADDRESS,
+              (long unsigned int) TREE_INT_CST_LOW (
+          TREE_VALUE (TREE_VALUE (addr_attr))));
+          else
+      f += sprintf (result, "%s,%s(0x%lx)", pszSectionName,
+              SECTION_ATTR_ADDRESS,
+              (long unsigned int) TREE_INT_CST_LOW (
+          TREE_VALUE (TREE_VALUE (addr_attr))));
+        }
+    }
+  else if (TREE_CODE (decl) == VAR_DECL)
+    {
+      if (mchp_persistent_p(decl))
+        {
+          if (!pszSectionName || strcmp(pszSectionName, SECTION_NAME_PERSIST) != 0)
+            pszSectionName = SECTION_NAME_PBSS;
+        }
+      if (pszSectionName)
+        {
+          if ((flag_data_sections
+                || (DECL_UNIQUE_SECTION (decl) && !mchp_persistent_p (decl)))
+              && mchp_annotate_section_name_p (pszSectionName, /* XC32-1788: consistent with default_unique_section() */
+                                               mchp_decl_asm_name(decl)))
+            {
+              f += sprintf (result, "%s.%s", pszSectionName,
+                                             mchp_decl_asm_name(decl));
+            }
+          else
+            {
+              f += sprintf(result, "%s", pszSectionName);
+            }
+        }
+      else
+        {
+          if (!is_aligned)
+            is_default = 1;
+          f += sprintf (result, "%s", this_default_name);
+        }
+    }
+  else if (TREE_CODE (decl) == FUNCTION_DECL)
+    {
+      if (pszSectionName)
+        {
+                f += sprintf (result, "%s", pszSectionName);
+        }
+      else
+        {
+          if (!is_aligned)
+            is_default = 1;
+          f += sprintf (result, "%s", this_default_name);
+        }
+    }
+  else
+    {
+      if (!is_aligned)
+        is_default = 1;
+      f += sprintf (result, "%s", this_default_name);
+    }
 
 #if ENABLE_USER_MEMORY
          if (region)
@@ -3006,19 +3106,61 @@ pic32c_cond_reg_usage (void)
   pic32c_reserve_registers ();
 }
 
-/* if 'mchp_pragma_nocodecov' is set, adds 'nocodecov' attribute to function types */
+/* a target hook for adding attributes to a decl when it is being created */
 void
-pic32c_set_default_type_attributes (tree type)
+pic32c_insert_attributes (tree decl, tree *attributes)
 {
-  if (mchp_pragma_nocodecov
-      && (TREE_CODE (type) == FUNCTION_TYPE || TREE_CODE (type) == METHOD_TYPE))
-    {
-      tree type_attr_list = TYPE_ATTRIBUTES (type);
-      tree attr_name = get_identifier ("nocodecov");
+  /* only interested in (regular) function decls */
+  if (TREE_CODE (decl) != FUNCTION_DECL || DECL_EXTERNAL (decl)
+      || DECL_BUILT_IN (decl) || DECL_ARTIFICIAL (decl))
+   return;
 
-      type_attr_list = tree_cons (attr_name, NULL_TREE, type_attr_list);
-      TYPE_ATTRIBUTES (type) = type_attr_list;
+  /* #pragma nocodecov was seen => add 'nocodecov' attribute */
+  if (mchp_pragma_nocodecov)
+    *attributes = tree_cons (get_identifier ("nocodecov"), NULL, *attributes);
+
+  /* similarly, #pragma nopa means we should add the 'nopa' attribute */
+  if (mchp_pragma_nopa)
+    *attributes = tree_cons (get_identifier ("nopa"), NULL, *attributes);
+}
+
+/* TARGET_FUNCTION_ATTRIBUTE_INLINABLE_P hook;
+   if a target doesn't redefine this, a function that returns false is used by default;
+   however, on MIPS, this is redefined to a function that always returns true;
+   I'm going to play it safe here and allow as inlinable on ARM only functions with
+   the 'always_inline' attribute and 'nocodecov' and/or 'nopa';
+   TODO: revisit this as it may have a significant impact on code size */
+bool
+pic32c_function_attribute_inlinable_p (const_tree decl)
+{
+  /* if the 'always_inline' attr is not present, keep the current behavior of
+     preventing the inlining of any function with target-specific attributes
+     (this function is called only for such functions) */
+  if (!lookup_attribute ("always_inline", DECL_ATTRIBUTES (decl)))
+    return false;
+
+  /* if 'always_inline' is specified, look at its target-specific attributes
+     (based on function_attribute_inlinable_p () from tree-inline.c) */
+  for (const_tree a = DECL_ATTRIBUTES (decl); a; a = TREE_CHAIN (a))
+    {
+      const_tree name = TREE_PURPOSE (a);
+      for (int i = 0; targetm.attribute_table[i].name != NULL; i++)
+        {
+          const char *attr_name = targetm.attribute_table[i].name;
+          if (is_attribute_p (attr_name, name))
+            {
+              /* if a 'nopa' or 'nocodecov' attr, ok - look at the next attr */
+              if (!strcmp (attr_name, "nocodecov") || !strcmp (attr_name, "nopa"))
+                break;
+
+              /* any other target-specific attr will prevent the function from being inlined */
+              return false;
+            }
+        }
     }
+
+  /* ok i.e. 'always_inline' w/ or w/o 'nopa' and/or 'nocodecov' */
+  return true;
 }
 
 void

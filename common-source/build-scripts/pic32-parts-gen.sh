@@ -52,6 +52,7 @@ check_gen_parts ()
     checkfile "${DIR}/p${UDEVICENAME}.S" $LINENO
     checkfile "${DIR}/p${UDEVICENAME}_div.S" $LINENO
     checkfile "${DIR}/p${UDEVICENAME}_pic.ld" $LINENO
+    checkfile "${DIR}/pic32m" $LINENO
   else
   #If empty, delete the directory 
     [ -d "$DIR" ] && rm -rf $DIR

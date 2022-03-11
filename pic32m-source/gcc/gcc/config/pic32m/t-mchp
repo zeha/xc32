@@ -40,17 +40,10 @@ MULTILIB_REQUIRED    :=
 # mfp64 will link against soft-float libraries and lead to an error.
 
 # implicit defaults are EL, mips32r2, msoft-float.
-MULTILIB_OPTIONS     += mips16/mmicromips mfp64 fPIC
-MULTILIB_DIRNAMES    += mips16 micromips fpu64 pic
-
-# yes, we use optimization options in multilibs. this used to 
-# be Os, O3, or 'none' for everything else. make size the default instead
-# and keep speed-optimized.
-MULTILIB_OPTIONS     += O3
-MULTILIB_DIRNAMES    += speed
+MULTILIB_OPTIONS     += mips16/mmicromips mfp64
+MULTILIB_DIRNAMES    += mips16 micromips fpu64
 
 MULTILIB_MATCHES     += mips16=mips16e
-MULTILIB_MATCHES     += fPIC=fpic fPIC=fpie fPIC=fPIE
 
 MULTILIB_EXCEPTIONS  += *mips16*/*mfp64*
 

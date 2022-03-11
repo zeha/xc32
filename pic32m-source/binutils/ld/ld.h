@@ -172,6 +172,9 @@ typedef struct
   /* If TRUE we'll just print the default output on stdout.  */
   bfd_boolean print_output_format;
 
+  /* If TRUE we'll print the output filename on stdout.  */
+  bfd_boolean print_output_filename;
+
   /* If set, display the target memory usage (per memory region).  */
   bfd_boolean print_memory_usage;
 

@@ -21,6 +21,15 @@ widthGreaterthanOne={}
 modesDict={}
 base_addresses={}
 bit_ListOrder=[]
+
+class ConfigEntry:
+    def __init__(self, field1, field2, field3, field4, alt_field4 = None):
+        self.field1 = field1
+        self.field2 = field2
+        self.field3 = field3
+        self.field4 = field4
+        self.alt_field4 = alt_field4
+
 def printHfileStartingInfo(picname, withoutpic,outfile,family):
 
   # Output the header information
@@ -764,7 +773,8 @@ def popcount32_table16(v):
     return (POPCOUNT_TABLE16[ v        & 0xffff] +
             POPCOUNT_TABLE16[(v >> 16) & 0xffff])
 
-def getconfigData(pic, addr, DCRDef_node, configfile, htmlfile, offset = None):
+def getconfigData(pic, addr, DCRDef_node, offset = None):
+    config_lines = []
     region_node = DCRDef_node.parentNode
     if pic.instructionSet.hasMicroMIPS:
       if fdom.has(region_node, "registerprefix"):
@@ -782,10 +792,10 @@ def getconfigData(pic, addr, DCRDef_node, configfile, htmlfile, offset = None):
     # if an offset is not specified, we attempt to grab a value
     # from the PIC, which for MIPS is specified by the ksegdef and
     # ksegN offset values on the parent node.
-    # if kseg1 exists (i.e. the previous default), it will be used 
+    # if kseg1 exists (i.e. the previous default), it will be used
     # unless ksegdef exists and is set to '1' indicating kseg0 should
     # be used.
-    if offset is None: 
+    if offset is None:
         kseg = "kseg1"
         if fdom.has(region_node, "ksegdef"):
             ksegdef = int(fdom.get2(region_node, "ksegdef"))
@@ -796,14 +806,18 @@ def getconfigData(pic, addr, DCRDef_node, configfile, htmlfile, offset = None):
         if offset is None:
             offset = 0
 
-    configfile.write("CWORD:%08X:%08X:%08X\n" % (addr+offset,default,default))
+    config_lines.append(ConfigEntry(
+        "CWORD",
+        "%08X" % (addr+offset),
+        "%08X" % (default),
+        "%08X" % (default)))
 
     if cname=="Reserved" :
-        return
+        return config_lines
     langhidden=fdom.get2(DCRDef_node, 'islanghidden', defaultValue="")
     hidden=fdom.get2(DCRDef_node, 'ishidden', defaultValue="")
     if langhidden=="true" or hidden=="true":
-         return
+         return config_lines
     temp=0
     cnames=[]
     val=[]
@@ -825,29 +839,42 @@ def getconfigData(pic, addr, DCRDef_node, configfile, htmlfile, offset = None):
 
           if langhidden=="true" or hidden=="true":
               continue
-          fname, desc = fdom.get2(field_node, ('cname', 'desc'), defaultValue="")
-          if fname!="" :
+          fname, desc = fdom.get2(field_node, ('cname', 'desc'), defaultValue="") # DCRFieldDef
+          # Get register name
+          ancestor_node = fdom.ancestor(field_node) # DCRMode
+          ancestor_node = fdom.ancestor(ancestor_node) # DCRModeList
+          ancestor_node = fdom.ancestor(ancestor_node) # DCRDef (Register node)
+          fname2, desc2 = fdom.get2(ancestor_node, ('cname', 'desc'), defaultValue="")
+          ancestor_node = fdom.ancestor(ancestor_node) # ConfigFuseSector
+          fname3 = fdom.get2(ancestor_node, ('regionid'), defaultValue="")
+          if fname!="" and fname2 != "" and fname3 != "":
             del field_alias[:]
+            field_alias.append(fname3 + "_" + fname2 + "_" + fname)
+            field_alias.append(fname2 + "_" + fname)
             for alias_node in fdom.children(field_node, 'AliasList'):
               for legacy_node in fdom.children(alias_node, 'LegacyAlias'):
                 field_alias.append(fdom.get2(legacy_node, 'cname'))
 
             for aname in field_alias:
-              configfile.write("CSETTING:%08X:%s:%s\n" % (((pow (2, width) - 1) << place),preSetting + aname,"Alias for "+fname))
+              config_lines.append(ConfigEntry(
+                  "CSETTING",
+                  "%08X" % ((pow (2, width) - 1) << place),
+                  "%s" % (preSetting + aname),
+                  "%s" % ("Alias for " + fname),
+                  "%s" % (desc)))
 
-            configfile.write("CSETTING:%08X:%s:%s\n" % (((pow (2, width) - 1) << place),preSetting + fname,desc))
-            if fname!="":
-              for aname in field_alias:
-                htmlfile.write("<table frame=box rules=cols summary='%s' style='margin:10px;' cellpadding=3><tr style=\"border: 2px solid;\"><th>%s</th><th>%s</th></tr></table>" % (desc, aname, desc))
+            config_lines.append(ConfigEntry(
+                "CSETTING",
+                "%08X" % ((pow (2, width) - 1) << place),
+                "%s" % (preSetting + fname),
+                "%s" % (desc)))
 
-              htmlfile.write("<table frame=box rules=cols summary='%s' style='margin:10px;' cellpadding=3><tr style=\"border: 2px solid;\"><th>%s</th><th>%s</th></tr>" % (desc, fname, desc))
-
-          cvaluestring = []
+          have_cvalue = 0
           for option_node in fdom.children(field_node, 'DCRFieldSemantic'):
             langhidden_FieldSemantic=fdom.get2(option_node, 'islanghidden', defaultValue="")
             hidden_FieldSemantic=fdom.get2(option_node, 'ishidden', defaultValue="")
             if langhidden_FieldSemantic=="true" or hidden_FieldSemantic=="true":
-              return
+              return config_lines
 
             desc = ""
             if fdom.hasAttr(option_node, 'desc'):
@@ -861,35 +888,110 @@ def getconfigData(pic, addr, DCRDef_node, configfile, htmlfile, offset = None):
                 option_alias.append(fdom.get2(legacy_node, 'cname'))
 
             for aname in option_alias:
-              cvaluestring.append("CVALUE:%08X:%s:%s\n" %(value<<place,aname,"Alias for "+cname1))
+              config_lines.append(ConfigEntry(
+                  "CVALUE",
+                  "%08X" % (value << place),
+                  "%s" % (aname),
+                  "%s" % ("Alias for " + cname1),
+                  "%s" % (desc)))
+              have_cvalue = 1
 
-            cvaluestring.append("CVALUE:%08X:%s:%s\n" %(value<<place,cname1,desc))
-            htmlfile.write("<tr><td>%s = %s</td><td><font size=\"2\">\n" % (fname, cname1))
-            htmlfile.write("%s\n" % desc)
-            htmlfile.write("</font></td></tr>\n")
-            for aname in option_alias:
-              htmlfile.write("<tr><td>%s = %s</td><td><font size=\"2\">\n" % (fname, aname))
-              htmlfile.write("Alias for %s\n" % cname1)
-              htmlfile.write("</font></td></tr>\n")
+            config_lines.append(ConfigEntry(
+                "CVALUE",
+                "%08X" % (value << place),
+                "%s" % (cname1),
+                "%s" % (desc)))
+            have_cvalue = 1
 
-          if not cvaluestring and (fname!=""):
+          if not have_cvalue and (fname!=""):
             mask = edc.bitfields.maskOfBitfield(field_node)
             max = hex((1 << popcount32_table16(mask))-1)
-            cvaluestring.append("CVALUE:00000000:00000000:Range is from 0 to %s\n" % max)
-            htmlfile.write("<tr><td>%s = 00000000</td><td><font size=\"2\">\n" % (fname))
-            htmlfile.write("Range is from 0 to %s\n" % max)
-            htmlfile.write("</font></td></tr>\n")
-          for cstring in sorted(cvaluestring):
-            configfile.write(cstring)
+            config_lines.append(ConfigEntry(
+                "CVALUE",
+                "00000000",
+                "00000000",
+                "Range is from 0 to %s" % max))
 
-          if fname!="":
-            htmlfile.write("</table>\n\n")
+    return config_lines
 
 def configDataFile(pic,configfile, htmlfile, offset = None):
+  config_lines = []
+  tmp = None
+
   for addr, DCRDef_node in sorted(pic.addrOntoDCR.iteritems(), key=lambda pair:pair[0]):
-    getconfigData(pic, addr, DCRDef_node, configfile, htmlfile, offset)
+    tmp = getconfigData(pic, addr, DCRDef_node, offset)
+    if tmp:
+        config_lines += tmp
   for addr, AltDCRDef_node in sorted(pic.addrOntoAltDCR.iteritems(), key=lambda pair:pair[0]):
-    getconfigData(pic, addr, AltDCRDef_node, configfile, htmlfile, offset)
+    tmp = getconfigData(pic, addr, AltDCRDef_node, offset)
+    if tmp:
+        config_lines += tmp
+
+  seen = set()
+  duplicates = set()
+
+  # detect duplicate CSETTING names
+  for line in config_lines:
+    if line.field3 in seen and line.field1 == "CSETTING":
+        duplicates.add(line.field3)
+    else:
+        seen.add(line.field3)
+  # Copy entire list except duplicate CSETTING, preserving order of elements
+  uniqueified_config_lines = [line for line in config_lines if not (line.field3 in duplicates)]
+
+  # actually write configuration.data and html files.
+  # For CSETTING entries
+  # field4 is the description of the config word. alt_field4 contains the text
+  # from PIC file instead of "alias for ..." (micromips)
+  last_line = None
+  last_csetting = None
+  first = True
+  for line in uniqueified_config_lines:
+      if line.field1 == "CSETTING" and first != True:
+        htmlfile.write("</table>\n\n")
+
+      if line.field1 == "CSETTING":
+        # detect if current line is a disambiguated entry
+        # short name
+        if last_line and last_line.field3.endswith(line.field3):
+            line_to_write = ("%s:%s:%s:%s\n" % (line.field1,
+                                            line.field2,
+                                            line.field3,
+                                            "Short name for %s" % (last_line.field3)))
+            htmlfile.write("<table frame=box rules=cols summary='%s' style='margin:10px;' cellpadding=3><tr style=\"border: 2px solid;\"><th>%s</th><th>%s</th></tr>" % ("Short name for %s\n" % (last_line.field3), line.field3, "Short name for %s\n" % (last_line.field3)))
+        else:
+            if line.alt_field4 != None:
+                line_to_write = ("%s:%s:%s:%s\n" % (line.field1,
+                                                line.field2,
+                                                line.field3,
+                                                line.alt_field4))
+                htmlfile.write("<table frame=box rules=cols summary='%s' style='margin:10px;' cellpadding=3><tr style=\"border: 2px solid;\"><th>%s</th><th>%s</th></tr>" % (line.alt_field4, line.field3, line.alt_field4))
+            else:
+                line_to_write = ("%s:%s:%s:%s\n" % (line.field1,
+                                                line.field2,
+                                                line.field3,
+                                                "Short name for %s" % (last_line.field3)))
+                htmlfile.write("<table frame=box rules=cols summary='%s' style='margin:10px;' cellpadding=3><tr style=\"border: 2px solid;\"><th>%s</th><th>%s</th></tr>" % ("Short name for %s\n" % (last_line.field3), line.field3, "Short name for %s\n" % (last_line.field3)))
+
+        last_csetting = line
+        first = False
+      # cvalue/cword
+      else:
+            line_to_write = ("%s:%s:%s:%s\n" % (line.field1,
+                                            line.field2,
+                                            line.field3,
+                                            line.field4))
+            if line.field1 == "CVALUE":
+                htmlfile.write("<tr><td>%s = %s</td><td><font size=\"2\">\n" % (last_csetting.field3, line.field3))
+                if line.alt_field4:
+                    htmlfile.write("%s\n" % line.alt_field4)
+                elif line.field4:
+                    htmlfile.write("%s\n" % line.field4)
+                htmlfile.write("</font></td></tr>\n")
+
+      configfile.write(line_to_write)
+      last_line = line
+  htmlfile.write("</table>\n\n")
 
 def printKludge(cname,incfile):
       incfile.write ("\n");

@@ -50,3 +50,7 @@ for f in $FILES; do
     fi
   fi
 done
+
+# Remove the remote directory on the Windows machine used for signing
+# The files are already copied back so it can be deleted at this point.
+ssh "${REMOTE_ADDR}" rm -r "${REMOTE_DIR}"

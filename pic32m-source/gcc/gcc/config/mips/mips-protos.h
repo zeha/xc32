@@ -411,6 +411,7 @@ extern unsigned int mips_base_compression_flags;
 extern bool mips_base_micromips;
 extern unsigned int mips16e_collect_argument_saves (void);
 void pic32_cond_reg_usage (void);
+extern const char *pic32_output_unique_id (rtx operands[]);
 #endif
 extern const char* pic32_output_switch_ISA32 (void);
 extern const char* pic32_output_switch_ISA16 (void);

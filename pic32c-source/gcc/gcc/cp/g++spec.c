@@ -356,6 +356,14 @@ lang_specific_driver (struct cl_decoded_option **in_decoded_options,
   generate_option (OPT_mxc32cpp_lib, NULL, 1, CL_DRIVER,
                    &new_decoded_options[j++]);
 #endif
+#if defined(_BUILD_MCHP_)
+  /* 
+    XC32-1837 - make sure the include/musl directory is not scanned for headers 
+      when pic32m-g++ or pic32c-g++ are used
+  */
+  generate_option (OPT_mnewlib_libc, NULL, 1, CL_DRIVER,
+                   &new_decoded_options[j++]);
+#endif
 
   /* Add `-lstdc++' if we haven't already done so.  */
   if (library > 0)

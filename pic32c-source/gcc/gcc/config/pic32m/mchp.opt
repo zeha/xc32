@@ -515,9 +515,6 @@ Target RejectNegative Var(mchp_mafrlcsj) Undocumented
 mgen-pie-static
 Target RejectNegative Undocumented
 
-fshort-double
-Undocumented
-
 mskip-license-check
 Target Var(TARGET_SKIP_LICENSE_CHECK) Init(0) Undocumented
 For use by MPLAB X IDE only - Forces a free license

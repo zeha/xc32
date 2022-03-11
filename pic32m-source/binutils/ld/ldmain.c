@@ -394,6 +394,9 @@ main (int argc, char **argv)
   if (command_line.print_output_format)
     info_msg ("%s\n", lang_get_output_target ());
 
+  if (command_line.print_output_filename)
+    info_msg ("Linker output filename:%s\n", output_filename);
+
   lang_final ();
 
   /* If the only command line argument has been -v or --version or --verbose

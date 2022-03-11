@@ -128,7 +128,7 @@ Target Report Init(1)
 -mnewlib-nano   Use newlib-nano implementation of standard C library
 
 mnewlib-libc
-Target RejectNegative Undocumented
+Target RejectNegative Var(TARGET_NEWLIB_LIBC) Undocumented
 Accepted for compatibility reasons
 
 msemihost

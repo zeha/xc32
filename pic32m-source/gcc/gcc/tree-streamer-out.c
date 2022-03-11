@@ -304,6 +304,9 @@ pack_ts_function_decl_value_fields (struct bitpack_d *bp, tree expr)
   bp_pack_value (bp, DECL_DISREGARD_INLINE_LIMITS (expr), 1);
   bp_pack_value (bp, DECL_PURE_P (expr), 1);
   bp_pack_value (bp, DECL_LOOPING_CONST_OR_PURE_P (expr), 1);
+#ifdef _BUILD_MCHP_
+  bp_pack_value (bp, DECL_UNIQUE_SECTION (expr), 1);
+#endif
   if (DECL_BUILT_IN_CLASS (expr) != NOT_BUILT_IN)
     bp_pack_value (bp, DECL_FUNCTION_CODE (expr), 12);
 }

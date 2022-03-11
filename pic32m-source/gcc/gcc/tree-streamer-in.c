@@ -344,6 +344,9 @@ unpack_ts_function_decl_value_fields (struct bitpack_d *bp, tree expr)
   DECL_DISREGARD_INLINE_LIMITS (expr) = (unsigned) bp_unpack_value (bp, 1);
   DECL_PURE_P (expr) = (unsigned) bp_unpack_value (bp, 1);
   DECL_LOOPING_CONST_OR_PURE_P (expr) = (unsigned) bp_unpack_value (bp, 1);
+#ifdef _BUILD_MCHP_
+  DECL_UNIQUE_SECTION (expr) = (unsigned) bp_unpack_value (bp, 1);
+#endif
   if (DECL_BUILT_IN_CLASS (expr) != NOT_BUILT_IN)
     {
       DECL_FUNCTION_CODE (expr) = (enum built_in_function) bp_unpack_value (bp,

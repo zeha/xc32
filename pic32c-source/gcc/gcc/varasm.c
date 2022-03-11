@@ -1349,7 +1349,11 @@ use_blocks_for_decl_p (tree decl)
    followed again, and return the ultimate target of the alias
    chain.  */
 
-static inline tree
+/* XC32-1788: We need to call this function from the PIC32C/M target code */
+#if !(defined(TARGET_MCHP_PIC32C) || defined(TARGET_MCHP_PIC32MX))
+static inline
+#endif
+tree
 ultimate_transparent_alias_target (tree *alias)
 {
   tree target = *alias;
@@ -6888,34 +6892,53 @@ default_unique_section (tree decl, int reloc)
   /* if there is a section name on the decl, we use that as the prefix;
      otherwise, we figure out the prefix based on the decl itself */
   if (DECL_SECTION_NAME (decl) != NULL)
-    {
-      const char *sname = DECL_SECTION_NAME (decl);
-      prefix = ACONCAT ((sname, NULL));
-    }
+    prefix = DECL_SECTION_NAME (decl);
+  /* XC32-1788: the following test is replicating a bit of functionality from
+   * mchp_build_prefix() (the part that sets DECL_SECTION_NAME (decl) to "*"
+   * when DECL_SECTION_NAME (decl) is NULL and the address attribute is present);
+   * this also explains why XC32-1788 is not manifesting when not optimizing
+   * (mchp_build_prefix() is called before default_unique_section() on -O0) */
+  else if (lookup_attribute ("address", DECL_ATTRIBUTES (decl)))
+    prefix = "*";
   else
 #endif
   switch (categorize_decl_for_section (decl, reloc))
     {
     case SECCAT_TEXT:
+      /* FIXME: isn't this applicable also to PIC32C? */
 #if defined(TARGET_MCHP_PIC32MX)
-                  if (mchp_ramfunc_type_p(decl))
-                    prefix = one_only ? ".rf" : ".ramfunc";
-                  else
-                    prefix = one_only ? ".t" : ".text";
-#else
-      prefix = one_only ? ".t" : ".text";
+	  if (mchp_ramfunc_type_p(decl))
+		prefix = one_only ? ".rf" : ".ramfunc";
+	  else
+     /* the tcm attribute is PIC32C-specific */
+#elif defined(TARGET_MCHP_PIC32C)
+      if (get_pic32c_tcm_attribute(decl))
+	    prefix = one_only ? ".it" : ".text_itcm";
+	  else
 #endif
+      prefix = one_only ? ".t" : ".text";
       break;
     case SECCAT_RODATA:
     case SECCAT_RODATA_MERGE_STR:
     case SECCAT_RODATA_MERGE_STR_INIT:
     case SECCAT_RODATA_MERGE_CONST:
+      // XC32-1852: put read-only tcm data into .data_dtcm
+#if defined(TARGET_MCHP_PIC32C)
+      if (get_pic32c_tcm_attribute(decl))
+	    prefix = one_only ? ".dt" : ".data_dtcm";
+	  else
+#endif
       prefix = one_only ? ".r" : ".rodata";
       break;
     case SECCAT_SRODATA:
       prefix = one_only ? ".s2" : ".sdata2";
       break;
     case SECCAT_DATA:
+#if defined(TARGET_MCHP_PIC32C)
+      if (get_pic32c_tcm_attribute(decl))
+	    prefix = one_only ? ".dt" : ".data_dtcm";
+	  else
+#endif
       prefix = one_only ? ".d" : ".data";
       break;
     case SECCAT_DATA_REL:
@@ -6934,6 +6957,11 @@ default_unique_section (tree decl, int reloc)
       prefix = one_only ? ".s" : ".sdata";
       break;
     case SECCAT_BSS:
+#if defined(TARGET_MCHP_PIC32C)
+      if (get_pic32c_tcm_attribute(decl))
+	    prefix = one_only ? ".bt" : ".bss_dtcm";
+	  else
+#endif
       prefix = one_only ? ".b" : ".bss";
       break;
     case SECCAT_SBSS:
@@ -6953,6 +6981,19 @@ default_unique_section (tree decl, int reloc)
   ultimate_transparent_alias_target (&id);
   name = IDENTIFIER_POINTER (id);
   name = targetm.strip_name_encoding (name);
+
+#ifdef _BUILD_MCHP_
+  /* XC32-1788: default_unique_section () is called from resolved_unique_section ()
+   * multiple times when DECL_UNIQUE_SECTION (decl) is set e.g. when the declaration
+   * has an attribute that relies on that unique_section flag to be set;
+   * consequently, the "unique name" of the section might end up acquire multiple
+   * .<var-name> suffixes;
+   * here we are trying to prevent the addition of more than one such suffix relying
+   * only on the section and variable names themselves
+   */
+  if (DECL_UNIQUE_SECTION (decl) && !mchp_annotate_section_name_p (prefix, name))
+    return;
+#endif
 
   /* If we're using one_only, then there needs to be a .gnu.linkonce
      prefix to the section name.  */

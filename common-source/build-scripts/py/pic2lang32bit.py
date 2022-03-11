@@ -2859,6 +2859,11 @@ def printSupportFiles(pic):
     path=os.path.join(path,'32Family', namewithoutpic)
     if not os.path.exists(path):
         os.makedirs(path)
+
+    # Generate architecture file
+    arch_file = open(os.path.join(path, "pic32m"), 'w')
+    arch_file.close()
+
     MZOffset = ""
     "Build a Makefile to build the processor-specific register definitions"
     print "Generating Makefile for %s" % namewithoutpic

@@ -28609,11 +28609,11 @@ s_arm_change_section (int push)
              * in the symbol value instead of the VMA
              */
             if (PIC32_IS_NOPA_ATTR(sec)) {
-                name = xmalloc (strlen(sec->name) + strlen(NOPA_EXT_ATTR_PREFIX) + 1);
-                (void) sprintf(name, "%s%s", NOPA_EXT_ATTR_PREFIX, sec->name);
+                symbol_name = xmalloc (strlen(sec->name) + strlen(NOPA_EXT_ATTR_PREFIX) + 1);
+                (void) sprintf(symbol_name, "%s%s", NOPA_EXT_ATTR_PREFIX, sec->name);
 
-                if (!symbol_find(name)) {
-                    symbolp = symbol_new (name, sec,
+                if (!symbol_find(symbol_name)) {
+                    symbolp = symbol_new (symbol_name, sec,
                                           (valueT) STYP_NOPA,
                                           &zero_address_frag);
                     symbol_table_insert (symbolp);

@@ -1142,6 +1142,21 @@ static const char *self_spec = "";
 
 #if defined(TARGET_MCHP_PIC32MX) || defined(TARGET_MCHP_PIC32C)
 static unsigned int use_custom_linker_script = 0;
+/* 
+  XC32-1817
+
+  This is a temporary fix:until MUSL libc will be used for both C and C++ projs.
+
+  Until then, we have to make sure that the C startup-files (listed in the
+  device-specs file and compiled by invoking the cc1 tool directly) use the 
+  "-isystem =/include/musl" option.
+
+  When we will get rid of the the newlib libc we can move this 
+  '-isystem =/include/musl' into CC1_SPEC (CC1_SPEC being used to provide extra 
+  args to cc1 and cc1plus)
+
+*/
+static const char* imusl = "%{!mnewlib-libc:-isystem =/include/musl}";
 #endif
 
 /* Standard options to cpp, cc1, and as, to reduce duplication in specs.
@@ -1154,7 +1169,7 @@ static unsigned int use_custom_linker_script = 0;
    call cc1 (or cc1obj in objc/lang-specs.h) from the main specs so
    that we default the front end language better.  */
 static const char *trad_capable_cpp =
-"cc1 -E %{traditional|traditional-cpp:-traditional-cpp}";
+"cc1 %(imusl) -E %{traditional|traditional-cpp:-traditional-cpp}";
 
 /* We don't wrap .d files in %W{} since a missing .d file, and
    therefore no dependency entry, confuses make into thinking a .o
@@ -1368,10 +1383,10 @@ static const struct compiler default_compilers[] =
 %eGNU C no longer supports -traditional without -E}\
       %{save-temps*|traditional-cpp|no-integrated-cpp:%(trad_capable_cpp) \
 	  %(cpp_options) -o %{save-temps*:%b.i} %{!save-temps*:%g.i} \n\
-	    cc1 -fpreprocessed %{save-temps*:%b.i} %{!save-temps*:%g.i} \
+	    cc1 %(imusl) -fpreprocessed %{save-temps*:%b.i} %{!save-temps*:%g.i} \
 	  %(cc1_options)}\
       %{!save-temps*:%{!traditional-cpp:%{!no-integrated-cpp:\
-	  cc1 %(cpp_unique_options) %(cc1_options)}}}\
+	  cc1 %(imusl) %(cpp_unique_options) %(cc1_options)}}}\
       %{!fsyntax-only:%(invoke_as)}}}}", 0, 0, 1},
   {"-",
    "%{!E:%e-E or -x required when input is from standard input}\
@@ -1384,19 +1399,19 @@ static const struct compiler default_compilers[] =
       %{!E:%{!M:%{!MM:\
 	  %{save-temps*|traditional-cpp|no-integrated-cpp:%(trad_capable_cpp) \
 		%(cpp_options) -o %{save-temps*:%b.i} %{!save-temps*:%g.i} \n\
-		    cc1 -fpreprocessed %{save-temps*:%b.i} %{!save-temps*:%g.i} \
+		    cc1 %(imusl) -fpreprocessed %{save-temps*:%b.i} %{!save-temps*:%g.i} \
 			%(cc1_options)\
 			%{!fsyntax-only:%{!S:-o %g.s} \
 			    %{!fdump-ada-spec*:%{!o*:--output-pch=%i.gch}\
 					       %W{o*:--output-pch=%*}}%V}}\
 	  %{!save-temps*:%{!traditional-cpp:%{!no-integrated-cpp:\
-		cc1 %(cpp_unique_options) %(cc1_options)\
+		cc1 %(imusl) %(cpp_unique_options) %(cc1_options)\
 		    %{!fsyntax-only:%{!S:-o %g.s} \
 		        %{!fdump-ada-spec*:%{!o*:--output-pch=%i.gch}\
 					   %W{o*:--output-pch=%*}}%V}}}}}}}", 0, 0, 0},
   {".i", "@cpp-output", 0, 0, 0},
   {"@cpp-output",
-   "%{!M:%{!MM:%{!E:cc1 -fpreprocessed %i %(cc1_options) %{!fsyntax-only:%(invoke_as)}}}}", 0, 0, 0},
+   "%{!M:%{!MM:%{!E:cc1 %(imusl) -fpreprocessed %i %(cc1_options) %{!fsyntax-only:%(invoke_as)}}}}", 0, 0, 0},
   {".s", "@assembler", 0, 0, 0},
   {"@assembler",
    "%{!M:%{!MM:%{!E:%{!S:as %(asm_debug) %(asm_options) %i %A }}}}", 0, 0, 0},
@@ -1623,6 +1638,7 @@ static struct spec_list static_specs[] =
   INIT_STATIC_SPEC ("cpp_debug_options",	&cpp_debug_options),
   INIT_STATIC_SPEC ("cpp_unique_options",	&cpp_unique_options),
   INIT_STATIC_SPEC ("trad_capable_cpp",		&trad_capable_cpp),
+  INIT_STATIC_SPEC ("imusl",		&imusl),
   INIT_STATIC_SPEC ("cc1",			&cc1_spec),
   INIT_STATIC_SPEC ("cc1_options",		&cc1_options),
   INIT_STATIC_SPEC ("cc1plus",			&cc1plus_spec),
@@ -7969,6 +7985,32 @@ driver::set_up_specs () const
   }
 
 #if defined(TARGET_MCHP_PIC32C)
+  /*
+    pic32c-g++ still uses newlib as libc
+   */
+  if (strncmp (progname, "pic32c-gcc", strlen ("pic32c-gcc")) == 0)
+    {
+      specs_file
+          = find_a_file (&startfile_prefixes, "pic32c.musl.specs", R_OK, true);
+      if (access (specs_file, R_OK) == 0)
+        read_specs (specs_file, false, true);
+    }
+#endif
+
+#if defined(TARGET_MCHP_PIC32MX)
+  /*
+    pic32m-g++ still uses newlib as libc
+   */
+  if (strncmp (progname, "pic32m-gcc", strlen ("pic32m-gcc")) == 0)
+    {
+      specs_file
+          = find_a_file (&startfile_prefixes, "pic32m.musl.specs", R_OK, true);
+      if (access (specs_file, R_OK) == 0)
+        read_specs (specs_file, false, true);
+    }
+#endif
+
+#if defined(TARGET_MCHP_PIC32C)
   /* XC32E-696: hacking in this 'final-self-spec' so
      that we can add target self-specs after any user self-specs. */
   for (i = 0; i < ARRAY_SIZE (final_self_specs); i++)
@@ -8061,13 +8103,28 @@ driver::maybe_putenv_COLLECT_LTO_WRAPPER () const
 				    X_OK, false);
   if (lto_wrapper_file)
     {
+#if defined(TARGET_IS_PIC32C) || defined(TARGET_IS_PIC32MX)
+      /* prevents CreateProcess() error with -fno-use-linker-plugin on Windows
+       * (lto_wrapper_spec should have the spaces escaped but
+       * COLLECT_LTO_WRAPPER's value should not) */
+      lto_wrapper_spec = convert_white_space_free_mem (lto_wrapper_file, 0);
+#if !defined(__MINGW32__)
+      lto_wrapper_file = (char *) lto_wrapper_spec;
+#endif
+#else
       lto_wrapper_file = convert_white_space (lto_wrapper_file);
       lto_wrapper_spec = lto_wrapper_file;
+#endif
       obstack_init (&collect_obstack);
       obstack_grow (&collect_obstack, "COLLECT_LTO_WRAPPER=",
 		    sizeof ("COLLECT_LTO_WRAPPER=") - 1);
+#if defined(TARGET_IS_PIC32C) || defined(TARGET_IS_PIC32MX)
+      obstack_grow (&collect_obstack, lto_wrapper_file,
+		    strlen (lto_wrapper_file) + 1);
+#else
       obstack_grow (&collect_obstack, lto_wrapper_spec,
 		    strlen (lto_wrapper_spec) + 1);
+#endif
       xputenv (XOBFINISH (&collect_obstack, char *));
     }
 
@@ -8948,7 +9005,18 @@ next_member:
     {
       /* Mark all matching switches as valid.  */
       for (i = 0; i < n_switches; i++)
-	if (!strncmp (switches[i].part1, atom, len)
+        /*
+          XC32-1786: we have to check for len to make sure that it is nonzero
+
+          Using a specs-file (thru --specs=<specs-file> option) that contains a
+          "*" character leads to the gcc driver to validate all switches (even
+          those that are invalid)
+
+          This does look like a GCC bug and it seems that starred
+          (and possibly suffix?) should be set to false after the next_member
+          label.
+        */
+        if ((len && !strncmp (switches[i].part1, atom, len))
 	    && (starred || switches[i].part1[len] == '\0')
 	    && (switches[i].known || user_spec))
 	      switches[i].validated = true;

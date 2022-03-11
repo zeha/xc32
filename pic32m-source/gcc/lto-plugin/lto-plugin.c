@@ -182,6 +182,8 @@ static unsigned int num_pass_through_items;
 
 static char debug;
 static char nop;
+static char keep_output;
+static char print_claimed_input;
 static char *resolution_file = NULL;
 static enum ld_plugin_output_file_type linker_output;
 static int linker_output_set;
@@ -537,6 +539,11 @@ cont:
 	= xrealloc (output_files, num_output_files * sizeof (char *));
       output_files[num_output_files - 1] = s;
       add_input_file (output_files[num_output_files - 1]);
+      if (print_claimed_input)
+        {
+          fprintf (stderr, "lto-plugin:added: %s\n", output_files[num_output_files - 1]);
+          fflush (stderr);
+        }
     }
 }
 
@@ -715,6 +722,11 @@ all_symbols_read_handler (void)
       struct plugin_file_info *info = &claimed_files[i];
 
       *lto_arg_ptr++ = info->name;
+      if (print_claimed_input)
+        {
+          fprintf (stderr, "lto-plugin:claimed: %s\n", info->name);
+          fflush (stderr);
+        }
     }
 
   *lto_arg_ptr++ = NULL;
@@ -759,10 +771,13 @@ cleanup_handler (void)
       check (t == 0, LDPL_FATAL, "could not unlink arguments file");
     }
 
-  for (i = 0; i < num_output_files; i++)
+  if (!keep_output)
     {
-      t = unlink (output_files[i]);
-      check (t == 0, LDPL_FATAL, "could not unlink output file");
+      for (i = 0; i < num_output_files; i++)
+        {
+          t = unlink (output_files[i]);
+          check (t == 0, LDPL_FATAL, "could not unlink output file");
+        }
     }
 
   free_2 ();
@@ -1126,6 +1141,10 @@ process_option (const char *option)
     debug = 1;
   else if (strcmp (option, "-nop") == 0)
     nop = 1;
+  else if (strcmp (option, "-keep-output") == 0)
+    keep_output = 1;
+  else if (strcmp (option, "-print-claimed-input") == 0)
+    print_claimed_input = 1;
   else if (!strncmp (option, "-pass-through=", strlen("-pass-through=")))
     {
       num_pass_through_items++;

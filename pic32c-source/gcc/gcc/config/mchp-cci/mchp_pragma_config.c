@@ -392,6 +392,29 @@ mchp_handle_configuration_setting (const char *name,
 
   /* if we got here, we didn't find the setting, which is an error */
   error ("unknown configuration setting: '%s'", name);
+  bool first = true;
+  char *match_name = ACONCAT(("_", name, NULL));
+  for (spec = mchp_configuration_values; spec; spec = spec->next)
+    {
+      struct mchp_config_setting *setting;
+      for (setting = spec->word->settings; setting; setting = setting->next)
+        {
+          if (strstr(setting->name, match_name))
+            {
+              if (first)
+                {
+                  inform (input_location, "Did you mean: '%s' with word address "
+                           "of 0x%x?", setting->name, spec->word->address);
+                  first = !first;
+                }
+              else
+                {
+                  inform (input_location, "Or maybe    : '%s' with word address "
+                           "of 0x%x?", setting->name, spec->word->address);
+                }
+            }
+        }
+    }
 }
 
 /* Verify that all the settings in a configuration word have been

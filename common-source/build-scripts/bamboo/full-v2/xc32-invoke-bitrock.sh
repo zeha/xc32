@@ -79,7 +79,7 @@ buildinstallers()
       check_file xc32-${FULL_VERSION}-windows-x64-installer.exe
       cp xc32-${FULL_VERSION}-windows-x64-installer.exe $WORK_DIR
       if [[ $BUILD_NAME =~ RC ]]; then 
-        mv $WORK_DIR/xc32-${FULL_VERSION}-windows-x64-installer.exe  $WORK_DIR/xc32-${FULL_VERSION}-${BUILD_NAME}-windows-installer.exe
+        mv $WORK_DIR/xc32-${FULL_VERSION}-windows-x64-installer.exe  $WORK_DIR/xc32-${FULL_VERSION}-${BUILD_NAME}-windows-x64-installer.exe
       fi 
     fi
     if [[ $VAR =~ DARWIN ]]; then

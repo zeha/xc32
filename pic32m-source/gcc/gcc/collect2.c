@@ -1022,11 +1022,6 @@ main (int argc, char **argv)
   /* PA is currently not available for ARM ISA */
   if (pa_enabled && arm_isa)
     fatal_error (input_location, "-mpa is currently not supported with -marm");
-
-  /* Disable PA if LTO is enabled */
-  for (i = 1; argv[i] != NULL && pa_enabled == true; i++)
-    if (strncmp (argv[i], "-flto", 5) == 0)
-      pa_enabled = false;
 #endif
 
   /* Do not invoke xcalloc before this point, since locale needs to be

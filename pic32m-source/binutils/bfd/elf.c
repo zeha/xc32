@@ -1152,10 +1152,19 @@ _bfd_elf_make_section_from_shdr (bfd *abfd,
       && elf_next_in_group (newsect) == NULL)
     flags |= SEC_LINK_ONCE | SEC_LINK_DUPLICATES_SAME_CONTENTS;
 
+  /* XC32-1833: fix linker warning about stack usage sections when
+   * -no-data-init is used. Since the sections are info and it
+   * should be used only for stack usage information, it shouldn't
+   * end up in dinit.
+   * However, the xc_stack_usage sections have SEC_DATA, SEC_ALLOC
+   * and SEC_LOAD set at this point.
+   * To fix this so we will clear flags and set EXCLUDE, NEVER_LOAD
+   * and HAS_CONTENTS instead.
+   */
   if (CONST_STRNEQ (name, SU_SECTION_HDR)) {
-    flags |= SEC_EXCLUDE;
+    flags = (SEC_EXCLUDE | SEC_NEVER_LOAD | SEC_HAS_CONTENTS);
   } else if (CONST_STRNEQ (name, SU_SECTION)) {
-    flags |= SEC_EXCLUDE;
+    flags = (SEC_EXCLUDE | SEC_NEVER_LOAD | SEC_HAS_CONTENTS);
   }
 
 #endif

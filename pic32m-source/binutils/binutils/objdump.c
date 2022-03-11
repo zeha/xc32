@@ -134,6 +134,9 @@ static const char *prefix;		/* --prefix */
 static int prefix_strip;		/* --prefix-strip */
 static size_t prefix_length;
 static bfd_boolean unwind_inlines;	/* --inlines.  */
+#if defined(TARGET_MCHP_PIC32C) || defined(TARGET_MCHP_PIC32MX)
+static int print_func_ends;             /* --func-ends */
+#endif
 static const char * disasm_sym;		/* Disassembly start symbol.  */
 
 static int demangle_flags = DMGL_ANSI | DMGL_PARAMS;
@@ -284,6 +287,10 @@ usage (FILE *stream, int status)
       --inlines                  Print all inlines for source line (with -l)\n\
       --prefix=PREFIX            Add PREFIX to absolute paths for -S\n\
       --prefix-strip=LEVEL       Strip initial directory names for -S\n"));
+#if defined(TARGET_MCHP_PIC32C) || defined(TARGET_MCHP_PIC32MX)
+      fprintf (stream, _("\
+      --func-ends                Print end addresses for function syms\n"));
+#endif
       fprintf (stream, _("\
       --dwarf-depth=N        Do not display DIEs at depth N or greater\n\
       --dwarf-start=N        Display DIEs starting with N, at the same depth\n\
@@ -381,6 +388,9 @@ static struct option long_options[]=
   {"dwarf-start", required_argument, 0, OPTION_DWARF_START},
   {"dwarf-check", no_argument, 0, OPTION_DWARF_CHECK},
   {"inlines", no_argument, 0, OPTION_INLINES},
+#if defined(TARGET_MCHP_PIC32C) || defined(TARGET_MCHP_PIC32MX)
+  {"func-ends", no_argument, &print_func_ends, 1},
+#endif
   {0, no_argument, 0, 0}
 };
 
@@ -2662,6 +2672,20 @@ disassemble_section (bfd *abfd, asection *section, void *inf)
 	disassemble_bytes (pinfo, paux->disassemble_fn, insns, data,
 			   addr_offset, nextstop_offset,
 			   rel_offset, &rel_pp, rel_ppend);
+
+#if defined(TARGET_MCHP_PIC32C) || defined(TARGET_MCHP_PIC32MX)
+      /* if requested, print the function end address */
+      if (print_func_ends
+          && do_print
+          && (sym->flags & BSF_FUNCTION))
+        {
+          objdump_print_value (addr + (nextstop_offset - addr_offset),
+                               pinfo, FALSE);
+          pinfo->fprintf_func (pinfo->stream, " :<");
+          objdump_print_symname (abfd, pinfo, sym);
+          pinfo->fprintf_func (pinfo->stream, ">\n");
+        }
+#endif
 
       addr_offset = nextstop_offset;
       sym = nextsym;

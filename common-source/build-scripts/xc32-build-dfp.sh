@@ -43,10 +43,10 @@ fi
 # set MCHP_VERSION and MCHP_RESOURCE
 # FIX ME: most probably these two should not be set here
 if [ -z $MCHP_VERSION ]; then
-  MCHP_VERSION="2.05"
+  MCHP_VERSION="3.01"
 fi
 if [ -z $MCHP_RESOURCE ]; then
-  MCHP_RESOURCE="A"
+  MCHP_RESOURCE="0"
 fi
 
 # select PIC32C or PIC32M DFP build scripts based on family argument

@@ -44,6 +44,13 @@ along with GCC; see the file COPYING3.  If not see
 #define MCHP_XCLM_NO_CCOV_LICENSE        0x8
 #define MCHP_XCLM_VALID_CCOV_LICENSE     0x9
 
+/* New option used for named license */
+#define MCHP_XCLM_VALID_NAMED_LICENSE    0xA
+
+/* New option used for analysis tool-suite license */
+#define MCHP_XCLM_NO_ANATS_LICENSE         0x0
+#define MCHP_XCLM_VALID_ANATS_LICENSE      0xB
+
 #endif  /* SKIP_LICENSE_MANAGER */
 
 /* Note: this doesn't look like it's defined anymore in xclm_public.h,
@@ -272,7 +279,7 @@ pic32_get_license (bool xccov)
     char kopt[] = "-checkout";
 #endif /* XCLM_FULL_CHECKOUT */
     char xc32_product[] = "swxc32";
-    char xccov_product[] = "swxc-cov";
+    char xccov_product[] = "swanaly";
     char version[16] = "1.0"; /* 1.0 works for xccov; for xc32, the version is determined below */
     char date[] = __DATE__;
 
@@ -409,7 +416,8 @@ pic32_get_license (bool xccov)
 int
 pic32c_licensed_xccov_p ()
 {
-  return mchp_xccov_license_valid == MCHP_XCLM_VALID_CCOV_LICENSE;
+  return (mchp_xccov_license_valid == MCHP_XCLM_VALID_CCOV_LICENSE ||
+	  mchp_xccov_license_valid == MCHP_XCLM_VALID_ANATS_LICENSE);
 }
 
 void mchp_override_options_after_change(void) {
@@ -431,13 +439,19 @@ void mchp_override_options_after_change(void) {
             NULLIFY(optimize, "Optimization level > 2") = 2;
           }
         /* Disable -O3 optimizations */
+        NULLIFY(flag_tree_loop_distribute_patterns, "tree loop distribute patterns") = 0;
         NULLIFY(flag_predictive_commoning, "predictive commoning") = 0;
+        NULLIFY(flag_split_paths, "split paths") = 0;
         NULLIFY(flag_inline_functions, "inline functions") = 0;
+        NULLIFY(flag_split_loops, "split loops") = 0;
         NULLIFY(flag_unswitch_loops, "unswitch loops") = 0;
+        NULLIFY(flag_unroll_jam, "unroll and jam") = 0;
         NULLIFY(flag_gcse_after_reload, "gcse after reload") = 0;
         NULLIFY(flag_tree_loop_vectorize, "tree loop vectorize") = 0;
         NULLIFY(flag_tree_slp_vectorize, "tree slp vectorize") = 0;
         NULLIFY(flag_ipa_cp_clone, "ipa cp clone") = 0;
+        NULLIFY(flag_tree_partial_pre, "tree partial pre") = 0;
+        NULLIFY(flag_peel_loops, "peel loops") = 0;
         flag_ipa_cp = 0;
        }
 

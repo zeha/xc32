@@ -76,6 +76,9 @@ extern tree mchp_region_attribute(tree *decl, tree identifier,
 extern tree mchp_noload_attribute(tree *decl, tree identifier,
                             tree args, int flags ATTRIBUTE_UNUSED,
                             bool *no_add_attrs);
+extern tree mchp_nocodecov_attribute(tree *decl, tree identifier,
+                            tree args, int flags ATTRIBUTE_UNUSED,
+                            bool *no_add_attrs);
 extern void pic32_update_external_memory_info(const char* region_name,
                             unsigned int region_origin, int region_size);
 extern tree mchp_unsupported_attribute(tree *decl, tree identifier,
@@ -135,7 +138,7 @@ extern void mchp_target_insert_attributes (tree decl, tree *attr_ptr);
 extern bool mchp_function_ok_for_sibcall(void);
 extern void mchp_subtarget_override_options(void);
 extern void mchp_subtarget_override_options1 (void);
-extern void mchp_subtarget_override_options2 (void);
+extern void mchp_subtarget_override_options_license(void);
 extern void mchp_override_options_after_change(void);
 extern void mchp_prepare_function_start (tree fndecl);
 extern bool mchp_subtarget_mips16_enabled (const_tree decl);
@@ -165,6 +168,7 @@ extern unsigned int mchp_pragma_scanf_args;
 extern void mchp_asm_named_section(const char *pszSectionName,
                             SECTION_FLAGS_INT flags,
                             tree decl ATTRIBUTE_UNUSED);
+extern int mchp_annotate_section_name_p (const char *sectionName, const char *fnVarName);
 extern section *mchp_select_section (tree decl, int reloc,
                      unsigned HOST_WIDE_INT align ATTRIBUTE_UNUSED);
 extern SECTION_FLAGS_INT mchp_section_type_flags(tree decl, const char *name,

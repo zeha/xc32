@@ -8153,17 +8153,12 @@
 
 (define_insn "pic32_unique_id_32"
   [(set (match_operand:SI 0 "register_operand" "=d")
-   (unspec_volatile:SI [(match_operand:SI 1 "immediate_operand" "i")
-                     (match_operand:SI 2 "immediate_operand" "i")]
+   (unspec_volatile:SI [(match_operand:VOID 1 "immediate_operand" "i")
+                        (match_operand:SI   2 "immediate_operand" "i")]
                             UNSPECV_GENLABEL32))]
   "!TARGET_MIPS16"
-   {  static char buffer[80];
-      char *label;
-
-      label = (char *)(INTVAL(operands[1]));
-      sprintf(buffer,\".global %s\n%s:\n\tli %%0,%lld\",
-              label,label,INTVAL(operands[2]));
-      return buffer;
+   {
+     return pic32_output_unique_id (operands);
    }
   [(set_attr "type"     "load")
    (set_attr "mode"     "none")
@@ -8172,20 +8167,13 @@
 ; pic32_unique_id_16 for mips16 mode
 (define_insn "pic32_unique_id_16"
   [(set (match_operand:SI 0 "register_operand" "=d")
-   (unspec_volatile [(match_operand:SI 1 "const_int_operand" "i")
-                     (match_operand:HI 2 "const_int_operand" "i")]
+   (unspec_volatile [(match_operand:VOID 1 "const_int_operand" "i")
+                     (match_operand:HI   2 "const_int_operand" "i")]
                             UNSPECV_GENLABEL16))]
   "TARGET_MIPS16"
-  "*
-   {  static char buffer[80];
-      char *label;
-
-      label = (char *)(INTVAL(operands[1]));
-      sprintf(buffer,\".global %s\n%s:\n\tli %%0,%lld\",
-              label,label,INTVAL(operands[2]));
-      return buffer;
+   {
+     return pic32_output_unique_id (operands);
    }
-  "
   [(set_attr "type"     "load")
    (set_attr "mode"     "none")
    (set_attr "length"   "4")])

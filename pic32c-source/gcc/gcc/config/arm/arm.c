@@ -412,6 +412,11 @@ static const struct attribute_spec arm_attribute_table[] =
 #undef  TARGET_INSERT_ATTRIBUTES
 #define TARGET_INSERT_ATTRIBUTES arm_insert_attributes
 
+#ifdef _BUILD_MCHP_
+#undef TARGET_FUNCTION_ATTRIBUTE_INLINABLE_P
+#define TARGET_FUNCTION_ATTRIBUTE_INLINABLE_P pic32c_function_attribute_inlinable_p
+#endif
+
 #undef TARGET_ASM_FILE_START
 #define TARGET_ASM_FILE_START arm_file_start
 #undef TARGET_ASM_FILE_END
@@ -829,6 +834,9 @@ static const struct attribute_spec arm_attribute_table[] =
 
 #undef TARGET_CONSTANT_ALIGNMENT
 #define TARGET_CONSTANT_ALIGNMENT arm_constant_alignment
+
+#undef  TARGET_GIMPLE_FOLD_BUILTIN
+#define TARGET_GIMPLE_FOLD_BUILTIN arm_gimple_fold_builtin
 
 /* Obstack for minipool constant handling.  */
 static struct obstack minipool_obstack;
@@ -31386,6 +31394,10 @@ arm_insert_attributes (tree fndecl, tree * attributes)
 {
   const char *mode;
 
+#ifdef SUBTARGET_INSERT_ATTRIBUTES
+  SUBTARGET_INSERT_ATTRIBUTES (fndecl, attributes);
+#endif
+
   if (! TARGET_FLIP_THUMB)
     return;
 
@@ -31396,7 +31408,7 @@ arm_insert_attributes (tree fndecl, tree * attributes)
   /* Nested definitions must inherit mode.  */
   if (current_function_decl)
    {
-     mode = TARGET_THUMB ? "thumb" : "arm";      
+     mode = TARGET_THUMB ? "thumb" : "arm";
      add_attribute (mode, attributes);
      return;
    }

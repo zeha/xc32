@@ -190,4 +190,19 @@ mchp_handle_nocodecov_pragma (struct cpp_reader *pfile ATTRIBUTE_UNUSED)
   mchp_pragma_nocodecov = 1;
 }
 
+/* handler function for the 'nopa' pragma (sets mchp_pragma_nopa) */
+void
+mchp_handle_nopa_pragma (struct cpp_reader *pfile ATTRIBUTE_UNUSED)
+{
+  tree tok_value;
+
+  if (pragma_lex (&tok_value) != CPP_EOF)
+    {
+      warning (OPT_Wpragmas, "junk at end of %<#pragma nopa%>, ignored");
+      CLEAR_REST_OF_INPUT_LINE();
+    }
+
+  mchp_pragma_nopa = 1;
+}
+
 #endif /* _BUILD_MCHP_ */

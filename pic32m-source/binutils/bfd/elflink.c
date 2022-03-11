@@ -10065,7 +10065,7 @@ elf_link_output_extsym (struct bfd_hash_entry *bh, void *data)
 						 input_sec->output_section);
 	    if (sym.st_shndx == SHN_BAD)
 	      {
-#ifdef TARGET_IS_PIC32MX
+#if defined(TARGET_IS_PIC32MX) || defined(TARGET_IS_PIC32C)
                /* If we cannot identify the section because it is a 
                   zero-size stripped section, don't emit the symbol. FS */
 		if (bfd_section_removed_from_list(flinfo->output_bfd,

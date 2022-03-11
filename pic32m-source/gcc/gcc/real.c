@@ -3049,7 +3049,8 @@ const struct real_format ieee_single_format =
     true,
     true,
 /* has_denorm should be false for pic32m arch (XC32-1521)*/
-#ifdef TARGET_MCHP_PIC32MX
+/* has_denorm should be false for pic32c arch (XC32-1909)*/
+#if defined(TARGET_MCHP_PIC32MX) || defined(TARGET_MCHP_PIC32C)
     false,
 #else
     true,
@@ -3350,7 +3351,8 @@ const struct real_format ieee_double_format =
     true,
     true,
 /* has_denorm should be false for pic32m arch (XC32-1521)*/
-#ifdef TARGET_MCHP_PIC32MX
+/* has_denorm should be false for pic32c arch (XC32-1909)*/
+#if defined(TARGET_MCHP_PIC32MX) || defined(TARGET_MCHP_PIC32C)
     false,
 #else
     true,

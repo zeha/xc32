@@ -971,10 +971,10 @@ xc_code_coverage (void)
 bool
 xccov_enabled (void)
 {
-  /* if -mcodecov is specified and the function type doesn't have the 'nocodecov' attribute */
+  /* if -mcodecov is specified and the function decl doesn't have the 'nocodecov' attribute */
   return mchp_codecov != 0 &&
     lookup_attribute ("nocodecov",
-                      TYPE_ATTRIBUTES (TREE_TYPE (current_function_decl))) == NULL_TREE;
+                      DECL_ATTRIBUTES (current_function_decl)) == NULL_TREE;
 }
 
 #if (BUILDING_GCC_VERSION < 4009) /* the passes are C++ objects from GCC 4.9 ? */

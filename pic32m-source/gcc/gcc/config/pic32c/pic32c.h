@@ -409,10 +409,10 @@ extern unsigned int g_ARM_BUILTIN_MAX;
     {"tcm", 0, 0, false, false, false, false, pic32c_tcm_attribute, NULL},           \
     {"unique_section", 0, 0, true, false, false, false, pic32c_unique_section_attribute, NULL}, \
     {"noload", 0, 0, false, false, false, false, pic32c_noload_attribute, NULL},     \
-    {"nocodecov", 0, 0, false, true, true, false, NULL, NULL},                       \
+    {"nocodecov", 0, 0, true, false, false, false, pic32c_nocodecov_attribute, NULL}, \
     {"unsupported", 0, 1, false, false, false, false, pic32c_unsupported_attribute, NULL}, \
     {"target_error", 1, 1, false, false, false, false, pic32c_target_error_attribute, NULL}, \
-    {"nopa", 0, 0, false, false, false, false, pic32c_nopa_attribute, NULL}, \
+    {"nopa", 0, 0, true, false, false, false, pic32c_nopa_attribute, NULL}, \
     {"ramfunc", 0, 0,  false, true,  true,  pic32c_ramfunc_attribute, NULL},
 
 /* The Microchip port has a few pragmas to define as well */
@@ -421,6 +421,7 @@ extern unsigned int g_ARM_BUILTIN_MAX;
   {                                                                            \
     c_register_pragma (0, "config", mchp_handle_config_pragma);                \
     c_register_pragma (0, "nocodecov", mchp_handle_nocodecov_pragma);          \
+    c_register_pragma (0, "nopa", mchp_handle_nopa_pragma);                    \
   }
 
 /* set path to linker for collect2 wrapper */
@@ -605,9 +606,6 @@ extern const char *mchp_last_of (int, const char **);
 #define TARGET_XCCOV_LICENSED     pic32c_licensed_xccov_p
 #define TARGET_XCCOV_EMIT_SECTION pic32c_emit_cc_section
 
-/* MCHP stack-usage */
-#define TARGET_STACK_USAGE_SECTION pic32c_emit_su_section
-
 #undef SUBTARGET_OVERRIDE_INTERNAL_OPTIONS
 #define SUBTARGET_OVERRIDE_INTERNAL_OPTIONS                                    \
   do {                                                                         \
@@ -621,10 +619,13 @@ extern const char *mchp_last_of (int, const char **);
 
 #undef TARGET_ASM_CODE_END
 #define TARGET_ASM_CODE_END pic32c_asm_code_end
-
-#undef SUBTARGET_SET_DEFAULT_TYPE_ATTRIBUTES
-#define SUBTARGET_SET_DEFAULT_TYPE_ATTRIBUTES pic32c_set_default_type_attributes
 /* <----- End of Code Coverage defines */
+
+/* MCHP stack-usage */
+#define TARGET_STACK_USAGE_SECTION pic32c_emit_su_section
+
+#undef SUBTARGET_INSERT_ATTRIBUTES
+#define SUBTARGET_INSERT_ATTRIBUTES pic32c_insert_attributes
 
 /* By default, the C_INCLUDE_PATH_ENV is "C_INCLUDE_PATH", however
    in a cross compiler, another environment variable might want to be used

@@ -73,13 +73,6 @@ enum pic32_isa_mode
 #define ASM_OUTPUT_LABELREF(FILE, NAME)		\
    mchp_asm_output_labelref (FILE, NAME)
 
-/* spec snippet to choose between different library options based on our
-   various options to select them. mxc32cpp-lib isn't really a user option but 
-   our only way of checking if we are linking for C++. */
-#define __SELECT_LIB(lib, legacy_lib, newlib_lib) "\
-  %{mxc32cpp-lib|mnewlib-libc: " newlib_lib "  ;: \
-    %{mno-legacy-libc|no-legacy-libc: " lib ";: " legacy_lib " }}"
-
 /* Put at the end of the command given to the linker if -nodefaultlibs or
  * -nostdlib is not specified on the command line. This includes all the
  * standard libraries, the peripheral libraries if the -mno-peripheral-libs
@@ -89,11 +82,13 @@ enum pic32_isa_mode
  */
 #undef  LIB_SPEC
 #define LIB_SPEC "--start-group -lpic32 %{!mno-mpdebug-lib:-ldebug} \
- %{mrelaxed-math : %{mfp64:%emay not use both -mrelaxed-math and -mhard-float}} \
- %{mrelaxed-math : %{!mfp64 :-lrcfops}} \
+ %{mrelaxed-math:%nmrelaxed-math is deprecated and has no effect (will be removed in future releases)} \
+ %{mlegacy-libc|mno-legacy-libc|legacy-libc|no-legacy-libc:%n[no]legacy-libc is deprecated and has no effect (will be removed in future releases)}\
+ %{fPIC|fpic:%efPIC is deprecated (will be removed in future releases)}\
+ %{fPIE|fpie:%efPIE is deprecated (will be removed in future releases)}\
  %{mperipheral-libs:-lmchp_peripheral %{mprocessor=*:-lmchp_peripheral_%*}} \
- " __SELECT_LIB("-lc", "-llega-c", "-lc-newlib") "\
- %{mfp64 : -lmfd "  __SELECT_LIB("-lm", "-lm", "-lm-newlib -lm") " -le ; : " __SELECT_LIB("-lm", "-lm", "-lm-newlib -lm") " -le} \
+ -lc-newlib \
+ %{mfp64 : -lm-newlib ; : -lm-newlib -lm -le} \
  %{mdspr2*: -ldspr2 -ldsp } %{mprocessor=32MX*: -ldsp } %{mprocessor=32MM*: -ldsp } -lgcc \
  -lpic32 \
  --end-group"
@@ -923,12 +918,12 @@ extern const char *mchp_last_of (int, const char **);
           }}                                                          \
       }                                                               \
       }                                                               \
-    if ((version_string != NULL) && *version_string)        \
+    if ((pkgversion_string != NULL) && *pkgversion_string)        \
       {                                                     \
         char *Microchip;                                    \
         int pic32_compiler_version;                         \
-        gcc_assert(strlen(version_string) < 80);            \
-        Microchip = (char *)strrchr (version_string, 'v');  \
+        gcc_assert(strlen(pkgversion_string) < 80);            \
+        Microchip = (char *)strrchr (pkgversion_string, 'v');  \
         if (Microchip != NULL)                              \
           {                                                 \
             int major =0, minor=0;                          \
@@ -1191,7 +1186,7 @@ extern const char *mchp_last_of (int, const char **);
     { "function_replacement_prologue",  0, 0,  true, false,  false, false,  mchp_frp_attribute, NULL },        \
     { "shared",           0, 0,  false, false, false, false, mchp_shared_attribute, NULL },         \
     { "noload",           0, 0,  false, false, false, false, mchp_noload_attribute, NULL },         \
-    { "nocodecov",        0, 0,  false, true,  true, false, NULL, NULL },                           \
+    { "nocodecov",        0, 0,  true,  false, false, false, mchp_nocodecov_attribute, NULL },      \
     /* prevent FPU usage in ISRs */                                                           \
     { "no_fpu",           0, 0,  false, true,  true, false,  NULL, NULL },
 
@@ -1223,10 +1218,6 @@ extern const char *mchp_last_of (int, const char **);
 #undef MIPS_SUBTARGET_OVERRIDE_OPTIONS1
 #define MIPS_SUBTARGET_OVERRIDE_OPTIONS1() \
   mchp_subtarget_override_options1()
-
-#undef MIPS_SUBTARGET_OVERRIDE_OPTIONS2
-#define MIPS_SUBTARGET_OVERRIDE_OPTIONS2() \
-  mchp_subtarget_override_options2()
 
 #undef MIPS_SUBTARGET_MIPS16_ENABLED
 #define MIPS_SUBTARGET_MIPS16_ENABLED(decl) \
@@ -1274,10 +1265,12 @@ extern const char *mchp_last_of (int, const char **);
 #undef TARGET_APPLY_PRAGMA
 #define TARGET_APPLY_PRAGMA mchp_apply_pragmas
 
-#undef TARGET_SET_DEFAULT_TYPE_ATTRIBUTES
-#define TARGET_SET_DEFAULT_TYPE_ATTRIBUTES mchp_set_default_type_attributes
-
 /* Initialize the GCC target structure.  */
+
+/* Check command line option validity */
+#undef SUBTARGET_OVERRIDE_OPTIONS
+#define SUBTARGET_OVERRIDE_OPTIONS mchp_subtarget_override_options_license()
+/* Check #pragma and __attribute__ optimize validitiy */
 #undef TARGET_OVERRIDE_OPTIONS_AFTER_CHANGE
 #define TARGET_OVERRIDE_OPTIONS_AFTER_CHANGE mchp_override_options_after_change
 
