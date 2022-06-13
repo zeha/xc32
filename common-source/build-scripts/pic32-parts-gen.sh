@@ -52,6 +52,7 @@ check_gen_parts ()
     checkfile "${DIR}/p${UDEVICENAME}.S" $LINENO
     checkfile "${DIR}/p${UDEVICENAME}_div.S" $LINENO
     checkfile "${DIR}/p${UDEVICENAME}_pic.ld" $LINENO
+    checkfile "${DIR}/pic32m" $LINENO
   else
   #If empty, delete the directory 
     [ -d "$DIR" ] && rm -rf $DIR
@@ -139,7 +140,7 @@ generate ()
     PICFILELIST=(${PACKSDIR}/*.PIC)
   else
     #list of PIC files to be used for
-    PICFILELIST=(${P32PICDIR}/{PIC32MK,PIC32MM,PIC32MX,PIC32MZ,MEC14,MGC,USB49,USB7,BT,USB249}*.PIC)
+    PICFILELIST=(${P32PICDIR}/{PIC32MK,PIC32MM,PIC32MX,PIC32MZ,MEC14,MGC,USB49,USB7,BT,USB249,WFI}*.PIC)
   fi
   
   cd $PYDIR

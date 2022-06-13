@@ -105,6 +105,7 @@ pic32c_check_part_files ()
     pic32c_check_file "${DIR}/${UDEVICENAME}/${UDEVICENAME}.ld"
     pic32c_check_file "${DIR}/${UDEVICENAME}/startup_${LDEVICENAME}.*"
     pic32c_check_file "${DIR}/${UDEVICENAME}/configuration.data"
+    pic32c_check_file "${DIR}/${UDEVICENAME}/pic32c"
   done
 
   # check <PACKSDIR>/xc32/include/xc.h file
@@ -194,7 +195,7 @@ pic32c_gen_part_files()
 
   cd ${ROOTDIR}
 
-  # generate configuration.data files
+  # generate configuration.data files and pic32c files for each device
   log "Generating configuration.data files"
   for PIC in "${PIC_FILELIST[@]}"
   do
@@ -210,7 +211,9 @@ pic32c_gen_part_files()
            UDEVICENAME=$(device_name ${f})
            mkdir -p ${TMP_PACK_DIR}/xc32/${UDEVICENAME}
            cp ${f}/configuration.data ${TMP_PACK_DIR}/xc32/${UDEVICENAME}
-        fi 
+           touch ${f}/pic32c
+           touch ${TMP_PACK_DIR}/xc32/${UDEVICENAME}/pic32c
+        fi
       done
       popd
     fi

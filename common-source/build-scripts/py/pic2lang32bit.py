@@ -147,10 +147,17 @@ def printThings(pic):
     global namewithoutpic
     global DefaultMemRegions
     namewithoutpic=picname.replace("PIC32", "32").upper()
+    original_namewithoutpic=namewithoutpic
     cwd=os.getcwd()
     path=os.path.join(cwd,'32Family', namewithoutpic)
     if not os.path.exists(path):
         os.makedirs(path)
+
+    # Some devices, such as the WFI32*, are modules that use another device
+    Properties_node = fdom.first(pic.node, 'Properties')
+    for each in fdom.children(Properties_node, 'Property'):
+        if fdom.get2(each, 'propkey') == "device.is.copy.of":
+            namewithoutpic=fdom.get2(each, 'propvalue').replace("PIC32", "32").upper()
 
     # For PIC32WK (Imola), the application entry point is in RAM rather than boot
     # flash.
@@ -161,7 +168,7 @@ def printThings(pic):
 
     getmemregions (pic)
 
-    with open(os.path.join(path,'p'+namewithoutpic.lower()+'.h'),"w") as outfile:
+    with open(os.path.join(path,'p'+original_namewithoutpic.lower()+'.h'),"w") as outfile:
         print namewithoutpic
         langcommon.print32HfileStartingInfo(picname, namewithoutpic, outfile,family)
         # This part of the header file is for C/C++ only.
@@ -291,7 +298,7 @@ def printThings(pic):
             outfile.write ("#endif\n")
 
 
-            if "32MZ" in namewithoutpic :
+            if ("32MZ" in namewithoutpic):
                 outfile.write ("#ifndef __PIC32MZ\n")
                 outfile.write ("#  define __PIC32MZ 1\n")
                 outfile.write ("#endif\n")
@@ -326,6 +333,23 @@ def printThings(pic):
                     outfile.write ("#ifndef __PIC32_PIN_COUNT\n")
                     outfile.write ("#  define __PIC32_PIN_COUNT %d\n" % (int(macro.group('pin_count'))))
                     outfile.write ("#endif\n\n")
+                else:
+                    # e.g. 32MZ1025W104132
+                    macro = re.match(r"32MZ(?P<zeros1>[0]*)(?P<flash_size>[0-9]+)(?P<feature_set>[A-Z]{1,})(?P<zeros2>[0]*)(?P<pin_count>[0-9]+)\Z", namewithoutpic.upper())
+                    if macro:
+                        outfile.write ("#ifndef __PIC32_FLASH_SIZE\n")
+                        outfile.write ("#  define __PIC32_FLASH_SIZE %d\n" % (int(macro.group('flash_size'))))
+                        outfile.write ("#endif\n")
+                        feature_set = macro.group('feature_set')
+                        outfile.write ("#ifndef __PIC32_FEATURE_SET\n")
+                        outfile.write ("#  define __PIC32_FEATURE_SET \"%s\"\n" % (feature_set))
+                        outfile.write ("#endif\n")
+                        outfile.write ("#ifndef __PIC32_FEATURE_SET__\n")
+                        outfile.write ("#  define __PIC32_FEATURE_SET__ \"%s\"\n" % (feature_set))
+                        outfile.write ("#endif\n")
+                        outfile.write ("#ifndef __PIC32_FEATURE_SET0\n")
+                        outfile.write ("#  define __PIC32_FEATURE_SET0 '%s'\n" % (feature_set[0]))
+                        outfile.write ("#endif\n")
 
             elif "32MX" in namewithoutpic :
                 outfile.write ("#ifndef __PIC32MX\n")
@@ -474,6 +498,16 @@ def printThings(pic):
                 outfile.write ("#ifndef __USB249__\n")
                 outfile.write ("#  define __USB249__ 1\n")
                 outfile.write ("#endif\n")
+
+            # the WFI32 is a module that uses another device
+            if "WFI32" in original_namewithoutpic:
+                outfile.write ("#ifndef __WFI32\n")
+                outfile.write ("#  define __WFI32 1\n")
+                outfile.write ("#endif\n")
+                outfile.write ("#ifndef __WFI32__\n")
+                outfile.write("#  define __WFI32__ 1\n")
+                outfile.write ("#endif\n")
+
             # Check all devices
             outfile.write ("/*  The following device macros indicate which core features are\n")
             outfile.write (" *  available on this device.\n")
@@ -536,11 +570,12 @@ def printThings(pic):
                 outfile.write ("\n")
             outfile.write ("\n#endif\n")
 
+    namewithoutpic=original_namewithoutpic
+
 def printOffsetSfile(pic,outfile):
 
     outfile.write ("\n")
     firstsection = 1
-
 
     ct = 0
     vectorlist = []
@@ -570,7 +605,7 @@ def getmemequates (pic, outfile):
     outfile.write ("/*************************************************************************\n")
     outfile.write (" * Memory Address Equates\n")
     outfile.write (" * _RESET_ADDR                    -- Reset Vector or entry point\n")
-    if ("PIC32" in pic.name.upper() or "MGC3" in pic.name.upper() or "BT55" in pic.name.upper()) :
+    if ("PIC32" in pic.name.upper() or "MGC3" in pic.name.upper() or "BT55" in pic.name.upper() or "WFI" in pic.name.upper()):
         outfile.write (" * _BEV_EXCPT_ADDR                -- Boot exception Vector\n")
         outfile.write (" * _DBG_EXCPT_ADDR                -- In-circuit Debugging Exception Vector\n")
         if ((False == pic.interrupts.hasVariableOffsets) or "BT55" in pic.name.upper()) :
@@ -583,7 +618,7 @@ def getmemequates (pic, outfile):
 
     outfile.write (" * _GEN_EXCPT_ADDR                -- General Exception Vector\n")
     outfile.write (" *************************************************************************/\n")
-    if ("PIC32M" in pic.name.upper() or "MGC3" in pic.name.upper() or "BT55" in pic.name.upper()) :
+    if ("PIC32M" in pic.name.upper() or "MGC3" in pic.name.upper() or "BT55" in pic.name.upper() or "WFI" in pic.name.upper()):
         outfile.write ("_RESET_ADDR                    = 0xBFC00000;\n")
         outfile.write ("_BEV_EXCPT_ADDR                = 0xBFC00380;\n")
         _BEV_EXCPT_ADDR = 0xBFC00380
@@ -642,7 +677,7 @@ def getmemequates (pic, outfile):
 def getmemequates_pic (pic, outfile):
     global _BEV_EXCPT_ADDR
     bootconfigsize = 0
-    if ("PIC32" in pic.name.upper() or "MGC3" in pic.name.upper() or "BT55" in pic.name.upper()) :
+    if ("PIC32" in pic.name.upper() or "MGC3" in pic.name.upper() or "BT55" in pic.name.upper() or "WFI" in pic.name.upper()):
         if ((False == pic.interrupts.hasVariableOffsets) or "BT55" in pic.name.upper()) :
 	    outfile.write ("\n")
 	    outfile.write ("/*************************************************************************\n")
@@ -1143,7 +1178,7 @@ def printmemregions (pic, outfile):
     outfile.write (" * Only sections specifically assigned to these regions can be allocated\n")
     outfile.write (" * into these regions.\n")
 
-    if "PIC32" in pic.name.upper() or "MGC3" in pic.name.upper() or "BT55" in pic.name.upper():
+    if "PIC32" in pic.name.upper() or "MGC3" in pic.name.upper() or "BT55" in pic.name.upper() or "WFI" in pic.name.upper():
         outfile.write (" *\n")
         outfile.write (" * The Debug exception vector is located at 0x9FC00480.\n")
 
@@ -1359,7 +1394,7 @@ def getsections (pic, outfile):
 
     outfile.write ("\n")
 
-    if ((namewithoutpic.upper().find("32MZ") == 0) or (namewithoutpic.upper().find("BT55") == 0)) or (namewithoutpic.upper().find("32BL") == 0):
+    if (namewithoutpic.upper().find("32MZ") == 0) or (namewithoutpic.upper().find("BT55") == 0) or (namewithoutpic.upper().find("32BL") == 0) or (namewithoutpic.upper().find("WFI") == 0):
         outfile.write ("  .simple_tlb_refill_excpt _SIMPLE_TLB_REFILL_EXCPT_ADDR :\n")
         outfile.write ("  {\n")
         outfile.write ("    KEEP(*(.simple_tlb_refill_vector))\n")
@@ -1390,7 +1425,7 @@ def getsections (pic, outfile):
     #print "pic.interrupts.hasComputedOffsets = %d" % pic.interrupts.hasComputedOffsets
     #print "pic.interrupts.hasNewComputedOffsets = %d" % pic.interrupts.hasNewComputedOffsets
 
-    if (pic.interrupts.hasVariableOffsets and ((namewithoutpic.upper().find("32M") == 0) or (namewithoutpic.upper().find("32WK") == 0) or (namewithoutpic.upper().find("MGC3") == 0) or (namewithoutpic.upper().find("BT55") == 0) ) and not (namewithoutpic.upper().find("32MM") == 0)) :
+    if (pic.interrupts.hasVariableOffsets and ((namewithoutpic.upper().find("32M") == 0) or (namewithoutpic.upper().find("32WK") == 0) or (namewithoutpic.upper().find("WFI") == 0) or (namewithoutpic.upper().find("MGC3") == 0) or (namewithoutpic.upper().find("BT55") == 0)) and not (namewithoutpic.upper().find("32MM") == 0)):
         # Generate PIC32MZ vector sections here
         outfile.write ("  /* Interrupt vector table with vector offsets */\n")
         outfile.write ("  .vectors _ebase_address + 0x200 :\n")
@@ -1494,7 +1529,7 @@ def getsections (pic, outfile):
         outfile.write ("   *  C32 v1.xx releases.\n")
         outfile.write ("   */\n")
 
-    if (((namewithoutpic.upper().find("32") == 0) or    (namewithoutpic.upper().find("MGC3") == 0) or (namewithoutpic.upper().find("BT55") == 0)) and
+    if (((namewithoutpic.upper().find("32") == 0) or    (namewithoutpic.upper().find("MGC3") == 0) or (namewithoutpic.upper().find("BT55") == 0) or (namewithoutpic.upper().find("WFI") == 0)) and
       (DefaultMemRegions.startup == "kseg0_boot_mem")):
         outfile.write ("  .startup ORIGIN(kseg0_boot_mem) :\n")
     else:
@@ -1503,7 +1538,7 @@ def getsections (pic, outfile):
     outfile.write ("    KEEP(*(.startup))\n")
     if (("MEC14" in pic.name.upper()) or ("USB" in pic.name.upper())) :
         outfile.write ("    KEEP(*(.reset.startup))\n")
-    if ((namewithoutpic.upper().find("32") == 0) or (namewithoutpic.upper().find("MGC3") == 0) or (namewithoutpic.upper().find("BT55") == 0)):
+    if ((namewithoutpic.upper().find("32") == 0) or (namewithoutpic.upper().find("MGC3") == 0) or (namewithoutpic.upper().find("BT55") == 0) or (namewithoutpic.upper().find("WFI") == 0)):
         outfile.write ("  } > %s\n" % DefaultMemRegions.startup)
     else:
         outfile.write ("  } > kseg0_program_mem\n")
@@ -1633,7 +1668,7 @@ def getsections (pic, outfile):
     outfile.write ("  } >kseg0_program_mem\n")
     outfile.write ("    . = ALIGN(4) ;\n")
 
-    if "PIC32" in pic.name.upper() or "MGC3" in pic.name.upper() or "BT55" in pic.name.upper() :
+    if "PIC32" in pic.name.upper() or "MGC3" in pic.name.upper() or "BT55" in pic.name.upper() or "WFI" in pic.name.upper():
         outfile.write ("  .dbg_data (NOLOAD) :\n")
         outfile.write ("  {\n")
         outfile.write ("    . += (DEFINED (_DEBUGGER) ? 0x200 : 0x0);\n")
@@ -1886,7 +1921,7 @@ def getsections_pic (pic, outfile):
 
     outfile.write ("\n")
 
-    if ((namewithoutpic.upper().find("32MZ") == 0) or (namewithoutpic.upper().find("BT55") == 0)) or (namewithoutpic.upper().find("32BL") == 0):
+    if (namewithoutpic.upper().find("32MZ") == 0) or (namewithoutpic.upper().find("BT55") == 0) or (namewithoutpic.upper().find("WFI") == 0) or (namewithoutpic.upper().find("32BL") == 0):
         outfile.write ("  .simple_tlb_refill_excpt :\n")
         outfile.write ("  {\n")
         outfile.write ("    KEEP(*(.simple_tlb_refill_vector))\n")
@@ -1919,7 +1954,7 @@ def getsections_pic (pic, outfile):
     getintvector_pic (pic, outfile)
     outfile.write ("\n\n")
 
-    if (pic.interrupts.hasVariableOffsets and ((namewithoutpic.upper().find("32") == 0) or (namewithoutpic.upper().find("MGC3") == 0) or (namewithoutpic.upper().find("BT55") == 0) )) :
+    if (pic.interrupts.hasVariableOffsets and ((namewithoutpic.upper().find("32") == 0) or (namewithoutpic.upper().find("WFI") == 0) or (namewithoutpic.upper().find("MGC3") == 0) or (namewithoutpic.upper().find("BT55") == 0) )) :
         # Generate PIC32MZ vector sections here
         outfile.write ("  /* Interrupt vector table with vector offsets */\n")
         outfile.write ("  .vectors _ebase_address + 0x200 :\n")
@@ -2170,7 +2205,7 @@ def getsections_pic (pic, outfile):
     outfile.write ("  }\n")
     outfile.write ("    . = ALIGN(4) ;\n")
 
-    if "PIC32" in pic.name.upper() or "MGC3" in pic.name.upper() or "BT55" in pic.name.upper() :
+    if "PIC32" in pic.name.upper() or "MGC3" in pic.name.upper() or "BT55" in pic.name.upper() or "WFI" in pic.name.upper():
         outfile.write ("  .dbg_data (NOLOAD) :\n")
         outfile.write ("  {\n")
         outfile.write ("    . += (DEFINED (_DEBUGGER) ? 0x200 : 0x0);\n")
@@ -2824,6 +2859,11 @@ def printSupportFiles(pic):
     path=os.path.join(path,'32Family', namewithoutpic)
     if not os.path.exists(path):
         os.makedirs(path)
+
+    # Generate architecture file
+    arch_file = open(os.path.join(path, "pic32m"), 'w')
+    arch_file.close()
+
     MZOffset = ""
     "Build a Makefile to build the processor-specific register definitions"
     print "Generating Makefile for %s" % namewithoutpic
@@ -2863,7 +2903,7 @@ def printSupportFiles(pic):
             mfile.write ("STARTUP_OPTIONS += -DPIC32MX\n")
         else:
             mfile.write ("STARTUP_OPTIONS += -DINIT_SSX\n")
-        if (namewithoutpic.upper().find("32MZ") == 0):
+        if (namewithoutpic.upper().find("32MZ") == 0) or (namewithoutpic.upper().find("WFI") == 0):
             mfile.write ("STARTUP_OPTIONS += -DPIC32MZ\n")
             # TODO: Determine a better way to decide to use fixed ebi/sqi mapping
             # Do not init the MMU for fixed MZ mapping on "DA" devices
@@ -3099,7 +3139,7 @@ def printSupportFiles(pic):
 
         htmlfile.write ("<p>Usage:<br><strong>#pragma config</strong> <em>SETTING</em> = <em>VALUE</em><br>\n")
 
-        if "32MZ" in pic.name.upper():
+        if ("32MZ" in pic.name.upper()) or ("WFI" in pic.name.upper()):
             htmlfile.write ("<strong>#pragma config_alt</strong> <em>SETTING</em> = <em>VALUE</em><br>\n")
             htmlfile.write ("<strong>#pragma config_bf1</strong> <em>SETTING</em> = <em>VALUE</em><br>\n")
             htmlfile.write ("<strong>#pragma config_abf1</strong> <em>SETTING</em> = <em>VALUE</em><br>\n")

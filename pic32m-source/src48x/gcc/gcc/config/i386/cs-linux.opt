@@ -1,5 +1,0 @@
-; Additional options for Sourcery G++.
-
-msgxx-glibc
-Target
-Use included version of GLIBC

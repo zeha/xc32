@@ -187,7 +187,9 @@ ${SCRIPTROOT}/pic32-parts-gen.sh -v ${MCHP_VERSION} -r ${MCHP_RESOURCE} -p ${PAC
 checkreturn $? "Error: pic32-parts-gen.sh -v ${MCHP_VERSION} -r ${MCHP_RESOURCE} -p ${PACKSDIR} failed!" $LINENO
 
 # Checkout pic32m-libs from git for crt0.S
-REPO_DIR=/xc32/repo
+if [ -z $REPO_DIR ]; then
+  REPO_DIR=/xc32/repo
+fi
 PIC32M_LIBS_REPO=${REPO_DIR}/pic32m-libs
 PIC32M_LIBS_REPO_BRANCH=master
 log "Checking-out ${PIC32M_LIBS_REPO} from git"

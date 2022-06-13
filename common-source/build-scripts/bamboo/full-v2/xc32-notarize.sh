@@ -27,6 +27,12 @@ notarize()
 
     request_id=$(echo "$request_id" | sed 's/^.*RequestUUID = //')
 
+    # XC32-1752: We are waiting 30s before asking for status for the first time since asking
+    # right away is causing problems on Apple side:
+    #       *** Error: Apple Services operation failed. Could not find the RequestUUID.
+    # This error shouldn't occur since the RequestUUID is valid.
+    sleep 30
+
     output=$(xcrun altool --notarization-info "${request_id}"\
             --username "${USERNAME}" \
             --password "${PASSWD}" 2>&1)

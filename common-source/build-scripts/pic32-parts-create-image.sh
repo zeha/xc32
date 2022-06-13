@@ -55,7 +55,7 @@ copypic32mparts2image ()
   #We dont check if the file exists because pic32-parts-gen.sh would
   #have done that. If copying fails, this script will halt because of set -e
   pushd ${PYOUTDIR} > /dev/null
-  DEVICEDIRWILDLIST=(./{32,MEC,MGC,USB49,USB7,BT,MTCH63,USB249}*)
+  DEVICEDIRWILDLIST=(./{32,MEC,MGC,USB49,USB7,BT,MTCH63,USB249,WFI}*)
   popd > /dev/null
   
   # Remove wildcard patterns that didn't match a directory

@@ -128,7 +128,7 @@ def printConfigFiles(pic):
 
         htmlfile.write ("<p>Usage:<br><strong>#pragma config</strong> <em>SETTING</em> = <em>VALUE</em><br>\n")
 
-        if "32MZ" in pic.name.upper():
+        if ("32MZ" in pic.name.upper()) or ("WFI" in pic.name.upper()):
             htmlfile.write ("<strong>#pragma config_alt</strong> <em>SETTING</em> = <em>VALUE</em><br>\n")
             htmlfile.write ("<strong>#pragma config_bf1</strong> <em>SETTING</em> = <em>VALUE</em><br>\n")
             htmlfile.write ("<strong>#pragma config_abf1</strong> <em>SETTING</em> = <em>VALUE</em><br>\n")
