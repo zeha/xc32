@@ -378,7 +378,6 @@ extern const char *mchp_last_of (int, const char **);
  %{mips16: %{!mmips16-exceptions: -fno-exceptions}} \
  %{O2|Os|O3:%{!mtune:-mtune=4kec}} \
  %{D__DEBUG : -mdebugger} \
- %{fframe-base-loclist : %{!fno-var-tracking : -fvar-tracking}} \
  %{mit=profile : -fno-inline} \
  %{fnofallback : -mno-fallback } \
  %{-nofallback : -mno-fallback } \

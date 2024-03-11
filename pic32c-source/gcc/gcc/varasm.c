@@ -325,6 +325,24 @@ get_section (const char *name, unsigned int flags, tree decl)
           sect->common.flags |= SECTION_NOTYPE;
           flags |= SECTION_NOTYPE;
         }
+#if defined(TARGET_MCHP_PIC32C) || defined(TARGET_MCHP_PIC32MX)
+      /*
+       XC32-1886 if it is a named section and one has .bss flag, just reset it
+       it is permitted to mix .bss and .data
+      */
+      if ((sect->common.flags ^ flags) & SECTION_BSS)
+        {
+        if (sect->common.flags & SECTION_BSS)
+          {
+            sect->common.flags &= ~SECTION_BSS;
+            /* make sure that SECTION_BSS flag will not be added later
+              in <mchp_asm_named_section>  */
+            sect->named.decl->base.side_effects_flag = 1;
+          }
+        flags &= ~SECTION_BSS;
+        }
+#endif
+
 #if defined(_BUILD_MCHP_) && defined(TARGET_CHECK_SECTION_FLAGS)
       /* not all targets must have all section flags identical,
          eg its okay not to specify address() on subsequent sections */

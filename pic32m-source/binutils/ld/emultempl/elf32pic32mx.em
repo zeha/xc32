@@ -1790,6 +1790,7 @@ bfd_pic32_report_sections (s, region, magic_sections, fp)
       char *name, *c;
 #define NAME_MAX_LEN 23
 #define NAME_FIELD_LEN "24"
+#define COH_ADDR    0x20000000
       if (strstr(s->sec->name, "fill$")) {
         name = xmalloc(7);
         if (PIC32_IS_ABSOLUTE_ATTR(s->sec))
@@ -1814,13 +1815,13 @@ bfd_pic32_report_sections (s, region, magic_sections, fp)
       c = strchr(name, '%');
       if (c) *c = (char) '\0';
 
-      if ((start >= region->origin) &&
-          ((start + actual) <= (region->origin + region->length)))
+      if (((start|COH_ADDR) >= (region->origin|COH_ADDR)) &&
+          (((start + actual)|COH_ADDR) <= ((region->origin + region->length)|COH_ADDR)))
       {
            bfd_pic32_lookup_magic_section_description (name, magic_sections, &description);
          fprintf( fp, "%-" NAME_FIELD_LEN "s%#10lx     %#10lx  %10ld  %s \n", name,
                  start, actual, actual, description);
-         region_used = actual;
+          region_used = actual;
       }
       else if ((load >= region->origin) &&
           ((load + actual) <= (region->origin + region->length)) &&

@@ -256,7 +256,11 @@ extern void pic32c_final_include_paths (struct cpp_dir *, struct cpp_dir *);
 	  char *proc, *p;                                                      \
 	  gcc_assert (strlen (mchp_processor_string) <= 32);                   \
 	  for (p = (char *) mchp_processor_string; *p; p++)                    \
-	    *p = TOUPPER (*p);                                                 \
+	    {                                                                  \
+	      if (*p == '-')                                                   \
+	        *p = '_';                                                      \
+	      *p = TOUPPER (*p);                                               \
+	    }                                                                  \
 	  proc = (char *) alloca (strlen (mchp_processor_string) + 6);         \
 	  gcc_assert (proc != NULL);                                           \
 	  sprintf (proc, "__%s", mchp_processor_string);                       \

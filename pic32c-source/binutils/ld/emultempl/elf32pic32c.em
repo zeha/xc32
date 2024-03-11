@@ -3086,7 +3086,8 @@ bfd_pic32_scan_data_section (section, p)
     }
   else
     {
-      if (!region_info.data->flags.init_needed)
+      if (pic32_valid_region(region_info.data)
+	    && !region_info.data->flags.init_needed)
 	{
 	  if (pic32_debug)
 	    fprintf (stderr,

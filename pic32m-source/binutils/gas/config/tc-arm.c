@@ -28720,16 +28720,14 @@ pic32_align_power (offsetT bytes)
 
 
 /*
- * ** Validate address() arg
- * */
+ * No-op for now.  This used to do more and rather than remove the
+ * hook, just make it do nothing.
+ */
 static bfd_vma
 pic32_address (bfd_vma addr)
 {
-    if (!PIC32_IS_EVEN(addr))
-        as_bad (_("section address must be even"));
-    
     return addr;
-} /* pic32_address */
+}
 
 
 

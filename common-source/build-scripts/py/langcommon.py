@@ -773,9 +773,10 @@ def popcount32_table16(v):
     return (POPCOUNT_TABLE16[ v        & 0xffff] +
             POPCOUNT_TABLE16[(v >> 16) & 0xffff])
 
-def getconfigData(pic, addr, DCRDef_node, offset = None):
+def getconfigData(pic, addr, DCRDef_node, offset = None, version = 1):
     config_lines = []
     region_node = DCRDef_node.parentNode
+
     if pic.instructionSet.hasMicroMIPS:
       if fdom.has(region_node, "registerprefix"):
         preSetting = ("%s_" % fdom.get2(region_node, 'registerprefix'))
@@ -806,11 +807,20 @@ def getconfigData(pic, addr, DCRDef_node, offset = None):
         if offset is None:
             offset = 0
 
-    config_lines.append(ConfigEntry(
-        "CWORD",
-        "%08X" % (addr+offset),
-        "%08X" % (default),
-        "%08X" % (default)))
+    if version == 1:
+        config_lines.append(ConfigEntry(
+            "CWORD",
+            "%08X" % (addr+offset),
+            "%08X" % (default),
+            "%08X" % (default)))
+    elif version == 2:
+        bit_width = int(fdom.get2(DCRDef_node, ('nzwidth'), defaultValue="0x20"), 16)
+        mask = "0xFFFFFFFF" if bit_width == 32 else "0x000000FF"
+        config_lines.append(ConfigEntry(
+            "CINT%d" % (bit_width),
+            "%08X"   % (addr+offset),
+            "%s"     % (mask),
+            "%08X"   % (default)))
 
     if cname=="Reserved" :
         return config_lines
@@ -918,12 +928,30 @@ def configDataFile(pic,configfile, htmlfile, offset = None):
   config_lines = []
   tmp = None
 
+  # Determine if the DFP has any configuration registers with 8-bit lengths,
+  # adjust version accordingly
+  version = 1
+  for _, DCRDef_node in pic.addrOntoDCR.iteritems():
+    configFuseSector_node = DCRDef_node.parentNode
+    bit_width = int(fdom.get2(DCRDef_node, ('nzwidth'), defaultValue='0x20'), 16)
+    sector_name = fdom.get2(configFuseSector_node, ('regionid'), defaultValue='No Name Specified')
+
+    if configFuseSector_node.nodeName == "edc:ConfigFuseSector":
+      if bit_width not in {32, 8}:
+          raise Exception("Unsupported bit width " + str(bit_width) + " for ConfigFuseSector: " + sector_name)
+      elif bit_width is 8:
+          version = 2
+
+  # Write the version to file
+  configfile.write(("%04d\n" % version))
+
   for addr, DCRDef_node in sorted(pic.addrOntoDCR.iteritems(), key=lambda pair:pair[0]):
-    tmp = getconfigData(pic, addr, DCRDef_node, offset)
+    tmp = getconfigData(pic, addr, DCRDef_node, offset, version)
     if tmp:
         config_lines += tmp
+
   for addr, AltDCRDef_node in sorted(pic.addrOntoAltDCR.iteritems(), key=lambda pair:pair[0]):
-    tmp = getconfigData(pic, addr, AltDCRDef_node, offset)
+    tmp = getconfigData(pic, addr, AltDCRDef_node, offset, version)
     if tmp:
         config_lines += tmp
 

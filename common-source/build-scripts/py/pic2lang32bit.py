@@ -456,6 +456,14 @@ def printThings(pic):
                 outfile.write ("#  define __MGC__ 1\n")
                 outfile.write ("#endif\n")
 
+            elif "MTCH" in namewithoutpic :
+                outfile.write ("#ifndef __MTCH\n")
+                outfile.write ("#  define __MTCH 1\n")
+                outfile.write ("#endif\n")
+                outfile.write ("#ifndef __MTCH__\n")
+                outfile.write ("#  define __MTCH__ 1\n")
+                outfile.write ("#endif\n")
+
             elif "USB49" in namewithoutpic :
                 outfile.write ("#ifndef __USB49\n")
                 outfile.write ("#  define __USB49 1\n")
@@ -605,7 +613,7 @@ def getmemequates (pic, outfile):
     outfile.write ("/*************************************************************************\n")
     outfile.write (" * Memory Address Equates\n")
     outfile.write (" * _RESET_ADDR                    -- Reset Vector or entry point\n")
-    if ("PIC32" in pic.name.upper() or "MGC3" in pic.name.upper() or "BT55" in pic.name.upper() or "WFI" in pic.name.upper()):
+    if ("PIC32" in pic.name.upper() or "MGC3" in pic.name.upper() or "BT55" in pic.name.upper() or "WFI" in pic.name.upper() or "MTCH" in pic.name.upper()):
         outfile.write (" * _BEV_EXCPT_ADDR                -- Boot exception Vector\n")
         outfile.write (" * _DBG_EXCPT_ADDR                -- In-circuit Debugging Exception Vector\n")
         if ((False == pic.interrupts.hasVariableOffsets) or "BT55" in pic.name.upper()) :
@@ -618,7 +626,7 @@ def getmemequates (pic, outfile):
 
     outfile.write (" * _GEN_EXCPT_ADDR                -- General Exception Vector\n")
     outfile.write (" *************************************************************************/\n")
-    if ("PIC32M" in pic.name.upper() or "MGC3" in pic.name.upper() or "BT55" in pic.name.upper() or "WFI" in pic.name.upper()):
+    if ("PIC32M" in pic.name.upper() or "MGC3" in pic.name.upper() or "BT55" in pic.name.upper() or "WFI" in pic.name.upper() or "MTCH" in pic.name.upper()):
         outfile.write ("_RESET_ADDR                    = 0xBFC00000;\n")
         outfile.write ("_BEV_EXCPT_ADDR                = 0xBFC00380;\n")
         _BEV_EXCPT_ADDR = 0xBFC00380
@@ -677,7 +685,7 @@ def getmemequates (pic, outfile):
 def getmemequates_pic (pic, outfile):
     global _BEV_EXCPT_ADDR
     bootconfigsize = 0
-    if ("PIC32" in pic.name.upper() or "MGC3" in pic.name.upper() or "BT55" in pic.name.upper() or "WFI" in pic.name.upper()):
+    if ("PIC32" in pic.name.upper() or "MGC3" in pic.name.upper() or "BT55" in pic.name.upper() or "WFI" in pic.name.upper() or "MTCH" in pic.name.upper()):
         if ((False == pic.interrupts.hasVariableOffsets) or "BT55" in pic.name.upper()) :
 	    outfile.write ("\n")
 	    outfile.write ("/*************************************************************************\n")
@@ -3148,7 +3156,7 @@ def printSupportFiles(pic):
         htmlfile.write ("</p>\n")
 
         with open(os.path.join(path,"configuration.data"),"w") as configfile:
-            configfile.write ("Daytona Configuration Word Definitions: 0001\n")
+            configfile.write ("Daytona Configuration Word Definitions: ")
             langcommon.configDataFile(pic, configfile, htmlfile)
 
         htmlfile.write ("<p>[ <a href=\"../XC32MasterIndex.htm\">Documentation Index</a> | <a href=\"../PIC32ConfigSet.html\">Device index</a> ]</p>\n")

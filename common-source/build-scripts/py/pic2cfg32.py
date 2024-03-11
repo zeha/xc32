@@ -137,7 +137,7 @@ def printConfigFiles(pic):
         htmlfile.write ("</p>\n")
 
         with open(os.path.join(path,"configuration.data"),"w") as configfile:
-            configfile.write (archopts.version + " Configuration Word Definitions: 0001\n")
+            configfile.write (archopts.version + " Configuration Word Definitions: ")
             langcommon.configDataFile(pic, configfile, htmlfile,  archopts.offset)
 
 if __name__ == '__main__':

@@ -63,8 +63,9 @@ struct mchp_config_setting
   struct mchp_config_setting *next;
 };
 
-struct mchp_config_word
+struct mchp_config_region
 {
+  unsigned size;
   unsigned address;
   unsigned mask;
   unsigned default_value;
@@ -73,9 +74,9 @@ struct mchp_config_word
 
 struct mchp_config_specification
 {
-  struct mchp_config_word *word; /* the definition of the word this value
-                                  is referencing */
-  unsigned value;           /* the value of the word to put to the device */
+  struct mchp_config_region *region; /* the definition of the region
+					this value is referencing */
+  unsigned value;           /* the value of the region to put to the device */
   unsigned referenced_bits; /* the bits which have been explicitly specified
                               i.e., have had a setting = value pair in a
                               config pragma */

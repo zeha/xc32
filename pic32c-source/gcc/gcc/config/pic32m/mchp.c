@@ -1433,14 +1433,7 @@ tree mchp_address_attribute(tree *decl, tree identifier ATTRIBUTE_UNUSED,
           error("invalid address argument for '%s'", attached_to);
           *no_add_attrs = 1;
         }
-      else
-        /* currently the assembler will not accept an unaligned address */
-        if (TREE_INT_CST_LOW(address) % 4)
-          {
-            warning(0, "invalid address argument for '%s'", attached_to);
-            warning(0, "unaligned addresses are not yet permitted, ignoring attribute");
-            *no_add_attrs = 1;
-          }
+
       {
         unsigned long long address_val;
         address_val = (unsigned long long)TREE_INT_CST_LOW(address);

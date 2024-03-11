@@ -34,7 +34,7 @@ MULTILIB_REQUIRED    :=
 # We have the following hierachy:
 #   ISA: A32 (.) or T16/T32 (thumb).
 #   Architecture: ARMv6S-M (v6-m), ARMv7-M (v7-m), ARMv7E-M (v7e-m),
-#                 ARMv8-M Baseline (v8-m.base) or ARMv8-M Mainline (v8-m.main).
+#                 ARMv8-M Baseline (v8-m.base) or ARMv8-M Mainline (v8-m.main+fp).
 #   FPU: VFPv3-D16 (fpv3), FPV4-SP-D16 (fpv4-sp), FPV5-SP-D16 (fpv5-sp),
 #        VFPv5-D16 (fpv5), or None (.).
 #   Float-abi: Soft (.), softfp (softfp), or hard (hardfp).
@@ -42,7 +42,7 @@ MULTILIB_REQUIRED    :=
 # Support in PIC32C:
 #   ISA: thumb(1,2) only
 #   Architecture: ARMv6S-M (v6-m), ARMv7E-M (v7e-m), ARMv7-M (v7-m), 
-#                 ARMv7-A|R (v7-ar), ARMv8-M Baseline (v8-m.base)
+#                 ARMv7-A|R (v7-ar), ARMv8-M Baseline (v8-m.base),ARMv8-M Mainline (v8-m.main+dsp)
 #   FPU: VFPV3-D16 (vfpv3), FPV4-SP-D16 (fpv4-sp), FPV5-D16 (fpv5), None (.)
 #   Float-abi: all
 #
@@ -63,8 +63,8 @@ MULTILIB_REQUIRED    :=
 MULTILIB_OPTIONS        += marm/mthumb
 MULTILIB_DIRNAMES       += arm thumb
 
-MULTILIB_OPTIONS        += march=armv5te/march=armv6s-m/march=armv7-m/march=armv7e-m/march=armv7e-m+fp/march=armv7e-m+fp.dp/march=armv7-a/march=armv7-a+fp/march=armv7-a+simd/march=armv8-m.base
-MULTILIB_DIRNAMES       += v5te v6-m v7-m v7e-m v7e-m+fp v7e-m+dp v7-a v7-a+fp v7-a+simd v8-m.base
+MULTILIB_OPTIONS        += march=armv5te/march=armv6s-m/march=armv7-m/march=armv7e-m/march=armv7e-m+fp/march=armv7e-m+fp.dp/march=armv7-a/march=armv7-a+fp/march=armv7-a+simd/march=armv8-m.base/march=armv8-m.main/march=armv8-m.main+fp
+MULTILIB_DIRNAMES       += v5te v6-m v7-m v7e-m v7e-m+fp v7e-m+dp v7-a v7-a+fp v7-a+simd v8-m.base v8-m.main v8-m.main+fp
 
 # MERGE-NOTES: we used to have 'hard' implied by the mfpu portion (if present).
 # now this is handled by +fp, so we make it explicit.
@@ -107,6 +107,11 @@ MULTILIB_REQUIRED       += mthumb/march=armv7e-m+fp.dp/mfloat-abi=softfp/mno-una
 
 #----------------------------------------------------------------------------------
 # ARMv7-A 
+MULTILIB_REQUIRED	+= marm/march=armv7-a/mfloat-abi=soft
+MULTILIB_REQUIRED	+= marm/march=armv7-a+fp/mfloat-abi=hard
+MULTILIB_REQUIRED	+= marm/march=armv7-a+fp/mfloat-abi=softfp
+MULTILIB_REQUIRED	+= marm/march=armv7-a+simd/mfloat-abi=hard
+MULTILIB_REQUIRED	+= marm/march=armv7-a+simd/mfloat-abi=softfp
 MULTILIB_REQUIRED	+= mthumb/march=armv7-a/mfloat-abi=soft
 MULTILIB_REQUIRED	+= mthumb/march=armv7-a+fp/mfloat-abi=hard
 MULTILIB_REQUIRED	+= mthumb/march=armv7-a+fp/mfloat-abi=softfp
@@ -114,6 +119,11 @@ MULTILIB_REQUIRED	+= mthumb/march=armv7-a+simd/mfloat-abi=hard
 MULTILIB_REQUIRED	+= mthumb/march=armv7-a+simd/mfloat-abi=softfp
 
 # aligned only variants
+MULTILIB_REQUIRED	+= marm/march=armv7-a/mfloat-abi=soft/mno-unaligned-access
+MULTILIB_REQUIRED	+= marm/march=armv7-a+fp/mfloat-abi=hard/mno-unaligned-access
+MULTILIB_REQUIRED	+= marm/march=armv7-a+fp/mfloat-abi=softfp/mno-unaligned-access
+MULTILIB_REQUIRED	+= marm/march=armv7-a+simd/mfloat-abi=hard/mno-unaligned-access
+MULTILIB_REQUIRED	+= marm/march=armv7-a+simd/mfloat-abi=softfp/mno-unaligned-access
 MULTILIB_REQUIRED	+= mthumb/march=armv7-a/mfloat-abi=soft/mno-unaligned-access
 MULTILIB_REQUIRED	+= mthumb/march=armv7-a+fp/mfloat-abi=hard/mno-unaligned-access
 MULTILIB_REQUIRED	+= mthumb/march=armv7-a+fp/mfloat-abi=softfp/mno-unaligned-access
@@ -123,6 +133,12 @@ MULTILIB_REQUIRED	+= mthumb/march=armv7-a+simd/mfloat-abi=softfp/mno-unaligned-a
 #----------------------------------------------------------------------------------
 # ARMv8-M Baseline
 MULTILIB_REQUIRED       += mthumb/march=armv8-m.base/mfloat-abi=soft
+
+#----------------------------------------------------------------------------------
+# ARMv8-M Mainline
+MULTILIB_REQUIRED       += mthumb/march=armv8-m.main/mfloat-abi=soft
+MULTILIB_REQUIRED       += mthumb/march=armv8-m.main+fp/mfloat-abi=hard
+MULTILIB_REQUIRED       += mthumb/march=armv8-m.main+fp/mfloat-abi=softfp
 
 #----------------------------------------------------------------------------------
 # Matches
@@ -157,20 +173,20 @@ MULTILIB_MATCHES	+= $(foreach ARCHVAR,$(v7_a_arch_variants), \
 			     $(foreach ARCH,$(v7_a_simd_variants), \
 			       march?armv7-a+simd=march?armv7-a$(ARCHVAR)$(ARCH)))
 
-# Use Thumb libraries for everything
-MULTILIB_REUSE		+= mthumb/march.armv7-a/mfloat-abi.soft=marm/march.armv7-a/mfloat-abi.soft
-MULTILIB_REUSE		+= $(foreach ABI,hard softfp, \
-			     $(foreach ARCH, armv7-a+fp armv7-a+simd, \
-			       mthumb/march.$(ARCH)/mfloat-abi.$(ABI)=marm/march.$(ARCH)/mfloat-abi.$(ABI)))
+# Map all v8-m.main+dsp FP variants down to the variant without DSP.
 
-#----------------------------------------------------------------------------------
-# Other matches/reuses
+MULTILIB_MATCHES        += march?armv8-m.main=march?armv8-m.main+dsp
+MULTILIB_MATCHES        += march?armv8-m.main+fp=march?armv8-m.main+dsp+fp
+MULTILIB_MATCHES        += march?armv8-m.main+fp=march?armv8-m.main+dsp+fp.dp
+
 
 # Softfp but no FP.  Use the soft-float libraries.
 MULTILIB_REUSE		+= $(foreach ARCH,armv6s-m armv7-a armv7-m armv7e-m armv8-m\.base, \
 			     mthumb/march.$(ARCH)/mfloat-abi.soft=mthumb/march.$(ARCH)/mfloat-abi.softfp)
 MULTILIB_REUSE          += marm/march.armv5te/mfloat-abi.soft=marm/march.armv5te/mfloat-abi.softfp
+MULTILIB_REUSE          += marm/march.armv7-a/mfloat-abi.soft=marm/march.armv7-a/mfloat-abi.softfp
 
 # same, but preserve mno-unaligned-access for arches supporting it
-MULTILIB_REUSE		+= $(foreach ARCH,armv7-a armv7e-m, \
-			     mthumb/march.$(ARCH)/mfloat-abi.soft/mno-unaligned-access=mthumb/march.$(ARCH)/mfloat-abi.softfp/mno-unaligned-access)
+MULTILIB_REUSE		+= marm/march.armv7-a/mfloat-abi.soft/mno-unaligned-access=marm/march.armv7-a/mfloat-abi.softfp/mno-unaligned-access
+MULTILIB_REUSE		+= mthumb/march.armv7-a/mfloat-abi.soft/mno-unaligned-access=mthumb/march.armv7-a/mfloat-abi.softfp/mno-unaligned-access
+MULTILIB_REUSE		+= mthumb/march.armv7e-m/mfloat-abi.soft/mno-unaligned-access=mthumb/march.armv7e-m/mfloat-abi.softfp/mno-unaligned-access

@@ -455,8 +455,8 @@ compile_file (void)
   lang_hooks.parse_file ();
 
 #if defined(TARGET_IS_PIC32C) || defined(TARGET_IS_PIC32MX)
-  extern void mchp_output_configuration_words();
-  mchp_output_configuration_words ();
+  extern void mchp_output_configuration_regions();
+  mchp_output_configuration_regions ();
 #endif
 
 #if defined(TARGET_IS_PIC32MX)

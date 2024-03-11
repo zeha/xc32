@@ -2804,11 +2804,9 @@ lang_add_section (lang_statement_list_type *ptr,
       einfo (_ ("%P%F: Link Error: invalid attributes for section \'%s\'\n"),
 	     section->name);
 
-    else if (!pic32_is_valid_attributes ((input_map | output_map), 0))
-      einfo (_("%P: Link Warning: attributes for input section \'%s\'"
-		  " conflict with output section \'%s\'\n"),
-	      section->name, output->bfd_section->name);
-  }
+/* XC32-1572 - no warning for incompatible in/out section */
+
+  } 
 #endif
 
   /* If SEC_READONLY is not set in the input section, then clear

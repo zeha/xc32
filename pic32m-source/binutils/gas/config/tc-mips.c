@@ -16331,7 +16331,7 @@ s_change_section (int push)
 
       mangled_name = xmalloc (strlen(sec->name) + strlen(ext_attr_prefix) + 1);
       (void) sprintf(mangled_name, "%s%s", ext_attr_prefix, sec->name);
-      if (!symbol_find(name)) {
+      if (!symbol_find(mangled_name)) {
         symbolp = symbol_new (mangled_name, absolute_section,
                               (valueT) pic32_extended_attribute_map(sec),
                               &zero_address_frag);
@@ -20814,16 +20814,14 @@ pic32_align_power (offsetT bytes)
 } /* pic32_align_power */
 
 /*
- * ** Validate address() arg
- * */
+ * No-op for now.  This used to do more and rather than remove the
+ * hook, just make it do nothing.
+ */
 static bfd_vma
 pic32_address (bfd_vma addr)
 {
-  if (!PIC32_IS_EVEN(addr))
-    as_bad (_("section address must be even"));
-
   return addr;
-} /* pic32_address */
+}
 
 
 

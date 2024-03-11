@@ -37,8 +37,8 @@ mchp-common.o: $(srcdir)/config/mchp-cci/mchp-common.c
 	  $(srcdir)/config/mchp-cci/mchp-common.c
 
 mchp_pragma_config.o: $(srcdir)/config/mchp-cci/mchp_pragma_config.c
-	$(COMPILER) -c $(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS) $(INCLUDES)\
-	  $(srcdir)/config/mchp-cci/mchp_pragma_config.c
+	$(COMPILE) $<
+	$(POSTCOMPILE)
 
 #Microchip SHA APIs used by pic32c.c
 sha256.o: $(srcdir)/config/mchp-cci/sha256.c \
