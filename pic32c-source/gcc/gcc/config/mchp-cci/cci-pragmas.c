@@ -205,4 +205,75 @@ mchp_handle_nopa_pragma (struct cpp_reader *pfile ATTRIBUTE_UNUSED)
   mchp_pragma_nopa = 1;
 }
 
+static void
+mchp_handle_default_pragmas (char** sectionName, const char* errorMessage);
+
+void
+mchp_handle_default_variable_attributes_pragma (struct cpp_reader *pfile
+    ATTRIBUTE_UNUSED)
+{
+  mchp_handle_default_pragmas(&mchp_pragma_default_variable_section,
+                              "default_variable_attributes");
+}
+
+void
+mchp_handle_default_function_attributes_pragma (struct cpp_reader *pfile
+    ATTRIBUTE_UNUSED)
+{
+  mchp_handle_default_pragmas(&mchp_pragma_default_function_section,
+                              "default_function_attributes");
+}
+
+void
+mchp_handle_default_pragmas (char** sectionName,
+    const char* errorMessage)
+{
+  tree tok_value;
+  enum cpp_ttype tok;
+  tok = pragma_lex (&tok_value);
+  if (tok != CPP_EQ)
+    {
+      error("missing '=' after %<#pragma %s%>", errorMessage);
+      CLEAR_REST_OF_INPUT_LINE();
+      return;
+    }
+
+  tok = pragma_lex(&tok_value);
+  if (tok == CPP_EOF)
+    {
+       free(*sectionName);
+       *sectionName = NULL;
+       CLEAR_REST_OF_INPUT_LINE();
+       return;
+    }
+
+  if (tok != CPP_ATSIGN)
+    {
+      error("missing '@' after %<#pragma %s = %>",
+            errorMessage);
+      CLEAR_REST_OF_INPUT_LINE();
+      return;
+    }
+
+  tok = pragma_lex (&tok_value);
+  if (tok != CPP_STRING)
+    {
+      error ("missing section name after %<#pragma %s = @ %>",
+             errorMessage);
+      return;
+    }
+
+  const char *setting_name;
+  size_t section_name_len = TREE_STRING_LENGTH(tok_value);
+  setting_name = TREE_STRING_POINTER (tok_value);
+  *sectionName = (char*) xrealloc(*sectionName, section_name_len);
+  memcpy((void*) *sectionName, setting_name, section_name_len);
+
+  if (pragma_lex (&tok_value) != CPP_EOF)
+    {
+      warning (OPT_Wpragmas, "junk at end of %<#pragma %s%>, ignored",
+               errorMessage);
+      CLEAR_REST_OF_INPUT_LINE();
+    }
+}
 #endif /* _BUILD_MCHP_ */

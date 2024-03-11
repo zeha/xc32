@@ -131,14 +131,7 @@ collect_execute (const char *prog, char **argv, const char *outname,
   const char *errmsg;
   int err;
   char *response_arg = NULL;
-/* MERGE-NOTES: imported from xc32/collect2.c/collect_execute routine */
-#if defined(_BUILD_MCHP_)
-  // make room for the "--mreserve" option
-  char *response_argv[3 + 1] = {NULL};
-  char *mreserve_string = NULL;
-#else
   char *response_argv[3] = {NULL};
-#endif
 
   if (use_atfile && argv[0] != NULL)
     {
@@ -177,33 +170,11 @@ collect_execute (const char *prog, char **argv, const char *outname,
       if (EOF == status)
         fatal_error (input_location, "could not close response file %s",
 		     response_file);
-/* MERGE-NOTES: imported from xc32/collect2.c/collect_execute routine */
-#if defined(_BUILD_MCHP_)
-      /* Pass the --mreserve option outside of the response file since the
-         xc32-sh shell cannot yet handle options in response files. */
-      while(*current_argv != NULL)
-      {
-        char* mem_reserve_opt = NULL;
-        if ((mem_reserve_opt = strstr (*current_argv, "--mreserve=")))
-        {
-            if (mreserve_string)
-            {
-              mreserve_string = concat (mreserve_string, "\"", mem_reserve_opt, "\" ", NULL);
-            }
-            else
-            {
-              mreserve_string = concat ("\"", mem_reserve_opt, "\" ", NULL);
-            }
-        }
-        current_argv++;
-      }
-#endif
+
       response_arg = concat ("@", response_file, NULL);
       response_argv[0] = argv0;
       response_argv[1] = response_arg;
-#if defined(_BUILD_MCHP_)
-      response_argv[2] = mreserve_string;
-#endif
+      response_argv[2] = NULL;
 
       argv = response_argv;
     }

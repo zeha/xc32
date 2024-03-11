@@ -33,11 +33,14 @@ extern void mchp_handle_keep_pragma (struct cpp_reader *pfile);
 extern void mchp_handle_optimize_pragma (struct cpp_reader *pfile);
 extern void mchp_handle_align_pragma (struct cpp_reader *pfile);
 extern void mchp_handle_nocodecov_pragma (struct cpp_reader *pfile);
+extern int mchp_pragma_nocodecov;
 extern void mchp_handle_nopa_pragma (struct cpp_reader *pfile);
-
+extern int mchp_pragma_nopa;
+extern void mchp_handle_default_variable_attributes_pragma (struct cpp_reader *pfile);
+extern void mchp_handle_default_function_attributes_pragma (struct cpp_reader *pfile);
+extern char* mchp_pragma_default_variable_section;
+extern char* mchp_pragma_default_function_section;
 #include "mchp_pragma_config.h"
 
-extern int mchp_pragma_nocodecov;
-extern int mchp_pragma_nopa;
 
 #endif

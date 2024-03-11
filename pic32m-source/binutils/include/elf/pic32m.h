@@ -32,6 +32,7 @@ struct pic32_section
   unsigned int attributes;
   PTR *file;
   asection *sec;
+  signed char dinit_type;
   unsigned int use_vma;
 };
 

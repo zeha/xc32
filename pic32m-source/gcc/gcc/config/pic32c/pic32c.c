@@ -409,6 +409,9 @@ int mchp_pragma_nocodecov = 0;
 /* similarly, mchp_pragma_nopa is != 0 when #pragma nopa is in effect */
 int mchp_pragma_nopa = 0;
 
+/* used to store section name and check for pragma liveness*/
+char* mchp_pragma_default_variable_section = NULL;
+char* mchp_pragma_default_function_section = NULL;
 
 /*
  *  Static function prototypes.
@@ -563,30 +566,7 @@ pic32c_address_attribute (tree *decl, tree identifier ATTRIBUTE_UNUSED,
 	}
     }
 
-  /* Address attribute implies noinline and noclone */
-  if (TREE_CODE (*decl) == FUNCTION_DECL)
-    {
-      tree attrib_noinline, attrib_noclone;
-      //    long unsigned int address_val;
-      //    address_val = (long unsigned int)TREE_INT_CST_LOW(address) &
-      //    0xFFFFFFFFul;
 
-      if (lookup_attribute ("noinline", DECL_ATTRIBUTES (*decl)) == NULL)
-	{
-	  attrib_noinline
-	    = build_tree_list (get_identifier ("noinline"), NULL_TREE);
-	  attrib_noinline = chainon (DECL_ATTRIBUTES (*decl), attrib_noinline);
-	  decl_attributes (decl, attrib_noinline, 0);
-	}
-
-      if (lookup_attribute ("noclone", DECL_ATTRIBUTES (*decl)) == NULL)
-	{
-	  attrib_noclone
-	    = build_tree_list (get_identifier ("noclone"), NULL_TREE);
-	  attrib_noclone = chainon (DECL_ATTRIBUTES (*decl), attrib_noclone);
-	  decl_attributes (decl, attrib_noclone, 0);
-	}
-    }
 
   /* For support purposes, emit a warning for all uses of the address()
   attribute */
@@ -926,26 +906,6 @@ pic32c_tcm_attribute (tree *decl, tree identifier ATTRIBUTE_UNUSED,
     return NULL_TREE;
   }
 
-  /* tcm attribute on a function implies noinline and noclone */
-  if (TREE_CODE (*decl) == FUNCTION_DECL)
-    {
-      tree attrib_noinline, attrib_noclone;
-      if (lookup_attribute ("noinline", DECL_ATTRIBUTES (*decl)) == NULL)
-      {
-        attrib_noinline
-          = build_tree_list (get_identifier ("noinline"), NULL_TREE);
-        attrib_noinline = chainon (DECL_ATTRIBUTES (*decl), attrib_noinline);
-        decl_attributes (decl, attrib_noinline, 0);
-      }
-      if (lookup_attribute ("noclone", DECL_ATTRIBUTES (*decl)) == NULL)
-      {
-        attrib_noclone
-          = build_tree_list (get_identifier ("noclone"), NULL_TREE);
-        attrib_noclone = chainon (DECL_ATTRIBUTES (*decl), attrib_noclone);
-        decl_attributes (decl, attrib_noclone, 0);
-      }
-    }
-
   return NULL_TREE;
 }
 
@@ -1038,23 +998,7 @@ tree pic32c_persistent_attribute(tree *node, tree identifier ATTRIBUTE_UNUSED,
       return NULL_TREE;
     }
 
-  // TODO: "coherent" is N/A on PIC32C
-#if ENABLE_COHERENT_MEM
-  /* The persistent attribute implies coherent for variables. */
-  // Don't worry about the initialization value specified for persistent,
-  // it will be et to NULL.
-  // TODO: The .pbss section will not be created now. Is it required?
 
-  if ((TREE_CODE(*node) == VAR_DECL) &&
-//       !DECL_INITIAL(*node) &&
-      (lookup_attribute ("coherent", DECL_ATTRIBUTES(*node)) == NULL) )
-    {
-      tree attrib_coherent = build_tree_list (get_identifier ("coherent"), NULL_TREE);
-      attrib_coherent = chainon (DECL_ATTRIBUTES(*node), attrib_coherent);
-      decl_attributes (node, attrib_coherent, 0);
-      DECL_COMMON (*node) = 0;
-    }
-#endif
   return NULL_TREE;
 }
 
@@ -1552,26 +1496,7 @@ tree pic32c_ramfunc_attribute(tree *decl, tree identifier ATTRIBUTE_UNUSED,
       return NULL_TREE;
     }
 
-  /* Ramfunc attribute implies noinline, noclone and nopa */
-  if (TREE_CODE(*decl) == FUNCTION_DECL) {
-    if (lookup_attribute ("noinline", DECL_ATTRIBUTES (*decl)) == NULL) {
-      tree attrib_noinline = build_tree_list(get_identifier("noinline"), NULL_TREE);
-      attrib_noinline = chainon(DECL_ATTRIBUTES(*decl), attrib_noinline);
-      decl_attributes(decl, attrib_noinline, 0);
-    }
 
-    if (lookup_attribute ("noclone", DECL_ATTRIBUTES (*decl)) == NULL) {
-      tree attrib_noclone = build_tree_list(get_identifier("noclone"), NULL_TREE);
-      attrib_noclone = chainon(DECL_ATTRIBUTES(*decl), attrib_noclone);
-      decl_attributes(decl, attrib_noclone, 0);
-    }
-
-    if (lookup_attribute ("nopa", DECL_ATTRIBUTES (*decl)) == NULL) {
-      tree attrib_nopa = build_tree_list(get_identifier("nopa"), NULL_TREE);
-      attrib_nopa = chainon(DECL_ATTRIBUTES(*decl), attrib_nopa);
-      decl_attributes(decl, attrib_nopa, 0);
-    }
-  }
 
   return NULL_TREE;
 }
@@ -1655,7 +1580,7 @@ mchp_build_prefix (tree decl, int fnear, char *prefix, SECTION_FLAGS_INT flags)
   tcm_attr = get_pic32c_tcm_attribute (decl);
   noload_attr = get_pic32c_noload_attribute (decl);
   is_ramfunc = mchp_ramfunc_type_p(decl);
-
+  
   if (DECL_SECTION_NAME (decl))
     {
       const char *name = DECL_SECTION_NAME (decl);
@@ -1674,6 +1599,16 @@ mchp_build_prefix (tree decl, int fnear, char *prefix, SECTION_FLAGS_INT flags)
     }
   else
     {
+      //when DECL_SECTION_NAME (decl) is not set and this is a ramfunc
+      //is_ramfunc is set by attribute lookup. both section name and flags need to be set
+      if (is_ramfunc) {
+	// flag for .ramfunc in reserved section names is SECTION_RAMFUNC | SECTION_CODE
+	const char *section_name =
+	    default_section_name(decl, (SECTION_RAMFUNC | SECTION_CODE));
+	flags = validate_section_flags(section_name, flags);
+	set_decl_section_name(decl, section_name);
+    }
+
       if (address_attr)
 	{
 	  set_decl_section_name (decl, "*");
@@ -2753,18 +2688,17 @@ default_section_name (tree decl, SECTION_FLAGS_INT flags)
       else if (flags & SECTION_RAMFUNC)
 	{
 	  if (TREE_CODE (decl) == FUNCTION_DECL)
-	    {
-	      const char *name;
-	      name = SECTION_NAME_RAMFUNC;
-	      while (reserved_section_names[i].section_name)
-		{
-		  if (((flags ^ reserved_section_names[i].mask) == 0)
-		      && strstr (name, reserved_section_names[i].section_name)
-			   == 0)
-		    return name;
-		  i++;
-		}
-	    }
+	  {
+	    const char *name;
+	    name = SECTION_NAME_RAMFUNC;
+	    while (reserved_section_names[i].section_name)
+	      {
+		if (((flags == reserved_section_names[i].mask) ) && 
+		(strcmp(name, reserved_section_names[i].section_name)==0))
+		  return name;
+		i++;
+	      }
+	  }
 	}
       i = 0;
       while (reserved_section_names[i].section_name)
@@ -3054,8 +2988,6 @@ mchp_asm_named_section (const char *pszSectionName, SECTION_FLAGS_INT flags,
 
   if (decl)
     {
-      // FIXME: is this needed here anymore?
-      //        (a similar test is also done in mchp_build_prefix ())
       if ((flags & SECTION_WRITE)
           && !lookup_attribute ("space", DECL_ATTRIBUTES (decl)) // XC32-1742: except when a space() attr is present
           && !TREE_SIDE_EFFECTS (decl) // XC32-1736: categorize_decl_for_section() marks
@@ -3108,22 +3040,120 @@ pic32c_cond_reg_usage (void)
   pic32c_reserve_registers ();
 }
 
-/* a target hook for adding attributes to a decl when it is being created */
+/* a target hook for adding attributes to a decl when it is being created.
+   This should be used to add implied attributes to the decl being created. */
 void
 pic32c_insert_attributes (tree decl, tree *attributes)
 {
-  /* only interested in (regular) function decls */
-  if (TREE_CODE (decl) != FUNCTION_DECL || DECL_EXTERNAL (decl)
-      || DECL_BUILT_IN (decl) || DECL_ARTIFICIAL (decl))
-   return;
-
   /* #pragma nocodecov was seen => add 'nocodecov' attribute */
-  if (mchp_pragma_nocodecov)
-    *attributes = tree_cons (get_identifier ("nocodecov"), NULL, *attributes);
+  if (mchp_pragma_nocodecov) {
+      if ( (TREE_CODE(decl) == FUNCTION_DECL) && !DECL_EXTERNAL(decl)
+          && !DECL_BUILT_IN(decl) && !DECL_ARTIFICIAL(decl) ) {
+          *attributes = tree_cons(get_identifier("nocodecov"), NULL, *attributes);
+      }
+  }
 
   /* similarly, #pragma nopa means we should add the 'nopa' attribute */
-  if (mchp_pragma_nopa)
-    *attributes = tree_cons (get_identifier ("nopa"), NULL, *attributes);
+  if (mchp_pragma_nopa) {
+      if ( (TREE_CODE(decl) == FUNCTION_DECL) && !DECL_EXTERNAL(decl)
+          && !DECL_BUILT_IN(decl) && !DECL_ARTIFICIAL(decl) ) {
+          *attributes = tree_cons(get_identifier("nopa"), NULL, *attributes);
+      }
+  }
+
+  if (mchp_pragma_default_variable_section) 
+    {
+      if ( (TREE_CODE (decl) == VAR_DECL) && !DECL_EXTERNAL (decl)
+          && !DECL_ARTIFICIAL (decl) && !current_function_decl)
+        {
+          if ( (lookup_attribute ("section", *attributes)) == NULL_TREE)
+            {
+              tree args = build_tree_list(NULL_TREE, build_string (strlen (mchp_pragma_default_variable_section) + 1, mchp_pragma_default_variable_section));
+             *attributes = tree_cons (get_identifier("section"), args, *attributes);
+            }
+      }
+  }
+
+  if (mchp_pragma_default_function_section) 
+    {
+      if ( (TREE_CODE (decl) == FUNCTION_DECL) && !DECL_EXTERNAL (decl)
+          && !DECL_BUILT_IN (decl) && !DECL_ARTIFICIAL (decl))
+        {
+          if ( (lookup_attribute ("section", *attributes)) == NULL_TREE) 
+            {
+              tree args = build_tree_list(NULL_TREE, build_string (strlen (mchp_pragma_default_function_section) + 1, mchp_pragma_default_function_section));
+              *attributes = tree_cons (get_identifier("section"), args, *attributes);
+            }
+        }
+    }
+
+  /* Ramfunc attribute implies noinline, noclone and nopa */
+  if ((lookup_attribute ("ramfunc", *attributes) != NULL_TREE) && (TREE_CODE(decl) == FUNCTION_DECL))
+    {
+      if (lookup_attribute ("noinline", *attributes) == NULL_TREE)
+        {
+          *attributes = tree_cons (get_identifier ("noinline"),  NULL, *attributes);
+        }
+
+      if (lookup_attribute ("noclone", *attributes) == NULL_TREE)
+        {
+          *attributes = tree_cons (get_identifier ("noclone"),  NULL, *attributes);
+        }
+
+      if (lookup_attribute ("nopa", *attributes) == NULL_TREE)
+        {
+          *attributes = tree_cons (get_identifier ("nopa"),  NULL, *attributes);
+        }
+    }
+
+  // TODO: "coherent" is N/A on PIC32C
+#if ENABLE_COHERENT_MEM
+  /* The persistent attribute implies coherent for variables. */
+  // Don't worry about the initialization value specified for persistent,
+  // it will be et to NULL.
+  // TODO: The .pbss section will not be created now. Is it required?
+
+  if ((lookup_attribute ("persistent", *attributes) != NULL_TREE) && (TREE_CODE(decl) == VAR_DECL) &&
+//       !DECL_INITIAL(*decl) &&
+      (lookup_attribute ("coherent", *attributes) == NULL_TREE))
+    {
+      *attributes = tree_cons (get_identifier ("coherent"),  NULL, *attributes);
+      DECL_COMMON (*decl) = 0;
+    }
+#endif
+
+  /* Address attribute implies noinline and noclone */
+  if ((lookup_attribute ("address", *attributes) != NULL_TREE) && (TREE_CODE (decl) == FUNCTION_DECL))
+    {
+      tree attrib_noinline, attrib_noclone;
+      //    long unsigned int address_val;
+      //    address_val = (long unsigned int)TREE_INT_CST_LOW(address) &
+      //    0xFFFFFFFFul;
+
+      if (lookup_attribute ("noinline", *attributes) == NULL_TREE)
+        {
+          *attributes = tree_cons (get_identifier ("noinline"),  NULL, *attributes);
+        }
+
+      if (lookup_attribute ("noclone", *attributes) == NULL_TREE)
+        {
+          *attributes = tree_cons (get_identifier ("noclone"),  NULL, *attributes);
+        }
+    }
+
+  /* tcm attribute on a function implies noinline and noclone */
+  if ((lookup_attribute ("tcm", *attributes) != NULL_TREE) && (TREE_CODE (decl) == FUNCTION_DECL))
+    {
+      if (lookup_attribute ("noclone", *attributes) == NULL_TREE)
+        {
+          *attributes = tree_cons (get_identifier ("noclone"),  NULL, *attributes);
+        }
+
+      if (lookup_attribute ("noinline", *attributes) == NULL_TREE)
+        {
+          *attributes = tree_cons (get_identifier ("noinline"),  NULL, *attributes);
+        }
+    }
 }
 
 /* TARGET_FUNCTION_ATTRIBUTE_INLINABLE_P hook;

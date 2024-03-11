@@ -875,46 +875,11 @@ extern const char *mchp_last_of (int, const char **);
           }}                                                          \
       }                                                               \
       }                                                               \
-    if ((pkgversion_string != NULL) && *pkgversion_string)        \
-      {                                                     \
-        char *Microchip;                                    \
-        int pic32_compiler_version;                         \
-        gcc_assert(strlen(pkgversion_string) < 80);            \
-        Microchip = (char *)strrchr (pkgversion_string, 'v');  \
-        if (Microchip != NULL)                              \
-          {                                                 \
-            int major =0, minor=0;                          \
-            while ((*Microchip) &&                          \
-                   ((*Microchip < '0') ||                   \
-                    (*Microchip > '9')))                    \
-              { Microchip++; }                              \
-            if (*Microchip)                                 \
-              {                                             \
-                major = strtol (Microchip, &Microchip, 0);  \
-              }                                             \
-            if ((*Microchip) &&                             \
-               ((*Microchip=='_') || (*Microchip=='.')))    \
-               {                                            \
-                 Microchip++;                               \
-                 minor = strtol(Microchip, &Microchip, 0);  \
-               }                                            \
-             pic32_compiler_version = (major*1000) + (minor*10);  \
-          }                                                 \
-        else                                                \
-          {                                                 \
-            fatal_error (__LINE__, "internal error: version_string == NULL");     \
-            builtin_define_with_int_value ("__C32_VERSION__", -1);      \
-            builtin_define_with_int_value ("__XC32_VERSION__", -1);     \
-            builtin_define_with_int_value ("__XC32_VERSION", -1);       \
-            builtin_define_with_int_value ("__XC_VERSION__", -1);       \
-            builtin_define_with_int_value ("__XC_VERSION", -1);       \
-          }                                                             \
-        builtin_define_with_int_value ("__C32_VERSION__", pic32_compiler_version);  \
-        builtin_define_with_int_value ("__XC32_VERSION__", pic32_compiler_version); \
-        builtin_define_with_int_value ("__XC32_VERSION", pic32_compiler_version);   \
-        builtin_define_with_int_value ("__XC_VERSION__", pic32_compiler_version);   \
-        builtin_define_with_int_value ("__XC_VERSION", pic32_compiler_version);     \
-      }                                                     \
+      builtin_define_with_int_value ("__C32_VERSION__", _XC32_VERSION_); \
+      builtin_define_with_int_value ("__XC32_VERSION__",_XC32_VERSION_); \
+      builtin_define_with_int_value ("__XC32_VERSION", _XC32_VERSION_);  \
+      builtin_define_with_int_value ("__XC_VERSION__",_XC32_VERSION_);   \
+      builtin_define_with_int_value ("__XC_VERSION", _XC32_VERSION_);    \
                                                             \
       mchp_init_cci(pfile);    \
   } while (0);

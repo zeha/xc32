@@ -2944,6 +2944,17 @@ arm_option_check_internal (struct gcc_options *opts)
       if (target_pure_code && common_unsupported_modes)
         error ("%s only supports non-pic code on M-profile targets", flag);
 
+#ifdef TARGET_MCHP_PIC32C
+      /* XC32-2218: We will only support this feature if the target arch
+       * is v6-m or v8-m. Since every armv7 is also a armv6, we have to
+       * check that the arch is not v7.
+       */
+      bool pure_code_supported_arch = (arm_arch6m && !arm_arch7em && !arm_arch7) || arm_arch8;
+
+      if (target_pure_code && !pure_code_supported_arch)
+        error ("%s only supports armv6-m and armv8-m targets", flag);
+#endif /* TARGET_MCHP_PIC32C */
+
       /* Cannot load addresses: -mslow-flash-data forbids literal pool and
          -mword-relocations forbids relocation of MOVT/MOVW.  */
       if (target_word_relocations)
@@ -3016,6 +3027,9 @@ arm_override_options_after_change (void)
 			      &global_options_set, false);
 
   arm_override_options_after_change_1 (&global_options);
+#ifdef TARGET_MCHP_PIC32C
+  mchp_override_options_after_change ();
+#endif
 }
 
 /* Implement TARGET_OPTION_SAVE.  */
@@ -11331,60 +11345,104 @@ arm_rtx_costs (rtx x, machine_mode mode ATTRIBUTE_UNUSED, int outer_code,
   return result;
 }
 
+#if defined(TARGET_MCHP_PIC32C)
+/*
+  Return the number of bytes needed to load or store a value
+   of mode MODE at address X.
+
+   A value of 4 means that a 32-bit instruction is needed to load / store the
+  value
+   A value of 2 means that a 16-bit instruction is needed to load / store the
+  value
+
+   For [r,r] addressing mode we will apply a penalty of "1" because we want to
+   keep the register pressure low for THUMB
+*/
+
+static inline int
+mchp_address_cost (rtx x, machine_mode mode, bool speed)
+{
+  enum rtx_code c = GET_CODE (x);
+
+  gcc_assert (speed == false);
+
+  if (c == PRE_INC || c == PRE_DEC || c == POST_INC || c == POST_DEC)
+    return 4;
+
+  // LD [areg]
+  if (c == REG)
+    {
+      if (!TARGET_THUMB)
+        return 4;
+      if ((mode == SImode) || (mode == HImode) || (mode == QImode))
+        return 2;
+      if ((mode == DFmode) || (mode == SFmode) || (mode == DImode))
+        return 4;
+    }
+
+  if (c == PLUS)
+    {
+      // [r,r] will fwprop 2 regs, compared with [r] and [r,#imm]
+      const int rr_penalty = TARGET_THUMB ? 1 : 0;
+
+      // LD [areg, #imm]
+      if (CONST_INT_P (XEXP (x, 1)))
+        {
+          if (!TARGET_THUMB)
+            return 4;
+          HOST_WIDE_INT offset = INTVAL (XEXP (x, 1));
+
+          if (mode == SImode)
+            return ((0 <= offset) && (offset <= 124)) ? 2 : 4;
+          else if (mode == HImode)
+            return ((0 <= offset) && (offset <= 62)) ? 2 : 4;
+          else if (mode == QImode)
+            return ((0 <= offset) && (offset <= 31)) ? 2 : 4;
+          else if ((mode == DFmode) || (mode == SFmode) || (mode == DImode))
+            return 4;
+        }
+      // LD [areg, dreg]
+      else if (REG_P (XEXP (x, 0)) && REG_P (XEXP (x, 1)))
+        {
+          if (!TARGET_THUMB)
+            return 4 + rr_penalty;
+          if ((mode == SImode) || (mode == HImode) || (mode == QImode))
+            return 2 + rr_penalty;
+          if (mode == DImode)
+            return 4 + rr_penalty;
+        }
+      // LD [areg, dreg, lsl #imm]
+      else if (ARITHMETIC_P (XEXP (x, 0)) || ARITHMETIC_P (XEXP (x, 1)))
+        return 4 + rr_penalty;
+    }
+
+  // condition copy-pasted from the below arm_arm_address_cost function
+  if (c == MEM || c == LABEL_REF || c == SYMBOL_REF)
+    return 10;
+
+  // default value copy pasted from the below arm_arm_address_cost function
+  return 6;
+}
+#endif
+
 /* All address computations that can be done are free, but rtx cost returns
    the same for practically all of them.  So we weight the different types
    of address here in the order (most pref first):
    PRE/POST_INC/DEC, SHIFT or NON-INT sum, INT sum, REG, MEM or LABEL.  */
 static inline int
-arm_arm_address_cost (rtx x /* XC32-2046 */, machine_mode mode, bool speed)
+arm_arm_address_cost (rtx x)
 {
   enum rtx_code c  = GET_CODE (x);
 
   if (c == PRE_INC || c == PRE_DEC || c == POST_INC || c == POST_DEC)
-    {
-#if defined(TARGET_MCHP_PIC32C)
-    if (!speed)
-      return 4;
-    else
-      return 0;
-#else
     return 0;
-#endif
-  }
   if (c == MEM || c == LABEL_REF || c == SYMBOL_REF)
     return 10;
 
   if (c == PLUS)
     {
       if (CONST_INT_P (XEXP (x, 1)))
-#if defined(TARGET_MCHP_PIC32C)
-        {
-          if (TARGET_THUMB && (!speed))
-            {
-              HOST_WIDE_INT offset = INTVAL (XEXP (x, 1));
-              if (mode == SImode)
-                {
-                  if ((0 <= offset) && (offset <= 124))
-                    return 2;
-                }
-              else if (mode == HImode)
-                {
-                  if ((0 <= offset) && (offset <= 62))
-                    return 2;
-                }
-              else if (mode == QImode)
-                {
-                  if ((0 <= offset) && (offset <= 31))
-                    return 2;
-                }
-              return 6;
-            }
-          else
-            return 2;
-        }
-#else
-        return 2;
-#endif
+	return 2;
 
       if (ARITHMETIC_P (XEXP (x, 0)) || ARITHMETIC_P (XEXP (x, 1)))
 	return 3;
@@ -11414,7 +11472,11 @@ static int
 arm_address_cost (rtx x, machine_mode mode ATTRIBUTE_UNUSED,
 		  addr_space_t as ATTRIBUTE_UNUSED, bool speed ATTRIBUTE_UNUSED)
 {
-  return TARGET_32BIT ? arm_arm_address_cost (x /* XC32-2046 */, mode, speed) : arm_thumb_address_cost (x);
+#if defined(TARGET_MCHP_PIC32C)
+  if (!speed && TARGET_32BIT)
+    return mchp_address_cost (x, mode, speed);
+#endif
+  return TARGET_32BIT ? arm_arm_address_cost (x) : arm_thumb_address_cost (x);
 }
 
 /* Adjust cost hook for XScale.  */

@@ -1525,6 +1525,7 @@ gain_for_invariant (struct invariant *inv, unsigned *regs_needed,
   return comp_cost - size_cost;
 }
 
+
 /* Finds invariant with best gain for moving.  Returns the gain, stores
    the invariant in *BEST and number of registers needed for it to
    *REGS_NEEDED.  REGS_USED is the number of registers used in the loop.
@@ -1548,6 +1549,25 @@ best_gain_for_invariant (struct invariant **best, unsigned *regs_needed,
       /* Only consider the "representatives" of equivalent invariants.  */
       if (inv->eqto != inv->invno)
 	continue;
+
+#if defined(_BUILD_MCHP_)
+      /* We set regs_used to the number of live register in the basic block containing 
+         the invariant. We deduct the registers that go dead from it. */
+      if (!speed)
+      {
+        bitmap_head mchp_curr_regs_live;
+        basic_block bb = BLOCK_FOR_INSN (inv->insn);
+        bitmap_initialize (&mchp_curr_regs_live, &reg_obstack);
+        bitmap_copy (&mchp_curr_regs_live, DF_LR_IN (bb));
+        regs_used = 0;
+        regs_used += bitmap_count_bits (&mchp_curr_regs_live);
+        rtx link;
+        for (link = REG_NOTES (inv->insn); link; link = XEXP (link,1))
+          if (REG_NOTE_KIND (link) == REG_DEAD)
+            regs_used-=1;
+        bitmap_clear (&mchp_curr_regs_live);
+      }
+#endif
 
       again = gain_for_invariant (inv, aregs_needed, new_regs, regs_used,
       				  speed, call_p);
@@ -1947,6 +1967,9 @@ move_single_loop_invariants (struct loop *loop)
   free_inv_motion_data ();
 }
 
+/* Registers currently living. */
+static bitmap_head curr_regs_live;
+
 /* Releases the auxiliary data for LOOP.  */
 
 static void
@@ -1961,11 +1984,6 @@ free_loop_data (struct loop *loop)
   free (data);
   loop->aux = NULL;
 }
-
-
-
-/* Registers currently living.  */
-static bitmap_head curr_regs_live;
 
 /* Current reg pressure for each pressure class.  */
 static int curr_reg_pressure[N_REG_CLASSES];

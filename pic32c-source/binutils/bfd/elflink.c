@@ -41,29 +41,26 @@
 #endif
 
 #if defined(TARGET_IS_PIC32C) || defined(TARGET_IS_PIC32MX)
+#include "mchp/smartio.h"
 extern unsigned int dinit_compress_level;
+extern unsigned int dinit_link_mask;
 #endif /* TARGET_IS_PIC32C || TARGET_IS_PIC32MX */
 
 #ifdef TARGET_IS_PIC32C
 
 #include "pic32c-utils.h"
 
-/* MERGE_NOTES: weakness is required here to link gas, maybe others, which
-   include this file but not the elf32pic32 template. */
-void (*mchp_smartio_add_symbols) (struct bfd_link_info *) __attribute__((weak));
 bfd_boolean (*mchp_is_cmse_implib) (void);
 
+void
+dinit_create_startup_symbols(struct bfd_link_info *info);
+
 extern int pic32_debug;
-extern bfd_boolean pic32_smart_io;
 
 #endif /* TARGET_IS_PIC32C */
 
 #if defined(TARGET_IS_PIC32MX)
 #include "pic32m-utils.h"
-
-bfd_boolean (*mchp_elf_link_check_archive_element)
-  (char *, bfd *, struct bfd_link_info *) __attribute__((weak));
-extern int pic32_debug;
 
 static bfd_boolean pic32_symbol_checks(struct bfd_link_hash_entry * hash_entry, bfd * abfd);
 
@@ -5722,38 +5719,46 @@ _bfd_elf_archive_symbol_lookup (bfd *abfd,
   return h;
 }
 
-#if defined(TARGET_IS_elf32pic32mx)
-/*
- * make common version of this symbol which will be initialized to NIL
- * unless we are creating the linker where an initialized definition will
- * be provided
- *
- * we only call this function if it is a valid pointer
- */
-
-extern void (*mchp_smartio_symbols)  (struct bfd_link_info*) __attribute__((weak)) ;
-#endif
-
 #if defined (TARGET_IS_PIC32C) || defined(TARGET_IS_PIC32MX)
 void
 mchp_add_archive_symbol_name (struct bfd_link_info *info, char* name);
 void
 mchp_add_archive_symbol_name (struct bfd_link_info *info, char* name) {
-    struct bfd_link_hash_entry *new_sym;
+  struct bfd_link_hash_entry *new_sym;
 
-    new_sym = bfd_link_hash_lookup (info->hash, name, 0, 0, 0);
-    if(new_sym == NULL)
+  new_sym = bfd_link_hash_lookup(info->hash, name, 0, 0, 0);
+  if (new_sym == NULL)
     {
       new_sym = bfd_link_hash_lookup (info->hash, name, 1, 1, 1);
       new_sym->type = bfd_link_hash_undefined;
       new_sym->u.undef.abfd = NULL;
-            bfd_link_add_undef (info->hash, new_sym);
+      bfd_link_add_undef (info->hash, new_sym);
 
       if (pic32_debug)
-        fprintf (stderr, "Creating %s\n", name);
-    }
+        printf ("Created symbol: %s\n", name);
+  }
 }
-#endif
+
+void
+dinit_create_startup_symbols(struct bfd_link_info *info)
+{
+  if (pic32_debug)
+    printf("Generating symbols for dinit_link_mask: %x", dinit_link_mask);
+
+  if (dinit_link_mask &  GEN_DINIT_MASK(DINIT_CLEAR))
+    mchp_add_archive_symbol_name(info, "__dinit_clear_needed");
+  if (dinit_link_mask &  GEN_DINIT_MASK(DINIT_COPY))
+    mchp_add_archive_symbol_name(info, "__dinit_copy_needed");
+  if (dinit_link_mask &  GEN_DINIT_MASK(DINIT_COPY_VAL_EMB))
+    mchp_add_archive_symbol_name(info, "__dinit_copy_emb_needed");
+  if (dinit_link_mask &  GEN_DINIT_MASK(DINIT_COPY_VAL_DATA))
+    mchp_add_archive_symbol_name(info, "__dinit_copy_val_data_needed");
+  if (dinit_link_mask &  GEN_DINIT_MASK(DINIT_COMPRESSED))
+    mchp_add_archive_symbol_name(info, "__dinit_decompress_needed");
+  //if (!dinit_link_mask)
+  //no dinit needed, set flags to disable?
+}
+#endif /* defined(TARGET_IS_PIC32MX) || defined(TARGET_IS_PIC32C) */
 
 /* Add symbols from an ELF archive file to the linker hash table.  We
    don't use _bfd_generic_link_add_archive_symbols because we need to
@@ -5801,7 +5806,7 @@ elf_link_add_archive_symbols (bfd *abfd, struct bfd_link_info *info)
   if (included == NULL)
     return FALSE;
 
-#if defined(TARGET_IS_PIC32C)
+#if defined (TARGET_IS_PIC32C) || defined(TARGET_IS_PIC32MX)  
   if (pic32_smart_io)
     {
       /* look through the undef list and adds those symbols that are smartio
@@ -5809,35 +5814,6 @@ elf_link_add_archive_symbols (bfd *abfd, struct bfd_link_info *info)
       mchp_smartio_add_symbols (info);
     }
 #endif /* TARGET_IS_PIC32C */
-
-#if defined (TARGET_IS_PIC32C) || defined(TARGET_IS_PIC32MX)
-  switch (dinit_compress_level)
-    {
-	case 0:
-	  mchp_add_archive_symbol_name(info, "__copy_needed");
-	  break;
-	case 1:
-	  mchp_add_archive_symbol_name(info, "__repeated_dinit_needed");
-	  break;
-	case 2:
-	  mchp_add_archive_symbol_name(info, "__decompress_needed");
-	  break;
-	default:
-	  goto error_return;
-	}
-#endif /* TARGET_IS_PIC32C || TARGET_IS_PIC32MX */
-
-/* MERGE-NOTES: to be reconsidered */
-#if defined(TARGET_IS_elf32pic32mx)
-  { static int smartio_run=0;
-
-    if ((smartio_run == 0) && mchp_smartio_symbols) {
-      /* look through the undef list and adds those symbols that are smartio
-         to the undefined list */
-      mchp_smartio_symbols(info);
-    }
-  }
-#endif
 
   symdefs = bfd_ardata (abfd)->symdefs;
   bed = get_elf_backend_data (abfd);
@@ -5909,16 +5885,6 @@ elf_link_add_archive_symbols (bfd *abfd, struct bfd_link_info *info)
 
 	  if (! bfd_check_format (element, bfd_object))
 	    goto error_return;
-
-/* MERGE-NOTES: to be reconsidered */
-#if defined(TARGET_IS_elf32pic32mx)
-          if (mchp_elf_link_check_archive_element &&
-              !mchp_elf_link_check_archive_element (symdef->name, element,
-                                                     info))
-            {
-              continue;
-            }
-#endif
         
 	  undefs_tail = info->hash->undefs_tail;
 

@@ -32,7 +32,7 @@
 #if defined(TARGET_IS_PIC32C)
 /* MERGE-TODO: unify these files and update guards/names */
 #include "elf32-pic32c.c"
-#include "elf/pic32c.h"
+#include "elf/pic32.h"
 #endif
 
 /* Return the relocation section associated with NAME.  HTAB is the

@@ -54,7 +54,7 @@ SECTION
 #endif
 
 #if defined(TARGET_IS_PIC32C)
-#include "../include/elf/pic32c.h"
+#include "../include/elf/pic32.h"
 #include "pic32c-utils.h"
 
 /* used to check if we should generate elf header for CMSE implib */
@@ -63,7 +63,7 @@ bfd_boolean (*mchp_is_cmse_implib) (void);
 #endif
 
 #if defined(TARGET_IS_PIC32MX)
-#include "../include/elf/pic32m.h"
+#include "../include/elf/pic32.h"
 #include "pic32m-utils.h"
 
 ///\ coresident pic32

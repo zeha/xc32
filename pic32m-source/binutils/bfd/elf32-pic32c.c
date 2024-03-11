@@ -23,7 +23,7 @@
 #include "sysdep.h"
 #include "elf-bfd.h"
 #include "pic32c-utils.h"
-#include "elf/pic32c.h"
+#include "elf/pic32.h"
 
 #define DEFAULT_STACK_SIZE  0x100
 
@@ -330,148 +330,6 @@ bfd_pic32_process_data_section (struct pic32_section *section, PTR fp)
 } /* static void bfd_pic32_process_data_section (...)*/
 #endif
 
-#if 0
-
-bfd_boolean
-pic32c_elf_final_link (bfd *abfd, struct bfd_link_info *info ATTRIBUTE_UNUSED)
-{
-  asection *dinit_sec;
-  bfd_size_type dinit_size;
-  file_ptr dinit_offset;
-  unsigned char *dat;
-  struct pic32_section *s_sec;
-  unsigned int i;
-
-  /* populate the dinit BFD we created earlier if enabled. */
-  if (pic32_data_init)
-    {
-      if (pic32_debug)
-	fprintf (stderr, "  LG - filling DINIT\n");
-
-      BFD_ASSERT (init_template != NULL);
-
-      dinit_sec = init_template->output_section;
-      dinit_size = init_template->size;
-      dinit_offset = init_template->output_offset;
-
-      if (!dinit_sec)
-	{
-	  fprintf (stderr, "Link Error: could not access data template\n");
-	  abort ();
-	}
-      /* clear SEC_IN_MEMORY flag if inaccurate */
-      if ((dinit_sec->contents == 0)
-	  && ((dinit_sec->flags & SEC_IN_MEMORY) != 0))
-	dinit_sec->flags &= ~SEC_IN_MEMORY;
-      /* get a copy of the (blank) template contents */
-      if (!bfd_get_section_contents (abfd, dinit_sec, init_data, dinit_offset,
-				     dinit_size))
-	{
-	  fprintf (stderr, "Link Error: can't get section %s contents\n",
-		   dinit_sec->name);
-	  abort ();
-	}
-      /* update the default fill value */
-      dat = init_data;
-      for (i = 0; i < dinit_size; i++)
-	*dat++ *= 2;
-
-      /* scan sections and write data records */
-      if (pic32_debug)
-	fprintf (stderr, "\nProcessing data sections:\n");
-      dat = init_data;
-      for (s_sec = data_sections; s_sec != NULL; s_sec = s_sec->next)
-      {
-        /* find the sequence of sections allocated one after the other */
-        struct pic32_section *s_sec_last;
-        uint32_t lst_addr;
-#if 0
-        ///\ go further if the current one is one to be copied in .dinit
-        if ((s_sec->sec) && (s_sec->sec->size != 0) && ((s_sec->sec->flags & SEC_EXCLUDE) == 0))
-        {
-          lst_addr = s_sec->sec->output_offset + s_sec->sec->size + s_sec->sec->output_section->vma;
-
-          for (s_sec_last = s_sec; s_sec_last != NULL; s_sec_last = s_sec_last->next)
-          {
-            if (!(s_sec_last->sec) || (s_sec_last->next == NULL))
-              break;
-
-            if (!(s_sec_last->next->sec) || ((s_sec_last->next->sec->flags & SEC_EXCLUDE) != 0)) 
-              continue;   
-
-            if (lst_addr == (s_sec_last->next->sec->output_offset + 
-                             s_sec_last->next->sec->output_section->vma))
-            {
-              lst_addr += s_sec_last->next->sec->size;
-              fprintf(stderr, "Linked sections! +1 \n");
-            }
-            else
-            {
-              fprintf(stderr, "End of linked sections %x +%x != %x!\n", s_sec_last->sec->output_offset ,s_sec_last->sec->size ,s_sec_last->next->sec->output_offset);            
-              break;
-            }
-          }
-        }
-#endif
-
-	if ((s_sec->sec)
-	    && (((s_sec->sec->flags & SEC_EXCLUDE) == 0)
-		&& (s_sec->sec->output_section != bfd_abs_section_ptr)))
-	  bfd_pic32_process_data_section (s_sec, &dat);
-
-
-    }
-
-
-      ///\ add itcm sections if any
-      if (pic32_debug)
-	fprintf (stderr, "\nProcessing code sections:\n");
-      for (s_sec = code_sections; s_sec != NULL; s_sec = s_sec->next)
-	{
-
-	  if ((s_sec->sec)
-	      && (((s_sec->sec->flags & SEC_EXCLUDE) == 0)
-		  && (s_sec->sec->output_section != bfd_abs_section_ptr)))
-	    {
-	      if (s_sec->sec->itcm)
-		bfd_pic32_process_code_section (s_sec, &dat, TRUE);
-	      else if (pic32c_relocate_vectors
-		       && (strstr (s_sec->sec->output_section->name, ".vectors")
-			   != NULL))
-		bfd_pic32_process_code_section (s_sec, &dat, FALSE);
-	    }
-	}
-      /* write zero terminator - 64-bit */
-      *dat++ = 0;
-      *dat++ = 0;
-      *dat++ = 0;
-      *dat++ = 0;
-      *dat++ = 0;
-      *dat++ = 0;
-      *dat++ = 0;
-      *dat++ = 0;
-
-      /* Reset the bfd file pointer, because
-       there seems to be a bug with fseek()
-       in Winblows that makes seeking to
-       a position earlier in the file unreliable. */
-
-      bfd_seek (dinit_sec->output_section->owner, 0, SEEK_SET);
-
-      /* insert buffer into the data template section */
-      if (!bfd_set_section_contents (abfd, dinit_sec, init_data, dinit_offset,
-				     dinit_size))
-	{
-	  fprintf (stderr, "Link Error: can't write section %s contents\n",
-		   dinit_sec->name);
-	  abort ();
-	}
-    }
-
-    return TRUE;
-}
-#endif
-
 void  set_dinit_content(bfd* abfd, struct bfd_link_info* info);
 
 bfd_boolean
@@ -515,6 +373,8 @@ void pic32_init_section_list(struct pic32_section **lst)
   (*lst)->sec = 0;
   (*lst)->attributes = 0;
   (*lst)->file = 0;
+  (*lst)->pic32_size = 0;
+  (*lst)->children = NULL;
 }
 
 /*
@@ -530,6 +390,7 @@ void pic32_free_section_list(struct pic32_section **lst)
   for (s = *lst; s != NULL; s = next)
     {
       next = s->next;
+      if (NULL != s->children) pic32_free_section_list(&(s->children));
       free(s);
     }
 

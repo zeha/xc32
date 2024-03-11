@@ -20955,9 +20955,12 @@ pic32_memory (unused)
    * create the section, but will not define its size.
    */
   sec = bfd_get_section_by_name(stdoutput, info_sec_name);
-  if (sec && sec->lma)
-    as_bad (_("Multiple definition of memory region \'%s\'\n"),
-               region_name);
+  if (sec && ((sec->vma != region_origin)
+	      || (sec->lma != region_size)))
+    {
+      as_bad (_("Multiple definition of memory region \'%s\'\n"),
+	      region_name);
+    }
 
   old_sec = now_seg;
   sec = subseg_new (info_sec_name, 0);

@@ -51,7 +51,7 @@
 #include "hashtab.h"
 
 #ifdef TARGET_IS_PIC32MX
-#include "elf/pic32m.h"
+#include "elf/pic32.h"
 #include "pic32m-utils.h"
 bfd_boolean pic32_data_init = TRUE;
 bfd_boolean pic32_has_data_init_option = 0;
@@ -133,9 +133,6 @@ struct bfd_sym_chain entry_symbol_copy;
 /* lghica co-resident */
 static int pic32_in_bounds
   (asection *, bfd_vma , bfd_size_type);
-void fill_dinit_section
-  (bfd *abfd, struct bfd_link_info *info);
-
 
 /* Data structures for fill option */
 struct pic32_fill_option *pic32_fill_option_list;
@@ -14369,6 +14366,12 @@ _bfd_mips_elf_linker_flags (struct bfd_link_info *info, bfd_boolean insn32,
 }
 
 #ifdef TARGET_IS_PIC32MX
+bfd_boolean
+_bfd_mips_is_micromips(bfd *abfd)
+{
+  return MICROMIPS_P(abfd);
+}
+
 static void
 update_previous_shared_dinit (struct bfd_link_info *const info,
 			      bfd_vma section_address,

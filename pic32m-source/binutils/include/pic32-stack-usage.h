@@ -114,9 +114,7 @@ void su_cstack_free(su_callstack *stack_ptr);
 
 void mark_as_recursive(su_callstack *stack_ptr, struct su_section *func);
 
-static void su_note_smartio_replacement (const char *from, const char *to);
-static const char *su_get_smartio_replacement (const char *from);
-static void su_free_smartio_replacements (void);
+void su_note_smartio_replacement (const char *from, const char *to);
 
 #define PIC32_DBG_PRINT(...) \
 (__extension__ ({ \

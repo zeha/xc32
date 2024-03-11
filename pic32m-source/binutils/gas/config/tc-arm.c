@@ -40,7 +40,7 @@
 #ifdef TARGET_IS_PIC32C
 /* MERGE-NOTES: this included struc-symbol.h. it appears to be gone. */
 #include "pic32c-utils.h"
-#include "elf/pic32c.h"
+#include "elf/pic32.h"
 #include "pic32-su-asm.h"
 #endif /* TARGET_IS_PIC32C */
 #endif /* OBJ_ELF */

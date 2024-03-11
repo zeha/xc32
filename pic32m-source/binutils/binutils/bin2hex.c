@@ -929,7 +929,7 @@ write_section_subordinate (bfd *abfd, struct section_list *first, PTR fp)
   if (is_manual_mode ())
     {
       fprintf (imagefile, "%s", sections_array_declaration);
-      fprintf (imagefile, "\n { \n");
+      fprintf (imagefile, "\n{\n");
       unsigned int unique_id_verify = 0;
       for (s = first; s != NULL; s = s->next)
         {

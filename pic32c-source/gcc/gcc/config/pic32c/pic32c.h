@@ -299,53 +299,12 @@ extern void pic32c_final_include_paths (struct cpp_dir *, struct cpp_dir *);
           builtin_define ("__32CGENERIC__");                                   \
           builtin_define ("__32CGENERIC");                                     \
         }                                                                      \
-      if ((pkgversion_string != NULL) && *pkgversion_string)                   \
-        {                                                                      \
-          char *Microchip;                                                     \
-          int pic32_compiler_version;                                          \
-          gcc_assert (strlen (pkgversion_string) < 80);                        \
-          Microchip = (char *) strrchr (pkgversion_string, 'v');               \
-          if (Microchip != NULL)                                               \
-            {                                                                  \
-              int major = 0, minor = 0;                                        \
-              while ((*Microchip)                                              \
-                     && ((*Microchip < '0') || (*Microchip > '9')))            \
-                {                                                              \
-                  Microchip++;                                                 \
-                }                                                              \
-              if (*Microchip)                                                  \
-                {                                                              \
-                  major = strtol (Microchip, &Microchip, 0);                   \
-                }                                                              \
-              if ((*Microchip)                                                 \
-                  && ((*Microchip == '_') || (*Microchip == '.')))             \
-                {                                                              \
-                  Microchip++;                                                 \
-                  minor = strtol (Microchip, &Microchip, 0);                   \
-                }                                                              \
-              pic32_compiler_version = (major * 1000) + (minor * 10);          \
-            }                                                                  \
-          else                                                                 \
-            {                                                                  \
-              fatal_error (input_location,                                     \
-                           "internal error: version_string == NULL");          \
-              builtin_define_with_int_value ("__C32_VERSION__", -1);           \
-              builtin_define_with_int_value ("__XC32_VERSION__", -1);          \
-              builtin_define_with_int_value ("__XC32_VERSION", -1);            \
-              builtin_define_with_int_value ("__XC_VERSION__", -1);            \
-              builtin_define_with_int_value ("__XC_VERSION", -1);              \
-            }                                                                  \
-          builtin_define_with_int_value ("__C32_VERSION__",                    \
-                                         pic32_compiler_version);              \
-          builtin_define_with_int_value ("__XC32_VERSION__",                   \
-                                         pic32_compiler_version);              \
-          builtin_define_with_int_value ("__XC32_VERSION",                     \
-                                         pic32_compiler_version);              \
-          builtin_define_with_int_value ("__XC_VERSION__",                     \
-                                         pic32_compiler_version);              \
-          builtin_define_with_int_value ("__XC_VERSION",                       \
-                                         pic32_compiler_version);              \
-        }                                                                      \
+                                                                               \
+      builtin_define_with_int_value ("__C32_VERSION__", _XC32_VERSION_);     \
+      builtin_define_with_int_value ("__XC32_VERSION__",_XC32_VERSION_);     \
+      builtin_define_with_int_value ("__XC32_VERSION",_XC32_VERSION_);       \
+      builtin_define_with_int_value ("__XC_VERSION__",_XC32_VERSION_);       \
+      builtin_define_with_int_value ("__XC_VERSION",_XC32_VERSION_);         \
       mchp_init_cci (pfile);                                                   \
     }                                                                          \
   while (0)
@@ -464,6 +423,10 @@ extern unsigned int g_ARM_BUILTIN_MAX;
     c_register_pragma (0, "config", mchp_handle_config_pragma);                \
     c_register_pragma (0, "nocodecov", mchp_handle_nocodecov_pragma);          \
     c_register_pragma (0, "nopa", mchp_handle_nopa_pragma);                    \
+    c_register_pragma (0, "default_variable_attributes",     \
+        mchp_handle_default_variable_attributes_pragma);     \
+    c_register_pragma (0, "default_function_attributes",     \
+        mchp_handle_default_function_attributes_pragma);     \
   }
 
 /* set path to linker for collect2 wrapper */
@@ -558,6 +521,11 @@ extern unsigned int g_ARM_BUILTIN_MAX;
 
 #undef SUBTARGET_CC1_CONFIG_DATA_SPEC
 #define SUBTARGET_CC1_CONFIG_DATA_SPEC ""
+
+#undef SUBTARGET_CC1_XCLM_SPEC
+#define SUBTARGET_CC1_XCLM_SPEC                                                \
+  "%{fnofallback : -mno-fallback }"                                            \
+  "%{-nofallback : -mno-fallback }"
 
 #undef SUBTARGET_ASM_ARCH_SPEC
 #define SUBTARGET_ASM_ARCH_SPEC PIC32C_INST_SET_SPEC

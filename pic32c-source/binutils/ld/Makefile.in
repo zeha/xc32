@@ -1049,6 +1049,7 @@ EXTRA_DIST = ldgram.c ldgram.h ldlex.c emultempl/spu_ovl.@OBJEXT@_c \
 	     emultempl/spu_icache.@OBJEXT@_c deffilep.c deffilep.h $(man_MANS)
 
 DISTCLEANFILES = tdirs site.exp development.exp site.bak stringify.sed
+include $(top_srcdir)/mchp/vars.mk
 all: $(BUILT_SOURCES) config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive
 
@@ -1521,9 +1522,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/pe-dll.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/pep-dll.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/plugin.Po@am__quote@
-
-# XC32: Needed for the license manager
-ldlang.o: CPPFLAGS += -imacros host-lm.h
 
 .c.o:
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -2812,15 +2810,12 @@ eelf32or1k_linux.c: $(srcdir)/emulparams/elf32or1k_linux.sh \
   $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
 
 eelf32pic32c.c: $(srcdir)/emulparams/elf32pic32c.sh \
-  $(srcdir)/../bfd/pic32c-options.h $(srcdir)/../bfd/pic32c-options.c \
   $(ELF_DEPS) $(srcdir)/emultempl/elf32pic32c.em \
   $(srcdir)/scripttempl/pic32c.sc ${GEN_DEPENDS}
 
 eelf32pic32mx.c: $(srcdir)/emulparams/elf32pic32mx.sh \
-  $(srcdir)/../bfd/pic32m-options.h $(srcdir)/../bfd/pic32m-options.c \
   $(ELF_DEPS) $(srcdir)/emultempl/elf32pic32mx.em \
   $(srcdir)/scripttempl/pic32mx.sc ${GEN_DEPENDS}
-	${GENSCRIPTS} elf32pic32mx "$(tdir_elf32pic32mx)"
 
 eelf32ppc.c: $(srcdir)/emulparams/elf32ppc.sh \
   $(srcdir)/emulparams/elf32ppccommon.sh \
@@ -3580,3 +3575,5 @@ distclean-local:
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:
+
+include $(top_srcdir)/mchp/rules.mk

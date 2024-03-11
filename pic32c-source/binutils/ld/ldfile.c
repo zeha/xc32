@@ -389,7 +389,8 @@ ldfile_open_file_search (const char *arch,
 #if defined(TARGET_IS_PIC32C) || defined(TARGET_IS_PIC32MX)
 extern int
 lang_remove_input_file(lang_input_statement_type *);
-
+#endif
+#if defined(TARGET_IS_PIC32MX)
 static bfd_boolean
 handle_optional_entry (lang_input_statement_type *entry)
 {

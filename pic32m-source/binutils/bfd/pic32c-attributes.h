@@ -152,7 +152,7 @@ MASK2( persist, address, near, reverse, align, noload, 0, 0, dma, keep, coherent
 //MASK2( memory, address, 0, reverse, align, noload, 0, 0, 0, keep, 0, 0)
 MASK2( heap, address, 0, 0, align, 0, 0, 0, 0, keep, coherent, 0, shared, preserved, 0)
 MASK2( stack, address, 0, 0, align, 0, 0, 0, 0, keep, coherent, 0, shared, preserved, 0)
-MASK2( ramfunc, 0, 0, 0, align, noload, merge, info, 0, keep, 0, 0, shared, preserved, 0)
+MASK2( ramfunc, 0, 0, 0, align, noload, merge, info, nopa, keep, 0, 0, shared, preserved, 0)
 MASK2( serial_mem, address, 0, 0, align, noload, merge, info, 0, keep, 0, memory, shared, preserved, 0)
 
 /*
@@ -171,7 +171,7 @@ MASK3( dma, address, 0, reverse, align, noload, 0, 0, keep, 0, memory, shared, p
 MASK3( keep, address, nopa, reverse, align, noload, merge, info, dma, coherent, memory, shared, preserved)
 MASK3( coherent, address, near, reverse, align, noload, 0, 0, 0, keep, memory, shared, preserved)
 MASK3( memory, address, near, 0, align, noload, 0, 0, dma, keep, coherent, shared, preserved)
-MASK3( ramfunc, address, 0, 0, align, 0, 0, 0, 0, 0, 0, memory, shared)
+MASK3( ramfunc, address, nopa, 0, align, 0, 0, 0, 0, 0, 0, memory, shared)
 /* lghica co-resident*/
 MASK3( shared, address, near, reverse, align, noload, merge, info, dma, keep, coherent, memory, preserved)
 MASK3( preserved, address, near, reverse, align, noload, merge, info, dma, keep, coherent, memory, shared)

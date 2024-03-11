@@ -43,6 +43,7 @@
     "%(cc1_save_temps)"      \
     "%(cc1_smartio)"         \
     "%(cc1_config_data)"     \
+    "%(cc1_xclm_spec)"       \
     "%(pic32_cmsis_include)" \
     "%(mcc_include)"         \
     "%(mchp_cci_cc1_spec)"
@@ -62,6 +63,7 @@
   { "cc1_save_temps", SUBTARGET_CC1_SAVE_TEMPS_SPEC },                         \
   { "cc1_smartio", SUBTARGET_CC1_SMARTIO_SPEC },                               \
   { "cc1_config_data", SUBTARGET_CC1_CONFIG_DATA_SPEC },                       \
+  { "cc1_xclm_spec", SUBTARGET_CC1_XCLM_SPEC },                                \
   { "pic32c_lib", SUBTARGET_PIC32C_LIB_SPEC },                                 \
   { "endianness", SUBTARGET_ENDIANNESS_SPEC },                                 \
   { "asm_arch", SUBTARGET_ASM_ARCH_SPEC },                                     \

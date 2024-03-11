@@ -341,36 +341,14 @@ pic32_get_license (int current_license, int default_license, int valid_license,
     const char *failure = NULL;
     int status = 0;
     int err = 0;
-    int major_ver =0, minor_ver=0;
     struct stat filestat;
     int found_xclm = 0, xclm_tampered = 1;
 
+
     /* Get the version number string from the entire version string */
-    if (construct_version && (pkgversion_string != NULL) && *pkgversion_string)
+    if (construct_version)
       {
-        char *Microchip;
-        gcc_assert(strlen(pkgversion_string) < 80);
-        Microchip = strrchr (const_cast<char*>(pkgversion_string), 'v');
-        if (Microchip)
-          {
-            while ((*Microchip) &&
-                   ((*Microchip < '0') ||
-                    (*Microchip > '9')))
-              {
-                Microchip++;
-              }
-            if (*Microchip)
-              {
-                major_ver = strtol (Microchip, &Microchip, 0);
-              }
-            if ((*Microchip) &&
-                ((*Microchip=='_') || (*Microchip=='.')))
-              {
-                Microchip++;
-                minor_ver = strtol(Microchip, &Microchip, 0);
-              }
-          }
-        snprintf (version, sizeof(version), "%d.%02d", major_ver, minor_ver);
+        snprintf (version, sizeof(version), "%d", _XC32_VERSION_);
       }
 
     /* Arguments to pass to xclm */

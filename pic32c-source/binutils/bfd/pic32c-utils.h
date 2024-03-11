@@ -261,6 +261,18 @@ extern char * pic32_section_attr_string (asection *);
 
 extern char * pic32_section_size_string (asection *);
 
+/* dinit related functions bfd <-> ld calls */
+
+extern void fill_dinit_section(struct bfd_link_info *);
+
+extern void dinit_create_startup_symbols(struct bfd_link_info *);
+
+extern void estimate_dinit_optim(struct bfd_link_info*);
+
+extern void estimate_dinit_merging();
+
+extern bfd_size_type check_dinit_growth(struct bfd_link_info*);
+
 /*****************************************************************************/
 
 /*

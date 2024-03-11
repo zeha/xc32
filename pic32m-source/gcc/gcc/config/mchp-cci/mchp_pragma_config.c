@@ -372,7 +372,7 @@ mchp_load_configuration_definition (const char *fname)
   for (spec = mchp_configuration_values; spec; spec = spec->next)
     {
       struct mchp_config_setting *setting;
-      struct mchp_config_setting *setting_prev;
+      struct mchp_config_setting *setting_prev = NULL;
       for (setting = spec->region->settings; setting; setting = setting->next)
         {
           if (setting->values)

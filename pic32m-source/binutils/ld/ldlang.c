@@ -48,25 +48,29 @@
    are defined. It doesn't now - if it's not defined we aren't building correctly. */
 #ifdef TARGET_IS_PIC32C
   #include "pic32c-utils.h"
-  #include "elf/pic32c.h"
+  #include "elf/pic32.h"
+  #include "pic32-vecset.h" // Needed to include emul/allocate header
+  #include "mchp/pic32c-allocate.h"
+  #include "mchp/pic32c-emul.h"
 #elif defined(TARGET_IS_PIC32MX)
   #include "pic32m-utils.h"
-  #include "elf/pic32m.h"
+  #include "mchp/pic32m-emul.h"
+  #include "elf/pic32.h"
 #else
   #error no targetispic32c
 #endif
 
 #if defined(TARGET_IS_PIC32C) || defined(TARGET_IS_PIC32MX)
-  #include "pic32-license-manager.c"
-#if !defined(SKIP_LICENSE_MANAGER) && defined(MCHP_XCLM_SHA256_DIGEST)
-  #include "../../gcc/gcc/config/mchp-cci/sha256.c"
-  #include "../../gcc/gcc/config/mchp-cci/mchp_sha.c"
-#endif
+  #include "pic32-stack-usage.h"
+  #include "mchp/pic32-license-manager.h"
+  #include "mchp/pic32-common-emul.h"
+  #include "mchp/pic32-debug.h"
+
+  #define DEBUG_SCOPE "linker"
 #endif
 
+
 #ifdef TARGET_IS_PIC32MX
-/* lghica co-resident */
-#if 1
 extern bfd_boolean          pic32_inherit_application_info;
 extern char                 *inherited_application;
 extern bfd_boolean          pic32_coresident_app;
@@ -75,17 +79,20 @@ extern struct pic32_section *shared_data_sections;
 
 /* in emultempl/elf32pic32mx.em */
 extern void pic32_init_section_list (struct pic32_section **);
-void pic32_append_section_to_list (struct pic32_section *,
+void pic32m_append_section_to_list (struct pic32_section *,
 				   lang_input_statement_type *, asection *);
 void pic32_create_shared_data_init_template(void);
 void pic32_create_rom_usage_template(void);
 void pic32_create_ram_usage_template(void);
-#endif
-/* lghica */
-#endif /* TARGET_IS_PIC32C */
+
+#endif /* TARGET_IS_PIC32MX */
 
 #if defined(TARGET_IS_PIC32C) || defined(TARGET_IS_PIC32MX)
 extern bfd_boolean pic32_stack_usage;
+extern bfd_boolean pic32_data_init;
+extern void add_su_sections_from_bfd (bfd*);
+extern void print_su_sections (void);
+extern void su_allocate_array (void);
 #endif
 
 #ifndef offsetof
@@ -137,7 +144,7 @@ static unsigned int opb_shift = 0;
 #if defined(TARGET_IS_PIC32MX)
 extern struct pic32_undefsym_table *pic30_undefsym_init (void);
 extern void pic32_init_section_list (struct pic32_section **);
-extern void pic32_append_section_to_list (struct pic32_section *, lang_input_statement_type *, asection *);
+extern void pic32m_append_section_to_list (struct pic32_section *, lang_input_statement_type *, asection *);
 bfd_boolean pic32_is_empty_list(struct pic32_section* const lst);
 #endif
 
@@ -197,7 +204,6 @@ extern unsigned int pic32_attribute_map
 extern int pic32_is_valid_attributes
   (unsigned int, unsigned char);
 
-extern void pic32_create_data_init_template(void);
 extern void pic32_create_specific_fill_sections(void);
 extern void pic32_create_stack_section(void);
 extern void pic32_init_alloc(void);
@@ -205,6 +211,7 @@ extern void pic32_init_alloc(void);
 static bfd_boolean issue_warning = TRUE;
 extern bfd_boolean pic32_has_code_in_dinit_option;
 extern bfd_boolean pic32_code_in_dinit;
+extern bfd_boolean pic32_allocate;
 /* MERGE-TODO: also add named guards for serial_mem stuff. */
 //extern bfd_boolean pic32_has_dinit_in_serial_mem_option;
 //extern bfd_boolean pic32_dinit_in_serial_mem;
@@ -219,7 +226,6 @@ extern unsigned int pic32_attribute_map
 extern int pic32_is_valid_attributes
   (unsigned int, unsigned char);
 
-extern void pic32_create_data_init_template(void);
 extern void pic32_create_specific_fill_sections(void);
 extern void pic32_create_stack_section(void);
 bfd_boolean lang_memory_region_exist(const char *);
@@ -2798,7 +2804,6 @@ lang_add_section (lang_statement_list_type *ptr,
   /* Validate the attributes for this input section */
   {
     unsigned int input_map = pic32_attribute_map (section);
-    unsigned int output_map = pic32_attribute_map (output->bfd_section);
 
     if (!pic32_is_valid_attributes (input_map, 0))
       einfo (_ ("%P%F: Link Error: invalid attributes for section \'%s\'\n"),
@@ -3310,7 +3315,7 @@ load_symbols (lang_input_statement_type *entry,
             for (sec = entry->the_bfd->sections; sec != NULL; sec = sec->next)
             {
                 sec->flags |= SEC_EXCLUDE;
-                pic32_append_section_to_list(inherited_sections, 0, sec);
+                pic32m_append_section_to_list(inherited_sections, 0, sec);
             }
             return TRUE;
         }
@@ -4123,10 +4128,7 @@ map_input_to_output_sections
 	  tos = &s->output_section_statement;
 #if defined(TARGET_IS_PIC32MX)
     /* lghica */
-    if (pic32_debug)
-    {
-        printf("LG - output section statement %s \n", (tos->name != NULL)? tos->name:"no-name");
-    }
+	  PIC32_DEBUG("LG - output section statement %s", (tos->name != NULL)? tos->name:"no-name");
 #endif
 	  if (tos->constraint != 0)
 	    {
@@ -4203,10 +4205,7 @@ map_input_to_output_sections
 	  break;
 	case lang_address_statement_enum:
 #if defined(TARGET_IS_PIC32MX)
-    if (pic32_debug)
-    {
-        printf("LG - lang address statement\n");
-    }
+	  PIC32_DEBUG("LG - lang address statement");
 #endif
 	  /* Mark the specified section with the supplied address.
 	     If this section was actually a segment marker, then the
@@ -5413,7 +5412,7 @@ lang_check_section_addresses (void)
               continue;
           
 #endif
-	      einfo (_("%X%P: section %s LMA [%V,%V]"
+	      einfo (_("%X%P: Error: section %s LMA [%V,%V]"
 		       " overlaps section %s LMA [%V,%V]\n"),
 		     s->name, s_start, s_end, p->name, p_start, p_end);
 	      sections[i].warned = TRUE;
@@ -5490,6 +5489,13 @@ lang_check_section_addresses (void)
 		 m->name_list.name, over);
 	}
     }
+#if defined(TARGET_IS_PIC32C) || defined(TARGET_IS_PIC32MX)
+  /* disable .dinit generation, as the executable is not going to be generated */
+  if (config.make_executable != TRUE)
+    pic32_data_init = FALSE;
+
+#endif
+
 }
 
 /* Make sure the new address is within the region.  We explicitly permit the
@@ -7133,8 +7139,7 @@ ldlang_place_orphan (asection *s)
       if (os == NULL)
 	{
 #ifdef TARGET_IS_PIC32MX
-	  if (pic32_debug)
-	    printf ("Not ldemul place orphan, lookup %s", name);
+	  PIC32_DEBUG("Not ldemul place orphan, lookup %s", name);
 #endif
 	  os = lang_output_section_statement_lookup (name, constraint, TRUE);
 	  if (os->addr_tree == NULL
@@ -7169,10 +7174,7 @@ lang_place_orphans (void)
 	      /* This section of the file is not attached, root
 		 around for a sensible place for it to go.  */
 #if defined(TARGET_IS_PIC32MX)
-        if (pic32_debug)
-        {
-            printf("LG - Place orphan without output section %s ----\n", s->name);
-        }
+	      PIC32_DEBUG("LG - Place orphan without output section %s ----", s->name);
 #endif
 
 	      if (file->flags.just_syms)
@@ -7780,7 +7782,7 @@ lang_propagate_lma_regions (void)
 	os->lma_region = os->prev->lma_region;
     }
 }
-extern bfd_boolean pic32_data_init;;
+
 void
 lang_process (void)
 {
@@ -7807,8 +7809,104 @@ lang_process (void)
   lang_statement_iteration++;
 
   open_input_bfds (statement_list.head, OPEN_BFD_NORMAL);
+
+#if defined(TARGET_IS_PIC32MX) || defined(TARGET_IS_PIC32C)
+  /* Size up the common data.  */
+  lang_common ();
+
+  /* XC32E-661: bypass anything dinit-related when called with "-r".
+     The lto-wrapper will call us with "-r" to extract some debug info only. */
+
+  if (bfd_link_relocatable (&link_info))
+    pic32_data_init = FALSE;
+
+  pic32_create_data_init_section_lists();
+  pic32_find_data_code_sections();
+
+#if defined (TARGET_IS_PIC32C)
+  /* check that __pic32c_data_initialization is defined. if not, we must
+     turn off dinit. */
+  if (!bfd_pic32_is_defined_global_symbol ("__pic32c_data_initialization"))
+    {
+      PIC32_DEBUG("bypass dinit as __pic32c_data_initialization is undefined");
+
+      pic32_data_init = FALSE;
+    }
+#endif
+
+#if defined(TARGET_IS_PIC32C)
+  /* Set extended attributes here - we will do it again later just in case
+   * As far as I know this is only needed on pic32c so that itcm vectors work
+   * It may be a good idea to run this on MIPs as well. */
+  for (bfd* abfd = link_info.input_bfds; abfd  != (bfd *)NULL; abfd = abfd->link.next)
+  {
+    asymbol **symbols = 0;
+    struct pic32_symbol_list *pic32_symbol_list = NULL;
+
+    pic32_symbol_list = bfd_pic32_fill_symbol_list(abfd);
+
+    /*
+     ** loop through the sections in this bfd
+     */
+
+    for (asection *sec = abfd->sections; sec != 0;
+         sec = sec->next) {
+      /* if section has extended attributes, apply them */
+      if (pic32_symbol_list) {
+        fflush(stdout);
+        int c;
+        for (c = 0; c < pic32_symbol_list->pic32_symbol_count; c++) {
+          if (strcmp(sec->name, pic32_symbol_list->syms[c].name) == 0)
+            pic32_set_extended_attributes(sec, pic32_symbol_list->syms[c].value, 0);
+        }
+      }
+    }
+
+    if (symbols)
+      free(symbols);
+    if (pic32_symbol_list) {
+      free(pic32_symbol_list->syms);
+      free(pic32_symbol_list);
+    }
+  }
+#endif
+
+  /* open_input_bfds also handles assignments, so we can give values
+     to symbolic origin/length now. We need to run this now for
+	 data_init_template to be correct. */
+  lang_do_memory_regions ();
+
+#ifdef TARGET_IS_PIC32C
+  bfd_boolean pic32_allocate_prev = pic32_allocate;
+  pic32_init_alloc();
+#endif
+
+  pic32_create_data_init_template();
+
+  /* restore state from before lang_do_memory_regions it *may* break things,
+   * this is mostly paranoia */
+#ifdef TARGET_IS_PIC32C
+  memset(&region_info, 0, sizeof region_info);
+  pic32_allocate = pic32_allocate_prev;
+#endif
+
+  /* filling dinit - if we are in the final link, not LTO pass */
+  if (!bfd_link_relocatable (&link_info))
+  {
+    estimate_dinit_optim(&link_info);
+
+    /* Now that we know what optimizations dinit was able to do on the data
+      add a symbol to link the correct startup */
+    dinit_create_startup_symbols(&link_info);
+
+    /* Rescan BFDS now that symbol exists */
+    open_input_bfds (statement_list.head, OPEN_BFD_RESCAN);
+  }
+#endif
+
   /* open_input_bfds also handles assignments, so we can give values
      to symbolic origin/length now.  */
+  /* Run this again since we added the startup symbols, might not be necessary */
   lang_do_memory_regions ();
 
 #ifdef ENABLE_PLUGINS
@@ -7938,8 +8036,7 @@ lang_process (void)
           for (; abfd; abfd = abfd->link.next)
             add_su_sections_from_bfd(abfd);
           su_allocate_array();
-          if (pic32_debug)
-            print_su_sections();
+	  DEBUG(print_su_sections());
         }
 #if !defined(SKIP_LICENSE_MANAGER)
       else
@@ -8025,17 +8122,14 @@ lang_process (void)
   lang_do_assignments (lang_mark_phase_enum);
   expld.phase = lang_first_phase_enum;
 
-  /* Size up the common data.  */
+  /* XC32-2223/XC32-2339: We want to do this earlier, before dinit pass 0
+	Size up the common data.  */
+#if !(defined(TARGET_IS_PIC32MX) || defined(TARGET_IS_PIC32C))
   lang_common ();
+#endif
 
  /* Create Data initialization Template*/
 #ifdef TARGET_IS_PIC32MX
-  /* XC32E-661: bypass anything dinit-related when called with "-r".
-     The lto-wrapper will call us with "-r" to extract some debug info only. */
-  if (bfd_link_relocatable (&link_info))
-    pic32_data_init = FALSE;
-   pic32_create_data_init_template();
-   
     /* lghica co-resident */
     if (!pic32_is_empty_list(shared_dinit_sections)
         || !pic32_is_empty_list(shared_data_sections))
@@ -8055,31 +8149,13 @@ lang_process (void)
   /* Remove unreferenced sections if asked to.  */
   lang_gc_sections ();
 
+#ifdef TARGET_IS_PIC32C
+  pic32_init_alloc();
+#endif
+
   /* Check relocations.  */
   lang_check_relocs ();
 
-  /* Create Data initialization Template*/
-#ifdef TARGET_IS_PIC32C
-  pic32_init_alloc();
-  pic32_create_data_init_template();
-#if 0
-    /* MERGE-TODO: more co-resident */
-    /* lghica co-resident */
-    if (!pic32_is_empty_list(shared_dinit_sections)
-        && !pic32_is_empty_list(shared_data_sections))
-        pic32_create_shared_data_init_template();
-    
-    if (pic32_memory_usage)
-    {
-        pic32_create_rom_usage_template();
-        pic32_create_ram_usage_template();
-    }
-    
-    if (pic32_has_fill_option)
-        pic32_create_specific_fill_sections();
-#endif
-#endif
-    
   ldemul_after_check_relocs ();
 
   /* Update wild statements.  */
@@ -8150,7 +8226,7 @@ lang_process (void)
      everything is.  This is where relaxation is done.  */
   ldemul_after_allocation ();
 
-#if TARGET_IS_PIC32MX || TARGET_IS_PIC32C
+#if TARGET_IS_PIC32MX 
   /* If the emulation added new output statements, size them now. */
   lang_reset_memory_regions ();
   lang_size_sections (NULL, ! RELAXATION_ENABLED);

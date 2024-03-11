@@ -259,5 +259,16 @@ extern struct pic32_section *inherited_sections;
 extern bfd_boolean          pic32_inherit_application_info;
 extern char                 *inherited_application;
 
+/* dinit related functions bfd <-> ld calls */
+
+extern void fill_dinit_section(struct bfd_link_info *);
+
+extern void dinit_create_startup_symbols(struct bfd_link_info *);
+
+extern void estimate_dinit_optim(struct bfd_link_info*);
+
+extern void estimate_dinit_merging();
+
+extern bfd_size_type check_dinit_growth(struct bfd_link_info*);
 #endif
 

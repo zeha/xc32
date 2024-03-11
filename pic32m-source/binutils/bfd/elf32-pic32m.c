@@ -23,7 +23,7 @@
 #include "sysdep.h"
 #include "elf-bfd.h"
 #include "pic32m-utils.h"
-#include "elf/pic32m.h"
+#include "elf/pic32.h"
 #include "libiberty.h"
 
 /* External function prototypes */
@@ -39,6 +39,7 @@ bfd_boolean pic32_report_mem = 0;
 bfd_boolean pic32_mafrlcsj = 0;
 bfd_boolean pic32_mafrlcsj2 = 0;
 bfd_boolean pic32_smart_io = TRUE; /* Enabled by default */
+bfd_boolean pic32_debug_smartio = FALSE;
 bfd_boolean pic32_has_smart_io_option = 0;
 bfd *mchp_output_bfd;
 
@@ -150,6 +151,8 @@ void pic32_init_section_list(struct pic32_section **lst)
   (*lst)->sec = 0;
   (*lst)->attributes = 0;
   (*lst)->file = 0;
+  (*lst)->pic32_size = 0;
+  (*lst)->children = NULL;
 }
 
 /*
@@ -174,3 +177,4 @@ void pic32_free_section_list(struct pic32_section **lst)
 
 #include "pic32-stack-usage.c"
 #include "pic32-dinit.c"
+

@@ -169,6 +169,10 @@ extern bfd_boolean _bfd_mips_elf_common_definition (Elf_Internal_Sym *);
 extern int _bfd_mips_elf_compact_eh_encoding (struct bfd_link_info *);
 extern int _bfd_mips_elf_cant_unwind_opcode (struct bfd_link_info *);
 
+#ifdef TARGET_IS_PIC32MX
+extern bfd_boolean _bfd_mips_is_micromips (bfd *);
+#endif
+
 static inline bfd_boolean
 gprel16_reloc_p (unsigned int r_type)
 {

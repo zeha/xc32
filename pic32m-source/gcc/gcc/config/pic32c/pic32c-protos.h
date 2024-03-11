@@ -28,6 +28,7 @@ along with GCC; see the file COPYING3.  If not see
 /* Function Prototypes*/
 
 extern void pic32c_subtarget_override_options(void);
+extern void mchp_override_options_after_change (void);
 
 extern void pic32c_expand_function_start (tree);
 
@@ -120,7 +121,10 @@ extern void close_builtins_h();
 extern void mchp_handle_config_pragma(struct cpp_reader *);
 extern void mchp_handle_nocodecov_pragma(struct cpp_reader *);
 extern void mchp_handle_nopa_pragma(struct cpp_reader *);
-
+extern void mchp_handle_default_variable_attributes_pragma (struct cpp_reader *pfile);
+extern void mchp_handle_default_function_attributes_pragma (struct cpp_reader *pfile);
+extern char* mchp_pragma_default_variable_section;
+extern char* mchp_pragma_default_function_section;
 /* CCI extensions */
 extern void mchp_init_cci (struct cpp_reader *);
 

@@ -116,6 +116,8 @@ along with GCC; see the file COPYING3.  If not see
 #include "config/mchp-cci/mchp_sha.h"
 #endif
 
+#include "smartio_suffix.h"
+
 #ifdef __MINGW32__
 void *alloca(size_t);
 #else
@@ -4555,35 +4557,36 @@ bool mchp_subtarget_mips32_enabled ()
 static mchp_interesting_fn mchp_fn_list[] =
 {
   /*  name         map_to        style          arg c, conv_flags */
-  { "_dasprintf",  "_dasprintf", info_dbl,    5,  0, (mchp_conversion_status)0, NULL },
-  { "_dfprintf",   "_dfprintf",  info_dbl,    5,  0, (mchp_conversion_status)0, NULL },
-  { "_dfscanf",    "_dfscanf",   info_dbl,    5,  0, (mchp_conversion_status)0, NULL },
-  { "_dprintf",    "_dprintf",   info_dbl,    4,  0, (mchp_conversion_status)0, NULL },
-  { "_dscanf",     "_dscanf",    info_dbl,    4,  0, (mchp_conversion_status)0, NULL },
-  { "_dsnprintf",  "_dsnprintf", info_dbl,    6,  0, (mchp_conversion_status)0, NULL },
-  { "_dsprintf",   "_dsprintf",  info_dbl,    5,  0, (mchp_conversion_status)0, NULL },
-  { "_dsscanf",    "_dsscanf",   info_dbl,    5,  0, (mchp_conversion_status)0, NULL },
-  { "_dvasprintf", "_dvasprintf",info_dbl,    5,  0, (mchp_conversion_status)0, NULL },
-  { "_dvfprintf",  "_dvfprintf", info_dbl,    5,  0, (mchp_conversion_status)0, NULL },
-  { "_dvfscanf",   "_dvfscanf",  info_dbl,    5,  0, (mchp_conversion_status)0, NULL },
-  { "_dvprintf",   "_dvprintf",  info_dbl,    4,  0, (mchp_conversion_status)0, NULL },
-  { "_dvsprintf",  "_dvsprintf", info_dbl,    5,  0, (mchp_conversion_status)0, NULL },
-  { "_dvsscanf",   "_dvsscanf",  info_dbl,    5,  0, (mchp_conversion_status)0, NULL },
-  { "asprintf",  "_asprintf",  info_O,        5,  0, (mchp_conversion_status)0, NULL },
-  { "fprintf",   "_fprintf",   info_O,        5,  0, (mchp_conversion_status)0, NULL },
-  { "fscanf",    "_fscanf",    info_I,        5,  0, (mchp_conversion_status)0, NULL },
-  { "printf",    "_printf",    info_O,        4,  0, (mchp_conversion_status)0, NULL },
-  { "scanf",     "_scanf",     info_I,        4,  0, (mchp_conversion_status)0, NULL },
-  { "snprintf",  "_snprintf",  info_O,        6,  0, (mchp_conversion_status)0, NULL },
-  { "sprintf",   "_sprintf",   info_O,        5,  0, (mchp_conversion_status)0, NULL },
-  { "sscanf",    "_sscanf",    info_I,        5,  0, (mchp_conversion_status)0, NULL },
-  { "vasprintf", "_vasprintf", info_O,        5,  0, (mchp_conversion_status)0, NULL },
-  { "vfprintf",  "_vfprintf",  info_O,        5,  0, (mchp_conversion_status)0, NULL },
-  { "vfscanf",   "_vfscanf",   info_I,        5,  0, (mchp_conversion_status)0, NULL },
-  { "vprintf",   "_vprintf",   info_O,        4,  0, (mchp_conversion_status)0, NULL },
-  { "vsnprintf", "_vsnprintf", info_O,        6,  0, (mchp_conversion_status)0, NULL },
-  { "vsprintf",  "_vsprintf",  info_O,        5,  0, (mchp_conversion_status)0, NULL },
-  { "vsscanf",   "_vsscanf",   info_I,        5,  0, (mchp_conversion_status)0, NULL },
+  { "_dasprintf",  "__dasprintf", info_dbl,    5,  0, (mchp_conversion_status)0, NULL },
+  { "_dfprintf",   "__dfprintf",  info_dbl,    5,  0, (mchp_conversion_status)0, NULL },
+  { "_dfscanf",    "__dfscanf",   info_dbl,    5,  0, (mchp_conversion_status)0, NULL },
+  { "_dprintf",    "__dprintf",   info_dbl,    4,  0, (mchp_conversion_status)0, NULL },
+  { "_dscanf",     "__dscanf",    info_dbl,    4,  0, (mchp_conversion_status)0, NULL },
+  { "_dsnprintf",  "__dsnprintf", info_dbl,    6,  0, (mchp_conversion_status)0, NULL },
+  { "_dsprintf",   "__dsprintf",  info_dbl,    5,  0, (mchp_conversion_status)0, NULL },
+  { "_dsscanf",    "__dsscanf",   info_dbl,    5,  0, (mchp_conversion_status)0, NULL },
+  { "_dvasprintf", "__dvasprintf",info_dbl,    5,  0, (mchp_conversion_status)0, NULL },
+  { "_dvfprintf",  "__dvfprintf", info_dbl,    5,  0, (mchp_conversion_status)0, NULL },
+  { "_dvfscanf",   "__dvfscanf",  info_dbl,    5,  0, (mchp_conversion_status)0, NULL },
+  { "_dvprintf",   "__dvprintf",  info_dbl,    4,  0, (mchp_conversion_status)0, NULL },
+  { "_dvsprintf",  "__dvsprintf", info_dbl,    5,  0, (mchp_conversion_status)0, NULL },
+  { "_dvsscanf",   "__dvsscanf",  info_dbl,    5,  0, (mchp_conversion_status)0, NULL },
+  { "asprintf",  "__asprintf",  info_O,        5,  0, (mchp_conversion_status)0, NULL },
+  { "fprintf",   "__fprintf",   info_O,        5,  0, (mchp_conversion_status)0, NULL },
+  { "fscanf",    "__fscanf",    info_I,        5,  0, (mchp_conversion_status)0, NULL },
+  { "printf",    "__printf",    info_O,        4,  0, (mchp_conversion_status)0, NULL },
+  { "scanf",     "__scanf",     info_I,        4,  0, (mchp_conversion_status)0, NULL },
+  { "snprintf",  "__snprintf",  info_O,        6,  0, (mchp_conversion_status)0, NULL },
+  { "sprintf",   "__sprintf",   info_O,        5,  0, (mchp_conversion_status)0, NULL },
+  { "sscanf",    "__sscanf",    info_I,        5,  0, (mchp_conversion_status)0, NULL },
+  { "vasprintf", "__vasprintf", info_O,        5,  0, (mchp_conversion_status)0, NULL },
+  { "vfprintf",  "__vfprintf",  info_O,        5,  0, (mchp_conversion_status)0, NULL },
+  { "vfscanf",   "__vfscanf",   info_I,        5,  0, (mchp_conversion_status)0, NULL },
+  { "vprintf",   "__vprintf",   info_O,        4,  0, (mchp_conversion_status)0, NULL },
+  { "vscanf",    "__vscanf",    info_I,        4,  0, (mchp_conversion_status)0, NULL },
+  { "vsnprintf", "__vsnprintf", info_O,        6,  0, (mchp_conversion_status)0, NULL },
+  { "vsprintf",  "__vsprintf",  info_O,        5,  0, (mchp_conversion_status)0, NULL },
+  { "vsscanf",   "__vsscanf",   info_I,        5,  0, (mchp_conversion_status)0, NULL },
   { 0,           0,            (mchp_interesting_fn_info)0,            -1,  0, (mchp_conversion_status)0, NULL }
 };
 
@@ -4639,160 +4642,74 @@ maybe_get_smartio_name (const char *var)
         {
           if (match->function_convertable)
             {
+              const char *extra_flags = NULL;
+              const smartio_suffix *suffix_info = get_suffix_info ();
+              int idx = 0;
 
-#define CCS_ADD_FLAG(FLAG) \
-        if (match->conv_flags & JOIN(conv_,FLAG)) { \
-          *f++=#FLAG[0]; \
-          added = (mchp_conversion_status) (added | JOIN(conv_,FLAG)); }
+              spec_mask flags = (spec_mask)match->conv_flags;
+              spec_mask mask = 0;
 
-#define CCS_ADD_FLAG_ALT(FLAG,ALT) \
-        if ((match->conv_flags & JOIN(conv_,FLAG)) && \
-            ((added & JOIN(conv_,ALT)) == 0)) {\
-          *f++=#ALT[0]; \
-          added =(mchp_conversion_status) (added |  (mchp_conversion_status)JOIN(conv_,ALT)); }
+              if (flags & conv_c)
+                mask |= sio_suffix_bit (sio_map_char ('c'));
+              if (flags & conv_d)
+                mask |= sio_suffix_bit (sio_map_char ('d'));
+              if (flags & conv_i)
+                mask |= sio_suffix_bit (sio_map_char ('d'));
+              if (flags & conv_e)
+                mask |= sio_suffix_bit (sio_map_char ('e'));
+              if (flags & conv_E)
+                mask |= sio_suffix_bit (sio_map_char ('E'));
+              if (flags & conv_f)
+                mask |= sio_suffix_bit (sio_map_char ('f'));
+              if (flags & conv_F)
+                mask |= sio_suffix_bit (sio_map_char ('F'));
+              if (flags & conv_g)
+                mask |= sio_suffix_bit (sio_map_char ('g'));
+              if (flags & conv_G)
+                mask |= sio_suffix_bit (sio_map_char ('G'));
+              if (flags & conv_n)
+                mask |= sio_suffix_bit (sio_map_char ('n'));
+              if (flags & conv_o)
+                mask |= sio_suffix_bit (sio_map_char ('o'));
+              if (flags & conv_p)
+                mask |= sio_suffix_bit (sio_map_char ('p'));
+              if (flags & conv_s)
+                mask |= sio_suffix_bit (sio_map_char ('s'));
+              if (flags & conv_u)
+                mask |= sio_suffix_bit (sio_map_char ('u'));
+              if (flags & conv_x)
+                mask |= sio_suffix_bit (sio_map_char ('x'));
+              if (flags & conv_X)
+                mask |= sio_suffix_bit (sio_map_char ('X'));
+              if (flags & conv_a)
+                mask |= sio_suffix_bit (sio_map_char ('a'));
+              if (flags & conv_A)
+                mask |= sio_suffix_bit (sio_map_char ('A'));
 
-              {
-                char extra_flags[sizeof("_aAcdeEfFgGnopsuxX0")] = "_";
-                char *f = &extra_flags[1];
-                mchp_conversion_status added;
-                /*
-                 * order is important here
-                 *  add new flags alphabetically with lower case preceding uppercase
-                 *    ie _aAcdEfgG not
-                 *       _acdfgAEG
-                 */
+              // if no format specifier (e.g printf("some string %% ")): link
+              //  with fmt_s
+              if (mask == 0)
+                mask |= sio_suffix_bit (sio_map_char ('s'));
 
-                added = (mchp_conversion_status)0;
-                /*
-                 * we don't implement all 131K unique combinations, only
-                 * a subset...
-                */
+              for (idx = num_suffixes - 1; idx >= 0; --idx)
+                {
+                  if ((mask & suffix_info[idx].mask) == mask)
+                    {
+                      extra_flags = suffix_info[idx].suffix;
+                      break;
+                    }
+                }
+              if (!extra_flags)
+                return var;
 
-                /* a | A -> aA */
-                CCS_ADD_FLAG(a);
-                CCS_ADD_FLAG_ALT(A,a);
-                CCS_ADD_FLAG(A);
-                CCS_ADD_FLAG_ALT(a,A);
-
-                /* c | d | n | o | p | u | x | X -> cdnopuxX */
-                CCS_ADD_FLAG(c);
-                CCS_ADD_FLAG_ALT(d,c);
-                CCS_ADD_FLAG_ALT(n,c);
-                CCS_ADD_FLAG_ALT(o,c);
-                CCS_ADD_FLAG_ALT(p,c);
-                CCS_ADD_FLAG_ALT(u,c);
-                CCS_ADD_FLAG_ALT(x,c);
-                CCS_ADD_FLAG_ALT(X,c);
-
-                /* c | d | n | o | p | u | x | X -> cdnopuxX */
-                CCS_ADD_FLAG(d);
-                CCS_ADD_FLAG_ALT(c,d);
-                CCS_ADD_FLAG_ALT(n,d);
-                CCS_ADD_FLAG_ALT(o,d);
-                CCS_ADD_FLAG_ALT(p,d);
-                CCS_ADD_FLAG_ALT(u,d);
-                CCS_ADD_FLAG_ALT(x,d);
-                CCS_ADD_FLAG_ALT(X,d);
-
-                /* e | E -> eE */
-                CCS_ADD_FLAG(e);
-                CCS_ADD_FLAG_ALT(E,e);
-                CCS_ADD_FLAG(E);
-                CCS_ADD_FLAG_ALT(e,E);
-
-                /* f | F -> fF */
-                CCS_ADD_FLAG(f);
-                CCS_ADD_FLAG_ALT(F,f);
-                CCS_ADD_FLAG(F);
-                CCS_ADD_FLAG_ALT(f,F);
-
-                /* g | G -> gG */
-                CCS_ADD_FLAG(g);
-                CCS_ADD_FLAG_ALT(G,g);
-                CCS_ADD_FLAG(G);
-                CCS_ADD_FLAG_ALT(g,G);
-
-                /* c | d | n | o | p | u | x | X -> cdnopuxX */
-                CCS_ADD_FLAG(n);
-                CCS_ADD_FLAG_ALT(c,n);
-                CCS_ADD_FLAG_ALT(d,n);
-                CCS_ADD_FLAG_ALT(n,n);
-                CCS_ADD_FLAG_ALT(o,n);
-                CCS_ADD_FLAG_ALT(p,n);
-                CCS_ADD_FLAG_ALT(u,n);
-                CCS_ADD_FLAG_ALT(x,n);
-                CCS_ADD_FLAG_ALT(X,n);
-
-                /* c | d | n | o | p | u | x | X -> cdnopuxX */
-                CCS_ADD_FLAG(o);
-                CCS_ADD_FLAG_ALT(c,o);
-                CCS_ADD_FLAG_ALT(d,o);
-                CCS_ADD_FLAG_ALT(n,o);
-                CCS_ADD_FLAG_ALT(o,o);
-                CCS_ADD_FLAG_ALT(p,o);
-                CCS_ADD_FLAG_ALT(u,o);
-                CCS_ADD_FLAG_ALT(x,o);
-                CCS_ADD_FLAG_ALT(X,o);
-
-                CCS_ADD_FLAG(p);
-                CCS_ADD_FLAG_ALT(c,p);
-                CCS_ADD_FLAG_ALT(d,p);
-                CCS_ADD_FLAG_ALT(n,p);
-                CCS_ADD_FLAG_ALT(o,p);
-                CCS_ADD_FLAG_ALT(p,p);
-                CCS_ADD_FLAG_ALT(u,p);
-                CCS_ADD_FLAG_ALT(x,p);
-                CCS_ADD_FLAG_ALT(X,p);
-
-                CCS_ADD_FLAG(s);
-
-                CCS_ADD_FLAG(u);
-                CCS_ADD_FLAG_ALT(c,u);
-                CCS_ADD_FLAG_ALT(d,u);
-                CCS_ADD_FLAG_ALT(n,u);
-                CCS_ADD_FLAG_ALT(o,u);
-                CCS_ADD_FLAG_ALT(p,u);
-                CCS_ADD_FLAG_ALT(u,u);
-                CCS_ADD_FLAG_ALT(x,u);
-                CCS_ADD_FLAG_ALT(X,u);
-
-                CCS_ADD_FLAG(x);
-                CCS_ADD_FLAG_ALT(c,x);
-                CCS_ADD_FLAG_ALT(d,x);
-                CCS_ADD_FLAG_ALT(n,x);
-                CCS_ADD_FLAG_ALT(o,x);
-                CCS_ADD_FLAG_ALT(p,x);
-                CCS_ADD_FLAG_ALT(u,x);
-                CCS_ADD_FLAG_ALT(x,x);
-                CCS_ADD_FLAG_ALT(X,x);
-
-                CCS_ADD_FLAG(X);
-                CCS_ADD_FLAG_ALT(c,X);
-                CCS_ADD_FLAG_ALT(d,X);
-                CCS_ADD_FLAG_ALT(n,X);
-                CCS_ADD_FLAG_ALT(o,X);
-                CCS_ADD_FLAG_ALT(p,X);
-                CCS_ADD_FLAG_ALT(u,X);
-                CCS_ADD_FLAG_ALT(x,X);
-                CCS_ADD_FLAG_ALT(X,X);
-                *f++=0;
-
-                if (strlen(extra_flags) > 1)
-                  {
-                    if (match->encoded_name == NULL)
-                      free(match->encoded_name);
-                    match->encoded_name = (char*)xmalloc(strlen(match->map_to) +
-                    strlen(extra_flags) + 1);
-                    sprintf(match->encoded_name,"%s%s", match->map_to, extra_flags);
-                  }
-                else
-                  {
-                    /* we have no flags */
-                    match->encoded_name = (char*)xmalloc(strlen(match->map_to) + 3);
-                    sprintf(match->encoded_name,"%s_0", match->map_to);
-                  }
-              }
-              if (match->encoded_name) return match->encoded_name;
+              if (match->encoded_name)
+                free (match->encoded_name);
+              match->encoded_name = (char *)xmalloc (strlen (match->map_to)
+                                                     + strlen (extra_flags)
+                                                     + strlen ("_") + 1);
+              sprintf (match->encoded_name, "%s_%s", match->map_to,
+                       extra_flags);
+              return match->encoded_name;
             }
           if (match[1].name &&
               (strcmp(match[1].name,var) == 0)) match++;
@@ -4925,12 +4842,19 @@ mchp_convertable_output_format_string(const char *string)
       switch (*c)
         {
         case 'h':
-        case 'L':
           c++;
+          if (*c=='h') c++;
           break;
         case 'l':
           c++;
           if (*c=='l') c++;
+          break;
+        case 'j':
+        case 'z':
+        case 't':
+        case 'L':
+          c++;
+          break;
         default:
           break;
         }
@@ -5020,7 +4944,16 @@ mchp_convertable_input_format_string(const char *string)
       switch (*c)
         {
         case 'h':
+          c++;
+          if (*c=='h') c++;
+          break;
         case 'l':
+          c++;
+          if (*c=='l') c++;
+          break;
+        case 'j':
+        case 'z':
+        case 't':
         case 'L':
           c++;
           break;
@@ -5918,6 +5851,24 @@ void mchp_asm_named_section(const char *pszSectionName,
                             tree decl)
 {
   if (set_section_stack(pszSectionName, flags) == 0) return;
+
+    /* clear SECTION_WRITE if SECTION_INFO */
+  if ((flags & (SECTION_WRITE | SECTION_INFO)) == (SECTION_WRITE | SECTION_INFO))
+    flags &= ~(SECTION_FLAGS_INT) SECTION_WRITE;
+
+  if (decl)
+    {
+      if ((flags & SECTION_WRITE)
+          && !lookup_attribute ("space", DECL_ATTRIBUTES (decl)) // XC32-1742: except when a space() attr is present
+          && !TREE_SIDE_EFFECTS (decl) // XC32-1736: categorize_decl_for_section() marks
+                                       // these as data so we should leave them alone
+          && (!DECL_INITIAL (decl) || bss_initializer_p (decl))
+          && !((flags & SECTION_PERSIST) || mchp_persistent_p (decl)))
+        {
+          flags |= (SECTION_FLAGS_INT) SECTION_BSS;
+        }
+    }
+
   mchp_merged_asm_named_section(pszSectionName, flags);
 }
 

@@ -28,7 +28,7 @@
 #endif
 
 #if defined(TARGET_IS_PIC32MX)
-#include "../include/elf/pic32m.h"
+#include "../include/elf/pic32.h"
 #include "cpu-pic32m.c"
 #endif
 

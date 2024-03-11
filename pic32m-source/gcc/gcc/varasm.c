@@ -6923,16 +6923,17 @@ default_unique_section (tree decl, int reloc)
   switch (categorize_decl_for_section (decl, reloc))
     {
     case SECCAT_TEXT:
-      /* FIXME: isn't this applicable also to PIC32C? */
-#if defined(TARGET_MCHP_PIC32MX)
-	  if (mchp_ramfunc_type_p(decl))
-		prefix = one_only ? ".rf" : ".ramfunc";
-	  else
-     /* the tcm attribute is PIC32C-specific */
-#elif defined(TARGET_MCHP_PIC32C)
+#if defined(TARGET_MCHP_PIC32MX) || defined(TARGET_MCHP_PIC32C)
+      if (mchp_ramfunc_type_p(decl))
+	      prefix = one_only ? ".rf" : ".ramfunc";
+      else
+#endif
+
+#ifdef TARGET_MCHP_PIC32C
+      /* the tcm attribute is PIC32C-specific */
       if (get_pic32c_tcm_attribute(decl))
-	    prefix = one_only ? ".it" : ".text_itcm";
-	  else
+        prefix = one_only ? ".it" : ".text_itcm";
+      else
 #endif
       prefix = one_only ? ".t" : ".text";
       break;

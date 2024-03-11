@@ -35,16 +35,10 @@
 
 #if defined(TARGET_IS_PIC32MX)
 #include "pic32m-utils.h"
-/*
- * make common version of this symbol which will be initialized to NIL
- * unless we are creating the linker where an initialized definition will
- * be provided by elf32pic32mx.em. 
- *
- * we only call this function if it is a valid pointer
- */
+#endif
 
-unsigned int (*mchp_force_keep_symbol)(char *, char *) __attribute__((weak)) ;
-void (*mchp_smartio_symbols)(struct bfd_link_info*) __attribute__((weak)) ;
+#if defined(TARGET_IS_PIC32C) || defined(TARGET_IS_PIC32MX)
+#include "mchp/smartio.h"
 #endif
 
 /*
@@ -438,12 +432,6 @@ static bfd_boolean default_data_link_order
 static bfd_boolean default_indirect_link_order
   (bfd *, struct bfd_link_info *, asection *, struct bfd_link_order *,
    bfd_boolean);
-
-#ifdef TARGET_IS_PIC32C
-/* MERGE_NOTES: weakness is required here to link gas, maybe others, which
-   include this file but not the elf32pic32 template. */
-unsigned int (*mchp_force_keep_symbol) (char *, char *) __attribute__((weak));
-#endif
 
 /* The link hash table structure is defined in bfdlink.h.  It provides
    a base hash table which the backend specific hash tables are built
@@ -942,17 +930,6 @@ _bfd_generic_link_add_archive_symbols
   bfd_size_type amt;
   unsigned char *included;
 
-#if defined(TARGET_IS_elf32pic32mx)
-  { static int smartio_run=0;
-
-    if ((smartio_run == 0) && mchp_smartio_symbols) {
-      /* look through the undef list and adds those symbols that are smartio
-         to the undefined list */
-      mchp_smartio_symbols(info);
-    }
-  }
-#endif
-
   if (! bfd_has_map (abfd))
     {
       /* An empty archive is a special case.  */
@@ -1106,7 +1083,7 @@ generic_link_check_archive_element (bfd *abfd,
 	      && h->type != bfd_link_hash_common))
 	continue;
 
-#if defined(TARGET_IS_PIC32C) || defined(TARGET_IS_elf32pic32mx)
+#if defined(TARGET_IS_PIC32C) || defined(TARGET_IS_PIC32MX)
       /* we may need to pull this symbol in because it is a SMARTIO fn */
       if (mchp_force_keep_symbol ((char *) p->name, (char *) abfd->filename))
 	{

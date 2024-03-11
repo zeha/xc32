@@ -1916,8 +1916,20 @@ extern asection _bfd_std_section[4];
   /* map_head, map_tail                                            */  \
      { NULL }, { NULL }                                                \
 }
-    
-#else /* !TARGET_IS_PIC32C */
+
+/* dinit format enum */
+typedef enum
+{
+    DINIT_CLEAR = 0,
+    DINIT_COPY,         /* note matching definition in crt0.c */
+    DINIT_COPY_VAL_EMB,
+    DINIT_COPY_VAL_DATA,
+    DINIT_COMPRESSED
+} dinit_type;
+
+#define GEN_DINIT_MASK(format) (1 << (format + 1))
+
+#else /* !TARGET_IS_PIC32C || !TARGET_IS_PIC32M */
 
 #define BFD_FAKE_SECTION(SEC, SYM, NAME, IDX, FLAGS)                   \
   /* name, id,  index, next, prev, flags, user_set_vma,            */  \

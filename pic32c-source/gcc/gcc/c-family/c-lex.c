@@ -509,7 +509,7 @@ c_lex_with_flags (tree *value, location_t *loc, unsigned char *cpp_flags,
 	    }
 	  break;
 	}
-#if defined(_BUILD_MCHP_) && defined(TARGET_MCHP_PIC32MX)
+#if  (defined(TARGET_MCHP_PIC32MX) || defined(TARGET_MCHP_PIC32C))
         break;
 #endif
 

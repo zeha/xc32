@@ -51,7 +51,7 @@
 
 #if defined(TARGET_IS_PIC32MX)
 #include "elf32-pic32m.c"
-#include "elf/pic32m.h"
+#include "elf/pic32.h"
 #endif
 
 static bfd_reloc_status_type gprel32_with_gp
@@ -2559,7 +2559,7 @@ static const struct ecoff_debug_swap mips_elf32_ecoff_debug_swap = {
 #define elf_backend_may_use_rel_p	1
 #define elf_backend_may_use_rela_p	0
 #define elf_backend_default_use_rela_p	0
-#define elf_backend_sign_extend_vma	TRUE
+#define elf_backend_sign_extend_vma	FALSE
 #define elf_backend_plt_readonly	1
 
 #define elf_backend_discard_info	_bfd_mips_elf_discard_info

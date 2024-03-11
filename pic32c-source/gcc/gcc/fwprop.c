@@ -404,6 +404,41 @@ should_replace_address (rtx old_rtx, rtx new_rtx, machine_mode mode,
   if (REG_P (old_rtx) && REG_P (new_rtx))
     return true;
 
+#if defined(TARGET_MCHP_PIC32C)
+  if (!speed && TARGET_THUMB)
+    {
+      if (REG_P (old_rtx))
+        {
+          /*
+          Because the encoding size of the [r] is the same with [r, #imm] 
+          (depending on how large the imm values is) we always replace: 
+            add   ri, rj, #imm 
+            load  r[i] 
+          with 
+            load  [rj, #imm] 
+          By doing this we do decrease the register pressure by eliminating the 
+          use of ri register.
+          */
+          if ((GET_CODE (new_rtx) == PLUS)
+              && (CONST_INT_P (XEXP (new_rtx, 1))))
+            return true;
+          /*
+          Because the encoding size of the [r] is the same with [r,r] we have
+          to prevent replacing:
+            add   ri, rj, rk
+            load  r[i] 
+          with 
+            load [rj, rk]
+          By doing the replacement we do increase the register pressure by
+          lengthening the life range of both rj and rk.
+          */
+          if ((GET_CODE (new_rtx) == PLUS) && (REG_P (XEXP (new_rtx, 1)))
+              && (REG_P (XEXP (new_rtx, 0))))
+            return false;
+        }
+    }
+#endif
+
   /* Prefer the new address if it is less expensive.  */
   gain = (address_cost (old_rtx, mode, as, speed)
 	  - address_cost (new_rtx, mode, as, speed));
