@@ -257,6 +257,7 @@ gldelf32pic32mx_parse_args (int argc, char ** argv)
   int        prevopterr = opterr;
   int        wanterror;
   static int lastoptind = -1;
+  char* inv_char = NULL;
 
   const char *smart_io_option_err  = "--smart-io and --no-smart-io";
   const char *option_err = " options can not be used together\n";
@@ -264,6 +265,7 @@ gldelf32pic32mx_parse_args (int argc, char ** argv)
   const char *data_init_option_err = "--data-init and --no-data-init";
   const char *data_init_in_serial_mem_option_err = "--data-init_in_serial_mem and --no-data-init_in_serial_mem";
   const char *code_in_dinit_option_err = "--code-in-dinit and --no-code-in-dinit";
+  const char *data_init_compress_option_warn = "Invalid value for dinit-compress option. Setting to 0 (default value).";
 
   if (lastoptind != optind)
     opterr = 0;
@@ -422,6 +424,20 @@ gldelf32pic32mx_parse_args (int argc, char ** argv)
       else
         (void) sscanf(optarg, "%lx", &dinit_address);
       break;
+    case MCHP_DINIT_COMPRESS:
+        /*
+        ** -dinit-compress=0 (legacy)
+        ** -dinit-compress=1 (merge/repeated values)
+        ** -dinit-compress=2 (compression/merge/repeated values)
+        */
+        dinit_compress_level = (unsigned int) strtol(optarg, &inv_char, 0);
+        if (((inv_char!= NULL) && ((*inv_char) != 0))
+            || dinit_compress_level > MAX_DINIT_OPTIMIZATION_LVL)
+        {
+		  einfo(_("%P: Warning: %s\n"), data_init_compress_option_warn);
+          dinit_compress_level = 0;
+        }
+        break;
 
 
 #endif /* TARGET_IS_PIC32MX */

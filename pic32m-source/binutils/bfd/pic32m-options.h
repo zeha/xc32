@@ -32,6 +32,8 @@
 #ifndef _PIC32_OPTIONS_H
 #define _PIC32_OPTIONS_H
 
+#define MAX_DINIT_OPTIMIZATION_LVL 2
+
 /*
 ** Externals declared in bfd *.c
 */
@@ -80,6 +82,7 @@ extern bfd_boolean      pic32_coresident_app;
 extern bfd_boolean      pic32_inherit_application_info;
 extern char             *inherited_application;
 extern bfd_boolean      pic32_stack_usage;
+extern unsigned int     dinit_compress_level;
 
 static void gldelf32pic32mx_list_options
   (FILE *);
@@ -118,7 +121,8 @@ enum elfpic32mx_options {
     APPLICATION_ID,
     CORESIDENT,
     INHERIT_APPLICATION_INFO,
-  MCHP_STACK_USAGE
+  MCHP_STACK_USAGE,
+  MCHP_DINIT_COMPRESS
 };
 
 static struct option pic32_longopts[] =
@@ -152,6 +156,7 @@ static struct option pic32_longopts[] =
 #endif
     { "inherit-application-info", required_argument, NULL, INHERIT_APPLICATION_INFO },
   { "mchp-stack-usage", no_argument, NULL, MCHP_STACK_USAGE },
+  {"dinit-compression", required_argument, NULL, MCHP_DINIT_COMPRESS},
   { NULL,        no_argument,       NULL, 0                }
 };
 #endif

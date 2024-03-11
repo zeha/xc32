@@ -56,6 +56,14 @@ mips_handle_option (struct gcc_options *opts,
     }
 }
 
+static const struct default_options mips_option_optimization_table[] =
+ {
+#ifdef MIPS_SUBTARGET_OPTION_OPTIMIZATION_TABLE
+   MIPS_SUBTARGET_OPTION_OPTIMIZATION_TABLE
+#endif
+    { OPT_LEVELS_NONE, 0, NULL, 0 }
+ };
+
 #undef TARGET_DEFAULT_TARGET_FLAGS
 #define TARGET_DEFAULT_TARGET_FLAGS		\
   (TARGET_DEFAULT				\
@@ -64,5 +72,8 @@ mips_handle_option (struct gcc_options *opts,
    | MASK_CHECK_ZERO_DIV)
 #undef TARGET_HANDLE_OPTION
 #define TARGET_HANDLE_OPTION mips_handle_option
+
+#undef TARGET_OPTION_OPTIMIZATION_TABLE 
+#define TARGET_OPTION_OPTIMIZATION_TABLE mips_option_optimization_table
 
 struct gcc_targetm_common targetm_common = TARGETM_COMMON_INITIALIZER;

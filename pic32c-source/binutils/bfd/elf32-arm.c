@@ -18109,6 +18109,9 @@ elf32_arm_output_arch_local_syms (bfd *output_bfd,
   bfd_vma offset;
   bfd_size_type size;
   bfd *input_bfd;
+#if TARGET_IS_PIC32C
+  const char* dinit_sect = ".dinit";
+#endif
 
   htab = elf32_arm_hash_table (hinfo);
   if (htab == NULL)
@@ -18147,6 +18150,24 @@ elf32_arm_output_arch_local_syms (bfd *output_bfd,
 		if (osi.sec_shndx != (int)SHN_BAD)
 		  elf32_arm_output_map_sym (&osi, ARM_MAP_DATA, 0);
 	      }
+#if TARGET_IS_PIC32C
+        /* XC32-2226: The .dinit section is linker created however we treat it
+         * as data.
+         */
+        if (!strncmp(osi.sec->name, dinit_sect, strlen(dinit_sect))
+            && (osi.sec->output_section != NULL
+            && ((osi.sec->output_section->flags & (SEC_ALLOC | SEC_CODE)) != 0)
+            && get_arm_elf_section_data (osi.sec) != NULL
+            && get_arm_elf_section_data (osi.sec)->mapcount == 0
+            && osi.sec->size > 0
+            && (osi.sec->flags & SEC_EXCLUDE) == 0))
+          {
+            osi.sec_shndx = _bfd_elf_section_from_bfd_section
+              (output_bfd, osi.sec->output_section);
+            if (osi.sec_shndx != (int)SHN_BAD)
+              elf32_arm_output_map_sym (&osi, ARM_MAP_DATA, 0);
+          }
+#endif
 	  }
     }
 

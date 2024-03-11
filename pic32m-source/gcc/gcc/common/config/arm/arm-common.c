@@ -39,6 +39,10 @@ static const struct default_options arm_option_optimization_table[] =
     /* Enable section anchors by default at -O1 or higher.  */
     { OPT_LEVELS_1_PLUS, OPT_fsection_anchors, NULL, 1 },
     { OPT_LEVELS_1_PLUS, OPT_fsched_pressure, NULL, 1 },
+    //include additional optimization options from pic32c subtarget
+#ifdef PIC32C_SUBTARGET_OPTION_OPTIMIZATION_TABLE
+    PIC32C_SUBTARGET_OPTION_OPTIMIZATION_TABLE
+#endif
     { OPT_LEVELS_NONE, 0, NULL, 0 }
   };
 

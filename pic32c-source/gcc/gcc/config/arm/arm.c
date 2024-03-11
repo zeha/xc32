@@ -837,6 +837,7 @@ static const struct attribute_spec arm_attribute_table[] =
 
 #undef  TARGET_GIMPLE_FOLD_BUILTIN
 #define TARGET_GIMPLE_FOLD_BUILTIN arm_gimple_fold_builtin
+
 
 /* Obstack for minipool constant handling.  */
 static struct obstack minipool_obstack;
@@ -11335,19 +11336,55 @@ arm_rtx_costs (rtx x, machine_mode mode ATTRIBUTE_UNUSED, int outer_code,
    of address here in the order (most pref first):
    PRE/POST_INC/DEC, SHIFT or NON-INT sum, INT sum, REG, MEM or LABEL.  */
 static inline int
-arm_arm_address_cost (rtx x)
+arm_arm_address_cost (rtx x /* XC32-2046 */, machine_mode mode, bool speed)
 {
   enum rtx_code c  = GET_CODE (x);
 
   if (c == PRE_INC || c == PRE_DEC || c == POST_INC || c == POST_DEC)
+    {
+#if defined(TARGET_MCHP_PIC32C)
+    if (!speed)
+      return 4;
+    else
+      return 0;
+#else
     return 0;
+#endif
+  }
   if (c == MEM || c == LABEL_REF || c == SYMBOL_REF)
     return 10;
 
   if (c == PLUS)
     {
       if (CONST_INT_P (XEXP (x, 1)))
-	return 2;
+#if defined(TARGET_MCHP_PIC32C)
+        {
+          if (TARGET_THUMB && (!speed))
+            {
+              HOST_WIDE_INT offset = INTVAL (XEXP (x, 1));
+              if (mode == SImode)
+                {
+                  if ((0 <= offset) && (offset <= 124))
+                    return 2;
+                }
+              else if (mode == HImode)
+                {
+                  if ((0 <= offset) && (offset <= 62))
+                    return 2;
+                }
+              else if (mode == QImode)
+                {
+                  if ((0 <= offset) && (offset <= 31))
+                    return 2;
+                }
+              return 6;
+            }
+          else
+            return 2;
+        }
+#else
+        return 2;
+#endif
 
       if (ARITHMETIC_P (XEXP (x, 0)) || ARITHMETIC_P (XEXP (x, 1)))
 	return 3;
@@ -11377,7 +11414,7 @@ static int
 arm_address_cost (rtx x, machine_mode mode ATTRIBUTE_UNUSED,
 		  addr_space_t as ATTRIBUTE_UNUSED, bool speed ATTRIBUTE_UNUSED)
 {
-  return TARGET_32BIT ? arm_arm_address_cost (x) : arm_thumb_address_cost (x);
+  return TARGET_32BIT ? arm_arm_address_cost (x /* XC32-2046 */, mode, speed) : arm_thumb_address_cost (x);
 }
 
 /* Adjust cost hook for XScale.  */

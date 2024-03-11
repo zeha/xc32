@@ -529,9 +529,6 @@ extern rtl_opt_pass *make_pass_expand (gcc::context *ctxt);
 extern rtl_opt_pass *make_pass_instantiate_virtual_regs (gcc::context *ctxt);
 extern rtl_opt_pass *make_pass_rtl_fwprop (gcc::context *ctxt);
 extern rtl_opt_pass *make_pass_rtl_fwprop_addr (gcc::context *ctxt);
-#ifdef TARGET_MCHP_PIC32C
-extern rtl_opt_pass *make_pass_opt_base_reg_offset (gcc::context *ctxt);
-#endif
 extern rtl_opt_pass *make_pass_jump (gcc::context *ctxt);
 extern rtl_opt_pass *make_pass_jump2 (gcc::context *ctxt);
 extern rtl_opt_pass *make_pass_lower_subreg (gcc::context *ctxt);

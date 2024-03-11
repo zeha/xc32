@@ -11418,6 +11418,16 @@ mips_frame_pointer_required (void)
 	return true;
     }
 
+#if defined(TARGET_MCHP_PIC32MX)
+  // The frame info must be computed because it calls the mchp code to
+  // fill in the cfun->machine information and there is no guarantee
+  // it has been done already.  Wasteful?  Yes.  Correct?  Also yes.
+  mips_compute_frame_info ();
+  if (cfun->machine->interrupt_handler_p
+      && (cfun->machine->use_shadow_register_set == SHADOW_SET_NO))
+    return true;
+#endif
+
   return false;
 }
 

@@ -1,6 +1,10 @@
 /* a prototype - to avoid a warning as we directly #include the C source */
 int mchpStackUsageValidLicense (void);
 
+#ifndef MCHP_BUILD_DATE
+#define MCHP_BUILD_DATE __DATE__
+#endif
+
 #if !defined(SKIP_LICENSE_MANAGER)
 
 #include <sys/stat.h>
@@ -77,7 +81,7 @@ getLicenseFromXCLM (const char *xclmExecutable,
   else
     {
       const char *args[] = { xclmExecutable, xclm_arg1, productName,
-                             productVersion, __DATE__, NULL };
+                             productVersion, MCHP_BUILD_DATE, NULL };
       int status, err;
       const char *failure = pex_one (0, xclmExecutable, (char * const *)args,
                                      "MPLAB XC32 Compiler",

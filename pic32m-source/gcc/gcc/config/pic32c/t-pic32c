@@ -18,6 +18,11 @@
 # along with GCC; see the file COPYING3.  If not see
 # <http://www.gnu.org/licenses/>.
 
+PASSES_EXTRA += $(srcdir)/config/pic32c/pic32c-passes.def
+
+offset_addressing.o: $(srcdir)/config/pic32c/offset_addressing.cc
+	$(COMPILE) $<
+	$(POSTCOMPILE)
 
 #Microchip common code
 cci.o: $(srcdir)/config/mchp-cci/cci.c $(srcdir)/config/mchp-cci/cci.h
@@ -69,17 +74,7 @@ pic32c-coverage.o: $(srcdir)/config/pic32c/pic32c-coverage.c $(CONFIG_H) $(SYSTE
 	$(COMPILER) -c $(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) \
                 $(srcdir)/config/pic32c/pic32c-coverage.c
 
-# Remove all objects dependent on SKIP_LICENSE_MANAGER flag
-clean-lm:
-	rm -f mchp-license-manager.o
-
-# Force license manager enablement
-force_lm = $(if $(XC32_ENABLE_LM),$(subst -DSKIP_LICENSE_MANAGER,,$(1)) $(XC32_LM_FLAGS),$(1))
-
-mchp-license-manager.o: $(srcdir)/config/pic32c/mchp-license-manager.c $(CONFIG_H) $(SYSTEM_H) \
-	coretypes.h $(TM_H) $(TREE_H) output.h $(C_COMMON_H) \
-	$(srcdir)/config/pic32c/pic32c.h $(srcdir)/config/mchp-cci/xclm_public.h \
-	$(srcdir)/config/pic32c/pic32c-protos.h
-	$(COMPILER) -c $(call force_lm,$(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS)) $(INCLUDES) \
-		$(srcdir)/config/pic32c/mchp-license-manager.c
-
+mchp-license-manager.o: ALL_CPPFLAGS += -imacros host-lm.h
+mchp-license-manager.o: $(srcdir)/config/pic32c/mchp-license-manager.c
+	$(COMPILE) $<
+	$(POSTCOMPILE)

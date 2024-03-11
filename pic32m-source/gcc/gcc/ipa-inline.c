@@ -631,8 +631,7 @@ want_early_inline_function_p (struct cgraph_edge *e)
 
       if (growth <= 0)
 	;
-      else if (!e->maybe_hot_p ()
-	       && growth > 0)
+      else if (!e->maybe_hot_p () && growth > 0)
 	{
 	  if (dump_file)
 	    fprintf (dump_file, "  will not early inline: %s->%s, "
@@ -760,7 +759,8 @@ want_inline_small_function_p (struct cgraph_edge *e, bool report)
      promote non-inline functions to inline and we increase
      MAX_INLINE_INSNS_SINGLE 16-fold for inline functions.  */
   else if ((!DECL_DECLARED_INLINE_P (callee->decl)
-	   && (!e->count.ipa ().initialized_p () || !e->maybe_hot_p ()))
+	   && (!e->count.ipa ().initialized_p () || !e->maybe_hot_p ())
+           )
 	   && ipa_fn_summaries->get (callee)->min_size
 		- ipa_call_summaries->get (e)->call_stmt_size
 	      > MAX (MAX_INLINE_INSNS_SINGLE, MAX_INLINE_INSNS_AUTO))
@@ -836,8 +836,8 @@ want_inline_small_function_p (struct cgraph_edge *e, bool report)
  	    }
 	}
       /* If call is cold, do not inline when function body would grow. */
-      else if (!e->maybe_hot_p ()
-	       && (growth >= MAX_INLINE_INSNS_SINGLE
+      else if (!e->maybe_hot_p () &&
+              (growth >= MAX_INLINE_INSNS_SINGLE
 		   || growth_likely_positive (callee, growth)))
 	{
           e->inline_failed = CIF_UNLIKELY_CALL;
@@ -980,6 +980,11 @@ has_caller_p (struct cgraph_node *node, void *data ATTRIBUTE_UNUSED)
   return false;
 }
 
+#if defined(_BUILD_MCHP_)
+static bool
+sum_callers (struct cgraph_node *node, void *data);
+#endif
+
 /* Decide if inlining NODE would reduce unit size by eliminating
    the offline copy of function.  
    When COLD is true the cold calls are considered, too.  */
@@ -1005,6 +1010,12 @@ want_inline_function_to_all_callers_p (struct cgraph_node *node, bool cold)
   if (node->call_for_symbol_and_aliases (check_callers, &has_hot_call,
 					 true))
     return false;
+#if defined(_BUILD_MCHP_)
+  int num_calls = 0;
+  node->call_for_symbol_and_aliases (sum_callers, &num_calls, true);
+  if (num_calls == 1 && !node->address_taken && !TREE_PUBLIC (node->decl))
+    return true;
+#endif
   if (!cold && !has_hot_call)
     return false;
   return true;
@@ -1072,6 +1083,33 @@ edge_badness (struct cgraph_edge *edge, bool dump)
 	fprintf (dump_file, "      max: function is external\n");
       return sreal::max ();
     }
+#if defined(_BUILD_MCHP_)
+    else if (opt_for_fn (caller->decl, optimize_size))
+     {
+       int newsize;
+       newsize = estimate_size_after_inlining (edge->caller, edge);
+   
+       if (dump)
+         fprintf (dump_file, " function is optimize for size ");
+       if (newsize > PARAM_VALUE (PARAM_LARGE_FUNCTION_INSNS))
+        {
+          if (dump)
+            fprintf (dump_file, " max\n");
+          return sreal::max();
+        }
+
+       int nest = MIN (ipa_call_summaries->get (edge)->loop_depth, 8);
+
+       badness = (sreal) (-SREAL_MIN_SIG + growth) << (SREAL_MAX_EXP / 256);
+
+       /* Decrease badness if call is nested.  */
+       if (badness > 0)
+ 	 badness = badness >> nest;
+      
+       if (dump)
+        fprintf (dump_file, " %f: nest %i\n", badness.to_double(), nest);
+     }
+#endif
   /* When profile is available. Compute badness as:
      
                  time_saved * caller_count
@@ -1713,9 +1751,13 @@ resolve_noninline_speculation (edge_heap_t *edge_heap, struct cgraph_edge *edge)
 bool
 inline_account_function_p (struct cgraph_node *node)
 {
-   return (!DECL_EXTERNAL (node->decl)
+#if !defined(_BUILD_MCHP_)
+     return (!DECL_EXTERNAL (node->decl)
 	   && !opt_for_fn (node->decl, optimize_size)
 	   && node->frequency != NODE_FREQUENCY_UNLIKELY_EXECUTED);
+#else
+     return true;
+#endif
 }
 
 /* Count number of callers of NODE and store it into DATA (that

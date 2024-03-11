@@ -140,6 +140,8 @@ extern void pic32c_emit_cc_section (const char *name);
 /* MCHP stack usage related */
 extern void pic32c_emit_su_section (const char *name);
 
+extern rtl_opt_pass *make_pass_opt_imm_offset (gcc::context *ctxt);
+
 extern const char *pic32c_libexec_path;
 
 #endif /* __PIC32C_PROTOS_H */

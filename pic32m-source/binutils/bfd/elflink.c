@@ -40,6 +40,10 @@
 #endif
 #endif
 
+#if defined(TARGET_IS_PIC32C) || defined(TARGET_IS_PIC32MX)
+extern unsigned int dinit_compress_level;
+#endif /* TARGET_IS_PIC32C || TARGET_IS_PIC32MX */
+
 #ifdef TARGET_IS_PIC32C
 
 #include "pic32c-utils.h"
@@ -5730,6 +5734,27 @@ _bfd_elf_archive_symbol_lookup (bfd *abfd,
 extern void (*mchp_smartio_symbols)  (struct bfd_link_info*) __attribute__((weak)) ;
 #endif
 
+#if defined (TARGET_IS_PIC32C) || defined(TARGET_IS_PIC32MX)
+void
+mchp_add_archive_symbol_name (struct bfd_link_info *info, char* name);
+void
+mchp_add_archive_symbol_name (struct bfd_link_info *info, char* name) {
+    struct bfd_link_hash_entry *new_sym;
+
+    new_sym = bfd_link_hash_lookup (info->hash, name, 0, 0, 0);
+    if(new_sym == NULL)
+    {
+      new_sym = bfd_link_hash_lookup (info->hash, name, 1, 1, 1);
+      new_sym->type = bfd_link_hash_undefined;
+      new_sym->u.undef.abfd = NULL;
+            bfd_link_add_undef (info->hash, new_sym);
+
+      if (pic32_debug)
+        fprintf (stderr, "Creating %s\n", name);
+    }
+}
+#endif
+
 /* Add symbols from an ELF archive file to the linker hash table.  We
    don't use _bfd_generic_link_add_archive_symbols because we need to
    handle versioned symbols.
@@ -5783,7 +5808,25 @@ elf_link_add_archive_symbols (bfd *abfd, struct bfd_link_info *info)
 	 to the undefined list */
       mchp_smartio_add_symbols (info);
     }
-#endif
+#endif /* TARGET_IS_PIC32C */
+
+#if defined (TARGET_IS_PIC32C) || defined(TARGET_IS_PIC32MX)
+  switch (dinit_compress_level)
+    {
+	case 0:
+	  mchp_add_archive_symbol_name(info, "__copy_needed");
+	  break;
+	case 1:
+	  mchp_add_archive_symbol_name(info, "__repeated_dinit_needed");
+	  break;
+	case 2:
+	  mchp_add_archive_symbol_name(info, "__decompress_needed");
+	  break;
+	default:
+	  goto error_return;
+	}
+#endif /* TARGET_IS_PIC32C || TARGET_IS_PIC32MX */
+
 /* MERGE-NOTES: to be reconsidered */
 #if defined(TARGET_IS_elf32pic32mx)
   { static int smartio_run=0;

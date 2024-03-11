@@ -342,7 +342,7 @@ pic32c*-*-*)
     cxx_target_objs="arm-c.o"
     extra_options="${extra_options} arm/arm-tables.opt pic32c/pic32c.opt"
     target_gtfiles="\$(srcdir)/config/arm/arm-builtins.c"
-    extra_objs="${extra_objs} pic32c.o mchp-license-manager.o sha256.o mchp_sha.o cci.o cci-backend.o pic32c-coverage.o mchp_pragma_config.o"
+    extra_objs="${extra_objs} offset_addressing.o pic32c.o mchp-license-manager.o sha256.o mchp_sha.o cci.o cci-backend.o pic32c-coverage.o mchp_pragma_config.o"
     extra_gcc_objs="${extra_gcc_objs} mchp-common.o"
     ;;
 avr-*-*)
@@ -1229,15 +1229,16 @@ arm*-*-eabi* | arm*-*-symbianelf* | arm*-*-rtems* | arm*-*-fuchsia*)
 	tm_file="${tm_file} arm/aout.h vxworks-dummy.h arm/arm.h"
 	;;
 pic32c*-*-*)
-        native_system_header_dir=/include
+        native_system_header_dir=/include/musl
         default_use_cxa_atexit=yes
-        tm_file="dbxelf.h elfos.h arm/unknown-elf.h arm/elf.h arm/bpabi.h pic32c/specs.h newlib-stdint.h"
+        tm_file="dbxelf.h elfos.h arm/unknown-elf.h arm/elf.h arm/bpabi.h pic32c/specs.h musl-stdint.h"
         tmake_file="${tmake_file} arm/t-arm arm/t-arm-elf arm/t-bpabi pic32c/t-pic32c"
         use_gcc_stdint=wrap
         tm_file="${tm_file} arm/aout.h vxworks-dummy.h arm/arm.h"
         tm_file="${tm_file} pic32c/pic32c.h"
         tm_p_file="${tm_p_file} pic32c/pic32c-protos.h"
         tm_defines="${tm_defines} _BUILD_C32_=1 _BUILD_MCHP_=1 _BUILD_XC32_=1 TARGET_MCHP_PIC32C=1"
+        tm_defines="${tm_defines} MCHP_BUILD_DATE=__DATE__"
         xm_defines="_BUILD_C32_=1 _BUILD_MCHP_=1 _BUILD_XC32_=1 TARGET_MCHP_PIC32C=1 ${xm_defines}"
         ;;
 avr-*-*)
@@ -2415,8 +2416,8 @@ pdp11-*-*)
 	use_gcc_stdint=wrap
 	;;
 pic32m*-mchp-elf*)
-        native_system_header_dir=/include
-        tm_file="elfos.h newlib-stdint.h ${tm_file} mips/elf.h mips/sde.h"
+        native_system_header_dir=/include/musl
+        tm_file="elfos.h newlib-stdint.h ${tm_file} mips/elf.h mips/sde.h musl-stdint.h"
         tm_file="${tm_file} mips/sdemtk.h"
        	tm_file="${tm_file} pic32m/mchp.h"
         tmake_file="mips/t-mips pic32m/t-mchp pic32m/t-libgcc-mips16 ${tmake_file}"
@@ -2448,6 +2449,7 @@ pic32m*-mchp-elf*)
 #          ;;
 #       esac
         tm_defines="${tm_defines} MIPS_ISA_DEFAULT=33 MIPS_ABI_DEFAULT=ABI_32 _BUILD_MCHP_=1 _BUILD_C32_=1"
+        tm_defines="${tm_defines} MCHP_BUILD_DATE=__DATE__"
         xm_defines="_BUILD_C32_=1 _BUILD_MCHP_=1 ${xm_defines}"
         build_xm_defines="_BUILD_C32_=1 _BUILD_MCHP_=1 ${xm_defines}"
         host_xm_defines="_BUILD_C32_=1 _BUILD_MCHP_=1 ${xm_defines}"

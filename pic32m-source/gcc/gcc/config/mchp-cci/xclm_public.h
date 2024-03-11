@@ -53,7 +53,7 @@
 #define MCHP_XCLM_NO_CCOV_LICENSE        0x8
 #define MCHP_XCLM_VALID_CCOV_LICENSE     0x9
 
-/* New option used for named license */
+/* New option user for named license */
 #define MCHP_XCLM_VALID_NAMED_LICENSE    0xA
 
 /* New option used for analysis tool-suite license */

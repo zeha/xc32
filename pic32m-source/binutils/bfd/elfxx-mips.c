@@ -94,10 +94,6 @@ bfd_boolean     pic32_inherit_application_info = FALSE;
 char            *inherited_application;
 
 
-/* Data Structures for the Data Init Template */
-bfd *init_bfd;
-unsigned char *init_data;
-asection *init_template = 0;
 
 /* lghica co-resident */
 /* Data Structures for the Shared Data Init Template */
@@ -131,19 +127,15 @@ bfd_vma               crt_shared_dinit = 0;
 struct pic32_section *code_sections;
 struct bfd_sym_chain entry_symbol_copy;
 
-static void bfd_pic32_process_data_section
-  (asection *, PTR);
-static void bfd_pic32_process_code_section
-  (asection *, PTR);
-static void bfd_pic32_write_data_header
-  (unsigned char **,  bfd_vma,  bfd_vma, int);
 /*static*/ /* lghica co-resident */ void bfd_pic32_clean_section_names
   (bfd *, asection *, PTR);
-
 
 /* lghica co-resident */
 static int pic32_in_bounds
   (asection *, bfd_vma , bfd_size_type);
+void fill_dinit_section
+  (bfd *abfd, struct bfd_link_info *info);
+
 
 /* Data structures for fill option */
 struct pic32_fill_option *pic32_fill_option_list;
@@ -10103,6 +10095,16 @@ _bfd_mips_elf_size_dynamic_sections (bfd *output_bfd,
 		bfd_get_section_name dereferencing it to extract the name).
 	      */
 	      BFD_ASSERT (s->output_section != NULL);
+
+		  if (s->output_section == NULL)
+			{
+			  bfd_set_error(bfd_error_wrong_format);
+			  _bfd_error_handler("Section %s has no output section.", name);
+			  if (CONST_STRNEQ(name, ".rel.dyn"))
+				_bfd_error_handler("Please add `/DISCARD/ : { *(.rel.dyn) }"
+								   "' to your linker script.");
+			  return FALSE;
+			}
 #endif
 	      /* If this relocation section applies to a read only
 		 section, then we probably need a DT_TEXTREL entry.
@@ -14440,6 +14442,8 @@ update_previous_shared_dinit (struct bfd_link_info *const info,
     }
 }
 
+/* not used, if used, it should be moved into pic32-dinit.c */
+#if 0  
 static void
 fill_shared_dinit_section (bfd *const abfd,
 			   unsigned char **const ptr_dat ATTRIBUTE_UNUSED,
@@ -14541,6 +14545,7 @@ fill_shared_dinit_section (bfd *const abfd,
         abort();
     }
 }
+#endif
 #endif
 
 /* Structure for saying that BFD machine EXTENSION extends BASE.  */
@@ -14825,6 +14830,9 @@ infer_mips_abiflags (bfd *abfd, Elf_Internal_ABIFlags_v0* abiflags)
     abiflags->flags1 |= AFL_FLAGS1_ODDSPREG;
 }
 
+#ifdef TARGET_IS_PIC32MX
+void  set_dinit_content(bfd* abfd, struct bfd_link_info *info);
+#endif
 /* We need to use a special link routine to handle the .reginfo and
    the .mdebug sections.  We need to merge all instances of these
    sections together, not write them all out sequentially.  */
@@ -15445,13 +15453,9 @@ _bfd_mips_elf_final_link (bfd *abfd, struct bfd_link_info *info)
 
 #ifdef TARGET_IS_PIC32MX
 
-  asection *dinit_sec;
-  bfd_size_type dinit_size;
-  file_ptr dinit_offset;
-  unsigned char *dat;
-  struct pic32_section *s_sec;
-    
-/* lghica co-resident*/
+  if (pic32_data_init)
+    set_dinit_content(abfd, info);
+
     asection        *rom_usage_sec;
     bfd_size_type   rom_usage_size;
     file_ptr        rom_usage_offset;
@@ -15461,111 +15465,6 @@ _bfd_mips_elf_final_link (bfd *abfd, struct bfd_link_info *info)
     bfd_size_type   ram_usage_size;
     file_ptr        ram_usage_offset;
     unsigned char   *ram_dat;
-    
-    
-   if (pic32_data_init)
-  {
-      dinit_sec = init_template->output_section;
-      dinit_size = init_template->size;
-      dinit_offset = init_template->output_offset;
-
-      if (!dinit_sec)
-        {
-          fprintf( stderr, "Link Error: could not access data template\n");
-          abort();
-        }
-   /* clear SEC_IN_MEMORY flag if inaccurate */
-   if ((dinit_sec->contents == 0) && ((dinit_sec->flags & SEC_IN_MEMORY) != 0))
-        dinit_sec->flags &= ~ SEC_IN_MEMORY;
-    /* get a copy of the (blank) template contents */
-      if (!bfd_get_section_contents (abfd, dinit_sec,
-                                     init_data, dinit_offset, dinit_size))
-        {
-          fprintf( stderr, "Link Error: can't get section %s contents\n",
-                   dinit_sec->name);
-          abort();
-        }
-   /* update the default fill value */
-      dat = init_data;
-      for (i=0; i < dinit_size; i++)
-        *dat++ *= 2;
-
-  /* scan sections and write data records */
-      if (pic32_debug)
-          printf("\nProcessing data sections:\n");
-      dat = init_data;
-      for (s_sec = data_sections; s_sec != NULL; s_sec = s_sec->next)
-         if ((s_sec->sec) && (((s_sec->sec->flags & SEC_EXCLUDE) == 0) && 
-             (s_sec->sec->output_section != bfd_abs_section_ptr)))
-           bfd_pic32_process_data_section(s_sec->sec, &dat);
-
-     if (pic32_code_in_dinit) {
-       if (pic32_debug)
-         printf("\nProcessing code sections:\n");
-       for (s_sec = code_sections; s_sec != NULL; s_sec = s_sec->next)
-         if ((s_sec->sec) && (((s_sec->sec->flags & SEC_EXCLUDE) == 0) &&
-             (s_sec->sec->output_section != bfd_abs_section_ptr)))
-           bfd_pic32_process_code_section(s_sec->sec, &dat);
-
-     }
-
-     /* write zero terminator */
-      *dat++ = 0; *dat++ = 0;
-      *dat++ = 0; *dat++ = 0;
-
-      if (pic32_code_in_dinit) {
-
-        struct bfd_link_hash_entry *h;
-        h = bfd_link_hash_lookup (info->hash, entry_symbol_copy.name,
-                                  FALSE, FALSE, TRUE);
-        if (h != NULL
-            && (h->type == bfd_link_hash_defined
-                || h->type == bfd_link_hash_defweak)
-                && h->u.def.section->output_section != NULL)
-        {
-          bfd_vma entry_address;
-
-          entry_address = h->u.def.value
-                          + bfd_get_section_vma (info->output_bfd,
-                                     h->u.def.section->output_section)
-                          + h->u.def.section->output_offset;
-
-
-          *dat++ = entry_address & 0xFF;
-          *dat++ = (entry_address >> 8) & 0xFF;
-          *dat++ = (entry_address >> 16) & 0xFF;
-          *dat++ = (entry_address >> 24) & 0xFF;
-        }
-      }
-
-      if (pic32_debug)
-          printf("  last template addr written = %lx\n",
-                 (long unsigned int)(dat-1));
-      
-      if (shared_data_sections && (shared_data_sections->next != NULL))
-          ///\lghica co-resident shared
-          fill_shared_dinit_section(abfd, &dat, info);
-
-      /* Reset the bfd file pointer, because
-        there seems to be a bug with fseek()
-        in Winblows that makes seeking to
-        a position earlier in the file unreliable. */
-        	  
-	  bfd_seek(dinit_sec->output_section->owner, 0, SEEK_SET);
-	        
-      /* insert buffer into the data template section */
-      if (!bfd_set_section_contents (abfd, dinit_sec,
-                                     init_data, dinit_offset, dinit_size))
-        {
-          fprintf( stderr, "Link Error: can't write section %s contents\n",
-                   dinit_sec->name);
-          abort();
-        }
-      
-      ///\ coresident - .shared.dinit
-      if ((prev_shared_dinit != 0) && (crt_shared_dinit != 0))
-          update_previous_shared_dinit(info, prev_shared_dinit, crt_shared_dinit);
-  }
 
    if (pic32_has_fill_option)
     {
@@ -17277,231 +17176,6 @@ _bfd_mips_elf_cant_unwind_opcode
 }
 
 #if defined(TARGET_IS_PIC32) || defined(TARGET_IS_PIC32MX)
-/*
- * ** Write a data record header
- * */
-static void
-bfd_pic32_write_data_header(d, addr, len, format)
-     unsigned char **d;
-     bfd_vma addr;
-     bfd_vma len;
-     int format;
-{
-  addr &= 0xFFFFFFFF;
-
-  /* write destination address */
-  *(*d)++ = (unsigned char) (addr & 0xFF);
-  *(*d)++ = (unsigned char) ((addr >> 8) & 0xFF);
-  *(*d)++ = (unsigned char) ((addr >> 16) & 0xFF);
-  *(*d)++ = (unsigned char) ((addr >> 24) & 0xFF);
-
-  /* write destination length */
-  *(*d)++ = (unsigned char) (len & 0xFF);
-  *(*d)++ = (unsigned char) ((len >> 8) & 0xFF);
-  *(*d)++ = (unsigned char) ((len >> 16) & 0xFF);
-  *(*d)++ = (unsigned char) ((len >> 24) & 0xFF);
-
-  /* write format code */
-  *(*d)++ = (unsigned char) (format & 0xFF);
-  *(*d)++ = (unsigned char) ((format >> 8) & 0xFF);
-  *(*d)++ = (unsigned char) ((format >> 16) & 0xFF);
-  *(*d)++ = (unsigned char) ((format >> 24) & 0xFF);
-}
-
-static void
-bfd_pic32_process_code_section(sect, fp)
-     asection *sect;
-     PTR fp;
-{
-  unsigned char *buf,*p;
-  unsigned char **d = (unsigned char **) fp;
-  bfd_vma runtime_size = sect->size;
-  bfd_vma runtime_addr = sect->output_offset + sect->output_section->vma;
-  Elf_Internal_Shdr *this_hdr;
-
-  enum {CLEAR, COPY}; /* note matching definition in crt0.c */
-
-  if (PIC32_IS_CODE_ATTR(sect) && (sect->size > 0))
-    {
-      if (pic32_debug)
-        printf("  %s (data), size = %x bytes, template addr = %lx\n",
-               sect->name, (unsigned int) runtime_size,
-               (long unsigned int) *d);
-
-      /*
-      ** load a copy of the section contents
-      **
-      ** Note: We are extracting input section data
-      ** from an output section.
-      */
-      buf = (unsigned char *) malloc (sect->size);
-      if (!buf)
-        {
-          fprintf( stderr, "Link Error: not enough memory for section contents\n");
-          abort();
-        }
-
-      /* Reset the bfd file pointer, because
-        there seems to be a bug with fseek()
-        in Winblows that makes seeking to
-        a position earlier in the file unreliable. */
-      bfd_seek(sect->output_section->owner, 0, SEEK_SET);
-
-      if (!bfd_get_section_contents(sect->output_section->owner,
-                                    sect->output_section,
-                                    buf, sect->output_offset, sect->size))
-
-      {
-          fprintf( stderr, "Link Error: can't load section %s contents\n",
-                   sect->name);
-          abort();
-      }
-
-      { int count = 0;
-          /* write header */
-          bfd_pic32_write_data_header(d, runtime_addr, runtime_size, COPY);
-          for (p = buf; p < (buf + sect->size); )
-            {
-              *(*d)++ = *p++;
-              count ++;
-              if (count == 4)
-                count = 0;
-            }
-          /* fill template with zeroes */
-          if (count) while (count < 4) { *(*d)++ = 0; count++; }
-          //if (count == 4) { *(*d)++ = 0; };
-        }
-
-        free(buf);
-
-      /* make section not LOADable */
-      sect->output_section->flags &= ~ SEC_LOAD;
-      sect->output_section->flags |= SEC_NEVER_LOAD;
-
-      sect->flags &= ~ SEC_LOAD;
-      sect->flags |= SEC_NEVER_LOAD;
-
-      this_hdr = &elf_section_data (sect->output_section)->this_hdr;
-      this_hdr->sh_flags |= SHF_NOLOAD;
-    }
-}
-
-/*
-** If the section is BSS or DATA, write the appropriate
-** record into the data init template.
-**
-** ToDo: If the data section exceeds 64K, break into
-** multiple records.
-*/
-static void
-bfd_pic32_process_data_section(sect, fp)
-     asection *sect;
-     PTR fp;
-{
-  unsigned char *buf,*p;
-  unsigned char **d = (unsigned char **) fp;
-  bfd_vma runtime_size = sect->size;
-    bfd_vma runtime_addr; /* lghica */
-  Elf_Internal_Shdr *this_hdr;
-
-  enum {CLEAR, COPY}; /* note matching definition in crt0.c */
-
-    if (sect->output_section == NULL)
-        return;
-    
-    if (sect->size > 0)
-        runtime_addr = sect->output_offset + sect->output_section->vma; /* lghica */
-        
-  /* skip persistent or noload data sections */
-  if (PIC32_IS_PERSIST_ATTR(sect) || PIC32_IS_NOLOAD_ATTR(sect))
-    {
-      if (pic32_debug)
-        printf("  %s (skipped), size = %x\n",
-               sect->name, (unsigned int) runtime_size);
-      return;
-    }
-
-  /* process BSS-type sections */
-  if ((PIC32_IS_BSS_ATTR(sect) || PIC32_IS_BSS_ATTR_WITH_MEMORY_ATTR(sect)) && (sect->size > 0))
-    {
-      if (pic32_debug)
-        printf("  %s (bss), size = %x bytes, template addr = %lx\n",
-               sect->name, (unsigned int) runtime_size,
-               (long unsigned int) *d);
-
-      /* write header only */
-      bfd_pic32_write_data_header(d, runtime_addr, runtime_size, CLEAR);
-    }
-
-   /* process DATA-type sections */
-  if ((PIC32_IS_DATA_ATTR(sect) || PIC32_IS_DATA_ATTR_WITH_MEMORY_ATTR(sect) || PIC32_IS_RAMFUNC_ATTR(sect)) && 
-      (sect->size > 0))
-    {
-      if (pic32_debug)
-        printf("  %s (data), size = %x bytes, template addr = %lx\n",
-               sect->name, (unsigned int) runtime_size,
-               (long unsigned int) *d);
-
-      /*
-      ** load a copy of the section contents
-      **
-      ** Note: We are extracting input section data
-      ** from an output section.
-      */
-      buf = (unsigned char *) malloc (sect->size);
-      if (!buf)
-        {
-          fprintf( stderr, "Link Error: not enough memory for section contents\n");
-          abort();
-        }
-
-      /* Reset the bfd file pointer, because
-        there seems to be a bug with fseek()
-        in Winblows that makes seeking to
-        a position earlier in the file unreliable. */
-      bfd_seek(sect->output_section->owner, 0, SEEK_SET);
-
-      if (!bfd_get_section_contents(sect->output_section->owner,
-                                    sect->output_section,
-                                    buf, sect->output_offset, sect->size))
-
-      {
-          fprintf( stderr, "Link Error: can't load section %s contents\n",
-                   sect->name);
-          abort();
-      }
-
-      { int count = 0;
-          /* write header */
-          bfd_pic32_write_data_header(d, runtime_addr, runtime_size, COPY);
-          for (p = buf; p < (buf + sect->size); )
-            {
-              *(*d)++ = *p++;
-              count ++;
-              if (count == 4)
-                count = 0;
-            }
-          /* fill template with zeroes */
-          if (count) while (count < 4) { *(*d)++ = 0; count++; }
-          //if (count == 4) { *(*d)++ = 0; };
-        }
-
-        free(buf);
-
-      /* make section not LOADable */
-      sect->output_section->flags &= ~ SEC_LOAD;
-      sect->output_section->flags |= SEC_NEVER_LOAD;
-
-      sect->flags &= ~ SEC_LOAD;
-      sect->flags |= SEC_NEVER_LOAD;
-      
-      this_hdr = &elf_section_data (sect->output_section)->this_hdr;
-      this_hdr->sh_flags |= SHF_NOLOAD;
-
-    } /* process DATA-type sections */
-
-  return;
-} /* static void bfd_pic32_process_data_section (...)*/
 
 /*
  * ** bfd_pic32_clean_section_names

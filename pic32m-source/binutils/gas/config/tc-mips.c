@@ -16181,7 +16181,7 @@ extern int previous_subsection;
 void
 s_change_section (int push)
 {
-  bfd_boolean has_flags = FALSE;
+  bfd_boolean has_flags = FALSE, fst_char = FALSE;
   char *save, *stmp, ctmp;
   int result;
 
@@ -16194,6 +16194,7 @@ s_change_section (int push)
 
    while (!is_end_of_line[(unsigned char) *input_line_pointer]) {
      if (*input_line_pointer == ',') {
+       fst_char = TRUE;
        input_line_pointer++;
        SKIP_WHITESPACE();
        continue;
@@ -16203,11 +16204,16 @@ s_change_section (int push)
        break;
      }
      /* pushsection name,n isn't flags, but it's not an attribute.
-	make this go through the vanilla section handling. */
-     if (push && ISDIGIT (*input_line_pointer)) {
+	  make this go through the vanilla section handling. */
+    /* SFXC-126 -> this fix interacts with address attribute which has digits - 
+    check also if the digit is the first character */
+
+     if (push && ISDIGIT (*input_line_pointer) && (fst_char == TRUE)) {
        has_flags = TRUE;
        break;
      }
+
+     fst_char = FALSE;
      input_line_pointer++;
    }
    input_line_pointer = save;

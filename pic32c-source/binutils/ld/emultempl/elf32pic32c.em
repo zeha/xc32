@@ -252,9 +252,10 @@ static void pic32_build_section_list_vma
 
 bfd_boolean pic32_is_empty_list
    (struct pic32_section* const lst);
-
+#if 0
 static void pic32_init_section_list
    (struct pic32_section **);
+#endif
 
 #ifdef ENABLE_USER_MEMORY
 static bfd_boolean pic32_name_in_section_list
@@ -293,9 +294,11 @@ static asection * bfd_pic32_create_section
 
 static void pic32_append_section_to_list
    (struct pic32_section *, asection *);
-     
+
+#if 0     
 static void pic32_free_section_list
    (struct pic32_section **);
+#endif
 
 static int pic32_section_list_length
    (struct pic32_section *);
@@ -325,7 +328,7 @@ static void pic32_free_region_info
    (struct region_info *);
 
 static void build_alloc_section_list
-   (unsigned int);
+   (unsigned int mask, struct pic32_section ** const ptr_list);
 
 static void allocate_memory
    (void);
@@ -353,7 +356,7 @@ static void build_free_block_list
    (struct pic32_region*, unsigned int);
 
 static int locate_sections
-   (unsigned int, unsigned int, struct pic32_region *);
+   (unsigned int, unsigned int, struct pic32_region *, struct pic32_section** const);
 
 static void update_section_info
    (bfd_vma, struct pic32_section *, struct pic32_region *);
@@ -465,6 +468,7 @@ static void gldelf32pic32c_after_allocation (void);
 static struct pic32_section *memory_region_list;
 struct pic32_section *unassigned_sections;
 static struct pic32_section *alloc_section_list;
+static struct pic32_section *alloc_bss_section_list;
 static struct pic32_section *pic32_section_list;
 extern unsigned int pic32_attribute_map
      (asection *);
@@ -2310,6 +2314,7 @@ pic32_unique_section(const char *s)
   return FALSE;
 }
 
+#if 0
 /*
 ** Free a section list
 */
@@ -2330,6 +2335,8 @@ pic32_free_section_list(lst)
 
   *lst = NULL;
 } /* static void pic32_free_section_list (...) */
+
+#endif
 
 /*
 ** Length of a section list
@@ -4095,6 +4102,10 @@ gldpic32c_finish (void)
   if (!bfd_link_relocatable (&link_info)) {
     bfd_pic32_finish();
 
+  if (pic32_data_init)
+    fill_dinit_section(link_info.output_bfd,
+                       &link_info, FALSE);
+
     if (pic32_stack_usage) {
       pic32_stack_estimation_run ();
     }
@@ -4622,7 +4633,7 @@ bfd_pic32_collect_section_size (s, region )
   bfd_size_type region_used = 0;
   unsigned long start = s->sec->vma;
   unsigned long load  = s->sec->lma;
-  unsigned long actual = s->sec->size;
+  unsigned long actual = s->sec->output_section->size;
 
   if (PIC32_IS_COHERENT_ATTR(s->sec)) {
     start &= 0xdfffffff;
@@ -4902,7 +4913,7 @@ bfd_boolean pic32_is_empty_list(struct pic32_section* const lst)
     return FALSE;
 }
 
-
+#if 0
 /*
 ** Create a new list
 **
@@ -4920,7 +4931,7 @@ pic32_init_section_list(lst)
   }
   memset(*lst, 0, sizeof(struct pic32_section));
 }
-
+#endif
 
 /*
 ** Add a section to the list

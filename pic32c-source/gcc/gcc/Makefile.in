@@ -1601,7 +1601,6 @@ OBJS = \
 	web.o \
 	wide-int.o \
 	wide-int-print.o \
-        offset_addressing.o \
 	xc-coverage.o \
 	xc-covtool-comm.o \
 	xc-rm-unn-sets.o \

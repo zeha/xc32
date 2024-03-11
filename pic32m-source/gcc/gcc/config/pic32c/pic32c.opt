@@ -25,7 +25,7 @@ Target Report RejectNegative Joined Var(mchp_processor_string) Init(0)
 -mprocessor=PROCESSOR	Specify the target PIC32 PROCESSOR
 
 mconfig-data-file=
-Target Report RejectNagative Joined Var(mchp_config_data_file) Undocumented
+Target Report RejectNegative Joined Var(mchp_config_data_file) Undocumented
 
 Waddress-attribute-use
 Warning C C++ Report Var(mchp_warn_address_attribute_use) Init(0)
@@ -188,8 +188,8 @@ mchp-stack-usage
 Target RejectNegative Var(mchp_stack_usage) Init(0)
 -mchp-stack-usage     Enable Microchip-specific stack usage reporting
 
-moptimize_imm_offset_addressing
-Target Var(optimize_imm_offset_addressing) Init(0)
+mopt-imm-offset
+Target Var(opt_imm_offset) Init(0)
 Reduce the immediate offset value for load / store instructions that use the [areg, #imm_offset] addressing mode
 
 ;

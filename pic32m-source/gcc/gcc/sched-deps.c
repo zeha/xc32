@@ -4819,6 +4819,25 @@ find_inc (struct mem_inc_info *mii, bool backwards)
 				    mii->mem_index);
 	  newaddr = plus_constant (GET_MODE (newaddr), newaddr,
 				   mii->mem_constant + mii->inc_constant);
+
+#if defined(TARGET_MCHP_PIC32C)
+          extern bool optimize_function_for_size_p (struct function *);
+          if (TARGET_THUMB && optimize_function_for_size_p (cfun))
+            {
+              rtx oldaddr = XEXP (*mii->mem_loc, 0);
+
+              int oldcst
+                  = address_cost (oldaddr, GET_MODE (oldaddr),
+                                  MEM_ADDR_SPACE (oldaddr), /*speed*/ false);
+              int newcst
+                  = address_cost (newaddr, GET_MODE (newaddr),
+                                  MEM_ADDR_SPACE (newaddr), /*speed*/ false);
+
+              if (newcst > oldcst)
+                goto next;
+            }
+#endif
+
 	  newmem = attempt_change (mii, newaddr);
 	  if (newmem == NULL_RTX)
 	    goto next;

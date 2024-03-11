@@ -1719,6 +1719,9 @@ typedef struct bfd_section
     struct bfd_link_order *link_order;
     struct bfd_section *s;
   } map_head, map_tail;
+#if defined(TARGET_IS_PIC32C) || defined(TARGET_IS_PIC32MX)
+  bfd_boolean was_reloc;
+#endif
 } asection;
 
 /* Relax table contains information about instructions which can

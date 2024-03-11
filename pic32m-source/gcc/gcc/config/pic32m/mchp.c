@@ -5722,8 +5722,12 @@ static const char *default_section_name(tree decl, SECTION_FLAGS_INT flags)
             }
           else if (mchp_persistent_p(decl))
             {
-              if (!pszSectionName || strcmp(pszSectionName, SECTION_NAME_PERSIST) != 0)
-		pszSectionName = SECTION_NAME_PBSS;
+              /* XC32-1597 Don't place variable into .pbss section if section
+                 attribute is specified */
+              if ((!pszSectionName
+                    || strcmp(pszSectionName, SECTION_NAME_PERSIST) != 0)
+                  && !lookup_attribute("section", DECL_ATTRIBUTES(decl)))
+                pszSectionName = SECTION_NAME_PBSS;
 	    }
           else if (mips_in_small_data_p(decl))
             {
@@ -7323,120 +7327,6 @@ void pic32_final_include_paths(struct cpp_dir* quote, ATTRIBUTE_UNUSED struct cp
       fprintf (stderr, "compiler:%s\n", p->name);
     }
   }
-}
-
-/* This hook adds in alternate library include paths before the standard path.
-   We must keep the standard path as it will contain device headers and the like.
-
-   This was originally a clone of cppdefault's code to add standard headers; we 
-   really only need the target header locations, i.e. NATIVE_SYSTEM_HEADER_DIR
-   (despite the really misleading name..)
-
-   However, this code must perform the same processing of the directory as 
-   add_standard_paths from cppdefault.c, which is responsible for adding the
-   sysroot or multilib prefix as needed.
-   */
-void
-pic32_system_pre_include_paths (const char *sysroot, const char *iprefix,
-				int stdinc)
-{
-  const struct default_include *p;
-  int relocated = cpp_relocated ();
-  const char dir_separator_str[] = { DIR_SEPARATOR, 0 };
-
-  /* These are provided just for us in cppdefault.c. */
-  const char *dir = cpp_NATIVE_SYSTEM_HEADER_DIR;
-  const size_t len = cpp_NATIVE_SYSTEM_HEADER_DIR_len;
-
-  /* do nothing if user opts out of standard includes, or if CROSS_INCLUDE_DIR
-     is undefined. */
-  if (!stdinc || !len)
-    return;
-
-  /* directory suffix corresponding to prevalent option. */
-  const char *sfx = NULL, *alt_sfx = NULL;
-
-  /* The order of these is essential! */
-  if (TARGET_NEWLIB_LIBC)
-    sfx = "newlib";
-  else if (TARGET_XC32_LIBCPP)
-    {
-      /* this should use DIR_SEPARATOR. but hopefully this option goes away
-	 first. the two suffixes will be added in the order sfx, alt_sfx. */
-      sfx = "Cpp/c";
-      alt_sfx = "Cpp";
-    }
-  else if (TARGET_LEGACY_LIBC)
-    sfx = "lega-c";
-
-  /* no suffix means no changes needed */
-  if (!sfx)
-    return;
-
-  /* find the dir(s) of interest in the standard paths. */
-  for (p = cpp_include_defaults; p->fname; p++)
-    {
-      if (strncmp (p->fname, dir, len) == 0)
-	{
-	  char *str, *alt;
-
-	  /* duplicate the add_standard_paths code to deal with sysroot
-	     or relocated toolchain (cppdefaults.c:176) */
-	  if (sysroot && p->add_sysroot)
-	    {
-	      char *sysroot_no_trailing_dir_separator = xstrdup (sysroot);
-	      size_t sysroot_len = strlen (sysroot);
-
-	      if (sysroot_len > 0 && sysroot[sysroot_len - 1] == DIR_SEPARATOR)
-		sysroot_no_trailing_dir_separator[sysroot_len - 1] = '\0';
-	      str = concat (sysroot_no_trailing_dir_separator, p->fname, NULL);
-	      free (sysroot_no_trailing_dir_separator);
-	    }
-	  else if (!p->add_sysroot && relocated
-		   && !filename_ncmp (p->fname, cpp_PREFIX, cpp_PREFIX_len))
-	    {
-	      static const char *relocated_prefix;
-	      char *ostr;
-	      /* If this path starts with the configure-time prefix,
-		 but the compiler has been relocated, replace it
-		 with the run-time prefix.  The run-time exec prefix
-		 is GCC_EXEC_PREFIX.  Compute the path from there back
-		 to the toplevel prefix.  */
-	      if (!relocated_prefix)
-		{
-		  char *dummy;
-		  /* Make relative prefix expects the first argument
-		     to be a program, not a directory.  */
-		  dummy = concat (gcc_exec_prefix, "dummy", NULL);
-		  relocated_prefix
-		    = make_relative_prefix (dummy, cpp_EXEC_PREFIX, cpp_PREFIX);
-		  free (dummy);
-		}
-	      ostr = concat (relocated_prefix, p->fname + cpp_PREFIX_len, NULL);
-	      str = update_path (ostr, p->component);
-	      free (ostr);
-	    }
-	  else
-	    str = update_path (p->fname, p->component);
-
-	  /* end of copy-paste, as we don't change any multilib paths. if we
-	     need to, we'll need the corresponding code from incpath.c. */
-	  gcc_assert (p->multilib == 0);
-
-	  /* save str so far if we need to add >1 suffixes */
-	  if (alt_sfx)
-	    alt = xstrdup (str);
-     
-	  str = reconcat (str, str, dir_separator_str, sfx, NULL);
-	  add_path (str, INC_SYSTEM, p->cxx_aware, false);
-
-	  if (alt_sfx)
-	    {
-	      alt = concat (alt, dir_separator_str, alt_sfx, NULL);
-	      add_path (alt, INC_SYSTEM, p->cxx_aware, false);
-	    }
-	}
-    }
 }
 
 rtx pic32_expand_software_reset_libcall(void)

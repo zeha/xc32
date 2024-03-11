@@ -46,6 +46,8 @@ struct pic32_section
 
 struct elf_internal_shdr;
 extern void pic32_fake_sections (bfd *, struct elf_internal_shdr *, asection *);
+extern void pic32_free_section_list (struct pic32_section **);
+extern void pic32_init_section_list (struct pic32_section **);
 
 /************************************************************************/
 /*   pic32-specific section flags                                       */

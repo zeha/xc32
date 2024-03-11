@@ -61,11 +61,6 @@ bfd_vma     pic32c_itcm_vectors_address = 0x0;
 bfd_boolean pic32c_relocate_vectors = FALSE;
 
 
-/* Data Structures for the Data Init Template */
-bfd             *init_bfd = NULL;
-unsigned char   *init_data = NULL;
-asection        *init_template = NULL;
-
 /* Data structures for fill option */
 struct pic32_fill_option *pic32_fill_option_list;
 
@@ -95,42 +90,13 @@ struct pic32_section *code_sections;
 
 struct pic32_memory *program_memory_free_blocks;
 
-static void bfd_pic32_write_data_header(unsigned char **d, bfd_vma addr,
-                                        bfd_vma len, int format);
-static void bfd_pic32_process_data_section(struct pic32_section *sect, PTR fp);
-static void bfd_pic32_process_code_section(struct pic32_section *sect, PTR fp, bfd_boolean update_flags);
+//static void bfd_pic32_process_data_section(struct pic32_section *sect, PTR fp);
+//static void bfd_pic32_process_code_section(struct pic32_section *sect, PTR fp, bfd_boolean update_flags);
 
 /* MERGE-TODO: added decl to avoid complaints. is this static? */
 bfd_boolean pic32c_elf_final_link(bfd *abfd, struct bfd_link_info *info);
 
-/*
- * ** Write a data record header
- * */
-static void
-bfd_pic32_write_data_header(unsigned char **d, bfd_vma addr, bfd_vma len, int format)
-{
-    addr &= 0xFFFFFFFF;
-    
-    /* write destination address */
-    *(*d)++ = (unsigned char) (addr & 0xFF);
-    *(*d)++ = (unsigned char) ((addr >> 8) & 0xFF);
-    *(*d)++ = (unsigned char) ((addr >> 16) & 0xFF);
-    *(*d)++ = (unsigned char) ((addr >> 24) & 0xFF);
-    
-    /* write destination length */
-    *(*d)++ = (unsigned char) (len & 0xFF);
-    *(*d)++ = (unsigned char) ((len >> 8) & 0xFF);
-    *(*d)++ = (unsigned char) ((len >> 16) & 0xFF);
-    *(*d)++ = (unsigned char) ((len >> 24) & 0xFF);
-    
-    /* write format code */
-    *(*d)++ = (unsigned char) (format & 0xFF);
-    *(*d)++ = (unsigned char) ((format >> 8) & 0xFF);
-    *(*d)++ = (unsigned char) ((format >> 16) & 0xFF);
-    *(*d)++ = (unsigned char) ((format >> 24) & 0xFF);
-}
-
-
+#if 0
 static void
 bfd_pic32_process_code_section(struct pic32_section *section, PTR fp, bfd_boolean update_flags)
 {
@@ -362,6 +328,9 @@ bfd_pic32_process_data_section (struct pic32_section *section, PTR fp)
 
   return;
 } /* static void bfd_pic32_process_data_section (...)*/
+#endif
+
+#if 0
 
 bfd_boolean
 pic32c_elf_final_link (bfd *abfd, struct bfd_link_info *info ATTRIBUTE_UNUSED)
@@ -412,10 +381,47 @@ pic32c_elf_final_link (bfd *abfd, struct bfd_link_info *info ATTRIBUTE_UNUSED)
 	fprintf (stderr, "\nProcessing data sections:\n");
       dat = init_data;
       for (s_sec = data_sections; s_sec != NULL; s_sec = s_sec->next)
+      {
+        /* find the sequence of sections allocated one after the other */
+        struct pic32_section *s_sec_last;
+        uint32_t lst_addr;
+#if 0
+        ///\ go further if the current one is one to be copied in .dinit
+        if ((s_sec->sec) && (s_sec->sec->size != 0) && ((s_sec->sec->flags & SEC_EXCLUDE) == 0))
+        {
+          lst_addr = s_sec->sec->output_offset + s_sec->sec->size + s_sec->sec->output_section->vma;
+
+          for (s_sec_last = s_sec; s_sec_last != NULL; s_sec_last = s_sec_last->next)
+          {
+            if (!(s_sec_last->sec) || (s_sec_last->next == NULL))
+              break;
+
+            if (!(s_sec_last->next->sec) || ((s_sec_last->next->sec->flags & SEC_EXCLUDE) != 0)) 
+              continue;   
+
+            if (lst_addr == (s_sec_last->next->sec->output_offset + 
+                             s_sec_last->next->sec->output_section->vma))
+            {
+              lst_addr += s_sec_last->next->sec->size;
+              fprintf(stderr, "Linked sections! +1 \n");
+            }
+            else
+            {
+              fprintf(stderr, "End of linked sections %x +%x != %x!\n", s_sec_last->sec->output_offset ,s_sec_last->sec->size ,s_sec_last->next->sec->output_offset);            
+              break;
+            }
+          }
+        }
+#endif
+
 	if ((s_sec->sec)
 	    && (((s_sec->sec->flags & SEC_EXCLUDE) == 0)
 		&& (s_sec->sec->output_section != bfd_abs_section_ptr)))
 	  bfd_pic32_process_data_section (s_sec, &dat);
+
+
+    }
+
 
       ///\ add itcm sections if any
       if (pic32_debug)
@@ -444,6 +450,7 @@ pic32c_elf_final_link (bfd *abfd, struct bfd_link_info *info ATTRIBUTE_UNUSED)
       *dat++ = 0;
       *dat++ = 0;
       *dat++ = 0;
+
       /* Reset the bfd file pointer, because
        there seems to be a bug with fseek()
        in Winblows that makes seeking to
@@ -463,6 +470,17 @@ pic32c_elf_final_link (bfd *abfd, struct bfd_link_info *info ATTRIBUTE_UNUSED)
 
     return TRUE;
 }
+#endif
+
+void  set_dinit_content(bfd* abfd, struct bfd_link_info* info);
+
+bfd_boolean
+pic32c_elf_final_link (bfd *abfd, struct bfd_link_info *info)
+{
+  set_dinit_content(abfd, info);
+  return TRUE;
+}
+
 
 void pic32c_fake_sections (bfd *abfd, Elf_Internal_Shdr *hdr, asection *sec)
 {
@@ -480,7 +498,47 @@ void pic32c_fake_sections (bfd *abfd, Elf_Internal_Shdr *hdr, asection *sec)
     }
 }
 
+/*
+** Create a new list
+**
+** - first item is null
+*/
+void pic32_init_section_list(struct pic32_section **lst)
+{
+  *lst = ((struct pic32_section *)
+         xmalloc(sizeof(struct pic32_section)));
+  if (NULL == lst) {
+    fprintf( stderr, "Fatal Error: Not enough memory to initialize section list\n");
+    abort();
+  }
+  (*lst)->next = 0;
+  (*lst)->sec = 0;
+  (*lst)->attributes = 0;
+  (*lst)->file = 0;
+}
+
+/*
+** Free a section list
+*/
+void pic32_free_section_list(struct pic32_section **lst)
+{
+  struct pic32_section *s, *next;
+
+  if (!(*lst))
+    return;
+
+  for (s = *lst; s != NULL; s = next)
+    {
+      next = s->next;
+      free(s);
+    }
+
+  *lst = NULL;
+} /* void pic32_free_section_list (...) */
+
+
 #include "pic32-stack-usage.c"
+#include "pic32-dinit.c"
 
 #if 0
 /* TODO not added yet */
@@ -548,4 +606,3 @@ mchp_undefsym_init (struct bfd_link_info *info)
   return table;
 }
 #endif
-

@@ -344,7 +344,7 @@ pic32_get_license (int current_license, int default_license, int valid_license,
 #endif /* XCLM_FULL_CHECKOUT */
     char *product = const_cast<char *>(product_name);
     char version[16] = "1.0"; /* 1.0 works for xccov; for xc32, the version is determined below */
-    char date[] = __DATE__;
+    char date[] = MCHP_BUILD_DATE;
 
 #if XCLM_FULL_CHECKOUT
     char *args[] = { NULL, NULL, NULL, NULL, NULL, NULL};
@@ -611,12 +611,17 @@ mchp_subtarget_override_options_license (void)
                                                   XCLM_XC32_PRODUCT_NAME,
                                                   true);
     LM_AFTER_GET_LICENSE;
-    mchp_xccov_license_valid = pic32_get_license (mchp_xccov_license_valid,
+    if (mchp_codecov !=0) {
+      mchp_xccov_license_valid = pic32_get_license (mchp_xccov_license_valid,
                                                   MCHP_XCLM_NO_CCOV_LICENSE,
                                                   MCHP_XCLM_VALID_CCOV_LICENSE,
                                                   XCLM_XCCOV_COMMAND_OPTION,
                                                   XCLM_XCCOV_PRODUCT_NAME,
                                                   false);
+    }
+    else {
+      mchp_xccov_license_valid = MCHP_XCLM_NO_CCOV_LICENSE ;
+    }
   }
 
   if (allow_options_p (mchp_pic32_license_valid))

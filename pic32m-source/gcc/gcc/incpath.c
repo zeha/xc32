@@ -130,26 +130,6 @@ add_standard_paths (const char *sysroot, const char *iprefix,
   int relocated = cpp_relocated ();
   size_t len;
 
-  /* directory suffix corresponding to prevalent option.
-     if sfx is null, none are required. */
-#ifdef TARGET_MCHP_PIC32MX
-  const char *sfx = NULL;
-  char *saved;
-
-  if (TARGET_NEWLIB_LIBC || TARGET_XC32_LIBCPP)
-    sfx = "newlib";
-  else if (TARGET_LEGACY_LIBC)
-    sfx = "lega-c";
-#endif
-
-#ifdef TARGET_MCHP_PIC32C
-  const char *sfx = NULL;
-  char *saved;
-
-  if (TARGET_NEWLIB_LIBC || cplusplus)
-    sfx = "newlib";
-#endif
-
   if (iprefix && (len = cpp_GCC_INCLUDE_DIR_len) != 0)
     {
       /* Look for directories that start with the standard prefix.
@@ -246,19 +226,6 @@ add_standard_paths (const char *sysroot, const char *iprefix,
 	      str = reconcat (str, str, dir_separator_str, imultiarch, NULL);
 	    }
 
-#if defined(TARGET_IS_PIC32MX) || defined(TARGET_MCHP_PIC32C)
-	  if (sfx != NULL && !strcmp (p->fname, cpp_NATIVE_SYSTEM_HEADER_DIR))
-	    {
-	      saved = xstrdup (str);
-
-	      str = reconcat (str, str, dir_separator_str, sfx, NULL);
-	      add_path (str, INC_SYSTEM, p->cxx_aware, false);
-
-	      /* add the original after any suffix */
-	      add_path (saved, INC_SYSTEM, p->cxx_aware, false);
-	      continue;
-	    }
-#endif
 	  add_path (str, INC_SYSTEM, p->cxx_aware, false);
 	}
     }

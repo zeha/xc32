@@ -45,8 +45,25 @@ along with GCC; see the file COPYING3.  If not see
 #include "version.h"
 
 /* PIC32C specific definitions */
+//macro to disable mpa by default//
+#define Os_WITH_MPA "%{mprocessor=*: -mprocessor=%:last_of(-mprocessor %{mprocessor=*: %*} "     \
+  "%<mprocessor=*)} ",                                                         \
+    "%{mdfp=*: -mdfp=%:last_of(-mdfp %{mdfp=*: %*} %<mdfp=*)} "                \
+  "%{mchp-stack-usage: -Wa,-mchp-stack-usage -Wl,--mchp-stack-usage} "         \
+  "%{mchp-stack-usage: -Wa,-mchp-stack-usage -Wl,--mchp-stack-usage} "        \
+  "%{Os:%{!mno-pa:-mpa}}"
+#define Os_NO_MPA "%{mprocessor=*: -mprocessor=%:last_of(-mprocessor %{mprocessor=*: %*} "     \
+  "%<mprocessor=*)} ",                                                         \
+    "%{mdfp=*: -mdfp=%:last_of(-mdfp %{mdfp=*: %*} %<mdfp=*)} "                \
+  "%{mchp-stack-usage: -Wa,-mchp-stack-usage -Wl,--mchp-stack-usage} "         \
+  "%{mchp-stack-usage: -Wa,-mchp-stack-usage -Wl,--mchp-stack-usage} " 
+
 
 #define PIC32C_SUBTARGET_OVERRIDE_OPTIONS pic32c_subtarget_override_options ()
+
+#undef PIC32C_SUBTARGET_OPTION_OPTIMIZATION_TABLE
+#define PIC32C_SUBTARGET_OPTION_OPTIMIZATION_TABLE \
+   { OPT_LEVELS_2_PLUS_SPEED_ONLY, OPT_fpartial_inlining, NULL, 1 },
 
 #define MCHP_EXTENDED_FLAG "|"
 #define MCHP_PROG_FLAG MCHP_EXTENDED_FLAG "pm" MCHP_EXTENDED_FLAG
@@ -96,12 +113,12 @@ along with GCC; see the file COPYING3.  If not see
 /* True if tree is a smart-io encoded format. */
 #define SMARTIO_FORMAT_P(NODE)                                                 \
   (TREE_CODE (NODE) == TREE_LIST                                               \
-   && TREE_PURPOSE (NODE) == SMARTIO_FORMAT_ID)              
+   && TREE_PURPOSE (NODE) == SMARTIO_FORMAT_ID)
 
 /* True if tree is a smart-io encoded spec string. */
 #define SMARTIO_SPEC_P(NODE)                                                   \
   (TREE_CODE (NODE) == TREE_LIST                                               \
-   && TREE_PURPOSE (NODE) == SMARTIO_SPEC_ID)                 
+   && TREE_PURPOSE (NODE) == SMARTIO_SPEC_ID)
 
 /* Get operands of a smart-io spec. */
 #define SMARTIO_FORMAT(NODE) (TREE_VALUE (NODE))
@@ -188,7 +205,7 @@ extern tree build_smartio_format (tree, tree);
 #undef DTOR_LIST_END
 #define DTOR_LIST_BEGIN asm(ARM_EABI_DTORS_SECTION_OP)
 #define DTOR_LIST_END /* empty */
-#else		      /* !defined (__ARM_EABI__) */
+#else /* !defined (__ARM_EABI__) */
 #define CTORS_SECTION_ASM_OP ARM_CTORS_SECTION_OP
 #define DTORS_SECTION_ASM_OP ARM_DTORS_SECTION_OP
 #endif /* !defined (__ARM_EABI__) */
@@ -247,88 +264,88 @@ extern void pic32c_final_include_paths (struct cpp_dir *, struct cpp_dir *);
           builtin_define ("_LANGUAGE_C");                                      \
         }                                                                      \
       if (mchp_stack_in_tcm)                                                   \
-	{                                                                      \
-	  builtin_define ("__XC32_STACK_IN_TCM__");                            \
-	  builtin_define ("__XC32_STACK_IN_TCM");                              \
-	}                                                                      \
+        {                                                                      \
+          builtin_define ("__XC32_STACK_IN_TCM__");                            \
+          builtin_define ("__XC32_STACK_IN_TCM");                              \
+        }                                                                      \
       if ((mchp_processor_string != NULL) && *mchp_processor_string)           \
-	{                                                                      \
-	  char *proc, *p;                                                      \
-	  gcc_assert (strlen (mchp_processor_string) <= 32);                   \
-	  for (p = (char *) mchp_processor_string; *p; p++)                    \
-	    {                                                                  \
-	      if (*p == '-')                                                   \
-	        *p = '_';                                                      \
-	      *p = TOUPPER (*p);                                               \
-	    }                                                                  \
-	  proc = (char *) alloca (strlen (mchp_processor_string) + 6);         \
-	  gcc_assert (proc != NULL);                                           \
-	  sprintf (proc, "__%s", mchp_processor_string);                       \
-	  gcc_assert (strlen (proc) > 0);                                      \
-	  builtin_define (proc);                                               \
-	  sprintf (proc, "__%s__", mchp_processor_string);                     \
-	  gcc_assert (strlen (proc) > 0);                                      \
-	  builtin_define (proc);                                               \
-	  sprintf (proc, "PIC%s", mchp_processor_string);                      \
-	  gcc_assert (strlen (proc) > 0);                                      \
-	  builtin_define_std (proc);                                           \
-	  if (strncmp (mchp_processor_string, "32CZ", 4) == 0)                 \
-	    {                                                                  \
-	      builtin_define_std ("PIC32CZ");                                  \
-	    }                                                                  \
-	}                                                                      \
+        {                                                                      \
+          char *proc, *p;                                                      \
+          gcc_assert (strlen (mchp_processor_string) <= 32);                   \
+          for (p = (char *) mchp_processor_string; *p; p++)                    \
+            {                                                                  \
+              if (*p == '-')                                                   \
+                *p = '_';                                                      \
+              *p = TOUPPER (*p);                                               \
+            }                                                                  \
+          proc = (char *) alloca (strlen (mchp_processor_string) + 6);         \
+          gcc_assert (proc != NULL);                                           \
+          sprintf (proc, "__%s", mchp_processor_string);                       \
+          gcc_assert (strlen (proc) > 0);                                      \
+          builtin_define (proc);                                               \
+          sprintf (proc, "__%s__", mchp_processor_string);                     \
+          gcc_assert (strlen (proc) > 0);                                      \
+          builtin_define (proc);                                               \
+          sprintf (proc, "PIC%s", mchp_processor_string);                      \
+          gcc_assert (strlen (proc) > 0);                                      \
+          builtin_define_std (proc);                                           \
+          if (strncmp (mchp_processor_string, "32CZ", 4) == 0)                 \
+            {                                                                  \
+              builtin_define_std ("PIC32CZ");                                  \
+            }                                                                  \
+        }                                                                      \
       else                                                                     \
-	{                                                                      \
-	  builtin_define ("__32CGENERIC__");                                   \
-	  builtin_define ("__32CGENERIC");                                     \
-	}                                                                      \
+        {                                                                      \
+          builtin_define ("__32CGENERIC__");                                   \
+          builtin_define ("__32CGENERIC");                                     \
+        }                                                                      \
       if ((pkgversion_string != NULL) && *pkgversion_string)                   \
-	{                                                                      \
-	  char *Microchip;                                                     \
-	  int pic32_compiler_version;                                          \
-	  gcc_assert (strlen (pkgversion_string) < 80);                        \
-	  Microchip = (char *) strrchr (pkgversion_string, 'v');               \
-	  if (Microchip != NULL)                                               \
-	    {                                                                  \
-	      int major = 0, minor = 0;                                        \
-	      while ((*Microchip)                                              \
-		     && ((*Microchip < '0') || (*Microchip > '9')))            \
-		{                                                              \
-		  Microchip++;                                                 \
-		}                                                              \
-	      if (*Microchip)                                                  \
-		{                                                              \
-		  major = strtol (Microchip, &Microchip, 0);                   \
-		}                                                              \
-	      if ((*Microchip)                                                 \
-		  && ((*Microchip == '_') || (*Microchip == '.')))             \
-		{                                                              \
-		  Microchip++;                                                 \
-		  minor = strtol (Microchip, &Microchip, 0);                   \
-		}                                                              \
-	      pic32_compiler_version = (major * 1000) + (minor * 10);          \
-	    }                                                                  \
-	  else                                                                 \
-	    {                                                                  \
-	      fatal_error (input_location,                                     \
-			   "internal error: version_string == NULL");          \
-	      builtin_define_with_int_value ("__C32_VERSION__", -1);           \
-	      builtin_define_with_int_value ("__XC32_VERSION__", -1);          \
-	      builtin_define_with_int_value ("__XC32_VERSION", -1);            \
-	      builtin_define_with_int_value ("__XC_VERSION__", -1);            \
-	      builtin_define_with_int_value ("__XC_VERSION", -1);              \
-	    }                                                                  \
-	  builtin_define_with_int_value ("__C32_VERSION__",                    \
-					 pic32_compiler_version);              \
-	  builtin_define_with_int_value ("__XC32_VERSION__",                   \
-					 pic32_compiler_version);              \
-	  builtin_define_with_int_value ("__XC32_VERSION",                     \
-					 pic32_compiler_version);              \
-	  builtin_define_with_int_value ("__XC_VERSION__",                     \
-					 pic32_compiler_version);              \
-	  builtin_define_with_int_value ("__XC_VERSION",                       \
-					 pic32_compiler_version);              \
-	}                                                                      \
+        {                                                                      \
+          char *Microchip;                                                     \
+          int pic32_compiler_version;                                          \
+          gcc_assert (strlen (pkgversion_string) < 80);                        \
+          Microchip = (char *) strrchr (pkgversion_string, 'v');               \
+          if (Microchip != NULL)                                               \
+            {                                                                  \
+              int major = 0, minor = 0;                                        \
+              while ((*Microchip)                                              \
+                     && ((*Microchip < '0') || (*Microchip > '9')))            \
+                {                                                              \
+                  Microchip++;                                                 \
+                }                                                              \
+              if (*Microchip)                                                  \
+                {                                                              \
+                  major = strtol (Microchip, &Microchip, 0);                   \
+                }                                                              \
+              if ((*Microchip)                                                 \
+                  && ((*Microchip == '_') || (*Microchip == '.')))             \
+                {                                                              \
+                  Microchip++;                                                 \
+                  minor = strtol (Microchip, &Microchip, 0);                   \
+                }                                                              \
+              pic32_compiler_version = (major * 1000) + (minor * 10);          \
+            }                                                                  \
+          else                                                                 \
+            {                                                                  \
+              fatal_error (input_location,                                     \
+                           "internal error: version_string == NULL");          \
+              builtin_define_with_int_value ("__C32_VERSION__", -1);           \
+              builtin_define_with_int_value ("__XC32_VERSION__", -1);          \
+              builtin_define_with_int_value ("__XC32_VERSION", -1);            \
+              builtin_define_with_int_value ("__XC_VERSION__", -1);            \
+              builtin_define_with_int_value ("__XC_VERSION", -1);              \
+            }                                                                  \
+          builtin_define_with_int_value ("__C32_VERSION__",                    \
+                                         pic32_compiler_version);              \
+          builtin_define_with_int_value ("__XC32_VERSION__",                   \
+                                         pic32_compiler_version);              \
+          builtin_define_with_int_value ("__XC32_VERSION",                     \
+                                         pic32_compiler_version);              \
+          builtin_define_with_int_value ("__XC_VERSION__",                     \
+                                         pic32_compiler_version);              \
+          builtin_define_with_int_value ("__XC_VERSION",                       \
+                                         pic32_compiler_version);              \
+        }                                                                      \
       mchp_init_cci (pfile);                                                   \
     }                                                                          \
   while (0)
@@ -394,14 +411,35 @@ extern unsigned int g_ARM_BUILTIN_MAX;
 #define PIC32C_SUBTARGET_GIMPLE_FOLD_BUILTIN(gsi)                              \
   pic32c_subtarget_gimple_fold_builtin (gsi)
 
+/* PIC32C target specific option optimizations table 
+   Fields are:
+   { enum opt_levels , opt_index, arg, value}
+   The option index and argument or enabled/disabled sense of the
+   option, as passed to handle_generated_option.  If ARG is NULL and
+   the option allows a negative form, the option is considered to be
+   passed in negative form when the optimization level is not one of
+   those in LEVELS (in order to handle changes to the optimization
+   level with the "optimize" attribute).
+*/
+#undef PIC32C_SUBTARGET_OPTION_OPTIMIZATION_TABLE
+#define PIC32C_SUBTARGET_OPTION_OPTIMIZATION_TABLE \
+    { OPT_LEVELS_2_PLUS_SPEED_ONLY, OPT_fpartial_inlining, NULL, 1 },\
+    /*disable at Os*/ \
+    { OPT_LEVELS_2_PLUS_SPEED_ONLY, OPT_fcode_hoisting, NULL, 1 }, \
+    { OPT_LEVELS_2_PLUS_SPEED_ONLY, OPT_fipa_cp, NULL, 1 }, \
+    { OPT_LEVELS_2_PLUS_SPEED_ONLY, OPT_fipa_sra, NULL, 1 }, \
+    { OPT_LEVELS_2_PLUS_SPEED_ONLY, OPT_fipa_icf, NULL, 1 }, \
+    { OPT_LEVELS_2_PLUS_SPEED_ONLY, OPT_fipa_bit_cp, NULL, 1 },
+
+
 /* PIC32C target specific attributes table.
    Fields are:
-   { name, min_len, max_len, decl_req, type_req, fn_type_req,                
-     affects_type_identity, handler, om_diagnostics } 
+   { name, min_len, max_len, decl_req, type_req, fn_type_req,
+     affects_type_identity, handler, om_diagnostics }
 
    MERGE-TODO: affects_type_identity is new as of GCC8, and has initially
    been populated with 'false'. fix this as needed.
- */ 
+ */
 #undef PIC32C_SUBTARGET_ATTRIBUTE_TABLE
 #define PIC32C_SUBTARGET_ATTRIBUTE_TABLE                                       \
   /* { name, min_len, max_len, decl_req, type_req, fn_type_req,                \
@@ -556,7 +594,7 @@ extern unsigned int g_ARM_BUILTIN_MAX;
 #undef SUBTARGET_LINKER_SCRIPT_SPEC
 #define SUBTARGET_LINKER_SCRIPT_SPEC ""
 
-/* We redefine these to keep crtbegin/crti but not crt0, which 
+/* We redefine these to keep crtbegin/crti but not crt0, which
    is replaced by device-specific startup. */
 #undef STARTFILE_SPEC
 #define STARTFILE_SPEC                                                         \
@@ -579,23 +617,20 @@ extern const char *mchp_last_of (int, const char **);
 #define SUBTARGET_EXTRA_SPEC_FUNCTIONS { "last_of", mchp_last_of },
 
 /* Use DRIVER_SELF_SPECS to do any massaging of input options before
-   they may be processed by device specs. FINAL_SELF_SPECS is 
+   they may be processed by device specs. FINAL_SELF_SPECS is
    used to provide defaults after they may include device spec additions. */
 #undef DRIVER_SELF_SPECS
 #define DRIVER_SELF_SPECS                                                      \
-  "%{mprocessor=*: -mprocessor=%:last_of(-mprocessor %{mprocessor=*: %*} "     \
-  "%<mprocessor=*)} ",                                                         \
-    "%{mdfp=*: -mdfp=%:last_of(-mdfp %{mdfp=*: %*} %<mdfp=*)} "                \
-  "%{mchp-stack-usage: -Wa,-mchp-stack-usage -Wl,--mchp-stack-usage} "
+ Os_NO_MPA
 
-/* We also add FINAL_SELF_SPECS to be processed by the driver after any 
-   user (i.e. device-specific) self_specs are run, before multilib selection. 
-   DRIVER_SELF_SPECS follows the option defaults and CL but not 
+/* We also add FINAL_SELF_SPECS to be processed by the driver after any
+   user (i.e. device-specific) self_specs are run, before multilib selection.
+   DRIVER_SELF_SPECS follows the option defaults and CL but not
    device spec file self_specs.
 
    Here, we add defaults if user specs did not supply them, and then
    call the usual machinery to handle 'canonical' arches for arm.
- */
+*/
 #define FINAL_SELF_SPECS                                                       \
   ARCH_DEFAULT_SPEC, ARCH_CANONICAL_SPECS, TARGET_MODE_SPECS
 

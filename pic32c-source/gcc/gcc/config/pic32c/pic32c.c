@@ -1309,7 +1309,17 @@ pic32c_subtarget_expand_builtin (unsigned int fcode, tree exp, rtx target)
       return target;
 
     case PIC32C_BUILTIN_SOFTWARE_BREAKPOINT:
-      if (TARGET_THUMB1 || TARGET_THUMB2)
+      /* XC32-1352: This branch will be taken for basically every ARM
+       * device that we have right now since TARGET_ARM = !TARGET_THUMB.
+       * Since bkpt insn is valid for all architectures starting from
+       * armv5t, Microchip doesn't have any ARM device that doesn't
+       * support it.
+       * FIXME: However, even if it is extremely unlikely, if we
+       * will release a new device with an older than armv5t arch, we
+       * will generate an invalid insn here and this branch has to be
+       * patched.
+       */
+      if (TARGET_THUMB1 || TARGET_THUMB2 || TARGET_ARM)
 	{
 	  emit_insn (gen_blockage ());
 	  emit_insn (gen_pic32c_bkpt ());
@@ -1318,7 +1328,7 @@ pic32c_subtarget_expand_builtin (unsigned int fcode, tree exp, rtx target)
       else
 	{
 	  warning (0,
-		   "__builtin_software_breakpoint() supported only for Thumb1 or Thumb2");
+		   "__builtin_software_breakpoint() supported only for Thumb1/Thumb2 or ARM");
 	}
       return target;
 
@@ -2629,7 +2639,11 @@ default_section_name (tree decl, SECTION_FLAGS_INT flags)
     {
       if (mchp_persistent_p(decl))
         {
-          if (!pszSectionName || strcmp(pszSectionName, SECTION_NAME_PERSIST) != 0)
+          /* XC32-1597 Don't place variable into .pbss section if section
+             attribute is specified */
+          if ((!pszSectionName
+                || strcmp(pszSectionName, SECTION_NAME_PERSIST) != 0)
+              && !lookup_attribute("section", DECL_ATTRIBUTES(decl)))
             pszSectionName = SECTION_NAME_PBSS;
         }
       if (pszSectionName)

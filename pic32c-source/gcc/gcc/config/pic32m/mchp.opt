@@ -355,7 +355,7 @@ Target Report RejectNegative Var(TARGET_NO_FLOAT)
 Prevent the use of all floating-point operations.
 
 mconfig-data-dir=
-Target Report RejectNagative Joined Var(mchp_config_data_dir) Undocumented
+Target Report RejectNegative Joined Var(mchp_config_data_dir) Undocumented
 
 mdebugger
 Target Var(TARGET_DEBUG_EXEC)
@@ -394,15 +394,11 @@ Target Var Var(TARGET_NEWLIB_LIBC)
 -newlib-libc	Use Newlib lib/include directory
 
 mdfp=
-Target Report RejectNagative Joined Var(mchp_dfp_dir) Undocumented
+Target Report RejectNegative Joined Var(mchp_dfp_dir) Undocumented Init(NULL)
 
 mrelaxed-math
 Target Var Var(TARGET_RELAXED_MATH)
 -relaxed-math	Use alternative floating-point support routines
-
-mxc32cpp-lib
-Target Var Var(TARGET_XC32_LIBCPP) Undocumented
--mxc32cpp-lib	Use the XC32 Standard C++ Libraries
 
 mtext=
 Target Report RejectNegative Joined Var(mchp_text_scn) Init(NULL)
@@ -413,7 +409,7 @@ Target Report RejectNegative Joined Var(mchp_it_transport)
 -mit=TRANSPORT	Enable instrumented trace for MPLAB REAL ICE
 
 mprocessor=
-Target Report RejectNegative Joined ToUpper Var(mchp_processor_string) Init(0)
+Target Report RejectNegative Joined ToUpper Var(mchp_processor_string) Init(NULL)
 -mprocessor=PROCESSOR	Specify the target PIC32 PROCESSOR
 
 mlicense-warning

@@ -165,7 +165,7 @@ static asection * bfd_pic32_create_section
 /*static lghica - co-resident*/ void pic32_append_section_to_list
   (struct pic32_section *, lang_input_statement_type *, asection *);
 
-static void pic32_free_section_list
+/*static*/ void pic32_free_section_list
   (struct pic32_section **);
 
 static int pic32_section_list_length
@@ -313,6 +313,7 @@ void pic32_report_crypto_sections
 void bfd_pic32_memory_summary
   (char *);
 
+void fill_dinit_section(bfd *, struct bfd_link_info *, bfd_boolean);
 
 /* lghica co-resident - to be reviewed*/
 
@@ -961,11 +962,11 @@ bfd_pic32_report_memory_usage (fp)
 
   struct region_report_tag dmregions_to_report[] =
     {{"kseg0_data_mem",
-      "kseg0 Data-Memory Usage",
-      "         Total kseg0_data_mem used"},
+      "Data-Memory Usage",
+      "         Total kseg0/kseg1 data_mem used"},
       {"kseg1_data_mem",
-      "kseg1 Data-Memory Usage",
-      "         Total kseg1_data_mem used"}
+      "Data-Memory Usage",
+      "         Total kseg0/kseg1 data_mem used"}
     };
 
   /* clear the counters */
@@ -1539,7 +1540,7 @@ bfd_boolean pic32_is_empty_list(struct pic32_section* const lst)
     return FALSE;
 }
 
-
+#if 0
 /*
 ** Create a new list
 **
@@ -1561,6 +1562,7 @@ pic32_init_section_list(lst)
   (*lst)->file = 0;
 }
 
+#endif
 
 /*
 ** Add a section to the list
@@ -1773,7 +1775,7 @@ bfd_pic32_report_sections (s, region, magic_sections, fp)
   bfd_size_type region_used = 0;
   unsigned long start = s->sec->vma;
   unsigned long load  = s->sec->lma;
-  unsigned long actual = s->sec->size;
+  unsigned long actual = s->sec->output_section->size;
   size_t name_len = 0;
 
   if (PIC32_IS_COHERENT_ATTR(s->sec)) {
@@ -2953,6 +2955,12 @@ pic32_finish(void)
 
   bfd_pic32_finish();
 
+  /* filling dinit */
+  if (pic32_data_init)
+    fill_dinit_section(link_info.output_bfd,
+                       &link_info,
+                       FALSE);
+
   if (pic32_stack_usage) {
     pic32_stack_estimation_run ();
   }
@@ -3094,26 +3102,6 @@ pic32_unique_section(const char *s)
   return FALSE;
 }
 
-/*
-** Free a section list
-*/
-static void
-pic32_free_section_list(lst)
-     struct pic32_section **lst;
-{
-  struct pic32_section *s, *next;
-
-  if (!(*lst))
-    return;
-
-  for (s = *lst; s != NULL; s = next)
-    {
-      next = s->next;
-      free(s);
-    }
-
-  *lst = NULL;
-} /* static void pic32_free_section_list (...) */
 
 /*
 ** Length of a section list
@@ -4215,6 +4203,7 @@ if (link_info.shared || link_info.pie)
 
 /* include the improved memory allocation functions */
 #include "../bfd/pic32m-allocate.c"
+
 
 static bfd_boolean
 elf_link_check_archive_element (name, abfd, sec_info)

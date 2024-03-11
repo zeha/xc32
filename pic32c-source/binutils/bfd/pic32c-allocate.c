@@ -26,7 +26,7 @@
 ** It is included by the following target-specific
 ** emulation files:
 **
-**   ld/emultmpl/elf32pic32mx.em
+**   ld/emultmpl/elf32pic32c.em
 **
 */
 
@@ -123,6 +123,9 @@ determine_tcm_style (lang_memory_region_type **itcm_region, lang_memory_region_t
     if (valid_region(region)) {
 	*itcm_region = region;
 	found_itcm_or_dtcm = TRUE;
+    }
+    else { // if there is no tcm region don't try to put the vectors there ... xc32-1937
+	 pic32c_vectors_in_tcm = FALSE;
     }
     region = region_lookup("dtcm");
     if (valid_region(region)) {
@@ -240,6 +243,10 @@ pic32_init_region_info(struct region_info *rinfo) {
 
     lang_memory_region_type *code_region, *data_region;
 
+    // if dinit is explicitly provided then do it even on loadable data sections and all tcm
+    // note: not done for the default code region
+    bfd_boolean init_always = pic32_data_init &&  pic32_has_data_init_option;
+
     /* wipe out whatever was there. */
     memset(rinfo, 0, sizeof *rinfo);
 
@@ -260,7 +267,7 @@ pic32_init_region_info(struct region_info *rinfo) {
                 fprintf(stderr, "classify: data -> 'ram'\n");
             rinfo->data = pic32_new_region(data_region);
             rinfo->data->flags.is_exec = check_region_flags(data_region, (SEC_CODE), 0);
-            rinfo->data->flags.init_needed = check_region_flags(data_region, 0, (SEC_LOAD));
+            rinfo->data->flags.init_needed = check_region_flags(data_region, 0, (SEC_LOAD)) || init_always;
         }
     }
     else {
@@ -272,12 +279,13 @@ pic32_init_region_info(struct region_info *rinfo) {
           fprintf(stderr, "classify: data -> 'sram'\n");
         rinfo->data = pic32_new_region(data_region);
         rinfo->data->flags.is_exec = check_region_flags(data_region, (SEC_CODE), 0);
-        rinfo->data->flags.init_needed = check_region_flags(data_region, 0, (SEC_LOAD));
+        rinfo->data->flags.init_needed = check_region_flags(data_region, 0, (SEC_LOAD)) || init_always;
       }
     }
 
     if (valid_region(code_region)) {
-        if (check_region_flags(code_region, (SEC_CODE), 0)) {
+
+	if (check_region_flags(code_region, (SEC_CODE), 0)) {
             if (pic32_debug) 
                 fprintf(stderr, "classify: code -> 'rom'\n");
             rinfo->code = pic32_new_region(code_region);
@@ -299,7 +307,7 @@ pic32_init_region_info(struct region_info *rinfo) {
             check_region_flags(data_region, (SEC_DATA), 0)) {
             rinfo->data_tcm = pic32_new_region(data_region);
             rinfo->data_tcm->flags.is_exec = check_region_flags(data_region, (SEC_CODE), 0);
-            rinfo->data_tcm->flags.init_needed = check_region_flags(data_region, 0, (SEC_LOAD));
+            rinfo->data_tcm->flags.init_needed = check_region_flags(data_region, 0, (SEC_LOAD)) || init_always;
         }
 
         if (rinfo->tcm_style == TCM_COMBINED) {
@@ -309,7 +317,7 @@ pic32_init_region_info(struct region_info *rinfo) {
             check_region_flags(code_region, (SEC_CODE), 0)) {
             rinfo->code_tcm = pic32_new_region(code_region);
             rinfo->code_tcm->flags.is_exec = 1;
-            rinfo->code_tcm->flags.init_needed = check_region_flags(code_region, 0, (SEC_LOAD));
+            rinfo->code_tcm->flags.init_needed = check_region_flags(code_region, 0, (SEC_LOAD)) || init_always;
         }
     }
 
@@ -323,10 +331,16 @@ pic32_init_region_info(struct region_info *rinfo) {
         }
         rinfo->code = rinfo->data;
 
-        /* in this case we have to assume the section is loaded, as there's no
-           ROM */
-        rinfo->code->flags.init_needed = 0;
-        rinfo->data->flags.init_needed = 0;
+        /* in this case there is no rom and we must assume that the section is loaded
+           we default to not doing data init on such sections because we assume it is handled
+           by the loader, but in some cases a user will want data-init to happen on a soft reset
+           so we allow them to specify that by explicitly providing the -qdata-init flag
+
+        */
+
+	rinfo->code->flags.init_needed = init_always;
+	rinfo->data->flags.init_needed = init_always;
+
 
         if (pic32_debug) 
             fprintf(stderr, "classify: code and data will be in same region\n");
@@ -956,7 +970,7 @@ allocate_tcm_memory() {
     fprintf(stderr,"\nBuilding allocation list for regions \"itcm\", \"dtcm\" and \"tcm\"\n"
            "  attribute mask = %x\n", mask);
 
-  build_alloc_section_list(mask);
+  build_alloc_section_list(mask, &alloc_section_list);
   // if (pic32_section_list_length(alloc_section_list) == 0)
   //   return result;
 
@@ -984,8 +998,8 @@ allocate_tcm_memory() {
 
       reset_locate_options();
       
-      result |= locate_sections(address, dtcm, region_info.code_tcm);   /* most restrictive  */
-      result |= locate_sections(all_attr, dtcm, region_info.code_tcm);  /* less restrictive */
+      result |= locate_sections(address, dtcm, region_info.code_tcm, &alloc_section_list);   /* most restrictive  */
+      result |= locate_sections(all_attr, dtcm, region_info.code_tcm, &alloc_section_list);  /* less restrictive */
   }
   
   if (!pic32_valid_region(region_info.data_tcm)) {
@@ -1002,8 +1016,8 @@ allocate_tcm_memory() {
       
       reset_locate_options();
       
-      result |= locate_sections(address, 0, region_info.data_tcm);   /* most restrictive  */
-      result |= locate_sections(all_attr, 0, region_info.data_tcm);  /* least restrictive */
+      result |= locate_sections(address, 0, region_info.data_tcm, &alloc_section_list);   /* most restrictive  */
+      result |= locate_sections(all_attr, 0, region_info.data_tcm, &alloc_section_list);  /* least restrictive */
   }
 
   if (pic32c_stack_in_tcm)
@@ -1039,7 +1053,7 @@ allocate_program_memory() {
     fprintf(stderr,"\nBuilding allocation list for region \"program\" \n"
            "  attribute mask = %x\n", mask);
 
-  build_alloc_section_list(mask);
+  build_alloc_section_list(mask, &alloc_section_list);
   if (pic32_section_list_length(alloc_section_list) == 0)
     return result;
 
@@ -1060,8 +1074,8 @@ allocate_program_memory() {
 
   reset_locate_options();
 
-  result |= locate_sections(address, itcm, region_info.code);   /* most restrictive  */
-  result |= locate_sections(all_attr, itcm, region_info.code);  /* less restrictive */
+  result |= locate_sections(address, itcm, region_info.code, &alloc_section_list);   /* most restrictive  */
+  result |= locate_sections(all_attr, itcm, region_info.code, &alloc_section_list);  /* less restrictive */
   
   return result;
 } /* allocate_program_memory() */
@@ -1107,7 +1121,7 @@ allocate_program_memory() {
 static int
 allocate_data_memory() {
     struct pic32_section *s;
-    unsigned int mask = data|bss|persist|stack|heap|ramfunc;
+    unsigned int mask = data|persist|stack|heap|ramfunc;
     int result = 0;
 
     if (pic32_debug)
@@ -1115,11 +1129,13 @@ allocate_data_memory() {
                "  attribute mask = %x\n", mask);
 
     // build a list of data sections to be allocated -should not contain any tcm
-
-    build_alloc_section_list(mask);
+    // build a distinct list for bss to have bss sections one after the other
+    build_alloc_section_list(mask, &alloc_section_list);
+    build_alloc_section_list(bss, &alloc_bss_section_list);
 
     if (pic32_debug) {
         pic32_print_section_list(alloc_section_list, "allocate_data");
+        pic32_print_section_list(alloc_bss_section_list, "allocate_bss");
     }
 
     if (!pic32_valid_region(region_info.data)) {
@@ -1139,9 +1155,10 @@ allocate_data_memory() {
     // now we allocate the sections on the list to ram
     // 
     reset_locate_options();
-
-    result |= locate_sections(address, dtcm, region_info.data);
-    result |= locate_sections(all_attr, stack|heap|dtcm, region_info.data);
+    result |= locate_sections(address, dtcm, region_info.data, &alloc_bss_section_list);
+    result |= locate_sections(address, dtcm, region_info.data, &alloc_section_list);
+    result |= locate_sections(all_attr, stack|heap|dtcm, region_info.data, &alloc_bss_section_list);
+    result |= locate_sections(all_attr, stack|heap|dtcm, region_info.data, &alloc_section_list);
 
 #if 0
   /* user-defined heap */
@@ -1188,6 +1205,15 @@ allocate_data_memory() {
   }
   }
 
+  /* if any sections are left in the allocation list, report an error */
+  for (s = alloc_bss_section_list; s != NULL; s = s->next) {
+  if ((s->attributes != 0) && (s->sec->linked == 0) /* lghica co-resident*/)
+  {
+    report_allocation_error(s);
+    result = 1;
+    break;
+  }
+  }
 
   return result;
 } /* allocate_data_memory() */
@@ -1302,7 +1328,8 @@ locate_group_section(struct pic32_section *s,
 
 static int
 locate_single_section(struct pic32_section *s,
-                      struct pic32_region *regn) {
+                      struct pic32_region *regn,
+                      struct pic32_section **const ptr_alloc_list) {
 
   struct pic32_memory *b;
   bfd_vma len = s->sec->rawsize? s->sec->rawsize : s->sec->size;
@@ -1358,7 +1385,7 @@ locate_single_section(struct pic32_section *s,
   if (pic32_debug)
     fprintf(stderr,"    removing %s from allocation list\n", s->sec->name);
 
-  pic32_remove_from_section_list(alloc_section_list,s);
+  pic32_remove_from_section_list(*ptr_alloc_list,s);
 
   return result;
 } /* locate_single_section() */
@@ -1388,7 +1415,7 @@ locate_single_section(struct pic32_section *s,
  */
 static int
 locate_sections(unsigned int mask, unsigned int block,
-                struct pic32_region *regn)
+                struct pic32_region *regn, struct pic32_section** const ptr_alloc_list)
 {
     struct pic32_section *s,*next;
     int result = 0;
@@ -1400,7 +1427,7 @@ locate_sections(unsigned int mask, unsigned int block,
 	       locate_options, exclude_addr);
     }
     
-    for (s = alloc_section_list; s != NULL; s = next) {
+    for (s = *ptr_alloc_list; s != NULL; s = next) {
 	
 	next = s->next;
 
@@ -1437,7 +1464,7 @@ locate_sections(unsigned int mask, unsigned int block,
 		    }
 		}
 		else {
-		    result |= locate_single_section(s, regn);
+		    result |= locate_single_section(s, regn, ptr_alloc_list);
 		}
 	    }
 	}
@@ -2110,14 +2137,13 @@ insert_alloc_section (struct pic32_section *lst,
  *   unless they have an absolute address.
  */
 static void
-build_alloc_section_list(unsigned int mask) {
+build_alloc_section_list(unsigned int mask, struct pic32_section ** const ptr_alloc_list) {
   struct pic32_section *s, *prev, *next;
 
-  if (alloc_section_list)
-    pic32_free_section_list(&alloc_section_list);
+  if (*ptr_alloc_list)
+    pic32_free_section_list(ptr_alloc_list);
 
-
-  pic32_init_section_list(&alloc_section_list);
+  pic32_init_section_list(ptr_alloc_list);
 
 
   /* insert the unassigned sections */
@@ -2134,7 +2160,7 @@ build_alloc_section_list(unsigned int mask) {
                 s->sec->name, s->sec->rawsize? s->sec->rawsize :
                 s->sec->size, s->sec->flags, s->attributes);
       }
-      insert_alloc_section(alloc_section_list, s);
+      insert_alloc_section(*ptr_alloc_list, s);
       prev->next = next; /* unlink it from unassigned_sections */        
     } else
       prev = s;
@@ -2634,8 +2660,8 @@ allocate_user_memory() {
       pic32_print_section_list(alloc_section_list, "allocation");
     }
   
-    result |= locate_sections(address, 0, &temp_region);   /* most restrictive  */
-    result |= locate_sections(all_attr, 0, &temp_region);  /* least restrictive */
+    result |= locate_sections(address, 0, &temp_region, &alloc_section_list);   /* most restrictive  */
+    result |= locate_sections(all_attr, 0, &temp_region, &alloc_section_list);  /* least restrictive */
   }
 
   return result;

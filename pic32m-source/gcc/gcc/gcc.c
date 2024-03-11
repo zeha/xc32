@@ -1142,21 +1142,6 @@ static const char *self_spec = "";
 
 #if defined(TARGET_MCHP_PIC32MX) || defined(TARGET_MCHP_PIC32C)
 static unsigned int use_custom_linker_script = 0;
-/* 
-  XC32-1817
-
-  This is a temporary fix:until MUSL libc will be used for both C and C++ projs.
-
-  Until then, we have to make sure that the C startup-files (listed in the
-  device-specs file and compiled by invoking the cc1 tool directly) use the 
-  "-isystem =/include/musl" option.
-
-  When we will get rid of the the newlib libc we can move this 
-  '-isystem =/include/musl' into CC1_SPEC (CC1_SPEC being used to provide extra 
-  args to cc1 and cc1plus)
-
-*/
-static const char* imusl = "%{!mnewlib-libc:-isystem =/include/musl}";
 #endif
 
 /* Standard options to cpp, cc1, and as, to reduce duplication in specs.
@@ -1169,7 +1154,7 @@ static const char* imusl = "%{!mnewlib-libc:-isystem =/include/musl}";
    call cc1 (or cc1obj in objc/lang-specs.h) from the main specs so
    that we default the front end language better.  */
 static const char *trad_capable_cpp =
-"cc1 %(imusl) -E %{traditional|traditional-cpp:-traditional-cpp}";
+"cc1 -E %{traditional|traditional-cpp:-traditional-cpp}";
 
 /* We don't wrap .d files in %W{} since a missing .d file, and
    therefore no dependency entry, confuses make into thinking a .o
@@ -1383,10 +1368,10 @@ static const struct compiler default_compilers[] =
 %eGNU C no longer supports -traditional without -E}\
       %{save-temps*|traditional-cpp|no-integrated-cpp:%(trad_capable_cpp) \
 	  %(cpp_options) -o %{save-temps*:%b.i} %{!save-temps*:%g.i} \n\
-	    cc1 %(imusl) -fpreprocessed %{save-temps*:%b.i} %{!save-temps*:%g.i} \
+	    cc1 -fpreprocessed %{save-temps*:%b.i} %{!save-temps*:%g.i} \
 	  %(cc1_options)}\
       %{!save-temps*:%{!traditional-cpp:%{!no-integrated-cpp:\
-	  cc1 %(imusl) %(cpp_unique_options) %(cc1_options)}}}\
+	  cc1 %(cpp_unique_options) %(cc1_options)}}}\
       %{!fsyntax-only:%(invoke_as)}}}}", 0, 0, 1},
   {"-",
    "%{!E:%e-E or -x required when input is from standard input}\
@@ -1399,19 +1384,19 @@ static const struct compiler default_compilers[] =
       %{!E:%{!M:%{!MM:\
 	  %{save-temps*|traditional-cpp|no-integrated-cpp:%(trad_capable_cpp) \
 		%(cpp_options) -o %{save-temps*:%b.i} %{!save-temps*:%g.i} \n\
-		    cc1 %(imusl) -fpreprocessed %{save-temps*:%b.i} %{!save-temps*:%g.i} \
+		    cc1 -fpreprocessed %{save-temps*:%b.i} %{!save-temps*:%g.i} \
 			%(cc1_options)\
 			%{!fsyntax-only:%{!S:-o %g.s} \
 			    %{!fdump-ada-spec*:%{!o*:--output-pch=%i.gch}\
 					       %W{o*:--output-pch=%*}}%V}}\
 	  %{!save-temps*:%{!traditional-cpp:%{!no-integrated-cpp:\
-		cc1 %(imusl) %(cpp_unique_options) %(cc1_options)\
+		cc1 %(cpp_unique_options) %(cc1_options)\
 		    %{!fsyntax-only:%{!S:-o %g.s} \
 		        %{!fdump-ada-spec*:%{!o*:--output-pch=%i.gch}\
 					   %W{o*:--output-pch=%*}}%V}}}}}}}", 0, 0, 0},
   {".i", "@cpp-output", 0, 0, 0},
   {"@cpp-output",
-   "%{!M:%{!MM:%{!E:cc1 %(imusl) -fpreprocessed %i %(cc1_options) %{!fsyntax-only:%(invoke_as)}}}}", 0, 0, 0},
+   "%{!M:%{!MM:%{!E:cc1 -fpreprocessed %i %(cc1_options) %{!fsyntax-only:%(invoke_as)}}}}", 0, 0, 0},
   {".s", "@assembler", 0, 0, 0},
   {"@assembler",
    "%{!M:%{!MM:%{!E:%{!S:as %(asm_debug) %(asm_options) %i %A }}}}", 0, 0, 0},
@@ -1638,7 +1623,6 @@ static struct spec_list static_specs[] =
   INIT_STATIC_SPEC ("cpp_debug_options",	&cpp_debug_options),
   INIT_STATIC_SPEC ("cpp_unique_options",	&cpp_unique_options),
   INIT_STATIC_SPEC ("trad_capable_cpp",		&trad_capable_cpp),
-  INIT_STATIC_SPEC ("imusl",		&imusl),
   INIT_STATIC_SPEC ("cc1",			&cc1_spec),
   INIT_STATIC_SPEC ("cc1_options",		&cc1_options),
   INIT_STATIC_SPEC ("cc1plus",			&cc1plus_spec),
@@ -3550,16 +3534,6 @@ display_help (void)
   fputs (_("  -print-multi-directory   Display the root directory for versions of libgcc.\n"), stdout);
 #if defined(TARGET_MCHP_PIC32MX)
   fputs (_("\
-  -relaxed-math            Use alternative floating-point support routines\n"), stdout);
-  fputs (_("\
-  -legacy-libc             Use default legacy lib C routines\n"), stdout);
-  fputs (_("\
-  -no-legacy-libc          Use HTC lib C routines\n"), stdout);
-  fputs (_("\
-  -newlib-libc             Use Newlib lib C routines\n"), stdout);
-  fputs (_("\
-  -no-newlib-libc          Use the default C routines\n"), stdout);
-  fputs (_("\
   -mgen-pie-static         Generate static linked position independent code\n"), stdout);
 #endif
   fputs (_("\
@@ -4857,6 +4831,13 @@ set_collect_gcc_options (void)
   int i;
   int first_time;
 
+#if defined(TARGET_MCHP_PIC32C)
+  enum pic32_pa_status { PA_STATUS_IGNORED = 0,
+                         PA_STATUS_UNKNOWN = 1,
+                         PA_STATUS_USE = 2 };
+  enum pic32_pa_status pa_status = PA_STATUS_UNKNOWN;
+#endif
+
   /* Build COLLECT_GCC_OPTIONS to have all of the options specified to
      the compiler.  */
   obstack_grow (&collect_obstack, "COLLECT_GCC_OPTIONS=",
@@ -4878,6 +4859,23 @@ set_collect_gcc_options (void)
 	  == SWITCH_IGNORE)
 	continue;
 
+#if defined(TARGET_MCHP_PIC32C)
+      // Check if -mpa or -marm is supplied, but -mpa is not supported
+      // with -marm.  At this point we don't know if -marm will be
+      // specified later so for now don't obstack_grow, and just set
+      // the status.
+      if (strcmp (switches[i].part1, "mpa") == 0)
+        {
+          if (pa_status == PA_STATUS_UNKNOWN)
+            pa_status = PA_STATUS_USE;
+
+          continue;
+        }
+
+      if (strcmp (switches[i].part1, "marm") == 0)
+        pa_status = PA_STATUS_IGNORED;
+#endif
+
       obstack_grow (&collect_obstack, "'-", 2);
       q = switches[i].part1;
       while ((p = strchr (q, '\'')))
@@ -4886,6 +4884,7 @@ set_collect_gcc_options (void)
 	  obstack_grow (&collect_obstack, "'\\''", 4);
 	  q = ++p;
 	}
+
       obstack_grow (&collect_obstack, q, strlen (q));
       obstack_grow (&collect_obstack, "'", 1);
 
@@ -4903,6 +4902,13 @@ set_collect_gcc_options (void)
 	  obstack_grow (&collect_obstack, "'", 1);
 	}
     }
+  
+#if defined(TARGET_MCHP_PIC32C)
+  // If mpa was supplied but not marm, then add mpa
+  if (pa_status == PA_STATUS_USE)
+    obstack_grow (&collect_obstack, " '-mpa'", sizeof (" '-mpa'") - 1);
+#endif
+
   obstack_grow (&collect_obstack, "\0", 1);
   xputenv (XOBFINISH (&collect_obstack, char *));
 }
@@ -7985,10 +7991,6 @@ driver::set_up_specs () const
   }
 
 #if defined(TARGET_MCHP_PIC32C)
-  /*
-    pic32c-g++ still uses newlib as libc
-   */
-  if (strncmp (progname, "pic32c-gcc", strlen ("pic32c-gcc")) == 0)
     {
       specs_file
           = find_a_file (&startfile_prefixes, "pic32c.musl.specs", R_OK, true);
@@ -7998,10 +8000,6 @@ driver::set_up_specs () const
 #endif
 
 #if defined(TARGET_MCHP_PIC32MX)
-  /*
-    pic32m-g++ still uses newlib as libc
-   */
-  if (strncmp (progname, "pic32m-gcc", strlen ("pic32m-gcc")) == 0)
     {
       specs_file
           = find_a_file (&startfile_prefixes, "pic32m.musl.specs", R_OK, true);
@@ -8414,8 +8412,8 @@ driver::maybe_print_and_exit () const
   if (print_version)
     {
 #if defined(_BUILD_MCHP_)
-      printf (_("%s %s%s Build date: %s\n"), progname,
-	      pkgversion_string,version_string, __DATE__);
+      printf (_("%s %s%s Build date: %s\n"), progname, pkgversion_string,
+	      version_string, MCHP_BUILD_DATE);
 #else
       printf (_("%s %s%s\n"), progname, pkgversion_string,
 	      version_string);
@@ -8425,18 +8423,6 @@ driver::maybe_print_and_exit () const
       fputs (_("This is free software; see the source for copying conditions.  There is NO\n\
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"),
 	     stdout);
-
-#if defined(_BUILD_MCHP_) && defined(TARGET_MCHP_PIC32MX)
-        if (rib)
-          {
-            if (ISDIGIT(rib->resource_version_increment))
-              {
-                fputs (_("\n*** NOTICE: This is a non-commercial compiler version. Please contact your FAE or microchip.com/MPLABXC to obtain an official, released compiler.\n\n"), stdout);
-              }
-            close_rib();
-            rib = NULL;
-          }
-#endif
 
       if (! verbose_flag)
 	return 0;

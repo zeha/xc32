@@ -61,29 +61,17 @@ mchp_sha.o: $(srcdir)/config/mchp-cci/mchp_sha.c \
 	$(COMPILER) -c $(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS) \
 	 $(srcdir)/config/mchp-cci/mchp_sha.c
 
-# Remove all objects dependent on SKIP_LICENSE_MANAGER flag
-clean-lm:
-	rm -f mchp.o mchp-license-manager.o
-
 # Force license manager enablement
-force_lm = $(if $(XC32_ENABLE_LM),$(subst -DSKIP_LICENSE_MANAGER,,$(1)) $(XC32_LM_FLAGS),$(1))
-
-mchp-license-manager.o: $(srcdir)/config/pic32m/mchp-license-manager.c $(CONFIG_H) $(SYSTEM_H) \
-	coretypes.h $(TM_H) $(TREE_H) output.h $(C_COMMON_H) \
-	$(srcdir)/config/pic32m/mchp.h $(srcdir)/config/mchp-cci/xclm_public.h \
-	$(srcdir)/config/pic32m/mchp-protos.h
-	$(COMPILER) -c $(call force_lm,$(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS)) $(INCLUDES) \
-		$(srcdir)/config/pic32m/mchp-license-manager.c
+mchp-license-manager.o: ALL_CPPFLAGS += -imacros host-lm.h
+mchp-license-manager.o: $(srcdir)/config/pic32m/mchp-license-manager.c
+	$(COMPILE) $<
+	$(POSTCOMPILE)
 
 # Microchip PIC32-specific format checking and pragmas
-mchp.o: $(srcdir)/config/pic32m/mchp.c $(srcdir)/config/pic32m/mchp.h \
-  $(srcdir)/config/mchp-cci/cci.h \
-  $(CONFIG_H) $(SYSTEM_H) coretypes.h \
-  tree.h c-family/c-format.h intl.h $(CPPLIB_H) c-family/c-pragma.h $(TM_H) $(TM_P_H) \
-  toplev.h libfuncs.h langhooks.h sched-int.h function.h $(C_COMMON_H) \
-  $(srcdir)/config/mips/mips-machine-function.h $(srcdir)/config/pic32m/mchp-protos.h
-	$(COMPILER) -c $(call force_lm,$(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS)) $(INCLUDES) \
-	  $(srcdir)/config/pic32m/mchp.c
+mchp.o: ALL_CPPFLAGS += -imacros host-lm.h
+mchp.o: $(srcdir)/config/pic32m/mchp.c
+	$(COMPILE) $<
+	$(POSTCOMPILE)
 
 mchp-pragmas.o: $(srcdir)/config/pic32m/mchp-pragmas.c \
   $(srcdir)/config/mchp-cci/cci.c \

@@ -73,26 +73,6 @@ enum pic32_isa_mode
 #define ASM_OUTPUT_LABELREF(FILE, NAME)		\
    mchp_asm_output_labelref (FILE, NAME)
 
-/* Put at the end of the command given to the linker if -nodefaultlibs or
- * -nostdlib is not specified on the command line. This includes all the
- * standard libraries, the peripheral libraries if the -mno-peripheral-libs
- * option is not specified on the command line, and the processor-specific
- * peripheral library if -mno-peripheral-libs option is not specified, but
- * the -mprocessor option is specified.
- */
-#undef  LIB_SPEC
-#define LIB_SPEC "--start-group -lpic32 %{!mno-mpdebug-lib:-ldebug} \
- %{mrelaxed-math:%nmrelaxed-math is deprecated and has no effect (will be removed in future releases)} \
- %{mlegacy-libc|mno-legacy-libc|legacy-libc|no-legacy-libc:%n[no]legacy-libc is deprecated and has no effect (will be removed in future releases)}\
- %{fPIC|fpic:%efPIC is deprecated (will be removed in future releases)}\
- %{fPIE|fpie:%efPIE is deprecated (will be removed in future releases)}\
- %{mperipheral-libs:-lmchp_peripheral %{mprocessor=*:-lmchp_peripheral_%*}} \
- -lc-newlib \
- %{mfp64 : -lm-newlib ; : -lm-newlib -lm -le} \
- %{mdspr2*: -ldspr2 -ldsp } %{mprocessor=32MX*: -ldsp } %{mprocessor=32MM*: -ldsp } -lgcc \
- -lpic32 \
- --end-group"
-
 #if 0
 #undef LIBSTDCXX
 #define LIBSTDCXX "supc++"
@@ -105,8 +85,6 @@ enum pic32_isa_mode
 #undef MATH_LIBRARY_PROFILE
 #define MATH_LIBRARY_PROFILE MATH_LIBRARY
 #endif
-
-#define XC32CPPLIB_OPTION "-mxc32cpp-lib"
 
 /* MERGE-NOTES: -mm and -pic variants are now handled by multilib. */
 # undef  STARTFILE_SPEC
@@ -202,16 +180,6 @@ extern void pic32_final_include_paths(struct cpp_dir*,struct cpp_dir*);
 #define MPLABC32_COMMON_INCLUDE_PATH ""
 #endif
 
-#ifndef MPLABC32_LEGACY_COMMON_INCLUDE_PATH
-#define MPLABC32_LEGACY_COMMON_INCLUDE_PATH DIR_SEPARATOR_STR \
-                                     "lega-c"
-#endif
-
-#ifndef MPLABC32_NEWLIB_COMMON_INCLUDE_PATH
-#define MPLABC32_NEWLIB_COMMON_INCLUDE_PATH DIR_SEPARATOR_STR \
-                                     "newlib"
-#endif
-
 /* These are MIPS-specific specs that we do not utilize.  Undefine them
  * and define them as an empty string.
  */
@@ -238,7 +206,6 @@ extern void pic32_final_include_paths(struct cpp_dir*,struct cpp_dir*);
 %(endian_spec) \
 %{G*} %{mips1} %{mips2} %{mips3} %{mips4} %{mips32*} %{mips64*} \
 %{shared} \
-%{mxc32cpp-lib|mnewlib-libc: %:replace-outfile(-lm -lm-newlib)} \
 %{mno-smart-io:--no-smart-io} %{msmart-io=0:--no-smart-io} \
 %{mmemorysummary=*:--memorysummary %*} \
 %{mfill=*:--fill=%*}"
@@ -330,14 +297,7 @@ extern const char *mchp_last_of (int, const char **);
    %{mhard-float : %{!mfp32 : -mfp64 ;: %hard-float with -mfp32 is not supported }} \
    %{mfp64 : -mhard-float } \
    %{!mfp64 : %{!mno-float : %{!mhard-float : -msoft-float }}} \
-   %{legacy-libc:%{!mno-legacy-libc:-mlegacy-libc }} \
-   %{no-legacy-libc:%{!mlegacy-libc:-mno-legacy-libc }} \
-   %{newlib-libc:%{!mno-newlib-libc:-mnewlib-libc }} \
-   %{no-newlib-libc:%{!mnewlib-libc:-mno-newlib-libc }} \
    %{mgen-pie-static : -fPIC -G0 -pie -static -relaxed-math -mno-smart-io } \
-   %{mnewlib-libc|newlib-libc : %{mlegacy-libc|legacy-libc:%emay not use both -mlegacy-libc and -mnewlib-libc }} \
-   %{mnewlib-libc : -mno-smart-io -mno-legacy-libc } \
-   %{newlib-libc : -mno-smart-io -mno-legacy-libc } \
    %{!r:%{mprocessor=*: %{!c:%{!S:%{!E:%{!nostartfiles:%{mdfp=*: %* %J%{!pie:/xc32/startup/crt0.S } %J%{pie:/xc32/startup/crt0_pic.S } ; : %J%{!pie: %s./crt0.S } %J%{pie: %s./crt0_pic.S }}}}}}}}\
    %{!r:%{mprocessor=*: %{!c:%{!S:%{!E:%{mdfp=*: %* %J%{mprocessor=*:/xc32/%*/p%*.S } ;: %J%{mprocessor=*: %s./proc/%*/p%*.S } }}}}}}\
    %{!r:%{mprocessor=*: %{!c:%{!S:%{!E:%:if-exists(%{mdfp=*: %* %J%{mprocessor=*:/xc32/%*/p%*_voff_init.S }}) }}}}}\
@@ -388,8 +348,6 @@ extern const char *mchp_last_of (int, const char **);
  %{!mconfig-data-dir=* : %{mprocessor=*: %{mdfp=* : -mconfig-data-dir=%* %J%{mprocessor=*:/xc32/%*}}}}\
  %{mdfp=*:-isystem %* %J/include}\
  %{flto: %{!fno-fat-lto-objects: -ffat-lto-objects}} \
- %{legacy-libc:%{!mno-legacy-libc:-mlegacy-libc}} \
- %{no-legacy-libc:%{!mlegacy-libc:-mno-legacy-libc}} \
  %{mdfp=*: -mresource=%* %J/xc32} \
  %(mchp_cci_cc1_spec) \
  %(subtarget_cc1_spec) \
@@ -1234,6 +1192,11 @@ extern const char *mchp_last_of (int, const char **);
 #define MIPS_SUBTARGET_ENCODE_SECTION_INFO(decl,rtl,first) \
   mchp_subtarget_encode_section_info(decl,rtl,first)
 
+#undef MIPS_SUBTARGET_OPTION_OPTIMIZATION_TABLE
+#define MIPS_SUBTARGET_OPTION_OPTIMIZATION_TABLE \
+  { OPT_LEVELS_2_PLUS_SPEED_ONLY, OPT_fpartial_inlining, NULL, 1 }, \
+  { OPT_LEVELS_2_PLUS_SPEED_ONLY, OPT_fguess_branch_probability, NULL, 1 },
+
 #undef TARGET_ATTRIBUTE_TAKES_IDENTIFIER_P
 #define TARGET_ATTRIBUTE_TAKES_IDENTIFIER_P mchp_attribute_takes_identifier_p
 
@@ -1322,10 +1285,14 @@ do {                                    \
         char has_explicit_dsp_option = 0;                   \
         char* path = NULL;                                  \
         /* get path from -mdfp=, if available */            \
-        for (index=1; index < decoded_options_count; index++)                      \
-            if (decoded_options[index].opt_index == OPT_mdfp_) {                   \
+        for (index=1; index < decoded_options_count; index++) \
+           if (decoded_options[index].opt_index == OPT_mdfp_) {                   \
+             if (decoded_options[index].arg == NULL) {                                              \
+               fatal_error(UNKNOWN_LOCATION,"missing argument to \"-mdfp=\"");                             \
+               return;                                                                 \
+              }                                                                           \
               const size_t mdfp_arg_len = strlen (decoded_options[index].arg);     \
-              path = (char *) xmalloc (mdfp_arg_len + 6);                          \
+              path = (char *) xmalloc (mdfp_arg_len + 6);   \
               memcpy (path, decoded_options[index].arg, mdfp_arg_len);             \
               memcpy (path + mdfp_arg_len, "/xc32", 6);                            \
               break;                                                               \
@@ -1338,7 +1305,7 @@ do {                                    \
                 char *pic32_resource_file = NULL;                                             \
                 mprocessor_string = decoded_options[index].arg;                               \
                 if (mprocessor_string == NULL) {                                              \
-                   error("missing argument to \"-mprocessor=\"");                             \
+                   fatal_error(UNKNOWN_LOCATION,"missing argument to \"-mprocessor=\"");                             \
                    return;                                                                 \
                   }                                                                           \
                 pic32_resource_file = (char*)xmalloc(strlen(path) +                           \
@@ -1348,11 +1315,11 @@ do {                                    \
                     MCHP_CONVERT_BACKSLASH(pic32_resource_file);                              \
                     rib = read_device_rib(pic32_resource_file, mprocessor_string);            \
                     if (rib == 0) {                                                           \
-                        error("Could not open resource file for: %qs at %qs", mprocessor_string, pic32_resource_file);  \
+                        fatal_error(UNKNOWN_LOCATION,"Could not open resource file for: %qs at %qs", mprocessor_string, pic32_resource_file);  \
                         return;                                                            \
                     }                                                                         \
                     if (strcmp(rib->tool_chain,"XC32")) {     \
-                        error("Invalid resource file\n");     \
+                        fatal_error(UNKNOWN_LOCATION,"Invalid resource file\n");     \
                         close_rib();                          \
                         return;                            \
                     }                                         \

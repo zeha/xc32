@@ -36,12 +36,9 @@ static void write_section_list (bfd *, PTR, struct section_list *);
 static void free_section_list (struct section_list **);
 
 static int exit_status = 0;
-
 /* The BFD object file format.  */
 static char *default_target = NULL;
-
 static bfd_size_type actual_prog_used;
-
 static int verbose = 0;
 #if defined(TARGET_MCHP_PIC32MX)
 static int sort_by_address = 0;
@@ -57,7 +54,6 @@ static int physical_addresses = 0;
 static int a0_address_mapping = 0;
 static int show_usage = 0;
 static int write_sla = 0;
-
 static long long int pfm_offset_address_by = 0;
 static long long int bfm_offset_address_by = 0;
 
@@ -79,7 +75,15 @@ static inline int IS_BFM_ADDR (const bfd_vma addr)
 
   return ((((x) >= (0x1FC00000)) && ((x) <= (0x1FC73FFF))));
 }
-
+static int write_generated_files(bfd *abfd);
+static int generating_subordinate_files(char *target);
+static char *subordinate_image_file = NULL;
+char *subordinate_image = NULL;
+static char *subordinate_c_file = NULL;
+static char *subordinate_h_file = NULL;
+static char *subordinate_copy_mode = NULL;
+static char *subordinate_image_offset = 0;
+static int subordinate_image_offset_set = 0;
 static struct option long_options[] =
 {
   {"sort", no_argument, NULL, 'a'}, /* Kept for backwards compatibility. */
@@ -93,6 +97,13 @@ static struct option long_options[] =
   {"help", no_argument, NULL, '?'},
   {"pfm-offset", required_argument, NULL, 'P'},
   {"bfm-offset", required_argument, NULL, 'B'},
+#ifdef TARGET_MCHP_PIC32C
+  {"image", required_argument, NULL, 'I'},
+  {"image-offset", required_argument, NULL, 'A'},
+  {"image-generated-c", required_argument, NULL, 'C'},
+  {"image-generated-h", required_argument, NULL, 'H'},
+  {"image-copy-mode", required_argument, NULL, 'M'},
+#endif
   {0, no_argument, 0, 0}
 };
 
@@ -101,73 +112,138 @@ main (int argc, char **argv)
 {
   int c;
   char *target = default_target;
-
+  int arg_index = 0;
   program_name = *argv;
   xmalloc_set_program_name (program_name);
-
   bfd_init ();
   set_default_bfd_target ();
 
-  while ((c = getopt_long (argc, argv, "awip0svb?P:B:",
-                           long_options, (int *) 0)) != EOF)
-    switch (c)
-      {
-      case 'a' :
-        sort_by_address = 1;
-        break;
-      case 'w' :
-        write_sla = 1;
-        break;
-      case 'v' :
-        verbose = 1;
-        break;
-      case 'p' :
-        physical_addresses = 1;
-        break;
-      case 'i' :
-        physical_addresses = 0;
-        break;
-      case '0' :
-        a0_address_mapping = 1;
-        break;
-      case 's' :
-        a0_address_mapping = 0;
-        break;
-      case 'b' :
-        target = optarg;
-        break;
-      case '?' :
-        show_usage = 1;
-        break;
-      case 'P' :
-        pfm_offset_address_by = strtoll(optarg,0,0);
-        break;
-      case 'B' :
-        bfm_offset_address_by = strtoll(optarg,0,0);
-        break;
-      default :
-        show_usage = 1;
-	break;
+  while ((c = getopt_long (argc, argv, "awip0svb?P:B:I:A:C:H:M:",
+                           long_options, (int *) 0)) != EOF) {
+      arg_index++;
+      switch (c) {
+          case 'a' :
+              sort_by_address = 1;
+              break;
+          case 'w' :
+              write_sla = 1;
+              break;
+          case 'v' :
+              verbose = 1;
+              break;
+          case 'p' :
+              physical_addresses = 1;
+              break;
+          case 'i' :
+              physical_addresses = 0;
+              break;
+          case '0' :
+              a0_address_mapping = 1;
+              break;
+          case 's' :
+              a0_address_mapping = 0;
+              break;
+          case 'b' :
+              target = optarg;
+              break;
+          case '?' :
+              show_usage = 1;
+              break;
+          case 'P' :
+              pfm_offset_address_by = strtoll(optarg, 0, 0);
+              break;
+          case 'B' :
+              bfm_offset_address_by = strtoll(optarg, 0, 0);
+              break;
+#ifdef TARGET_MCHP_PIC32C
+          case 'I':
+              subordinate_image_file = strdup(optarg);
+              break;
+          case 'A':
+              subordinate_image_offset = strdup(optarg);
+              subordinate_image_offset_set = 1;
+              break;
+          case 'C':
+              subordinate_c_file = strdup(optarg);
+              break;
+          case 'H':
+              subordinate_h_file = strdup(optarg);
+              break;
+          case 'M':
+              subordinate_copy_mode = strdup(optarg);
+              break;
+#endif
+          default :
+              show_usage = 1;
+              break;
       }
+  }
 
   if (show_usage)
     usage (stdout, 0);
-
-  if (optind == argc)
-  {
-    char *file = strdup ("a.out");
-    hexify_file (file, target);
-    free (file);
+#ifdef TARGET_MCHP_PIC32C
+  if (generating_subordinate_files(target)) {
+      return exit_status;
   }
-  else
-    for (; optind < argc;)
-      hexify_file (argv[optind++], target);
-
-  return exit_status;
+#endif
+    if ((subordinate_c_file || subordinate_h_file || subordinate_copy_mode) && !subordinate_image_file ) {
+        fprintf(stderr,"*** Error: -I or --image arg is required. Pass -? or --help for more info.\n");
+        exit(1);
+    }
+    if (optind == argc) {
+      char *file = strdup ("a.out");
+      hexify_file (file, target);
+      free (file);
+    }
+    else
+      for (; optind < argc;)
+        hexify_file (argv[optind++], target);
+    return exit_status;
 }
 
-static void
-nonfatal (const char *msg)
+static int generating_subordinate_files(char *target){
+    if (!subordinate_image_offset_set && !subordinate_image_file) {
+        return 0;
+    }
+    if (subordinate_image_offset_set && !subordinate_image_file) {
+        fprintf(stderr,"*** Error: -I or --image arg is required. Pass -? or --help for more info.\n");
+        exit(1);
+    }
+    if (subordinate_image_file) {
+        if (subordinate_image_offset_set != 1) {
+            fprintf(stderr,"*** Error: -A or --image-offset arg is required. Pass -? or --help for more info.\n");
+            exit(1);
+        }
+        if (subordinate_copy_mode) {
+            if( (strcmp(subordinate_copy_mode, "auto") != 0) && (strcmp(subordinate_copy_mode, "manual") != 0) ) {
+                fprintf(stderr,"*** Error: -M or --image-copy-mode arg is not allowed. Pass -? or --help for more info.\n");
+                exit(1);
+            }
+        } else {
+            subordinate_copy_mode = strdup("auto");
+        }
+        char *image_file  = subordinate_image_file;
+        if (get_file_size(image_file) < 1) {
+            exit_status = 1;
+            return 1;
+        }
+        bfd *abfd;
+        abfd = bfd_openr(image_file, target);
+        if (!abfd) {
+            nonfatal(image_file);
+            exit_status = 1;
+            return 1;
+        }
+        if (bfd_check_format(abfd, bfd_object)) {
+            exit_status = write_generated_files(abfd);
+        }
+        bfd_close(abfd);
+        return 1;
+    }
+    return 0;
+}
+
+static void nonfatal (const char *msg)
 {
   bfd_nonfatal (msg);
   exit_status = 1;
@@ -205,7 +281,7 @@ hexify_file (char *filename, char *target)
         dot[0] = '\0';
 
       /* create a new name with .hex extension */
-      hex_file = malloc (strlen (filename) + strlen (".hex") + 1);
+      hex_file = xmalloc (strlen (filename) + strlen (".hex") + 1);
       sprintf (hex_file, "%s%s", filename, ".hex");
 
       exit_status = write_hex_file (hex_file, abfd);
@@ -222,9 +298,12 @@ hexify_file (char *filename, char *target)
 static void
 usage (FILE *stream, int status)
 {
-  fprintf (stream,
-           "%s %s\n\tConverts an ELF file to Intel hex format\n\n",
-           program_name, BFD_VERSION_STRING);
+#ifdef TARGET_MCHP_PIC32C
+  fprintf(stream, "\n\tConverts an ELF file to Intel hex or assembly format\n\n");
+#endif
+#ifdef TARGET_MCHP_PIC32M
+  fprintf(stream, "\n\tConverts an ELF file to Intel hex format\n\n");
+#endif
   fprintf (stream,
            "USAGE: %s [options] [file]\n"
            "  -a, --sort         sort sections by address (default)\n"
@@ -235,6 +314,13 @@ usage (FILE *stream, int status)
            /* After A0, we default to standard address mapping */
            "  -0, --a0-mapping   use A0 address mapping\n"
            "  -s, --std-mapping  use standard address mapping (default)\n"
+#endif
+#ifdef TARGET_MCHP_PIC32C
+           "  -I, --image         specify name of executable to generate .c and .h files. Generated .c and .h files will be named after executable\n"
+           "  -A, --image-offset  set boot memory address offset by specifying a hexadecimal address\n"
+           "  -C, --image-generated-c      specify name or path for generated .c file instead of using the name of the image executable\n"
+           "  -H, --image-generated-h      specify name or path for generated .h file instead of using the name of the image executable\n"
+           "  -M, --image-copy-mode        specify auto or manual in lowercase. Auto is set by default if this option is not specified and indicates that the standard data-init mechanism will handle image copying\n"
 #endif
            "  -v, --verbose      print verbose messages\n"
            "  -?, --help         print this screen\n",
@@ -254,7 +340,7 @@ write_hex_file (char *name, bfd *abfd)
       printf ("Error: could not open file %s for writing!\n", name);
       return 1;
     }
-  
+
   if (verbose)
     {
       printf ("writing %s\n\n", name);
@@ -351,7 +437,6 @@ write_section_list (bfd *abfd, PTR fp, struct section_list *p)
     }
 }
 
-
 static void
 free_section_list (struct section_list **lst)
 {
@@ -370,7 +455,6 @@ free_section_list (struct section_list **lst)
 
 /*
   https://training.mips.com/basic_mips/PDF/Memory_Map.pdf
-
   Memory map with fixed MMU MIPS32
  */
 static file_ptr
@@ -394,6 +478,7 @@ decode_address (file_ptr addr)
 
   return addr;
 }
+
 static void
 write_section (bfd *abfd, asection *sect, PTR fp)
 {
@@ -532,4 +617,315 @@ write_start_linear_address_record (bfd_vma address, PTR fp)
     }
 
   fprintf (hexfile, ":04000005%8.8x%2.2x\n", addr, (unsigned char) sum);
+}
+
+static int isHex(char* c);
+static int isHex(char* c){
+    char* current;
+    for(current = c; *current; current++){
+        if(isxdigit((unsigned char)*current) == 0){
+            return 0;
+        }
+    }
+    return 1;
+}
+
+static void convert_to_function_name(char *filename);
+static void convert_to_function_name(char *filename){
+    char *current_char;
+    for (current_char = filename; *current_char; current_char++) {
+        if(isalnum(*current_char) == 0) *current_char = '_';
+    }
+}
+
+static void write_generated_h_file(void){
+    char *subordinate_file;
+    if (subordinate_h_file) {
+        subordinate_file = subordinate_h_file;
+        char *dot = strrchr(subordinate_file, '.');
+        if (dot){
+            dot[0] = '\0';
+        }
+    } else if (subordinate_c_file){
+        subordinate_file = subordinate_c_file;
+    } else {
+        subordinate_file = subordinate_image_file;
+    }
+    char *header_name = subordinate_file;
+    int name_len = strlen(header_name) + strlen(".h") + 1;
+    char *header_file = xmalloc(name_len);
+    strncpy(header_file, subordinate_file, name_len);
+    strcat(header_file,".h");
+    if (!header_file) {
+        fprintf(stderr, "Error: could not create header file '%s\n'", header_file);
+        exit(1);
+    }
+    FILE *header_fp = fopen(header_file, "w+");
+    if (!header_fp) {
+        fprintf(stderr, "Error: could not open header file '%s' for writing!\n", header_name);
+        exit(1);
+    }
+    fprintf(header_fp,  "#ifndef __BIN2HEX_XC32_SECONDARY_RECORD_H\n"
+                        "#define __BIN2HEX_XC32_SECONDARY_RECORD_H\n");
+    if (strcmp(subordinate_copy_mode, "manual") == 0) {
+        fprintf(header_fp, "typedef struct __xc32_section_record {\n"
+                           "    void *sectionDestinationAddress;\n"
+                           "    const unsigned char *sectionData;\n"
+                           "} __xc32_section_record;\n"
+                           "\n"
+                           "extern const __xc32_section_record __attribute__((space(prog))) __secondary_image_sections[];\n"
+                           "extern const void __xc32_LoadSecondarySection(__xc32_section_record *section_to_load);\n"
+                           "extern const void __xc32_LoadAllSecondarySections();\n");
+    } else if (strcmp(subordinate_copy_mode, "auto") != 0) {
+        fprintf(stderr, "Error: --image-copy-mode or -M is not set properly\n");
+        exit(1);
+    }
+    fprintf(header_fp, "\n#endif //__BIN2HEX_XC32_SECONDARY_RECORD_H");
+    free(header_file);
+}
+
+struct section_list *write_section_subordinate (bfd *abfd, struct section_list *first, PTR fp);
+struct section_list *
+        write_section_subordinate (bfd *abfd, struct section_list *first, PTR fp){
+    bfd_size_type  total;
+    asection *sect = first->sec;
+    struct section_list *last = first;
+    struct section_list *s,*next = first->next;
+    total = 0;
+    size_t longest_section_name = 0;
+    for (last = first;
+         last && (((last->sec->flags & SEC_LOAD) == 0) ||
+                  ((last->sec->flags & SEC_HAS_CONTENTS) == 0));
+         last = last->next);
+    if (last == 0) return last;  /* no more sections */
+    total = last->sec->size;
+    do {
+        for (next = last->next;
+             next && (((next->sec->flags & SEC_LOAD) == 0) ||
+                      ((next->sec->flags & SEC_HAS_CONTENTS) == 0));
+             next = next->next);
+        if (next) {
+            if(strlen(next->sec->name) > longest_section_name) {
+                longest_section_name = strlen(next->sec->name);
+            }
+            total += next->sec->size;
+        } else break;
+        last = next;
+    } while (1);
+
+    write_generated_h_file();
+    int is_manual_mode = (0 == (strcmp("manual",subordinate_copy_mode)));
+    FILE *imagefile=fp;
+    fprintf(imagefile, "/*\n"
+        " *   EDIT AT YOUR OWN RISK\n"
+        " *   Generated by xc32-bin2hex %s\n"
+        " *\n", BFD_VERSION_STRING);
+    if (is_manual_mode) {
+        fprintf(imagefile," *\n"
+            " *   Passing \"-C/--image-generated-c <path>\" along with \"-M/--image-copy-mode manual\" generates a .c file with\n"
+            " *   the secondary core contents. A .h file is generated providing helper functions to copy the secondary core contents.\n"
+            " *   Not specifying \"-M/--image-copy-mode\" defaults to using auto as the mode.\n"
+            " *\n");
+        fprintf(imagefile, " *\n"
+            " *   Defining the __XC32_SECTION_MEM_CPY macro can override the image copying function. Instead of using memcpy,\n"
+            " *   an end-user can implement their own copying function but must ensure the function signature matches the\n"
+            " *   data types of arguments passed.\n"
+            " *\n");
+    } else {
+        fprintf(imagefile," *\n"
+            " *   Passing \"-C/--image-generated-c <path>\" along with \"-M/--image-copy-mode auto\" generates a .c file with\n"
+            " *   the secondary core contents. The dinit mechanism will automatically copy the secondary contents to relevant memory. \n"
+            " *   Not specifying \"-M/--image-copy-mode\" defaults to using auto as the mode.\n"
+            " *\n");
+    }
+    fprintf(imagefile," * */\n");
+    int section_str_len = strlen("{ (void*) 0xXXXXXXXX, __%s_image_section%d, sizeof(__%s_image_section%d) } ");
+    int declaration_str_len = strlen("const __xc32_section_record __attribute__((space(prog))) __secondary_core_sections[] = { };");
+    char generated_secondary_sections[abfd->section_count * section_str_len + declaration_str_len +
+                                      2*longest_section_name + 2*abfd->section_count];
+    char *place_in_array = generated_secondary_sections;
+    int loadable_section_count = 0;
+    unsigned int unique_id = 0;
+    uint32_t hex_as_int;
+    char* unparsed = NULL;
+    hex_as_int = strtoll(subordinate_image_offset, &unparsed, 16);
+    if (*unparsed != '\0'){
+        fprintf(stderr, "*** Error: Image offset '%s'  is an illegal value ", subordinate_image_offset);
+        exit(1);
+    }
+    char *curr_section_name;
+    int indent_offset = 4;
+    for (s = first; s != NULL ; s = s->next) {
+        if (is_manual_mode && (s == first)) {
+            fprintf(imagefile, "#ifndef __XC32_SECTION_MEM_CPY\n"
+                               "#define __XC32_SECTION_MEM_CPY memcpy\n"
+                               "#endif\n"
+                               " \n"
+                               "#include <string.h>\n"
+                               " \n"
+                               "typedef struct __xc32_section_record {\n"
+                               "    void *sectionDestinationAddress;\n"
+                               "    const unsigned char *sectionData;\n"
+                               "    const size_t sectionSizeInBytes;\n"
+                               "} __xc32_section_record;\n");
+            place_in_array += sprintf(place_in_array,"const __xc32_section_record __attribute__((space(prog))) __secondary_core_sections[] = \n");
+            place_in_array += sprintf(place_in_array, "{");
+            place_in_array += sprintf(place_in_array, "\n");
+        }
+        if ((s->sec->flags & SEC_LOAD) && (s->sec->flags & SEC_HAS_CONTENTS)
+        && ((sect->flags & SEC_NEVER_LOAD) == 0) ) {
+            loadable_section_count++;
+            curr_section_name = strdup(s->sec->name);
+            convert_to_function_name(curr_section_name);
+            if (is_manual_mode) {
+                place_in_array += sprintf(place_in_array, "%*c", indent_offset, ' ');
+                place_in_array += sprintf(place_in_array, "{ (void*) 0x%2.2X, __%s_section_id%d, sizeof(__%s_section_id%d) }",
+                                          hex_as_int + s->sec->vma,
+                                          curr_section_name, unique_id, curr_section_name, unique_id);
+                if (s != last) {
+                    place_in_array += sprintf(place_in_array, ",\n");
+                }
+                if (s == last) {
+                    place_in_array += sprintf(place_in_array, "\n");
+                    place_in_array += sprintf(place_in_array, "};");
+                }
+            }
+            if (s->sec->vma != s->sec->lma) {
+                fprintf(stderr, "*** Info: VMA does not match LMA. Defaulting to VMA for section %s\n", s->sec->name);
+            }
+            unsigned char *buffer = xmalloc(total);
+            unsigned char *data = buffer;
+            uint32_t sec_size = s->sec->size;
+            uint32_t mem_passed = 0x0;
+            if (bfd_get_section_contents(abfd, s->sec, data, 0, s->sec->size) == 0) {
+                fprintf(stderr, "*** Error %d: could not get section contents %s\n",
+                        bfd_get_error(), s->sec->name);
+            }
+            if (is_manual_mode) {
+                fprintf(imagefile, "\nconst static unsigned char __attribute__((space(prog))) __%s_section_id%d[] = \n"
+                                   "{\n", curr_section_name, unique_id);
+                size_t j;
+                fprintf(imagefile, "%*c", indent_offset, ' ');
+                for (j = 0; j < sec_size; j++) {
+                    if (j != 0) {
+                        if ((mem_passed % 16) == 0) {
+                            fprintf(imagefile, ",\n");
+                            fprintf(imagefile, "%*c", indent_offset, ' ');
+                        } else {
+                            fprintf(imagefile, ",");
+                        }
+                    }
+                    fprintf(imagefile, "0x%2.2x", data[0]);
+                    data += 1;
+                    buffer += 1;
+                    mem_passed++;
+                }
+                fprintf(imagefile, "\n};\n");
+                free(curr_section_name);
+                unique_id++;
+            } else {
+                size_t j;
+                // As of at least v4.20, the compiler is making char arrays 4-byte aligned.
+                int vars_to_fill = (4 - ((hex_as_int + s->sec->vma) % 4)) % 4;
+                if (vars_to_fill != 0) {
+                    for (j = 0; j < vars_to_fill; j++) {
+                        fprintf(imagefile,
+                                "\nunsigned char __attribute__((space(data), address(0x%2.2X), keep, used)) __%s_section_VAR_id%d = ",
+                                hex_as_int + s->sec->vma + j, curr_section_name, unique_id);
+                        fprintf(imagefile, "0x%2.2x;\n", data[0]);
+                        data += 1;
+                        buffer += 1;
+                        mem_passed++;
+                        unique_id++;
+                    }
+                    fprintf(imagefile, "\n");
+                }
+                if (s->sec->size == vars_to_fill) {
+                    continue;
+                }
+                fprintf(imagefile,
+                        "\nunsigned char __attribute__((space(data), address(0x%2.2X), keep, used)) __%s_section_id%d[] = \n"
+                        "{\n", hex_as_int + s->sec->vma + vars_to_fill, curr_section_name, unique_id);
+                fprintf(imagefile, "%*c", indent_offset, ' ');
+                for (j = 0; j < sec_size - vars_to_fill; j++) {
+                    if (j != 0) {
+                        if ((mem_passed % 16) == 0) {
+                            fprintf(imagefile, ",\n");
+                            fprintf(imagefile, "%*c", indent_offset, ' ');
+                        } else {
+                            fprintf(imagefile, ",");
+                        }
+                    }
+                    fprintf(imagefile, "0x%2.2x", data[0]);
+                    data += 1;
+                    buffer += 1;
+                    mem_passed++;
+                }
+                fprintf(imagefile, "\n};\n");
+                free(curr_section_name);
+                unique_id++;
+            }
+        }
+    }
+    if (is_manual_mode) {
+
+        char *current_char = generated_secondary_sections;
+        while (*current_char != 0) {
+            fprintf(imagefile, "%c", *current_char++);
+        }
+        fprintf(imagefile, "\nvoid __xc32_LoadAllSecondarySections(void) { \n");
+        int k = 0;
+        for (k = 0; k < loadable_section_count; k++) {
+            fprintf(imagefile,
+                    "    __XC32_SECTION_MEM_CPY(__secondary_core_sections[%d].sectionDestinationAddress, "
+                    "__secondary_core_sections[%d].sectionData, __secondary_core_sections[%d].sectionSizeInBytes );\n"
+                    "", k, k, k);
+        }
+        fprintf(imagefile, "}\n\n");
+        fprintf(imagefile, "void __xc32_LoadSecondarySection(__xc32_section_record *section_to_load) {\n"
+                           "    __XC32_SECTION_MEM_CPY(section_to_load->sectionDestinationAddress, section_to_load->sectionData, section_to_load->sectionSizeInBytes);\n"
+                           "}\n\n");
+        fprintf(imagefile, "\n");
+    }
+    return last;
+}
+
+static void write_section_list_subordinate(bfd *abfd, PTR fp, struct section_list *p);
+static void
+write_section_list_subordinate(bfd *abfd, PTR fp, struct section_list *p){
+
+    struct section_list *s;
+    for (s = p; s != NULL; s ? s = s->next : s) {
+        if (s->sec){
+            s = write_section_subordinate(abfd, s, fp);
+        }
+    }
+
+}
+
+static int
+write_generated_files(bfd *abfd){
+    int rc = 0;
+    char *file = subordinate_c_file ? subordinate_c_file: subordinate_image_file;
+    char *file_tmp = file;
+    char *dot;
+       dot = strrchr (file_tmp, '.');
+       if (dot)
+           dot[0] = '\0';
+    int name_len = strlen(file) + strlen(".c") + 1;
+    char *filename = xmalloc(name_len);
+    strncpy(filename, file, name_len);
+    strcat(filename,".c");
+    FILE *fp = fopen(filename, "w+");
+    if (!fp) {
+        fprintf(stderr, "Error: could not open file '%s' for writing!\n", filename);
+        exit(1);
+    }
+
+    init_section_list(&outputs);
+    bfd_map_over_sections(abfd, &build_section_list, outputs);
+    write_section_list_subordinate(abfd, fp, outputs);
+    free_section_list(&outputs);
+    free(filename);
+    return rc;
 }

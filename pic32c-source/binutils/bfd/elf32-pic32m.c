@@ -24,6 +24,7 @@
 #include "elf-bfd.h"
 #include "pic32m-utils.h"
 #include "elf/pic32m.h"
+#include "libiberty.h"
 
 /* External function prototypes */
 extern struct bfd_hash_entry *mchp_undefsym_newfunc
@@ -132,4 +133,44 @@ void pic32_fake_sections (bfd *abfd, Elf_Internal_Shdr *hdr, asection *sec)
     }
 }
 
+/*
+** Create a new list
+**
+** - first item is null
+*/
+void pic32_init_section_list(struct pic32_section **lst)
+{
+  *lst = ((struct pic32_section *)
+         xmalloc(sizeof(struct pic32_section)));
+  if (NULL == lst) {
+    fprintf( stderr, "Fatal Error: Not enough memory to initialize section list\n");
+    abort();
+  }
+  (*lst)->next = 0;
+  (*lst)->sec = 0;
+  (*lst)->attributes = 0;
+  (*lst)->file = 0;
+}
+
+/*
+** Free a section list
+*/
+void pic32_free_section_list(struct pic32_section **lst)
+{
+  struct pic32_section *s, *next;
+
+  if (!(*lst))
+    return;
+
+  for (s = *lst; s != NULL; s = next)
+    {
+      next = s->next;
+      free(s);
+    }
+
+  *lst = NULL;
+} /* void pic32_free_section_list (...) */
+
+
 #include "pic32-stack-usage.c"
+#include "pic32-dinit.c"

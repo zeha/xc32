@@ -511,6 +511,22 @@ allocate_serial_memory() {
 } /* allocate_serial_memory() */
 
 
+static int allocate_bss(struct memory_region_struct * const region)
+{
+    struct pic32_section *s;
+    int result = 0;
+
+    if (pic32_debug)
+        fprintf(stderr,"\nBuilding bss allocation list attribute mask = %x\n", attr_mask_bss);
+
+    build_alloc_section_list(attr_mask_bss);
+
+    reset_locate_options();
+    result |= locate_sections(attr_mask_bss, 0, region);
+    return result;
+}
+
+
 /*
  * allocate_data_memory()
  *
@@ -549,7 +565,7 @@ static int
 allocate_data_memory() {
   struct memory_region_struct *region = NULL;
   struct pic32_section *s;
-  unsigned int mask = attr_mask_data | attr_mask_bss | attr_mask_persist
+  unsigned int mask = attr_mask_data | attr_mask_persist
 		      | attr_mask_stack | attr_mask_heap | attr_mask_ramfunc;
   int result = 0;
 
@@ -640,7 +656,7 @@ allocate_data_memory() {
     
     
   result |= locate_sections(attr_mask_near, 0, region);       /* less restrictive  */
-  result |= locate_sections (attr_mask_all_attr,
+  result |= locate_sections ( attr_mask_all_attr,
 			     attr_mask_stack | attr_mask_heap, region);
 
 #if 0
@@ -677,15 +693,16 @@ allocate_data_memory() {
   }
 
 #endif
+  result = result| allocate_bss(region);
 
   /* if any sections are left in the allocation list, report an error */
   for (s = alloc_section_list; s != NULL; s = s->next) {
-  if ((s->attributes != 0) && (s->sec->linked == 0) /* lghica co-resident*/)
-  {
-    report_allocation_error(s);
-    result = 1;
-    break;
-  }
+    if ((s->attributes != 0) && (s->sec->linked == 0) /* lghica co-resident*/)
+    {
+      report_allocation_error(s);
+      result = 1;
+      break;
+    }
   }
 
   /* save the free blocks list */

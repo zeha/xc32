@@ -174,6 +174,8 @@ struct pic32_fill_option
 };
 
 extern void pic32c_fake_sections (bfd *, Elf_Internal_Shdr *, asection *);
+extern void pic32_free_section_list (struct pic32_section **);
+extern void pic32_init_section_list (struct pic32_section **);
 
 /* an enum to represent the style of TCM that we are linking to */
 enum tcm_style

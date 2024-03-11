@@ -835,11 +835,11 @@ find_bswap_or_nop (gimple *stmt, struct symbolic_number *n, bool *bswap)
 {
   /* The last parameter determines the depth search limit.  It usually
      correlates directly to the number n of bytes to be touched.  We
-     increase that number by log2(n) + 1 here in order to also
+     increase that number by 2 * (log2(n) + 1) here in order to also
      cover signed -> unsigned conversions of the src operand as can be seen
      in libgcc, and for initial shift/and operation of the src operand.  */
   int limit = TREE_INT_CST_LOW (TYPE_SIZE_UNIT (gimple_expr_type (stmt)));
-  limit += 1 + (int) ceil_log2 ((unsigned HOST_WIDE_INT) limit);
+  limit += 2 * (1 + (int) ceil_log2 ((unsigned HOST_WIDE_INT) limit));
   gimple *ins_stmt = find_bswap_or_nop_1 (stmt, n, limit);
 
   if (!ins_stmt)
@@ -2383,8 +2383,13 @@ imm_store_chain_info::try_coalesce_bswap (merged_store_group *merged_store,
   if (width != try_size)
     return false;
 
+#if defined(TARGET_MCHP_PIC32C)
+  bool allow_unaligned
+    = unaligned_access && PARAM_VALUE (PARAM_STORE_MERGING_ALLOW_UNALIGNED);
+#else
   bool allow_unaligned
     = !STRICT_ALIGNMENT && PARAM_VALUE (PARAM_STORE_MERGING_ALLOW_UNALIGNED);
+#endif
   /* Punt if the combined store would not be aligned and we need alignment.  */
   if (!allow_unaligned)
     {
@@ -3490,8 +3495,13 @@ imm_store_chain_info::output_merged_store (merged_store_group *group)
     return false;
 
   auto_vec<struct split_store *, 32> split_stores;
+#if defined(TARGET_MCHP_PIC32C)
+  bool allow_unaligned_store
+    = unaligned_access && PARAM_VALUE (PARAM_STORE_MERGING_ALLOW_UNALIGNED);
+#else
   bool allow_unaligned_store
     = !STRICT_ALIGNMENT && PARAM_VALUE (PARAM_STORE_MERGING_ALLOW_UNALIGNED);
+#endif
   bool allow_unaligned_load = allow_unaligned_store;
   if (allow_unaligned_store)
     {

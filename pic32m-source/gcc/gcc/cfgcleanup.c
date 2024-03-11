@@ -1937,6 +1937,31 @@ try_crossjump_to_edge (int mode, edge e1, edge e2,
 
   newpos1 = newpos2 = NULL;
 
+#ifdef TARGET_MCHP_PIC32C
+  rtx_insn *i1, *i2;
+  i1 = BB_END (src1);
+  i2 = BB_END (src2);
+  if (CALL_P (PREV_INSN (i1)) && CALL_P (PREV_INSN (i2)))
+  {
+    i1 = PREV_INSN (i1);
+    i2 = PREV_INSN (i2);
+    rtx pat1 = PATTERN (i1);
+    rtx pat2 = PATTERN (i2);
+    if (GET_CODE (pat1) == PARALLEL && GET_CODE (pat2) == PARALLEL)
+    {
+      rtx call1 = XVECEXP (pat1, 0, 0);
+      rtx call2 = XVECEXP (pat2, 0, 0);
+      rtx unspec1 = XEXP (call1, 0);
+      rtx unspec2 = XEXP (call2, 0);
+      if (GET_CODE (unspec1) == UNSPEC && GET_CODE (unspec2) == UNSPEC
+          && XINT (unspec1, 1) == UNSPEC_NONSECURE_MEM && XINT (unspec2, 1) == UNSPEC_NONSECURE_MEM)
+        return false;
+     }
+     else
+       return false;
+   }
+#endif
+
   /* Search backward through forwarder blocks.  We don't need to worry
      about multiple entry or chained forwarders, as they will be optimized
      away.  We do this to look past the unconditional jump following a
