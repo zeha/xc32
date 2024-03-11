@@ -1020,16 +1020,16 @@ void set_dinit_content(bfd *abfd, struct bfd_link_info *info)
   #endif
 
   dinit_sec = init_template->output_section;
-  dinit_size = init_template->size;
+  dinit_size = init_template->size - saved_dinit;
   dinit_offset = init_template->output_offset;
 
   bfd_seek(dinit_sec->owner, 0, SEEK_SET);
 
   if (!bfd_set_section_contents (abfd, dinit_sec,
-                                 init_data, dinit_offset, dinit_sec->size))
+                                 init_data, dinit_offset, dinit_size))
   {
-      fprintf( stderr, "Link Error: can't write section %s contents\n",
-                  dinit_sec->name);
+      fprintf( stderr, "Link Error: can't write section %s contents offset -> %d \n",
+                  dinit_sec->output_section->name);
       abort();
   }
 }
