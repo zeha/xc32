@@ -2927,13 +2927,26 @@ arm_option_check_internal (struct gcc_options *opts)
 
   /* We only support -mpure-code and -mslow-flash-data on M-profile targets
      with MOVT.  */
-  if ((target_pure_code || target_slow_flash_data)
-      && (!TARGET_HAVE_MOVT || arm_arch_notm || flag_pic || TARGET_NEON))
+  if (target_pure_code || target_slow_flash_data)
     {
       const char *flag = (target_pure_code ? "-mpure-code" :
-					     "-mslow-flash-data");
-      error ("%s only supports non-pic code on M-profile targets with the "
-	     "MOVT instruction", flag);
+                                             "-mslow-flash-data");
+      bool common_unsupported_modes = arm_arch_notm || flag_pic || TARGET_NEON;
+
+      /* We only support -mslow-flash-data on M-profile targets with
+         MOVT.  */
+      if (target_slow_flash_data && (!TARGET_HAVE_MOVT || common_unsupported_modes))
+        error ("%s only supports non-pic code on M-profile targets with the "
+               "MOVT instruction", flag);
+
+      /* We only support -mpure-code on M-profile targets.  */
+      if (target_pure_code && common_unsupported_modes)
+        error ("%s only supports non-pic code on M-profile targets", flag);
+
+      /* Cannot load addresses: -mslow-flash-data forbids literal pool and
+         -mword-relocations forbids relocation of MOVT/MOVW.  */
+      if (target_word_relocations)
+        error ("%s incompatible with %<-mword-relocations%>", flag);
     }
 
 }
@@ -3122,6 +3135,14 @@ arm_option_override_internal (struct gcc_options *opts,
      This will apply to ARM and Thumb1 eventually.  */
   if (TARGET_THUMB2_P (opts->x_target_flags))
     opts->x_inline_asm_unified = true;
+
+#ifdef _BUILD_MCHP_
+  if (target_pure_code && mchp_codecov)
+    {
+      error ("Incompatible options: -mpure-code and -mcodecov");
+      return;
+    }
+#endif /* _BUILD_MCHP_ */
 
 #ifdef SUBTARGET_OVERRIDE_INTERNAL_OPTIONS
   SUBTARGET_OVERRIDE_INTERNAL_OPTIONS;
@@ -4357,6 +4378,38 @@ const_ok_for_dimode_op (HOST_WIDE_INT i, enum rtx_code code)
     default:
       return 0;
     }
+}
+
+/* Emit a sequence of movs/adds/shift to produce a 32-bit constant.
+   Avoid generating useless code when one of the bytes is zero.  */
+void
+thumb1_gen_const_int (rtx op0, HOST_WIDE_INT op1)
+{
+  bool mov_done_p = false;
+  int i;
+
+  /* Emit upper 3 bytes if needed.  */
+  for (i = 0; i < 3; i++)
+    {
+      int byte = (op1 >> (8 * (3 - i))) & 0xff;
+
+      if (byte)
+        {
+          emit_set_insn (op0, mov_done_p
+                         ? gen_rtx_PLUS (SImode,op0, GEN_INT (byte))
+                         : GEN_INT (byte));
+          mov_done_p = true;
+        }
+
+      if (mov_done_p)
+        emit_set_insn (op0, gen_rtx_ASHIFT (SImode, op0, GEN_INT (8)));
+    }
+
+  /* Emit lower byte if needed.  */
+  if (!mov_done_p)
+    emit_set_insn (op0, GEN_INT (op1 & 0xff));
+  else if (op1 & 0xff)
+    emit_set_insn (op0, gen_rtx_PLUS (SImode, op0, GEN_INT (op1 & 0xff)));
 }
 
 /* Emit a sequence of insns to handle a large constant.
@@ -8314,7 +8367,8 @@ thumb1_legitimate_address_p (machine_mode mode, rtx x, int strict_p)
   /* This is PC relative data before arm_reorg runs.  */
   else if (GET_MODE_SIZE (mode) >= 4 && CONSTANT_P (x)
 	   && GET_CODE (x) == SYMBOL_REF
-           && CONSTANT_POOL_ADDRESS_P (x) && !flag_pic)
+           && CONSTANT_POOL_ADDRESS_P (x) && !flag_pic
+           && !arm_disable_literal_pool)
     return 1;
 
   /* This is PC relative data after arm_reorg runs.  */
@@ -8382,6 +8436,7 @@ thumb1_legitimate_address_p (machine_mode mode, rtx x, int strict_p)
 	   && GET_MODE_SIZE (mode) == 4
 	   && GET_CODE (x) == SYMBOL_REF
 	   && CONSTANT_POOL_ADDRESS_P (x)
+     && !arm_disable_literal_pool
 	   && ! (flag_pic
 		 && symbol_mentioned_p (get_pool_constant (x))
 		 && ! pcrel_constant_p (get_pool_constant (x))))
@@ -9008,15 +9063,17 @@ thumb1_rtx_costs (rtx x, enum rtx_code code, enum rtx_code outer)
 
     case CONST_INT:
       if (outer == SET)
-	{
-	  if (UINTVAL (x) < 256
-	      /* 16-bit constant.  */
-	      || (TARGET_HAVE_MOVT && !(INTVAL (x) & 0xffff0000)))
-	    return 0;
-	  if (thumb_shiftable_const (INTVAL (x)))
-	    return COSTS_N_INSNS (2);
-	  return COSTS_N_INSNS (3);
-	}
+        {
+          if (UINTVAL (x) < 256
+              /* 16-bit constant.  */
+              || (TARGET_HAVE_MOVT && !(INTVAL (x) & 0xffff0000)))
+            return 0;
+          if (thumb_shiftable_const (INTVAL (x)))
+            return COSTS_N_INSNS (2);
+          return arm_disable_literal_pool
+                  ? COSTS_N_INSNS (8)
+                  : COSTS_N_INSNS (3);
+        }
       else if ((outer == PLUS || outer == COMPARE)
 	       && INTVAL (x) < 256 && INTVAL (x) > -256)
 	return 0;
@@ -9163,16 +9220,18 @@ thumb1_size_rtx_costs (rtx x, enum rtx_code code, enum rtx_code outer)
         {
           if (UINTVAL (x) < 256)
             return COSTS_N_INSNS (1);
-	  /* movw is 4byte long.  */
-	  if (TARGET_HAVE_MOVT && !(INTVAL (x) & 0xffff0000))
-	    return COSTS_N_INSNS (2);
-	  /* See split "TARGET_THUMB1 && satisfies_constraint_J".  */
-	  if (INTVAL (x) >= -255 && INTVAL (x) <= -1)
+          /* movw is 4byte long.  */
+          if (TARGET_HAVE_MOVT && !(INTVAL (x) & 0xffff0000))
             return COSTS_N_INSNS (2);
-	  /* See split "TARGET_THUMB1 && satisfies_constraint_K".  */
+          /* See split "TARGET_THUMB1 && satisfies_constraint_J".  */
+          if (INTVAL (x) >= -255 && INTVAL (x) <= -1)
+                  return COSTS_N_INSNS (2);
+          /* See split "TARGET_THUMB1 && satisfies_constraint_K".  */
           if (thumb_shiftable_const (INTVAL (x)))
             return COSTS_N_INSNS (2);
-          return COSTS_N_INSNS (3);
+          return arm_disable_literal_pool
+            ? COSTS_N_INSNS (8)
+            : COSTS_N_INSNS (3);
         }
       else if ((outer == PLUS || outer == COMPARE)
                && INTVAL (x) < 256 && INTVAL (x) > -256)
@@ -27137,18 +27196,46 @@ arm_thumb1_mi_thunk (FILE *file, tree, HOST_WIDE_INT delta,
       ASM_GENERATE_INTERNAL_LABEL (label, "LTHUMBFUNC", labelno);
       /* Thunks are entered in arm mode when available.  */
       if (TARGET_THUMB1_ONLY)
-	{
-	  /* push r3 so we can use it as a temporary.  */
-	  /* TODO: Omit this save if r3 is not used.  */
-	  fputs ("\tpush {r3}\n", file);
-	  fputs ("\tldr\tr3, ", file);
-	}
+        {
+          /* push r3 so we can use it as a temporary.  */
+          /* TODO: Omit this save if r3 is not used.  */
+          fputs ("\tpush {r3}\n", file);
+          
+          /* With -mpure-code, we cannot load the address from the
+             constant pool: we build it explicitly.  */
+          if (target_pure_code)
+            {
+              fputs ("\tmovs\tr3, #:upper8_15:#", file);
+              assemble_name (file, XSTR (XEXP (DECL_RTL (function), 0), 0));
+              fputc ('\n', file);
+              fputs ("\tlsls r3, #8\n", file);
+              fputs ("\tadds\tr3, #:upper0_7:#", file);
+              assemble_name (file, XSTR (XEXP (DECL_RTL (function), 0), 0));
+              fputc ('\n', file);
+              fputs ("\tlsls r3, #8\n", file);
+              fputs ("\tadds\tr3, #:lower8_15:#", file);
+              assemble_name (file, XSTR (XEXP (DECL_RTL (function), 0), 0));
+              fputc ('\n', file);
+              fputs ("\tlsls r3, #8\n", file);
+              fputs ("\tadds\tr3, #:lower0_7:#", file);
+              assemble_name (file, XSTR (XEXP (DECL_RTL (function), 0), 0));
+              fputc ('\n', file);
+            }
+          else
+            fputs ("\tldr\tr3, ", file);
+
+        }
       else
-	{
-	  fputs ("\tldr\tr12, ", file);
-	}
-      assemble_name (file, label);
-      fputc ('\n', file);
+        {
+          fputs ("\tldr\tr12, ", file);
+        }
+
+      if (!target_pure_code)
+        {
+          assemble_name (file, label);
+          fputc ('\n', file);
+        }
+
       if (flag_pic)
 	{
 	  /* If we are generating PIC, the ldr instruction below loads

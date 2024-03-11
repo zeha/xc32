@@ -39,7 +39,7 @@ int mchpStackUsageValidLicense (void);
 #define MCHP_XCLM_FILENAME "xclm"
 #endif /* __MINGW32__*/
 
-#ifdef XCLM_MODE_FS
+#ifdef _BUILD_MCHP_FUSA_
 static const int max_license_type = MCHP_XCLM_VALID_FS_LICENSE;
 static const char *xclm_arg1 = "-fcfs";
 #else
@@ -120,8 +120,7 @@ getXC32Version (void)
           && major < 100)
         {
           minor = (int) strtol (end_s + 1, &end_s, 10);
-          if (*end_s == ')'
-              && minor >= (major > def_ver.major ? 0 : def_ver.minor)
+          if (minor >= (major > def_ver.major ? 0 : def_ver.minor)
               && minor < 100)
             {
               return (xc32_version) { major, minor };

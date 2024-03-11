@@ -8413,35 +8413,9 @@ driver::maybe_print_and_exit () const
 
   if (print_version)
     {
-#if defined(_BUILD_MCHP_) && defined(TARGET_MCHP_PIC32MX)
-#define RESOURCEFILENAME "xc32_device.info"
-      {
-        struct resource_introduction_block *rib;
-        const char *bindir_path = NULL;
-        char *res_filepath = NULL;
-        int max_pathlength = 0;
-
-        bindir_path = make_relative_prefix(progname,"/bin","/bin");
-        max_pathlength = strlen((const char*)bindir_path) + 1 +
-                                   strlen((const char*)RESOURCEFILENAME) + 1;
-        res_filepath = (char*)alloca(max_pathlength);
-        strncpy (res_filepath, bindir_path, max_pathlength);
-        strncat (res_filepath, RESOURCEFILENAME, max_pathlength);
-        rib = read_rib(res_filepath);
-        printf (_("%s %s%s Build date: %s\n"), progname,
-                                 pkgversion_string,version_string, __DATE__);
-        if (rib)
-          {
-            printf("Part support version: %d.%2d (%c)\n",rib->version.major,
-                         rib->version.minor,rib->resource_version_increment);
-          }
-        else
-          {
-            printf("Part support version: could not read %s\n",
-                                                           RESOURCEFILENAME);
-          }
-
-      }
+#if defined(_BUILD_MCHP_)
+      printf (_("%s %s%s Build date: %s\n"), progname,
+	      pkgversion_string,version_string, __DATE__);
 #else
       printf (_("%s %s%s\n"), progname, pkgversion_string,
 	      version_string);

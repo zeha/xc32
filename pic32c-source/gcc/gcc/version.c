@@ -38,5 +38,9 @@ const char bug_report_url[] = BUGURL;
    BASEVER, DATESTAMP, DEVPHASE, and REVISION are defined by the
    Makefile.  */
 
+#ifdef _BUILD_MCHP_
+const char version_string[] = BASEVER;
+#else
 const char version_string[] = BASEVER DATESTAMP DEVPHASE REVISION;
+#endif /* _BUILD_MCHP_ */
 const char pkgversion_string[] = PKGVERSION;

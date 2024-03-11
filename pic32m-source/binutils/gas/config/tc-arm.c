@@ -28491,7 +28491,21 @@ s_arm_change_section (int push)
 
     if (has_flags) {
         /* old style section directive */
-        if (!flag_no_warnings && warn_on_deprecated)
+        int is_pure_code_section = 0;
+#ifdef TARGET_IS_PIC32C
+        /* XC32-1791 : disable this warning when pure_code is enabled.
+         * Check if the current section directive is added because pure
+         * code is enabled.
+         * At this moment, every single pure code section will have the
+         * same flags (0x20000006) and progbits set.
+         *
+         * target_pure_code is not visible here.
+         */
+        if (strncmp(input_line_pointer, ".text,\"0x20000006\",%progbits",
+                    strlen(".text,\"0x20000006\",%progbits")) == 0)
+          is_pure_code_section = 1;
+#endif /* TARGET_IS_PIC32C */
+        if (!flag_no_warnings && warn_on_deprecated && !is_pure_code_section)
             as_warn (_("Quoted section flags are deprecated, use attributes instead"));
         obj_elf_section (push);
     } else {
