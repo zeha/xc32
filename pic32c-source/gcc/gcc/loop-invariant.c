@@ -1553,20 +1553,17 @@ best_gain_for_invariant (struct invariant **best, unsigned *regs_needed,
 #if defined(_BUILD_MCHP_)
       /* We set regs_used to the number of live register in the basic block containing 
          the invariant. We deduct the registers that go dead from it. */
-      if (!speed)
-      {
-        bitmap_head mchp_curr_regs_live;
-        basic_block bb = BLOCK_FOR_INSN (inv->insn);
-        bitmap_initialize (&mchp_curr_regs_live, &reg_obstack);
-        bitmap_copy (&mchp_curr_regs_live, DF_LR_IN (bb));
-        regs_used = 0;
-        regs_used += bitmap_count_bits (&mchp_curr_regs_live);
-        rtx link;
-        for (link = REG_NOTES (inv->insn); link; link = XEXP (link,1))
-          if (REG_NOTE_KIND (link) == REG_DEAD)
-            regs_used-=1;
-        bitmap_clear (&mchp_curr_regs_live);
-      }
+    bitmap_head mchp_curr_regs_live;
+    basic_block bb = BLOCK_FOR_INSN (inv->insn);
+    bitmap_initialize (&mchp_curr_regs_live, &reg_obstack);
+    bitmap_copy (&mchp_curr_regs_live, DF_LR_IN (bb));
+    regs_used = 0;
+    regs_used += bitmap_count_bits (&mchp_curr_regs_live);
+    rtx link;
+    for (link = REG_NOTES (inv->insn); link; link = XEXP (link,1))
+      if (REG_NOTE_KIND (link) == REG_DEAD)
+        regs_used-=1;
+    bitmap_clear (&mchp_curr_regs_live);
 #endif
 
       again = gain_for_invariant (inv, aregs_needed, new_regs, regs_used,
@@ -1661,6 +1658,7 @@ find_invariants_to_move (bool speed, bool call_p)
       for (i = 0; (int) i < ira_pressure_classes_num; i++)
 	new_regs[ira_pressure_classes[i]] = 0;
     }
+
   while ((gain = best_gain_for_invariant (&inv, regs_needed,
 					  new_regs, regs_used,
 					  speed, call_p)) > 0)

@@ -12040,3 +12040,5 @@
 (include "sync.md")
 ;; Fixed-point patterns
 (include "arm-fixed.md")
+;; Auto-indexing patterns
+(include "../pic32c/auto-indexing.md")

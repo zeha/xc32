@@ -1040,7 +1040,7 @@ pic32_create_data_init_template(void)
 
   dinit_size = total_data;
 
-  PIC32_DEBUG("optim_dinit dinit_size %d", total_data);
+  PIC32_DEBUG("optim_dinit dinit_size 0x%x", total_data);
 
   /* allocate memory for the template */
   init_data = (unsigned char *) bfd_alloc (link_info.output_bfd, total_data);
@@ -2962,7 +2962,7 @@ bfd_pic32_scan_data_section (section, p)
       sect->flags &= ~SEC_LOAD;
       sect->init = 1;
 
-      PIC32_DEBUG("scan_data_section %s (data), size = %x bytes, template += %x "
+      PIC32_DEBUG("scan_data_section %s (data), size = 0x%x bytes, template += 0x%x "
 		  "bytes\n",
 		  sect->name, (unsigned int) sect->size, delta);
     }

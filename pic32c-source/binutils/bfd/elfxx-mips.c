@@ -14835,6 +14835,7 @@ infer_mips_abiflags (bfd *abfd, Elf_Internal_ABIFlags_v0* abiflags)
 
 #ifdef TARGET_IS_PIC32MX
 void  set_dinit_content(bfd* abfd, struct bfd_link_info *info);
+void  check_dinit_content(struct bfd_link_info *info);
 #endif
 /* We need to use a special link routine to handle the .reginfo and
    the .mdebug sections.  We need to merge all instances of these
@@ -15456,8 +15457,11 @@ _bfd_mips_elf_final_link (bfd *abfd, struct bfd_link_info *info)
 
 #ifdef TARGET_IS_PIC32MX
 
-  if (pic32_data_init)
+  if (pic32_data_init) {
     set_dinit_content(abfd, info);
+    /* check dinit structure */
+    check_dinit_content(info);
+  }
 
     asection        *rom_usage_sec;
     bfd_size_type   rom_usage_size;

@@ -192,4 +192,16 @@ mopt-imm-offset
 Target Var(opt_imm_offset) Init(0)
 Reduce the immediate offset value for load / store instructions that use the [areg, #imm_offset] addressing mode
 
+mauto-indexing
+Common Report Var(flag_auto_indexing) Init(1) Optimization
+Generate auto-inc/dec instructions.
+
+madj-exiting-edge-prob
+Common Report Var(flag_exiting_edge_prob) Init(2) Optimization
+Adjust the probability of loop exiting edges
+;
+
+mloop-rename-registers
+Common Report Var(flag_loop_rename_registers) Init(2) Optimization
+Perform register renaming on loops
 ;

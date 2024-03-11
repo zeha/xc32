@@ -75,6 +75,7 @@ extern bfd_boolean      pic32_inherit_application_info;
 extern char             *inherited_application;
 extern bfd_boolean      pic32_stack_usage;
 extern unsigned int     dinit_compress_level;
+extern bfd_boolean      dinit_self_check;
 extern unsigned int     dinit_link_mask;
 
 void pic32m_list_options (FILE *);
@@ -112,7 +113,8 @@ enum elfpic32mx_options {
     CORESIDENT,
     INHERIT_APPLICATION_INFO,
   MCHP_STACK_USAGE,
-  MCHP_DINIT_COMPRESS
+  MCHP_DINIT_COMPRESS,
+  MCHP_DINIT_SELF_CHECK
 };
 
 #endif

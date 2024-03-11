@@ -342,7 +342,7 @@ pic32c*-*-*)
     cxx_target_objs="arm-c.o"
     extra_options="${extra_options} arm/arm-tables.opt pic32c/pic32c.opt"
     target_gtfiles="\$(srcdir)/config/arm/arm-builtins.c"
-    extra_objs="${extra_objs} offset_addressing.o pic32c.o mchp-license-manager.o sha256.o mchp_sha.o cci.o cci-backend.o pic32c-coverage.o mchp_pragma_config.o"
+    extra_objs="${extra_objs} offset_addressing.o loop_exiting_edges.o loop_regrename.o pic32c.o mchp-license-manager.o sha256.o mchp_sha.o cci.o cci-backend.o pic32c-coverage.o mchp_pragma_config.o"
     extra_gcc_objs="${extra_gcc_objs} mchp-common.o"
     ;;
 avr-*-*)

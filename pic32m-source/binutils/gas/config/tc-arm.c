@@ -307,6 +307,12 @@ static const arm_feature_set fpu_neon_ext_v1 =
   ARM_FEATURE_COPROC (FPU_NEON_EXT_V1);
 static const arm_feature_set fpu_vfp_v3_or_neon_ext =
   ARM_FEATURE_COPROC (FPU_NEON_EXT_V1 | FPU_VFP_EXT_V3);
+
+#ifdef TARGET_IS_PIC32C
+static const arm_feature_set fpu_vfp_v4_sp_d16 =
+  ARM_FEATURE_COPROC (FPU_VFP_V4_SP_D16);
+#endif
+
 #ifdef OBJ_ELF
 static const arm_feature_set fpu_vfp_fp16 =
   ARM_FEATURE_COPROC (FPU_VFP_EXT_FP16);
@@ -6658,6 +6664,9 @@ enum operand_parse_code
   OP_oSHllar,	 /* LSL or ASR immediate */
   OP_oROR,	 /* ROR 0/8/16/24 */
   OP_oBARRIER_I15, /* Option argument for a barrier instruction.  */
+#if defined(TARGET_IS_PIC32C)
+  OP_oRVSD,      /* For two operand VDIV */
+#endif
 
   /* Some pre-defined mixed (ARM/THUMB) operands.  */
   OP_RR_npcsp		= MIX_ARM_THUMB_OPERANDS (OP_RR, OP_RRnpcsp),
@@ -6844,6 +6853,9 @@ parse_operands (char *str, const unsigned int *pattern, bfd_boolean thumb)
 	case OP_RNSD:  po_reg_or_fail (REG_TYPE_NSD);     break;
 	case OP_oRNDQ:
 	case OP_RNDQ:  po_reg_or_fail (REG_TYPE_NDQ);     break;
+#if defined(TARGET_IS_PIC32C)
+	case OP_oRVSD:
+#endif
 	case OP_RVSD:  po_reg_or_fail (REG_TYPE_VFSD);    break;
 	case OP_oRNSDQ:
 	case OP_RNSDQ: po_reg_or_fail (REG_TYPE_NSDQ);    break;
@@ -14802,6 +14814,16 @@ do_vfp_nsyn_sqrt (void)
 static void
 do_vfp_nsyn_div (void)
 {
+#if defined(TARGET_IS_PIC32C)
+  /* VDIV s0, s1 == VDIV s0, s0, s1 */
+  if (inst.operands[0].present
+      && inst.operands[1].present
+      && !inst.operands[2].present)
+    {
+      inst.operands[2] = inst.operands[1];
+      inst.operands[1] = inst.operands[0];
+    }
+#endif
   enum neon_shape rs = neon_select_shape (NS_HHH, NS_FFF, NS_DDD, NS_NULL);
   neon_check_type (3, rs, N_EQK | N_VFP, N_EQK | N_VFP,
 		   N_F_ALL | N_KEY | N_VFP);
@@ -14909,15 +14931,54 @@ nsyn_insert_sp (void)
   inst.operands[0].present = 1;
 }
 
+#ifdef TARGET_IS_PIC32C
+/*  The VFP registers are arranged as four banks of:
+    - eight single-precision registers, s0 to s7, s8 to s15, s16 to s23, and s24 to s31
+    - four double-precision registers, d0 to d3, d4 to d7, d8 to d11, and d12 to d15
+    - any combination of single-precision and double-precision registers.
+
+    VFP register banks:
+
+    |s0|s1|s2|s3|s4|s5|s6|s7|s8 ... s15|s16 ... s23|s24 ... s31|
+    |  d0 |  d1 |  d2 |  d3 |d4 ...  d7|d8  ... d11|d12 ... d15|
+    |     q0    |     q1    |  q2 | q3 |  q4 |  q5 |  q6 |  q7 |
+    |         Bank 0        |  Bank 1  |   Bank 2  |   Bank 3  |
+*/
+
+static void
+do_vfp_nsyn_push_pop_check (void)
+{
+  if (inst.operands[1].issingle)
+    {
+      constraint (inst.operands[1].imm < 1 || inst.operands[1].imm > 32,
+	      _("register list must contain at least 1 and at most 32 S "
+		      "registers"));
+    }
+  else if (inst.operands[1].isquad)
+    {
+      /* I think this is unreachable right now since every push/pop
+         using Quad registers is transformed to Double at parsing*/
+      constraint (inst.operands[1].imm < 1 || inst.operands[1].imm > 8,
+	      _("register list must contain at least 1 and at most 8 Q "
+		      "registers"));
+    }
+  else
+    {
+      constraint (inst.operands[1].imm < 1 || inst.operands[1].imm > 16,
+	      _("register list must contain at least 1 and at most 16 D "
+		      "registers"));
+    }
+}
+#endif /*TARGET_IS_PIC32C*/
+
 static void
 do_vfp_nsyn_push (void)
 {
   nsyn_insert_sp ();
 
-  constraint (inst.operands[1].imm < 1 || inst.operands[1].imm > 16,
-	      _("register list must contain at least 1 and at most 16 "
-		"registers"));
 #ifdef TARGET_IS_PIC32C
+  do_vfp_nsyn_push_pop_check ();
+
   if (pic32_gen_stack_usage == STACK_USAGE_ENABLED)
     {
       const int amount = inst.operands[1].imm /* how many fp regs */
@@ -14928,6 +14989,10 @@ do_vfp_nsyn_push (void)
                           inst.operands[1].imm);
       pic32_su_alter_stack_depth (amount);
     }
+#else
+  constraint (inst.operands[1].imm < 1 || inst.operands[1].imm > 16,
+             _("register list must contain at least 1 and at most 16 "
+               "registers"));
 #endif
   if (inst.operands[1].issingle)
     do_vfp_nsyn_opcode ("fstmdbs");
@@ -14940,10 +15005,9 @@ do_vfp_nsyn_pop (void)
 {
   nsyn_insert_sp ();
 
-  constraint (inst.operands[1].imm < 1 || inst.operands[1].imm > 16,
-	      _("register list must contain at least 1 and at most 16 "
-		"registers"));
 #ifdef TARGET_IS_PIC32C
+  do_vfp_nsyn_push_pop_check ();
+
   if (pic32_gen_stack_usage == STACK_USAGE_ENABLED)
     {
       const int amount = inst.operands[1].imm /* how many fp regs */
@@ -14954,6 +15018,10 @@ do_vfp_nsyn_pop (void)
                           inst.operands[1].imm);
       pic32_su_alter_stack_depth (-amount);
     }
+#else
+  constraint (inst.operands[1].imm < 1 || inst.operands[1].imm > 16,
+             _("register list must contain at least 1 and at most 16 "
+               "registers"));
 #endif
   if (inst.operands[1].issingle)
     do_vfp_nsyn_opcode ("fldmias");
@@ -16996,10 +17064,17 @@ do_neon_mov (void)
 	et = neon_check_type (2, NS_NULL, N_8 | N_16 | N_32 | N_KEY, N_EQK);
 	logsize = neon_logbits (et.size);
 
-	constraint (!ARM_CPU_HAS_FEATURE (cpu_variant, fpu_vfp_ext_v1),
-		    _(BAD_FPU));
+#ifdef TARGET_IS_PIC32C
+  constraint (!ARM_CPU_HAS_FEATURE (cpu_variant, fpu_vfp_ext_v1)
+              && !ARM_CPU_HAS_FEATURE(cpu_variant, fpu_vfp_v4_sp_d16),
+              _(BAD_FPU));
+#else
+  constraint (!ARM_CPU_HAS_FEATURE (cpu_variant, fpu_vfp_ext_v1),
+              _(BAD_FPU));
+#endif
+
 	constraint (!ARM_CPU_HAS_FEATURE (cpu_variant, fpu_neon_ext_v1)
-		    && et.size != 32, _(BAD_FPU));
+		          && et.size != 32, _(BAD_FPU));
 	constraint (et.type == NT_invtype, _("bad type for scalar"));
 	constraint (x >= 64 / et.size, _("scalar index out of range"));
 
@@ -17056,10 +17131,17 @@ do_neon_mov (void)
 			      N_EQK, N_S8 | N_S16 | N_U8 | N_U16 | N_32 | N_KEY);
 	logsize = neon_logbits (et.size);
 
-	constraint (!ARM_CPU_HAS_FEATURE (cpu_variant, fpu_vfp_ext_v1),
-		    _(BAD_FPU));
+#ifdef TARGET_IS_PIC32C
+  constraint (!ARM_CPU_HAS_FEATURE (cpu_variant, fpu_vfp_ext_v1)
+              && !ARM_CPU_HAS_FEATURE(cpu_variant, fpu_vfp_v4_sp_d16),
+              _(BAD_FPU));
+#else
+  constraint (!ARM_CPU_HAS_FEATURE (cpu_variant, fpu_vfp_ext_v1),
+              _(BAD_FPU));
+#endif
+
 	constraint (!ARM_CPU_HAS_FEATURE (cpu_variant, fpu_neon_ext_v1)
-		    && et.size != 32, _(BAD_FPU));
+		          && et.size != 32, _(BAD_FPU));
 	constraint (et.type == NT_invtype, _("bad type for scalar"));
 	constraint (x >= 64 / et.size, _("scalar index out of range"));
 
@@ -21293,7 +21375,11 @@ static const struct asm_opcode insns[] =
 
   /* These mnemonics are unique to VFP.  */
  NCE(vsqrt,     0,       2, (RVSD, RVSD),       vfp_nsyn_sqrt),
+#if defined(TARGET_IS_PIC32C)
+ NCE(vdiv,      0,       3, (RVSD, RVSD, oRVSD), vfp_nsyn_div),
+#else
  NCE(vdiv,      0,       3, (RVSD, RVSD, RVSD), vfp_nsyn_div),
+#endif
  nCE(vnmul,     _vnmul,   3, (RVSD, RVSD, RVSD), vfp_nsyn_nmul),
  nCE(vnmla,     _vnmla,   3, (RVSD, RVSD, RVSD), vfp_nsyn_nmul),
  nCE(vnmls,     _vnmls,   3, (RVSD, RVSD, RVSD), vfp_nsyn_nmul),

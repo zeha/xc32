@@ -2502,12 +2502,14 @@ pic32_finish(void)
      sections added by best-fit-allocator */
   emultempl_map_segments (need_layout);
 
-  bfd_pic32_finish();
+  if (!bfd_link_relocatable (&link_info))
+    {
+      bfd_pic32_finish();
 
-
-  if (pic32_stack_usage) {
-    pic32_stack_estimation_run ();
-  }
+      if (pic32_stack_usage) {
+        pic32_stack_estimation_run ();
+      }
+    }
 
   print_memory_reports();
 

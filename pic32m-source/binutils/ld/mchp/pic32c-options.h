@@ -82,6 +82,7 @@ extern bfd_boolean      pic32_application_id;
 //extern bfd_boolean      pic32_inherit_application_info;
 //extern char             *inherited_application;
 extern unsigned int     dinit_compress_level;
+extern bfd_boolean      dinit_self_check;
 extern unsigned int     dinit_link_mask;
 
 extern bfd_boolean      pic32_stack_usage;
@@ -130,7 +131,8 @@ enum elfpic32c_options {
     CORESIDENT,
     INHERIT_APPLICATION_INFO,
   MCHP_STACK_USAGE,
-  MCHP_DINIT_COMPRESS
+  MCHP_DINIT_COMPRESS,
+  MCHP_DINIT_SELF_CHECK
 };
 
 #endif

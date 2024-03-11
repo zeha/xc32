@@ -24,6 +24,14 @@ offset_addressing.o: $(srcdir)/config/pic32c/offset_addressing.cc
 	$(COMPILE) $<
 	$(POSTCOMPILE)
 
+loop_exiting_edges.o: $(srcdir)/config/pic32c/loop_exiting_edges.c
+	$(COMPILE) $<
+	$(POSTCOMPILE)
+
+loop_regrename.o: $(srcdir)/config/pic32c/loop_regrename.cc
+	$(COMPILE) $< -std=c++11
+	$(POSTCOMPILE)
+
 #Microchip common code
 cci.o: $(srcdir)/config/mchp-cci/cci.c $(srcdir)/config/mchp-cci/cci.h
 	$(COMPILER) -c $(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS) $(INCLUDES)\

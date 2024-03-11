@@ -21,3 +21,5 @@
 */
 
 INSERT_PASS_AFTER (pass_fast_rtl_dce, 1, pass_opt_imm_offset);
+INSERT_PASS_AFTER (pass_tree_loop_init, 1, pass_loop_exiting_edges);
+INSERT_PASS_AFTER (pass_regrename, 1, pass_loop_regrename);

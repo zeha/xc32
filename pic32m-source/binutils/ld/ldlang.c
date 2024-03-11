@@ -7814,14 +7814,16 @@ lang_process (void)
   /* Size up the common data.  */
   lang_common ();
 
+  /* open_input_bfds also handles assignments, so we can give values
+      to symbolic origin/length now. We need to run this now for
+      data_init_template to be correct. */
+  lang_do_memory_regions ();
+
   /* XC32E-661: bypass anything dinit-related when called with "-r".
      The lto-wrapper will call us with "-r" to extract some debug info only. */
 
   if (bfd_link_relocatable (&link_info))
     pic32_data_init = FALSE;
-
-  pic32_create_data_init_section_lists();
-  pic32_find_data_code_sections();
 
 #if defined (TARGET_IS_PIC32C)
   /* check that __pic32c_data_initialization is defined. if not, we must
@@ -7871,43 +7873,13 @@ lang_process (void)
   }
 #endif
 
-  /* open_input_bfds also handles assignments, so we can give values
-     to symbolic origin/length now. We need to run this now for
-	 data_init_template to be correct. */
-  lang_do_memory_regions ();
 
 #ifdef TARGET_IS_PIC32C
   bfd_boolean pic32_allocate_prev = pic32_allocate;
   pic32_init_alloc();
 #endif
 
-  pic32_create_data_init_template();
-
-  /* restore state from before lang_do_memory_regions it *may* break things,
-   * this is mostly paranoia */
-#ifdef TARGET_IS_PIC32C
-  memset(&region_info, 0, sizeof region_info);
-  pic32_allocate = pic32_allocate_prev;
 #endif
-
-  /* filling dinit - if we are in the final link, not LTO pass */
-  if (!bfd_link_relocatable (&link_info))
-  {
-    estimate_dinit_optim(&link_info);
-
-    /* Now that we know what optimizations dinit was able to do on the data
-      add a symbol to link the correct startup */
-    dinit_create_startup_symbols(&link_info);
-
-    /* Rescan BFDS now that symbol exists */
-    open_input_bfds (statement_list.head, OPEN_BFD_RESCAN);
-  }
-#endif
-
-  /* open_input_bfds also handles assignments, so we can give values
-     to symbolic origin/length now.  */
-  /* Run this again since we added the startup symbols, might not be necessary */
-  lang_do_memory_regions ();
 
 #ifdef ENABLE_PLUGINS
   if (link_info.lto_plugin_active)
@@ -7928,6 +7900,7 @@ lang_process (void)
       if (plugin_call_all_symbols_read ())
 	einfo (_("%F%P: %s: plugin reported error after all symbols read\n"),
 	       plugin_error_plugin ());
+      link_info.lto_all_symbols_read = TRUE;
       /* Open any newly added files, updating the file chains.  */
       open_input_bfds (*added.tail, OPEN_BFD_NORMAL);
       /* Restore the global list pointer now they have all been added.  */
@@ -8023,6 +7996,40 @@ lang_process (void)
         }
     }
 #endif /* ENABLE_PLUGINS */
+
+
+#if defined(TARGET_IS_PIC32C) || defined(TARGET_IS_PIC32MX)
+
+  /* filling dinit - if we are in the final link, not LTO pass */
+  if (!bfd_link_relocatable (&link_info))
+  {
+    pic32_create_data_init_section_lists();
+    pic32_find_data_code_sections();
+    
+    pic32_create_data_init_template();
+
+  /* restore state from before lang_do_memory_regions it *may* break things,
+   * this is mostly paranoia */
+#ifdef TARGET_IS_PIC32C
+  memset(&region_info, 0, sizeof region_info);
+  pic32_allocate = pic32_allocate_prev;
+#endif
+
+    estimate_dinit_optim(&link_info);
+
+    /* Now that we know what optimizations dinit was able to do on the data
+      add a symbol to link the correct startup */
+    dinit_create_startup_symbols(&link_info);
+
+    /* Rescan BFDS now that symbol exists */
+    open_input_bfds (statement_list.head, OPEN_BFD_RESCAN);
+
+    /* open_input_bfds also handles assignments, so we can give values
+      to symbolic origin/length now.  */
+    /* Run this again since we added the startup symbols, might not be necessary */
+    lang_do_memory_regions ();
+  }
+#endif
 
   /* process stack usage sections */
 #if defined(TARGET_IS_PIC32C) || defined(TARGET_IS_PIC32MX)

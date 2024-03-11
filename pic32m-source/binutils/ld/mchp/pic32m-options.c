@@ -70,6 +70,7 @@ static struct option pic32_longopts[] =
     { "inherit-application-info", required_argument, NULL, INHERIT_APPLICATION_INFO },
   { "mchp-stack-usage", no_argument, NULL, MCHP_STACK_USAGE },
   {"dinit-compression", required_argument, NULL, MCHP_DINIT_COMPRESS},
+  {"dinit-self-check", no_argument, NULL, MCHP_DINIT_SELF_CHECK},
   { NULL,        no_argument,       NULL, 0                }
 };
 
@@ -486,6 +487,9 @@ pic32m_parse_args (int argc, char ** argv)
           dinit_compress_level = DEFAULT_DINIT_LEVEL;
         }
         break;
+    case MCHP_DINIT_SELF_CHECK:
+      dinit_self_check = TRUE;
+      break;
 
 
 #endif /* TARGET_IS_PIC32MX */

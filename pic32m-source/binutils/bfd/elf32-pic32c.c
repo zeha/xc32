@@ -332,10 +332,16 @@ bfd_pic32_process_data_section (struct pic32_section *section, PTR fp)
 
 void  set_dinit_content(bfd* abfd, struct bfd_link_info* info);
 
+void check_dinit_content(struct bfd_link_info* info);
+
 bfd_boolean
 pic32c_elf_final_link (bfd *abfd, struct bfd_link_info *info)
 {
   set_dinit_content(abfd, info);
+
+  /* check dinit structure */
+  check_dinit_content(info);
+
   return TRUE;
 }
 

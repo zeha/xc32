@@ -914,6 +914,9 @@ allocate_memory (void)
      * the .dinit section is handled by allocate_program_memory
      */
     dinit_check_stubs();
+    /* dinit analysis finished, size of dinit section may have changed */
+    size_pic32_sections(unassigned_sections);
+
 
     result = allocate_program_memory();
     if (result != 0)
@@ -2384,8 +2387,6 @@ static void dinit_check_stubs() {
     pic32_append_section_to_list(unassigned_sections, init_template);
     pic32_append_section_to_list(unassigned_sections_master_copy,
                                  init_template);
-    /* We changed the size of a section in this list */
-    size_pic32_sections(unassigned_sections);
   }
   /* Finalize size with optimizations */
   estimate_dinit_merging();

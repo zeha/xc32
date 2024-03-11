@@ -145,6 +145,8 @@ extern void pic32c_emit_cc_section (const char *name);
 extern void pic32c_emit_su_section (const char *name);
 
 extern rtl_opt_pass *make_pass_opt_imm_offset (gcc::context *ctxt);
+extern rtl_opt_pass *make_pass_loop_exiting_edges (gcc::context *ctxt);
+extern rtl_opt_pass *make_pass_loop_regrename (gcc::context *ctxt);
 
 extern const char *pic32c_libexec_path;
 

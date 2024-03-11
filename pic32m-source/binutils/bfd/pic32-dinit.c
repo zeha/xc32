@@ -46,6 +46,9 @@ extern bfd_boolean  pic32_debug;
 */
 /* Set maximum as default */
 unsigned int dinit_compress_level = 3;
+
+/* Disable self check by default */
+bfd_boolean dinit_self_check = FALSE;
 /* Set to largest possible value to break tests in case real value isn't set
  * in fill_dinit_section
  */
@@ -540,6 +543,7 @@ bfd_pic32_process_merged_sections(struct pic32_section * const p32_start_sec, PT
   unsigned char sec_type = 0; /* =1 ->bss, =2 ->data */
   /* keep a local list with the sections that can be merged in dinit */
   struct pic32_section *merged_sec = NULL, *tmp;
+  uint32_t report_amount = 0;
 
   if (sect == NULL || (do_set && sect->output_section == NULL))
     return p32_start_sec->next;
@@ -616,14 +620,28 @@ bfd_pic32_process_merged_sections(struct pic32_section * const p32_start_sec, PT
                 crt_sec->sec->output_offset + crt_sec->sec->output_section->vma,
                 (unsigned int) crt_sec->sec->size);
       pic32_add_section_to_list(merged_sec, crt_sec->sec);
+
+      report_amount = saved_dinit;
+
+      /* If section to be merged can fit inside of the zero padding of the
+       * current section. This causes us to save another word. This only
+       * applies to DINIT_COPY sections.
+       */
+      if ((((4 - ((runtime_size - crt_sec->sec->size) % 4)) + sect->size) <= 4)
+          && crt_sec->dinit_type == DINIT_COPY
+          && !do_set)
+        saved_dinit += 4;
+
       if (!do_set) {
         saved_dinit += 12; /* HEADER size*/
+        report_amount = saved_dinit - report_amount;
         if (pic32_debug)
-          fprintf(stderr, ", saved 0xc\n");
+          fprintf(stderr, ", saved 0x%x\n", report_amount);
       } else
         if (pic32_debug)
           fprintf(stderr, "\n");
 
+      report_amount = 0;
       sect = crt_sec->sec;
       crt_sec = crt_sec->next;
     }
@@ -918,7 +936,7 @@ set_optimization_gain_min(bfd* ibfds)
        * would be better than magic numbers. These numbers were obtained
        * by manually checking the size with dissasembly of the library files.
        */
-      if (!strcmp(abfd->filename, DATA_INIT_OBJ)) {
+      if (!strcmp(basename(abfd->filename), DATA_INIT_OBJ)) {
 #ifdef TARGET_IS_PIC32MX
         if (_bfd_mips_is_micromips(abfd)) {
           min_gain_compression = 0x3e; /* bytes */
@@ -960,11 +978,16 @@ set_optimization_gain_min(bfd* ibfds)
         free(symbol_table);
 #endif
         break;
-      }
+        }
+    }
+    if (min_gain_compression == INT_MAX || min_gain_repeated_2b == INT_MAX
+        || min_gain_repeated_4b == INT_MAX)
+    {
+      fprintf (stderr,
+               "Warning: dinit optimization threshholds not set; dinit "
+               "may not function\n");
     }
 }
-
-
 
 void estimate_dinit_optim(struct bfd_link_info *info)
 {
@@ -1261,6 +1284,7 @@ void estimate_dinit_optim(struct bfd_link_info *info)
 
 bfd_size_type check_dinit_growth(struct bfd_link_info *link_info) {
   bfd_size_type dinit_size = 0;
+  uint32_t new_init_data_padding = 0;
   struct pic32_section* s_sec;
 
   if (!pic32_data_init)
@@ -1296,8 +1320,8 @@ bfd_size_type check_dinit_growth(struct bfd_link_info *link_info) {
       else
         dinit_size += ((s_sec->sec->size % 4)
                            ? (s_sec->sec->size + (4 - s_sec->sec->size % 4))
-                           : s_sec->sec->size) + 12;
-          
+                           : s_sec->sec->size)
+                          + 12;
     }
 
   if (pic32_debug)
@@ -1315,15 +1339,23 @@ bfd_size_type check_dinit_growth(struct bfd_link_info *link_info) {
    * untouched init_template which is cache aligned already
    */
   if (dinit_size % 16)
-    init_data_padding = 16 - (dinit_size % 16);
-  dinit_size += init_data_padding;
+    {
+      new_init_data_padding = 16 - (dinit_size % 16);
+      dinit_size += new_init_data_padding;
+    }
 
   if (pic32_debug)
     printf("  optim_dinit check_dinit_growth old_size 0x%x new_size 0x%x\n",
            init_template->size, dinit_size);
 
   if (dinit_size > init_template->size)
-    return dinit_size;
+    {
+      /* We are discarding/re-sizing dinit and will have a new value for
+       * 'original' padding before exclusions and merging in
+       * estimate_dinit_merging. */
+      init_data_padding = new_init_data_padding;
+      return dinit_size;
+    }
   else
     return 0;
 }
@@ -1331,9 +1363,7 @@ bfd_size_type check_dinit_growth(struct bfd_link_info *link_info) {
 void estimate_dinit_merging()
 {
   struct pic32_section  *s_sec;
-  bfd_size_type         dinit_size, saved_dinit_pre;
-  static unsigned run_count = 0;
-  run_count++;
+  bfd_size_type         dinit_size, saved_dinit_pre = 0;
 
   if (!pic32_data_init)
     return;
@@ -1370,12 +1400,12 @@ void estimate_dinit_merging()
             (s_sec->sec->size - dinit_get_compression_gain(s_sec->sec)) + 12;
     }
 
+  saved_dinit_pre = saved_dinit;
+
   if (dinit_compress_level > 0)
     {
       if (pic32_debug)
         fprintf (stderr, "\noptim_dinit estimate merging\n");
-
-      saved_dinit_pre = saved_dinit;
 
       /* scan sections and write data records */
           for (s_sec = data_sections; s_sec != NULL; )
@@ -1386,7 +1416,7 @@ void estimate_dinit_merging()
                 && (s_sec->sec->output_section != bfd_abs_section_ptr)
                 && (s_sec->sec->size > 0))
             {
-              s_sec =  bfd_pic32_process_merged_sections(s_sec, NULL, FALSE);
+              s_sec = bfd_pic32_process_merged_sections(s_sec, NULL, FALSE);
             }
             else if (!s_sec)
               break;
@@ -1403,17 +1433,21 @@ void estimate_dinit_merging()
   dinit_size = init_template->size - saved_dinit - init_data_padding;
 
   if (dinit_size % 16)
+  {
     init_data_padding = 16 - (dinit_size % 16);
-
-  dinit_size += init_data_padding;
-
-  if (pic32_debug) {
-	fprintf(stderr,
-			"  optim_dinit saved_dinit (merge) MERGE: 0x%lx, TOTAL: 0x%x, "
-			"SIZE: 0x%x\n",
-			saved_dinit - saved_dinit_pre, saved_dinit, dinit_size);
-	fprintf(stderr, "optim_dinit estimate merging done\n");
+    dinit_size += init_data_padding;
   }
+
+
+  if (pic32_debug)
+    {
+      fprintf (stderr,
+               "  optim_dinit saved_dinit (merge) MERGE: 0x%lx, TOTAL: 0x%x, "
+               "SIZE: 0x%x\n",
+               saved_dinit - saved_dinit_pre, saved_dinit, dinit_size);
+      if (dinit_compress_level > 0)
+        fprintf (stderr, "optim_dinit estimate merging done\n");
+    }
 
   /* We didn't allocate enough memory for the init template or optimized the
    * entire section away (underflow). It may be possible to recover from this
@@ -1640,9 +1674,157 @@ set_dinit_content(bfd *abfd, struct bfd_link_info *info)
                                  init_data, dinit_offset, dinit_size))
   {
       fprintf(stderr, "Link Error: can't write section %s contents\n",
-              dinit_sec->output_section->name);
+              dinit_sec->name);
       abort();
   }
 }
 
+  /*
+  * Simulate the consumption of .dinit section
+  * emit linker error if the structure is not valid
+  * the purpose of this check is to avoid 
+  * a runtime fault  
+  */
+void check_dinit_content(struct bfd_link_info *info);
+void check_dinit_content(struct bfd_link_info *info)
+{
+  asection            *dinit_sec;
+  bfd_size_type       dinit_size;
+  int32_t             i, j, padding_count;
+  uint32_t            *dinit_ptr;
+  uint8_t             *dinit_content;
+
+  if (!pic32_data_init)
+    return;
+
+  if(!dinit_self_check)
+    return;
+
+  BFD_ASSERT (init_template != NULL);
+
+  dinit_sec = init_template->output_section;
+  dinit_size = init_template->size;
+
+  dinit_content = (unsigned char *)malloc(dinit_size);
+
+  bfd_seek(dinit_sec->owner, 0, SEEK_SET);
+
+  if( !bfd_get_section_contents(dinit_sec->owner, dinit_sec, dinit_content,
+                                  init_template->output_offset, dinit_size))
+  {
+    fprintf(stderr, "Link Error: can't load section .dinit contents\n");
+    abort();
+  }
+
+  if (pic32_debug)
+    fprintf(stderr, "\noptim_dinit check: dinit size 0x%x\n", dinit_size);
+
+  for (i = 0, dinit_ptr = (uint32_t*)(dinit_content); i < dinit_size/4; )
+    {
+      uint32_t addr;       ///\ address to write to
+      int32_t length;      ///\ number of bytes to write
+      uint16_t entry_type; ///\ encoding type
+      uint8_t  *dat;
+      uint32_t delta;
+      /* check and consume termination sequence
+       *  pic32m 0x00000000
+       *  pic32c 0x00000000 0x00000000
+       */
+      if (*dinit_ptr == 0x0)
+        {
+#ifdef TARGET_IS_PIC32C
+          if (*(dinit_ptr+1) == 0x0)
+            {
+              i++;
+              dinit_ptr++;
+#endif
+          i++;
+          dinit_ptr++;
+          free (dinit_content);
+          /* We are at the end of dinit data now, count padding */
+          for (padding_count = 0; i < dinit_size/4;
+               i++,padding_count++,dinit_ptr++) {}
+
+          if (pic32_debug)
+            fprintf (stderr,
+                     "\n  optim_dinit check: padding amount: %d bytes\n",
+                     padding_count);
+          /* At most we need 3 words of padding for 16 byte alignment. We don't
+           * need to abort as this won't cause a runtime error, only waste space
+           */
+          if (padding_count > 3)
+            if (pic32_debug)
+              fprintf (stderr,
+                       "\b optim_dinit: Too much .dinit section padding: %d"
+                       " bytes\n",
+                       padding_count);
+          return;
+#ifdef TARGET_IS_PIC32C
+            }
+#endif
+        }
+
+      /* address - 4 bytes */
+      addr        = *dinit_ptr; dinit_ptr++;
+      length      = *dinit_ptr; dinit_ptr++;
+      entry_type  = (uint16_t)*dinit_ptr; dinit_ptr++;
+      i += 3;  /* dinit entry header length */
+
+      if (pic32_debug)
+        fprintf(stderr,
+                "\n  optim_dinit check: entry addr: 0x%lx size: 0x%lx type: "
+                "0x%lx\n",
+                (long unsigned int)addr, (long unsigned int)length,
+                (long unsigned int)entry_type);
+
+      switch (entry_type)
+        {
+        case DINIT_CLEAR:
+        case DINIT_COPY_VAL_EMB:
+          break;
+
+        case DINIT_COPY:
+          delta = (length/4) + ((length%4 != 0)? 1:0);
+          dinit_ptr += delta;
+          i += delta;
+          break;
+
+        case DINIT_COPY_VAL_DATA:
+          dinit_ptr++; i++;
+          break;
+
+        case DINIT_COMPRESSED:
+          for (j = 0, dat = (uint8_t*)dinit_ptr; j < length; )
+            {
+              if (*dat != 0)
+                {
+                  dat++; j++;
+                }
+              else
+                {
+                  dat++; j+= *dat++;
+                }
+            }
+          delta = (((uint32_t)dat - (uint32_t)dinit_ptr)/4 +
+                   ((((uint32_t)dat % 4) != 0) ? 1 : 0));
+          dinit_ptr += delta;
+          i += delta;
+          break;
+
+        default:
+          ///\ link error -> not expected type
+          fprintf(stderr, "Link Error: Unexpected .dinit entry type %d\n",
+                  (uint32_t)entry_type);
+          abort();
+          break;
+        }
+    }
+
+  /*
+   * malformed .dinit section
+   */
+  free (dinit_content);
+  fprintf(stderr, "Link Error: Malformed .dinit section\n");
+  abort();
+}
 #endif /* __PIC32_DINIT__ */
